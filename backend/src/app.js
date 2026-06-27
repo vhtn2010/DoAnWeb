@@ -2,6 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const {
+  isSupabaseConfigured,
+  testSupabaseConnection,
+} = require('./config/supabase');
 
 const app = express();
 
@@ -53,6 +57,20 @@ app.get('/api/tours', (req, res) => {
       },
     ],
   });
+});
+
+app.get('/api/supabase-test', async (req, res, next) => {
+  try {
+    const result = await testSupabaseConnection();
+
+    res.status(result.ok ? 200 : 500).json({
+      ok: result.ok,
+      configured: isSupabaseConfigured,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use((req, res) => {
