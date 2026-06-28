@@ -49,6 +49,95 @@ npm run db:migrate
 - `npm test`: chay test Node built-in
 - `npm run db:migrate`: chay migrate thu cong bang backend runner
 
+## Cloudinary core
+
+Backend da co san core upload anh Cloudinary de dung lai o service/controller ve sau:
+
+- `src/config/cloudinary.js`
+- `src/services/cloudinaryService.js`
+- `src/utils/cloudinary.js`
+
+Bien moi truong lien quan:
+
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_FOLDER`
+- `CLOUDINARY_REQUEST_TIMEOUT_MS`
+
+Vi du su dung:
+
+```js
+const {
+  buildImageUrl,
+  deleteImage,
+  uploadImage,
+} = require('./src/services/cloudinaryService');
+
+const uploaded = await uploadImage(
+  {
+    path: 'D:/tmp/hero.jpg',
+  },
+  {
+    folder: 'net-viet-travel/tours',
+    publicId: 'ha-long-hero',
+    tags: ['tour', 'hero'],
+  },
+);
+
+const imageUrl = buildImageUrl(uploaded.publicId, {
+  transformation: ['w_1200,h_800,c_fill', 'q_auto,f_auto'],
+});
+
+await deleteImage(uploaded.publicId);
+```
+
+## SendGrid core
+
+Backend da co san core gui mail SendGrid de dung lai o service/controller ve sau:
+
+- `src/config/sendgrid.js`
+- `src/services/sendgridService.js`
+- `src/utils/sendgrid.js`
+
+Bien moi truong lien quan:
+
+- `SENDGRID_API_KEY`
+- `SENDGRID_REQUEST_TIMEOUT_MS`
+- `MAIL_FROM_EMAIL`
+- `MAIL_FROM_NAME`
+
+Vi du su dung:
+
+```js
+const {
+  sendEmail,
+  sendTemplateEmail,
+} = require('./src/services/sendgridService');
+
+await sendEmail({
+  to: 'customer@example.com',
+  subject: 'Xac nhan dat tour',
+  html: '<strong>Cam on ban da dat tour</strong>',
+  text: 'Cam on ban da dat tour',
+  categories: ['booking', 'confirmation'],
+  customArgs: {
+    bookingId: 'BK-1001',
+  },
+});
+
+await sendTemplateEmail({
+  to: {
+    email: 'customer@example.com',
+    name: 'Nguyen Van A',
+  },
+  templateId: 'd-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  dynamicTemplateData: {
+    bookingCode: 'BK-1001',
+  },
+});
+```
+
 ## Endpoints
 
 - `GET /api/health`: kiem tra trang thai API
