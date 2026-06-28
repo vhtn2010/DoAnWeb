@@ -2,14 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { apiPrefix, corsOrigin, isTest } = require('./config');
 const {
   isSupabaseConfigured,
   testSupabaseConnection,
 } = require('./config/supabase');
 
 const app = express();
-
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
 app.use(helmet());
 app.use(
@@ -19,11 +18,11 @@ app.use(
 );
 app.use(express.json());
 
-if (process.env.NODE_ENV !== 'test') {
+if (!isTest) {
   app.use(morgan('dev'));
 }
 
-app.get('/api/health', (req, res) => {
+app.get(`${apiPrefix}/health`, (req, res) => {
   res.json({
     status: 'ok',
     service: 'net-viet-travel-api',
@@ -31,7 +30,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/tours', (req, res) => {
+app.get(`${apiPrefix}/tours`, (req, res) => {
   res.json({
     data: [
       {
@@ -59,7 +58,7 @@ app.get('/api/tours', (req, res) => {
   });
 });
 
-app.get('/api/supabase-test', async (req, res, next) => {
+app.get(`${apiPrefix}/supabase-test`, async (req, res, next) => {
   try {
     const result = await testSupabaseConnection();
 

@@ -5,6 +5,7 @@ const test = require('node:test');
 process.env.NODE_ENV = 'test';
 
 const app = require('../app');
+const { apiPrefix } = require('../config');
 
 const request = (server, path) =>
   new Promise((resolve, reject) => {
@@ -31,7 +32,7 @@ test('GET /api/health returns service status', async () => {
   const server = app.listen(0);
 
   try {
-    const response = await request(server, '/api/health');
+    const response = await request(server, `${apiPrefix}/health`);
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.status, 'ok');

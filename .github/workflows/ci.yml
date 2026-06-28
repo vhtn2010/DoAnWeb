@@ -13,6 +13,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  database:
+    name: Database Migration Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate backend migration
+        run: npm --prefix backend run db:validate-migration
+
+      - name: Sync Supabase migration mirror
+        run: npm run db:sync
+
+      - name: Ensure Supabase migration mirror is committed
+        run: git diff --exit-code -- supabase/migrations
+
   frontend:
     name: Frontend Lint and Build
     runs-on: ubuntu-latest

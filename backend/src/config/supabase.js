@@ -1,7 +1,6 @@
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const { supabase } = require('./index');
 
-const isSupabaseConfigured = Boolean(supabaseUrl && supabaseServiceRoleKey);
+const isSupabaseConfigured = supabase.isConfigured;
 
 const testSupabaseConnection = async () => {
   if (!isSupabaseConfigured) {
@@ -12,11 +11,11 @@ const testSupabaseConnection = async () => {
     };
   }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+  const response = await fetch(`${supabase.url}/rest/v1/`, {
     method: 'GET',
     headers: {
-      apikey: supabaseServiceRoleKey,
-      Authorization: `Bearer ${supabaseServiceRoleKey}`,
+      apikey: supabase.serviceRoleKey,
+      Authorization: `Bearer ${supabase.serviceRoleKey}`,
     },
   });
 
