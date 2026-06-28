@@ -437,7 +437,7 @@ Thông tin riêng của tour.
 | destination_location | VARCHAR(255) | NOT NULL | Điểm đến chính |
 | duration_days | SMALLINT | NOT NULL | Số ngày |
 | duration_nights | SMALLINT | NOT NULL | Số đêm |
-| transport_type | VARCHAR(50) | NOT NULL | bus, flight, train, car, ship, mixed |
+| transport_type | transport_type | ENUM, NOT NULL | bus, flight, train, car, ship, mixed |
 | max_group_size | INTEGER | NULL | Số khách tối đa |
 | departure_schedule | JSONB | NULL | Danh sách ngày khởi hành |
 | itinerary | JSONB | NULL | Lịch trình từng ngày |
@@ -524,11 +524,11 @@ Thông tin chuyến bay/vé máy bay.
 | arrival_airport | VARCHAR(150) | NOT NULL | Sân bay đến |
 | departure_at | TIMESTAMPTZ | NOT NULL | Thời gian khởi hành |
 | arrival_at | TIMESTAMPTZ | NOT NULL | Thời gian đến |
-| cabin_class | VARCHAR(50) | NOT NULL | Hạng vé |
+| cabin_class | cabin_class | ENUM, NOT NULL | Hạng vé |
 | seats_total | INTEGER | NOT NULL | Tổng số ghế |
 | seats_available | INTEGER | NOT NULL | Số ghế còn lại |
 | fare_price | NUMERIC(14,2) | NOT NULL | Giá vé |
-| status | VARCHAR(30) | NOT NULL | open, full, cancelled, departed, completed |
+| status | transport_schedule_status | ENUM, NOT NULL | open, full, cancelled, departed, completed |
 
 **cabin_class có nhiều trạng thái:**
 
@@ -558,11 +558,11 @@ Thông tin chuyến tàu/vé tàu.
 | arrival_station | VARCHAR(150) | NOT NULL | Ga đến |
 | departure_at | TIMESTAMPTZ | NOT NULL | Thời gian khởi hành |
 | arrival_at | TIMESTAMPTZ | NOT NULL | Thời gian đến |
-| seat_class | VARCHAR(50) | NOT NULL | Loại ghế/giường |
+| seat_class | seat_class | ENUM, NOT NULL | Loại ghế/giường |
 | seats_total | INTEGER | NOT NULL | Tổng số ghế |
 | seats_available | INTEGER | NOT NULL | Số ghế còn |
 | fare_price | NUMERIC(14,2) | NOT NULL | Giá vé |
-| status | VARCHAR(30) | NOT NULL | open, full, cancelled, departed, completed |
+| status | transport_schedule_status | ENUM, NOT NULL | open, full, cancelled, departed, completed |
 
 **seat_class có nhiều trạng thái:**
 
@@ -760,8 +760,8 @@ Lưu giao dịch thanh toán.
 | id | UUID | PK | Giao dịch |
 | booking_id | UUID | FK → bookings.id, NOT NULL | Booking được thanh toán |
 | payment_code | VARCHAR(50) | UNIQUE, NOT NULL | Mã giao dịch nội bộ |
-| provider | VARCHAR(30) | NOT NULL | vnpay, momo, visa, mastercard, bank_transfer |
-| payment_method | VARCHAR(30) | NOT NULL | e_wallet, card, qr, bank_transfer |
+| provider | payment_provider | ENUM, NOT NULL | direct, vnpay, momo, visa, mastercard, bank_transfer |
+| payment_method | payment_method | ENUM, NOT NULL | e_wallet, card, qr, bank_transfer, cash_at_office, manual_bank_transfer, staff_collect |
 | status | payment_status | ENUM, NOT NULL | Trạng thái thanh toán |
 | amount | NUMERIC(14,2) | NOT NULL | Số tiền thanh toán |
 | currency | CHAR(3) | DEFAULT VND | Tiền tệ |
@@ -852,7 +852,7 @@ Lưu mã giảm giá.
 | id | UUID | PK | Voucher |
 | promotion_id | UUID | FK → promotions.id, NOT NULL | Chương trình khuyến mãi |
 | code | VARCHAR(50) | UNIQUE, NOT NULL | Mã voucher |
-| discount_type | VARCHAR(30) | NOT NULL | percent, fixed_amount |
+| discount_type | discount_type | ENUM, NOT NULL | percent, fixed_amount |
 | discount_value | NUMERIC(14,2) | NOT NULL | Giá trị giảm |
 | max_discount_amount | NUMERIC(14,2) | NULL | Mức giảm tối đa |
 | min_order_amount | NUMERIC(14,2) | DEFAULT 0 | Giá trị đơn tối thiểu |
@@ -900,7 +900,7 @@ Lưu yêu cầu tư vấn/hỗ trợ.
 | customer_phone | VARCHAR(20) | NULL | Số điện thoại người gửi |
 | subject | VARCHAR(255) | NOT NULL | Chủ đề hỗ trợ |
 | status | support_ticket_status | ENUM, NOT NULL | Trạng thái ticket |
-| priority | VARCHAR(20) | NOT NULL, DEFAULT normal | low, normal, high, urgent |
+| priority | support_ticket_priority | ENUM, NOT NULL, DEFAULT normal | low, normal, high, urgent |
 | assigned_to | UUID | FK → users.id, NULL | Nhân viên phụ trách |
 | created_at | TIMESTAMPTZ | NOT NULL | Ngày tạo |
 | updated_at | TIMESTAMPTZ | NOT NULL | Ngày cập nhật |
@@ -919,7 +919,7 @@ Lưu phản hồi trong ticket hỗ trợ.
 | id | UUID | PK | Phản hồi |
 | ticket_id | UUID | FK → support_tickets.id, NOT NULL | Ticket |
 | sender_id | UUID | FK → users.id, NULL | Người gửi, null nếu khách vãng lai |
-| sender_type | VARCHAR(30) | NOT NULL | customer, staff, admin, system |
+| sender_type | sender_type | ENUM, NOT NULL | customer, staff, admin, system |
 | message | TEXT | NOT NULL | Nội dung phản hồi |
 | is_internal_note | BOOLEAN | DEFAULT false | Ghi chú nội bộ |
 | created_at | TIMESTAMPTZ | NOT NULL | Thời điểm gửi |
@@ -958,7 +958,7 @@ Lưu thông báo in-app/push cho người dùng.
 | user_id | UUID | FK → users.id, NULL | Người nhận; null nếu broadcast |
 | title | VARCHAR(255) | NOT NULL | Tiêu đề |
 | body | TEXT | NOT NULL | Nội dung |
-| type | VARCHAR(50) | NOT NULL | booking_status, support_reply, promotion, payment, system |
+| type | notification_type | ENUM, NOT NULL | booking_status, support_reply, promotion, payment, system |
 | status | notification_status | ENUM, NOT NULL | Trạng thái gửi/đọc |
 | related_entity_name | VARCHAR(100) | NULL | Tên tài nguyên liên quan |
 | related_entity_id | UUID | NULL | ID tài nguyên liên quan |

@@ -13,10 +13,10 @@ That mirror is refreshed by:
 What is included:
 
 - 25 tables from the design document
-- 13 core PostgreSQL enum types
+- 23 PostgreSQL enum and shared lookup types
 - Foreign keys, unique constraints, business check constraints, and the documented indexes
 - Seed data for `roles`, `permissions`, and default `role_permissions`
-- Core helper functions and triggers for `updated_at`, protected system users, booking status history, voucher validation, inventory decrease, notifications, and payment email logs
+- Core helper functions and triggers for `updated_at`, protected system users, shared status transition validation, booking status history, voucher validation, inventory decrease, notifications, and payment email logs
 
 Companion rollback file:
 

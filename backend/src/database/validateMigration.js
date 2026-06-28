@@ -51,6 +51,16 @@ const expectedEnums = [
   'support_ticket_status',
   'notification_status',
   'email_status',
+  'transport_type',
+  'cabin_class',
+  'transport_schedule_status',
+  'seat_class',
+  'discount_type',
+  'payment_provider',
+  'payment_method',
+  'support_ticket_priority',
+  'sender_type',
+  'notification_type',
 ];
 
 const expectedIndexes = [
@@ -68,6 +78,7 @@ const expectedIndexes = [
   'idx_train_details_departure_at',
   'idx_service_images_service_id',
   'idx_carts_user_status',
+  'uq_carts_one_active_per_user',
   'idx_cart_items_cart_id',
   'idx_cart_items_service_id',
   'idx_bookings_user_status',
@@ -83,6 +94,7 @@ const expectedIndexes = [
   'idx_support_tickets_assigned_status',
   'idx_notifications_user_status',
   'idx_email_logs_user_status',
+  'uq_service_images_one_primary_per_service',
 ];
 
 const expectedFunctions = [
@@ -91,6 +103,9 @@ const expectedFunctions = [
   'write_user_log',
   'set_updated_at',
   'prevent_delete_system_admin',
+  'validate_booking_status_transition',
+  'validate_payment_status_transition',
+  'validate_refund_status_transition',
   'log_booking_status_change',
   'validate_voucher_usage',
   'decrease_inventory_after_confirm',
@@ -126,7 +141,7 @@ for (const indexName of expectedIndexes) {
   expectCreate(
     'index',
     indexName,
-    new RegExp(`CREATE INDEX IF NOT EXISTS ${indexName}\\b`, 'i'),
+    new RegExp(`CREATE (UNIQUE )?INDEX IF NOT EXISTS ${indexName}\\b`, 'i'),
   );
 }
 

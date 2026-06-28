@@ -3,10 +3,18 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { apiPrefix, corsOrigin, isTest } = require('./config');
+const apiResponse = require('./middleware/apiResponse');
+const asyncHandler = require('./middleware/asyncHandler');
+const { errorHandler } = require('./middleware/errorHandler');
+const notFoundHandler = require('./middleware/notFoundHandler');
 const {
   isSupabaseConfigured,
   testSupabaseConnection,
 } = require('./config/supabase');
+const {
+  API_ERROR_CODES,
+  SUPABASE_CONNECTION_STATUS,
+} = require('./constants/domainConstraints');
 
 const app = express();
 
@@ -16,6 +24,7 @@ app.use(
     origin: corsOrigin,
   }),
 );
+app.use(apiResponse);
 app.use(express.json());
 
 if (!isTest) {
@@ -23,15 +32,18 @@ if (!isTest) {
 }
 
 app.get(`${apiPrefix}/health`, (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'net-viet-travel-api',
-    timestamp: new Date().toISOString(),
+  res.success({
+    data: {
+      status: 'ok',
+      service: 'net-viet-travel-api',
+      timestamp: new Date().toISOString(),
+    },
+    message: 'Service is healthy',
   });
 });
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
-  res.json({
+  res.success({
     data: [
       {
         id: 'ha-long-3n2d',
@@ -55,35 +67,44 @@ app.get(`${apiPrefix}/tours`, (req, res) => {
         priceFrom: 1890000,
       },
     ],
+    message: 'Fetched tours successfully',
   });
 });
 
-app.get(`${apiPrefix}/supabase-test`, async (req, res, next) => {
-  try {
+app.get(
+  `${apiPrefix}/supabase-test`,
+  asyncHandler(async (req, res) => {
     const result = await testSupabaseConnection();
 
-    res.status(result.ok ? 200 : 500).json({
-      ok: result.ok,
-      configured: isSupabaseConfigured,
-      ...result,
+    if (!result.ok) {
+      const isNotConfigured =
+        result.status === SUPABASE_CONNECTION_STATUS.NOT_CONFIGURED;
+
+      res.error({
+        code: isNotConfigured
+          ? API_ERROR_CODES.SUPABASE_NOT_CONFIGURED
+          : API_ERROR_CODES.SUPABASE_CONNECTION_FAILED,
+        details: {
+          configured: isSupabaseConfigured,
+          status: result.status,
+        },
+        message: result.message,
+        statusCode: isNotConfigured ? 503 : 502,
+      });
+      return;
+    }
+
+    res.success({
+      data: {
+        configured: isSupabaseConfigured,
+        status: result.status,
+      },
+      message: result.message,
     });
-  } catch (error) {
-    next(error);
-  }
-});
+  }),
+);
 
-app.use((req, res) => {
-  res.status(404).json({
-    message: 'Route not found',
-  });
-});
-
-app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
-
-  res.status(statusCode).json({
-    message: err.message || 'Internal server error',
-  });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;

@@ -208,6 +208,143 @@ BEGIN
 END
 $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transport_type') THEN
+    CREATE TYPE transport_type AS ENUM (
+      'bus',
+      'flight',
+      'train',
+      'car',
+      'ship',
+      'mixed'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'cabin_class') THEN
+    CREATE TYPE cabin_class AS ENUM (
+      'economy',
+      'premium_economy',
+      'business',
+      'first'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transport_schedule_status') THEN
+    CREATE TYPE transport_schedule_status AS ENUM (
+      'open',
+      'full',
+      'cancelled',
+      'departed',
+      'completed'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'seat_class') THEN
+    CREATE TYPE seat_class AS ENUM (
+      'hard_seat',
+      'soft_seat',
+      'sleeper',
+      'vip'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'discount_type') THEN
+    CREATE TYPE discount_type AS ENUM (
+      'percent',
+      'fixed_amount'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_provider') THEN
+    CREATE TYPE payment_provider AS ENUM (
+      'direct',
+      'vnpay',
+      'momo',
+      'visa',
+      'mastercard',
+      'bank_transfer'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method') THEN
+    CREATE TYPE payment_method AS ENUM (
+      'e_wallet',
+      'card',
+      'qr',
+      'bank_transfer',
+      'cash_at_office',
+      'manual_bank_transfer',
+      'staff_collect'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'support_ticket_priority') THEN
+    CREATE TYPE support_ticket_priority AS ENUM (
+      'low',
+      'normal',
+      'high',
+      'urgent'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sender_type') THEN
+    CREATE TYPE sender_type AS ENUM (
+      'customer',
+      'staff',
+      'admin',
+      'system'
+    );
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type') THEN
+    CREATE TYPE notification_type AS ENUM (
+      'booking_status',
+      'support_reply',
+      'promotion',
+      'payment',
+      'system'
+    );
+  END IF;
+END
+$$;
+
 CREATE TABLE IF NOT EXISTS roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code VARCHAR(50) NOT NULL UNIQUE,
@@ -244,6 +381,11 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   deleted_at TIMESTAMPTZ NULL,
+  CONSTRAINT chk_users_deleted_state
+    CHECK (
+      (status = 'deleted' AND deleted_at IS NOT NULL)
+      OR (status <> 'deleted' AND deleted_at IS NULL)
+    ),
   CONSTRAINT chk_users_system_protected_soft_delete
     CHECK (is_system_protected = FALSE OR deleted_at IS NULL)
 );
@@ -289,7 +431,19 @@ CREATE TABLE IF NOT EXISTS services (
   approved_at TIMESTAMPTZ NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
-  deleted_at TIMESTAMPTZ NULL
+  deleted_at TIMESTAMPTZ NULL,
+  CONSTRAINT chk_services_sale_price
+    CHECK (sale_price IS NULL OR sale_price <= base_price),
+  CONSTRAINT chk_services_deleted_state
+    CHECK (
+      (status = 'deleted' AND deleted_at IS NOT NULL)
+      OR (status <> 'deleted' AND deleted_at IS NULL)
+    ),
+  CONSTRAINT chk_services_approval_audit
+    CHECK (
+      (approved_by IS NULL AND approved_at IS NULL)
+      OR (approved_by IS NOT NULL AND approved_at IS NOT NULL)
+    )
 );
 
 CREATE TABLE IF NOT EXISTS tour_details (
@@ -298,15 +452,13 @@ CREATE TABLE IF NOT EXISTS tour_details (
   destination_location VARCHAR(255) NOT NULL,
   duration_days SMALLINT NOT NULL CHECK (duration_days > 0),
   duration_nights SMALLINT NOT NULL CHECK (duration_nights >= 0),
-  transport_type VARCHAR(50) NOT NULL,
+  transport_type transport_type NOT NULL,
   max_group_size INTEGER NULL CHECK (max_group_size IS NULL OR max_group_size > 0),
   departure_schedule JSONB NULL,
   itinerary JSONB NULL,
   included_services TEXT NULL,
   excluded_services TEXT NULL,
-  terms TEXT NULL,
-  CONSTRAINT chk_tour_details_transport_type
-    CHECK (transport_type IN ('bus', 'flight', 'train', 'car', 'ship', 'mixed'))
+  terms TEXT NULL
 );
 
 CREATE TABLE IF NOT EXISTS hotel_details (
@@ -346,17 +498,15 @@ CREATE TABLE IF NOT EXISTS flight_details (
   arrival_airport VARCHAR(150) NOT NULL,
   departure_at TIMESTAMPTZ NOT NULL,
   arrival_at TIMESTAMPTZ NOT NULL,
-  cabin_class VARCHAR(50) NOT NULL,
+  cabin_class cabin_class NOT NULL,
   seats_total INTEGER NOT NULL CHECK (seats_total >= 0),
   seats_available INTEGER NOT NULL,
   fare_price NUMERIC(14, 2) NOT NULL CHECK (fare_price >= 0),
-  status VARCHAR(30) NOT NULL,
+  status transport_schedule_status NOT NULL,
   CONSTRAINT chk_flight_details_inventory
     CHECK (seats_available >= 0 AND seats_available <= seats_total),
-  CONSTRAINT chk_flight_details_cabin_class
-    CHECK (cabin_class IN ('economy', 'premium_economy', 'business', 'first')),
-  CONSTRAINT chk_flight_details_status
-    CHECK (status IN ('open', 'full', 'cancelled', 'departed', 'completed'))
+  CONSTRAINT chk_flight_details_schedule
+    CHECK (arrival_at > departure_at)
 );
 
 CREATE TABLE IF NOT EXISTS train_details (
@@ -367,17 +517,15 @@ CREATE TABLE IF NOT EXISTS train_details (
   arrival_station VARCHAR(150) NOT NULL,
   departure_at TIMESTAMPTZ NOT NULL,
   arrival_at TIMESTAMPTZ NOT NULL,
-  seat_class VARCHAR(50) NOT NULL,
+  seat_class seat_class NOT NULL,
   seats_total INTEGER NOT NULL CHECK (seats_total >= 0),
   seats_available INTEGER NOT NULL,
   fare_price NUMERIC(14, 2) NOT NULL CHECK (fare_price >= 0),
-  status VARCHAR(30) NOT NULL,
+  status transport_schedule_status NOT NULL,
   CONSTRAINT chk_train_details_inventory
     CHECK (seats_available >= 0 AND seats_available <= seats_total),
-  CONSTRAINT chk_train_details_seat_class
-    CHECK (seat_class IN ('hard_seat', 'soft_seat', 'sleeper', 'vip')),
-  CONSTRAINT chk_train_details_status
-    CHECK (status IN ('open', 'full', 'cancelled', 'departed', 'completed'))
+  CONSTRAINT chk_train_details_schedule
+    CHECK (arrival_at > departure_at)
 );
 
 CREATE TABLE IF NOT EXISTS service_images (
@@ -418,7 +566,7 @@ CREATE TABLE IF NOT EXISTS vouchers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   promotion_id UUID NOT NULL REFERENCES promotions (id),
   code VARCHAR(50) NOT NULL UNIQUE,
-  discount_type VARCHAR(30) NOT NULL,
+  discount_type discount_type NOT NULL,
   discount_value NUMERIC(14, 2) NOT NULL CHECK (discount_value > 0),
   max_discount_amount NUMERIC(14, 2) NULL CHECK (max_discount_amount IS NULL OR max_discount_amount > 0),
   min_order_amount NUMERIC(14, 2) NOT NULL DEFAULT 0 CHECK (min_order_amount >= 0),
@@ -429,8 +577,10 @@ CREATE TABLE IF NOT EXISTS vouchers (
   valid_from TIMESTAMPTZ NOT NULL,
   valid_to TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
-  CONSTRAINT chk_vouchers_discount_type
-    CHECK (discount_type IN ('percent', 'fixed_amount')),
+  CONSTRAINT chk_vouchers_discount_bounds
+    CHECK (discount_type <> 'percent' OR discount_value <= 100),
+  CONSTRAINT chk_vouchers_usage_limit
+    CHECK (usage_limit_total IS NULL OR used_count <= usage_limit_total),
   CONSTRAINT chk_vouchers_valid_window
     CHECK (valid_to >= valid_from)
 );
@@ -453,7 +603,13 @@ CREATE TABLE IF NOT EXISTS bookings (
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   CONSTRAINT chk_bookings_amounts
-    CHECK (subtotal_amount >= 0 AND discount_amount >= 0 AND total_amount >= 0)
+    CHECK (
+      subtotal_amount >= 0
+      AND discount_amount >= 0
+      AND total_amount >= 0
+      AND discount_amount <= subtotal_amount
+      AND total_amount = subtotal_amount - discount_amount
+    )
 );
 
 CREATE TABLE IF NOT EXISTS cart_items (
@@ -467,7 +623,9 @@ CREATE TABLE IF NOT EXISTS cart_items (
   quantity INTEGER NOT NULL CHECK (quantity > 0),
   unit_price_snapshot NUMERIC(14, 2) NOT NULL CHECK (unit_price_snapshot >= 0),
   options JSONB NULL,
-  created_at TIMESTAMPTZ NOT NULL
+  created_at TIMESTAMPTZ NOT NULL,
+  CONSTRAINT chk_cart_items_time_window
+    CHECK (start_at IS NULL OR end_at IS NULL OR end_at >= start_at)
 );
 
 CREATE TABLE IF NOT EXISTS booking_items (
@@ -484,7 +642,11 @@ CREATE TABLE IF NOT EXISTS booking_items (
   total_amount NUMERIC(14, 2) NOT NULL CHECK (total_amount >= 0),
   status booking_item_status NOT NULL,
   traveller_info JSONB NULL,
-  service_snapshot JSONB NOT NULL
+  service_snapshot JSONB NOT NULL,
+  CONSTRAINT chk_booking_items_amounts
+    CHECK (total_amount = unit_price * quantity),
+  CONSTRAINT chk_booking_items_time_window
+    CHECK (start_at IS NULL OR end_at IS NULL OR end_at >= start_at)
 );
 
 CREATE TABLE IF NOT EXISTS booking_status_histories (
@@ -503,8 +665,8 @@ CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id UUID NOT NULL REFERENCES bookings (id),
   payment_code VARCHAR(50) NOT NULL UNIQUE,
-  provider VARCHAR(30) NOT NULL,
-  payment_method VARCHAR(30) NOT NULL,
+  provider payment_provider NOT NULL,
+  payment_method payment_method NOT NULL,
   status payment_status NOT NULL,
   amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0),
   currency CHAR(3) NOT NULL DEFAULT 'VND',
@@ -516,10 +678,16 @@ CREATE TABLE IF NOT EXISTS payments (
   expired_at TIMESTAMPTZ NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
-  CONSTRAINT chk_payments_provider
-    CHECK (provider IN ('vnpay', 'momo', 'visa', 'mastercard', 'bank_transfer')),
-  CONSTRAINT chk_payments_method
-    CHECK (payment_method IN ('e_wallet', 'card', 'qr', 'bank_transfer'))
+  CONSTRAINT chk_payments_direct_method
+    CHECK (
+      provider <> 'direct'
+      OR payment_method IN ('cash_at_office', 'manual_bank_transfer', 'staff_collect')
+    ),
+  CONSTRAINT chk_payments_status_timestamps
+    CHECK (
+      (status NOT IN ('success', 'reconciled', 'partially_refunded', 'refunded') OR paid_at IS NOT NULL)
+      AND (status <> 'expired' OR expired_at IS NOT NULL)
+    )
 );
 
 CREATE TABLE IF NOT EXISTS refunds (
@@ -535,7 +703,9 @@ CREATE TABLE IF NOT EXISTS refunds (
   provider_refund_id VARCHAR(150) NULL,
   raw_response JSONB NULL,
   processed_at TIMESTAMPTZ NULL,
-  created_at TIMESTAMPTZ NOT NULL
+  created_at TIMESTAMPTZ NOT NULL,
+  CONSTRAINT chk_refunds_processed_at
+    CHECK (status <> 'success' OR processed_at IS NOT NULL)
 );
 
 CREATE TABLE IF NOT EXISTS support_tickets (
@@ -549,25 +719,30 @@ CREATE TABLE IF NOT EXISTS support_tickets (
   customer_phone VARCHAR(20) NULL,
   subject VARCHAR(255) NOT NULL,
   status support_ticket_status NOT NULL,
-  priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+  priority support_ticket_priority NOT NULL DEFAULT 'normal',
   assigned_to UUID NULL REFERENCES users (id),
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   closed_at TIMESTAMPTZ NULL,
-  CONSTRAINT chk_support_tickets_priority
-    CHECK (priority IN ('low', 'normal', 'high', 'urgent'))
+  CONSTRAINT chk_support_tickets_guest_contact
+    CHECK (
+      user_id IS NOT NULL
+      OR (customer_name IS NOT NULL AND customer_email IS NOT NULL)
+    ),
+  CONSTRAINT chk_support_tickets_closed_state
+    CHECK (closed_at IS NULL OR status IN ('resolved', 'closed', 'spam'))
 );
 
 CREATE TABLE IF NOT EXISTS support_replies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ticket_id UUID NOT NULL REFERENCES support_tickets (id),
   sender_id UUID NULL REFERENCES users (id),
-  sender_type VARCHAR(30) NOT NULL,
+  sender_type sender_type NOT NULL,
   message TEXT NOT NULL,
   is_internal_note BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL,
-  CONSTRAINT chk_support_replies_sender_type
-    CHECK (sender_type IN ('customer', 'staff', 'admin', 'system'))
+  CONSTRAINT chk_support_replies_internal_note
+    CHECK (sender_type <> 'customer' OR is_internal_note = FALSE)
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -575,13 +750,20 @@ CREATE TABLE IF NOT EXISTS notifications (
   user_id UUID NULL REFERENCES users (id),
   title VARCHAR(255) NOT NULL,
   body TEXT NOT NULL,
-  type VARCHAR(50) NOT NULL,
+  type notification_type NOT NULL,
   status notification_status NOT NULL,
   related_entity_name VARCHAR(100) NULL,
   related_entity_id UUID NULL,
   sent_at TIMESTAMPTZ NULL,
   read_at TIMESTAMPTZ NULL,
-  created_at TIMESTAMPTZ NOT NULL
+  created_at TIMESTAMPTZ NOT NULL,
+  CONSTRAINT chk_notifications_read_state
+    CHECK (
+      (status = 'read' AND read_at IS NOT NULL)
+      OR (status <> 'read' AND read_at IS NULL)
+    ),
+  CONSTRAINT chk_notifications_sent_state
+    CHECK (status NOT IN ('sent', 'delivered', 'read') OR sent_at IS NOT NULL)
 );
 
 CREATE TABLE IF NOT EXISTS email_logs (
@@ -596,7 +778,9 @@ CREATE TABLE IF NOT EXISTS email_logs (
   provider_message_id VARCHAR(150) NULL,
   error_message TEXT NULL,
   sent_at TIMESTAMPTZ NULL,
-  created_at TIMESTAMPTZ NOT NULL
+  created_at TIMESTAMPTZ NOT NULL,
+  CONSTRAINT chk_email_logs_sent_state
+    CHECK (status NOT IN ('sent', 'delivered', 'opened') OR sent_at IS NOT NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_role_id ON users (role_id);
@@ -613,6 +797,9 @@ CREATE INDEX IF NOT EXISTS idx_train_details_service_id ON train_details (servic
 CREATE INDEX IF NOT EXISTS idx_train_details_departure_at ON train_details (departure_at);
 CREATE INDEX IF NOT EXISTS idx_service_images_service_id ON service_images (service_id);
 CREATE INDEX IF NOT EXISTS idx_carts_user_status ON carts (user_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_carts_one_active_per_user
+  ON carts (user_id)
+  WHERE status = 'active';
 CREATE INDEX IF NOT EXISTS idx_cart_items_cart_id ON cart_items (cart_id);
 CREATE INDEX IF NOT EXISTS idx_cart_items_service_id ON cart_items (service_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_user_status ON bookings (user_id, status);
@@ -628,6 +815,9 @@ CREATE INDEX IF NOT EXISTS idx_support_tickets_user_status ON support_tickets (u
 CREATE INDEX IF NOT EXISTS idx_support_tickets_assigned_status ON support_tickets (assigned_to, status);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_status ON notifications (user_id, status);
 CREATE INDEX IF NOT EXISTS idx_email_logs_user_status ON email_logs (user_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_service_images_one_primary_per_service
+  ON service_images (service_id)
+  WHERE is_primary = TRUE;
 
 CREATE OR REPLACE FUNCTION app_setting_text(p_key TEXT)
 RETURNS TEXT
@@ -723,6 +913,78 @@ BEGIN
 
   IF TG_OP = 'DELETE' THEN
     RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION validate_booking_status_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    RETURN NEW;
+  END IF;
+
+  IF NOT (
+    (OLD.status = 'pending_payment' AND NEW.status IN ('payment_processing', 'paid', 'expired', 'cancelled', 'failed'))
+    OR (OLD.status = 'payment_processing' AND NEW.status IN ('paid', 'expired', 'cancelled', 'failed'))
+    OR (OLD.status = 'paid' AND NEW.status IN ('confirmed', 'refund_pending', 'cancelled'))
+    OR (OLD.status = 'confirmed' AND NEW.status IN ('in_progress', 'completed', 'cancel_requested', 'cancelled'))
+    OR (OLD.status = 'in_progress' AND NEW.status IN ('completed', 'cancel_requested'))
+    OR (OLD.status = 'cancel_requested' AND NEW.status IN ('cancelled', 'confirmed', 'refund_pending'))
+    OR (OLD.status = 'refund_pending' AND NEW.status IN ('partially_refunded', 'refunded', 'cancelled'))
+    OR (OLD.status = 'partially_refunded' AND NEW.status IN ('refunded', 'completed'))
+    OR (OLD.status = 'completed' AND NEW.status IN ('refund_pending'))
+  ) THEN
+    RAISE EXCEPTION 'invalid booking status transition: % -> %', OLD.status, NEW.status;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION validate_payment_status_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    RETURN NEW;
+  END IF;
+
+  IF NOT (
+    (OLD.status = 'initiated' AND NEW.status IN ('pending', 'processing', 'success', 'failed', 'cancelled', 'expired'))
+    OR (OLD.status = 'pending' AND NEW.status IN ('processing', 'success', 'failed', 'cancelled', 'expired'))
+    OR (OLD.status = 'processing' AND NEW.status IN ('success', 'failed', 'cancelled', 'expired'))
+    OR (OLD.status = 'success' AND NEW.status IN ('reconciled', 'partially_refunded', 'refunded'))
+    OR (OLD.status = 'reconciled' AND NEW.status IN ('partially_refunded', 'refunded'))
+    OR (OLD.status = 'partially_refunded' AND NEW.status IN ('refunded'))
+  ) THEN
+    RAISE EXCEPTION 'invalid payment status transition: % -> %', OLD.status, NEW.status;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION validate_refund_status_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    RETURN NEW;
+  END IF;
+
+  IF NOT (
+    (OLD.status = 'requested' AND NEW.status IN ('approved', 'rejected', 'cancelled'))
+    OR (OLD.status = 'approved' AND NEW.status IN ('processing'))
+    OR (OLD.status = 'processing' AND NEW.status IN ('success', 'failed'))
+  ) THEN
+    RAISE EXCEPTION 'invalid refund status transition: % -> %', OLD.status, NEW.status;
   END IF;
 
   RETURN NEW;
@@ -1002,11 +1264,29 @@ BEFORE UPDATE ON bookings
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_bookings_05_validate_status_transition ON bookings;
+CREATE TRIGGER trg_bookings_05_validate_status_transition
+BEFORE UPDATE OF status ON bookings
+FOR EACH ROW
+EXECUTE FUNCTION validate_booking_status_transition();
+
 DROP TRIGGER IF EXISTS trg_payments_set_updated_at ON payments;
 CREATE TRIGGER trg_payments_set_updated_at
 BEFORE UPDATE ON payments
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_payments_05_validate_status_transition ON payments;
+CREATE TRIGGER trg_payments_05_validate_status_transition
+BEFORE UPDATE OF status ON payments
+FOR EACH ROW
+EXECUTE FUNCTION validate_payment_status_transition();
+
+DROP TRIGGER IF EXISTS trg_refunds_05_validate_status_transition ON refunds;
+CREATE TRIGGER trg_refunds_05_validate_status_transition
+BEFORE UPDATE OF status ON refunds
+FOR EACH ROW
+EXECUTE FUNCTION validate_refund_status_transition();
 
 DROP TRIGGER IF EXISTS trg_promotions_set_updated_at ON promotions;
 CREATE TRIGGER trg_promotions_set_updated_at

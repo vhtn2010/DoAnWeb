@@ -75,14 +75,24 @@ Ngày cập nhật: 28/06/2026
 | user_status | pending_verification, active, locked, suspended, disabled, deleted |
 | service_type | tour, hotel, room, flight, train, combo |
 | service_status | draft, pending_review, active, hidden, sold_out, expired, archived, deleted |
+| transport_type | bus, flight, train, car, ship, mixed |
+| cabin_class | economy, premium_economy, business, first |
+| transport_schedule_status | open, full, cancelled, departed, completed |
+| seat_class | hard_seat, soft_seat, sleeper, vip |
 | cart_status | active, converted, abandoned, expired |
 | booking_status | pending_payment, payment_processing, paid, confirmed, in_progress, completed, cancel_requested, cancelled, refund_pending, partially_refunded, refunded, failed, expired |
 | booking_item_status | pending, confirmed, cancelled, completed, refunded, failed |
+| discount_type | percent, fixed_amount |
+| payment_provider | direct, vnpay, momo, visa, mastercard, bank_transfer |
+| payment_method | e_wallet, card, qr, bank_transfer, cash_at_office, manual_bank_transfer, staff_collect |
 | payment_status | initiated, pending, processing, success, failed, cancelled, expired, partially_refunded, refunded, reconciled |
 | refund_status | requested, approved, rejected, processing, success, failed, cancelled |
 | promotion_status | draft, active, paused, expired, cancelled |
 | voucher_status | active, disabled, used_up, expired |
 | support_ticket_status | open, assigned, waiting_customer, waiting_staff, resolved, closed, spam |
+| support_ticket_priority | low, normal, high, urgent |
+| sender_type | customer, staff, admin, system |
+| notification_type | booking_status, support_reply, promotion, payment, system |
 | notification_status | queued, sent, delivered, read, failed |
 | email_status | queued, sent, delivered, opened, bounced, spam_reported, failed |
 | direct_payment_method | cash_at_office, manual_bank_transfer, staff_collect |
