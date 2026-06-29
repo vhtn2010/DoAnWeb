@@ -7,6 +7,7 @@ const apiResponse = require('./middleware/apiResponse');
 const asyncHandler = require('./middleware/asyncHandler');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
+const systemRoutes = require('./routes/systemRoutes');
 const {
   isSupabaseConfigured,
   testSupabaseConnection,
@@ -31,16 +32,7 @@ if (!isTest) {
   app.use(morgan('dev'));
 }
 
-app.get(`${apiPrefix}/health`, (req, res) => {
-  res.success({
-    data: {
-      status: 'ok',
-      service: 'net-viet-travel-api',
-      timestamp: new Date().toISOString(),
-    },
-    message: 'Service is healthy',
-  });
-});
+app.use(apiPrefix, systemRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
   res.success({

@@ -2,18 +2,17 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
-const binExt = process.platform === 'win32' ? '.cmd' : '';
 
 const tasks = [
   {
     cwd: 'frontend',
-    command: path.join(rootDir, 'frontend', 'node_modules', '.bin', `oxlint${binExt}`),
-    args: [],
+    command: process.execPath,
+    args: [path.join(rootDir, 'node_modules', 'oxlint', 'bin', 'oxlint')],
   },
   {
     cwd: 'frontend',
-    command: path.join(rootDir, 'frontend', 'node_modules', '.bin', `vite${binExt}`),
-    args: ['build', '--configLoader', 'native'],
+    command: process.execPath,
+    args: [path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js'), 'build', '--configLoader', 'native'],
   },
   {
     cwd: 'backend',
@@ -27,16 +26,7 @@ const childEnv = Object.fromEntries(
 );
 
 for (const task of tasks) {
-  const command =
-    process.platform === 'win32' && task.command.endsWith('.cmd')
-      ? process.env.ComSpec
-      : task.command;
-  const args =
-    process.platform === 'win32' && task.command.endsWith('.cmd')
-      ? ['/d', '/s', '/c', task.command, ...task.args]
-      : task.args;
-
-  execFileSync(command, args, {
+  execFileSync(task.command, task.args, {
     cwd: path.join(rootDir, task.cwd),
     env: childEnv,
     stdio: 'inherit',
