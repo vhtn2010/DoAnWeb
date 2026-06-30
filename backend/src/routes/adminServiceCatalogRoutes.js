@@ -9,6 +9,9 @@ const {
   updateAdminService,
 } = require('../controllers/adminServiceCrudController');
 const {
+  updateAdminServiceInventory,
+} = require('../controllers/adminServiceInventoryController');
+const {
   approveAdminService,
   hideAdminService,
   rejectAdminService,
@@ -53,6 +56,12 @@ router.patch(
   requireAdminAuth,
   adminCatalogRateLimit,
   asyncHandler(updateAdminService),
+);
+router.patch(
+  '/admin/services/:service_id/inventory',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(updateAdminServiceInventory),
 );
 router.post(
   '/admin/services/:service_id/submit-review',
