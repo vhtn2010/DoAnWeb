@@ -9,6 +9,11 @@ const {
   updateAdminService,
 } = require('../controllers/adminServiceCrudController');
 const {
+  createAdminFlightDetail,
+  deleteAdminFlightDetail,
+  updateAdminFlightDetail,
+} = require('../controllers/adminFlightDetailController');
+const {
   createAdminHotelRoom,
   deleteAdminHotelRoom,
   listAdminHotelRooms,
@@ -68,6 +73,25 @@ router.get(
   requireAdminAuth,
   adminCatalogRateLimit,
   asyncHandler(listAdminHotelRooms),
+);
+router.post(
+  '/admin/services/:service_id/flight-details',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(createAdminFlightDetail),
+);
+router.patch(
+  '/admin/flight-details/:flight_detail_id',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(updateAdminFlightDetail),
+);
+router.delete(
+  '/admin/flight-details/:flight_detail_id',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminCatalogRateLimit,
+  asyncHandler(deleteAdminFlightDetail),
 );
 router.post(
   '/admin/hotels/:hotel_service_id/rooms',
