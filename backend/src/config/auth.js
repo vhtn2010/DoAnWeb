@@ -164,11 +164,24 @@ const authRateLimit = {
   ),
 };
 
+const profileRateLimit = {
+  changePasswordMaxRequests: parsePositiveInt(
+    process.env.PROFILE_CHANGE_PASSWORD_RATE_LIMIT_MAX_REQUESTS,
+    5,
+  ),
+  changePasswordWindowMs: parsePositiveInt(
+    process.env.PROFILE_CHANGE_PASSWORD_RATE_LIMIT_WINDOW_MS ||
+      process.env.RATE_LIMIT_WINDOW_MS,
+    600000,
+  ),
+};
+
 module.exports = {
   authRateLimit,
   changeEmail,
   emailVerification,
   passwordHash,
   passwordReset,
+  profileRateLimit,
   sessionToken,
 };

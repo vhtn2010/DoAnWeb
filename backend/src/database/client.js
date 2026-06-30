@@ -20,6 +20,8 @@ const getPool = () => {
   return pool;
 };
 
+const query = (text, params) => getPool().query(text, params);
+
 const releaseClient = async (client) => {
   if (typeof client.release === 'function') {
     client.release();
@@ -55,5 +57,6 @@ const withTransaction = async (callback, options = {}) => {
 
 module.exports = {
   getPool,
+  query,
   withTransaction,
 };
