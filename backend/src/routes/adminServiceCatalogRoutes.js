@@ -14,6 +14,11 @@ const {
   updateAdminFlightDetail,
 } = require('../controllers/adminFlightDetailController');
 const {
+  createAdminTrainDetail,
+  deleteAdminTrainDetail,
+  updateAdminTrainDetail,
+} = require('../controllers/adminTrainDetailController');
+const {
   createAdminHotelRoom,
   deleteAdminHotelRoom,
   listAdminHotelRooms,
@@ -92,6 +97,25 @@ router.delete(
   requireAdminRoles(['admin', 'system_admin']),
   adminCatalogRateLimit,
   asyncHandler(deleteAdminFlightDetail),
+);
+router.post(
+  '/admin/services/:service_id/train-details',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(createAdminTrainDetail),
+);
+router.patch(
+  '/admin/train-details/:train_detail_id',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(updateAdminTrainDetail),
+);
+router.delete(
+  '/admin/train-details/:train_detail_id',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminCatalogRateLimit,
+  asyncHandler(deleteAdminTrainDetail),
 );
 router.post(
   '/admin/hotels/:hotel_service_id/rooms',
