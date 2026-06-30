@@ -1037,6 +1037,179 @@ test('lookupService.getServiceAvailability checks combo child items', async () =
   assert.equal(result.issues[0].code, 'COMBO_ITEM_UNAVAILABLE');
 });
 
+test('lookupService.getHotelRooms validates query and returns only active rooms with enough capacity', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async (serviceId) => {
+        assert.equal(serviceId, '11111111-1111-4111-8111-111111111111');
+
+        return {
+          currency: 'VND',
+          id: serviceId,
+          service_type: 'hotel',
+          title: 'Hotel Da Nang',
+        };
+      },
+      listActiveRoomTypesByHotel: async (hotelServiceId) => {
+        assert.equal(hotelServiceId, '11111111-1111-4111-8111-111111111111');
+
+        return [
+          {
+            available_rooms: 3,
+            base_price: '1500000',
+            bed_type: 'King',
+            description: 'Large room',
+            id: 'room-1',
+            max_adults: 2,
+            max_children: 1,
+            name: 'Deluxe',
+          },
+          {
+            available_rooms: 0,
+            base_price: '900000',
+            bed_type: 'Twin',
+            description: 'Compact room',
+            id: 'room-2',
+            max_adults: 1,
+            max_children: 0,
+            name: 'Standard',
+          },
+        ];
+      },
+    },
+  });
+
+  const result = await service.getHotelRooms({
+    adults: '2',
+    checkin: '2099-07-20T14:00:00.000Z',
+    checkout: '2099-07-22T12:00:00.000Z',
+    children: '1',
+    hotel_service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.deepEqual(result, [
+    {
+      available_rooms: 3,
+      base_price: 1500000,
+      bed_type: 'King',
+      currency: 'VND',
+      description: 'Large room',
+      id: 'room-1',
+      is_available: true,
+      max_adults: 2,
+      max_children: 1,
+      name: 'Deluxe',
+    },
+  ]);
+});
+
+test('lookupService.getHotelRooms returns empty list for no matching room and rejects invalid input', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async () => ({
+        currency: 'VND',
+        id: '11111111-1111-4111-8111-111111111111',
+        service_type: 'hotel',
+        title: 'Hotel Da Nang',
+      }),
+      listActiveRoomTypesByHotel: async () => [
+        {
+          available_rooms: 0,
+          base_price: '900000',
+          bed_type: 'Twin',
+          description: 'Compact room',
+          id: 'room-2',
+          max_adults: 1,
+          max_children: 0,
+          name: 'Standard',
+        },
+      ],
+    },
+  });
+
+  const emptyResult = await service.getHotelRooms({
+    adults: '2',
+    children: '1',
+    hotel_service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.deepEqual(emptyResult, []);
+
+  await assert.rejects(
+    () => service.getHotelRooms({
+      checkin: '2099-07-20T14:00:00.000Z',
+      hotel_service_id: '11111111-1111-4111-8111-111111111111',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'checkin_checkout',
+          message: 'checkin and checkout must be provided together',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getHotelRooms({
+      adults: '0',
+      hotel_service_id: '11111111-1111-4111-8111-111111111111',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'adults',
+          message: 'adults must be greater than or equal to 1',
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
+test('lookupService.getHotelRooms returns 404 for missing or non-hotel parent service', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async (serviceId) => {
+        if (serviceId === '11111111-1111-4111-8111-111111111111') {
+          return null;
+        }
+
+        return {
+          currency: 'VND',
+          id: serviceId,
+          service_type: 'tour',
+          title: 'Tour Parent',
+        };
+      },
+      listActiveRoomTypesByHotel: async () => [],
+    },
+  });
+
+  await assert.rejects(
+    () => service.getHotelRooms({
+      hotel_service_id: '11111111-1111-4111-8111-111111111111',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getHotelRooms({
+      hotel_service_id: '22222222-2222-4222-8222-222222222222',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      return true;
+    },
+  );
+});
+
 test('GET /api/lookups/enums returns public lookup enums and cache headers', async () => {
   const server = app.listen(0);
 
@@ -1634,6 +1807,131 @@ test('POST /api/services/{service_id}/availability propagates 404 for hidden or 
     );
   } finally {
     lookupService.getServiceAvailability = originalGetServiceAvailability;
+    server.close();
+  }
+});
+
+test('GET /api/services/{hotel_service_id}/rooms returns public room list and cache headers', async () => {
+  const originalGetHotelRooms = lookupService.getHotelRooms;
+  const server = app.listen(0);
+
+  lookupService.getHotelRooms = async (params) => {
+    assert.deepEqual({ ...params }, {
+      adults: '2',
+      checkin: '2099-07-20T14:00:00.000Z',
+      checkout: '2099-07-22T12:00:00.000Z',
+      children: '1',
+      hotel_service_id: '11111111-1111-4111-8111-111111111111',
+    });
+
+    return [
+      {
+        available_rooms: 3,
+        base_price: 1500000,
+        bed_type: 'King',
+        currency: 'VND',
+        description: 'Large room',
+        id: 'room-1',
+        is_available: true,
+        max_adults: 2,
+        max_children: 1,
+        name: 'Deluxe',
+      },
+    ];
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/11111111-1111-4111-8111-111111111111/rooms?checkin=2099-07-20T14:00:00.000Z&checkout=2099-07-22T12:00:00.000Z&adults=2&children=1`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Hotel rooms retrieved successfully');
+    assert.deepEqual(response.body.data, [
+      {
+        available_rooms: 3,
+        base_price: 1500000,
+        bed_type: 'King',
+        currency: 'VND',
+        description: 'Large room',
+        id: 'room-1',
+        is_available: true,
+        max_adults: 2,
+        max_children: 1,
+        name: 'Deluxe',
+      },
+    ]);
+    assert.match(response.headers['cache-control'], /max-age=900/);
+  } finally {
+    lookupService.getHotelRooms = originalGetHotelRooms;
+    server.close();
+  }
+});
+
+test('GET /api/services/{hotel_service_id}/rooms validates bad UUID', async () => {
+  const server = app.listen(0);
+
+  try {
+    const invalidUuidResponse = await request(
+      server,
+      `${apiPrefix}/services/not-a-uuid/rooms`,
+    );
+
+    assert.equal(invalidUuidResponse.statusCode, 400);
+    assert.equal(
+      invalidUuidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/services/{hotel_service_id}/rooms validates checkin and checkout pair', async () => {
+  const server = app.listen(0);
+
+  try {
+    const invalidPairResponse = await request(
+      server,
+      `${apiPrefix}/services/11111111-1111-4111-8111-111111111111/rooms?checkin=2099-07-20T14:00:00.000Z`,
+    );
+
+    assert.equal(invalidPairResponse.statusCode, 400);
+    assert.equal(
+      invalidPairResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/services/{hotel_service_id}/rooms propagates 404 for hidden or missing parent hotel', async () => {
+  const originalGetHotelRooms = lookupService.getHotelRooms;
+  const server = app.listen(0);
+
+  lookupService.getHotelRooms = async () => {
+    const error = new Error('Hotel not found');
+    error.code = API_ERROR_CODES.RESOURCE_NOT_FOUND;
+    error.statusCode = 404;
+    throw error;
+  };
+
+  try {
+    const notFoundResponse = await request(
+      server,
+      `${apiPrefix}/services/11111111-1111-4111-8111-111111111111/rooms`,
+    );
+
+    assert.equal(notFoundResponse.statusCode, 404);
+    assert.equal(
+      notFoundResponse.body.error.code,
+      API_ERROR_CODES.RESOURCE_NOT_FOUND,
+    );
+  } finally {
+    lookupService.getHotelRooms = originalGetHotelRooms;
     server.close();
   }
 });

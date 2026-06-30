@@ -32,6 +32,7 @@ const MAX_PRICE_LIMIT = Number.MAX_SAFE_INTEGER;
 const MAX_QUERY_LENGTH = 100;
 const MAX_SEARCH_LIMIT = 50;
 const MIN_QUERY_LENGTH = 2;
+const ROOM_LIST_CACHE_SECONDS = 15 * 60;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -351,6 +352,26 @@ const parseServiceId = (value) => {
   return normalized;
 };
 
+const parseHotelServiceId = (value) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError(
+      'hotel_service_id',
+      'hotel_service_id must be a valid UUID',
+    );
+  }
+
+  const normalized = value.trim();
+
+  if (!UUID_PATTERN.test(normalized)) {
+    throw buildValidationError(
+      'hotel_service_id',
+      'hotel_service_id must be a valid UUID',
+    );
+  }
+
+  return normalized;
+};
+
 const parseRequiredServiceType = (value) => {
   if (value == null || value === '') {
     throw buildValidationError('service_type', 'service_type is required');
@@ -449,6 +470,45 @@ const parseOptionalGuestCount = (field, value) => {
   return parsed;
 };
 
+const parseRoomGuestCount = (field, value, { defaultValue, min }) => {
+  if (value == null || value === '') {
+    return defaultValue;
+  }
+
+  if (Array.isArray(value) || !/^\d+$/.test(String(value))) {
+    throw buildValidationError(field, `${field} must be a valid integer`);
+  }
+
+  const parsed = Number.parseInt(String(value), 10);
+
+  if (!Number.isInteger(parsed) || parsed < min) {
+    throw buildValidationError(
+      field,
+      `${field} must be greater than or equal to ${min}`,
+    );
+  }
+
+  return parsed;
+};
+
+const parseRoomDate = (field, value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    throw buildValidationError(field, `${field} must be a valid date`);
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw buildValidationError(field, `${field} must be a valid date`);
+  }
+
+  return parsed;
+};
+
 const toPublicPrice = (service) => {
   if (service.sale_price != null) {
     return Number(service.sale_price);
@@ -513,6 +573,22 @@ const mapImages = (images) =>
     sort_order: Number(image.sort_order),
     is_primary: Boolean(image.is_primary),
   }));
+
+const mapHotelRoom = (room, currency) => ({
+  id: room.id,
+  name: room.name,
+  bed_type: room.bed_type,
+  max_adults: Number(room.max_adults),
+  max_children: Number(room.max_children),
+  available_rooms: Number(room.available_rooms),
+  base_price:
+    room.base_price == null
+      ? null
+      : Number(room.base_price),
+  currency,
+  description: room.description,
+  is_available: Number(room.available_rooms) > 0,
+});
 
 const sanitizeComboItems = (comboItems) => {
   if (!Array.isArray(comboItems)) {
@@ -709,6 +785,47 @@ const buildPaginationMeta = ({ limit, page, total }) => {
     page,
     total,
     total_pages: totalPages,
+  };
+};
+
+const parseRoomListQuery = ({
+  adults,
+  checkin,
+  checkout,
+  children,
+}) => {
+  const resolvedCheckin = parseRoomDate('checkin', checkin);
+  const resolvedCheckout = parseRoomDate('checkout', checkout);
+
+  if ((resolvedCheckin && !resolvedCheckout) || (!resolvedCheckin && resolvedCheckout)) {
+    throw buildValidationError(
+      'checkin_checkout',
+      'checkin and checkout must be provided together',
+    );
+  }
+
+  if (resolvedCheckin && resolvedCheckout && resolvedCheckout <= resolvedCheckin) {
+    throw buildValidationError(
+      'checkout',
+      'checkout must be later than checkin',
+    );
+  }
+
+  if (resolvedCheckin && !isFutureDate(resolvedCheckin)) {
+    throw buildValidationError('checkin', 'checkin must be in the future');
+  }
+
+  return {
+    adults: parseRoomGuestCount('adults', adults, {
+      defaultValue: 1,
+      min: 1,
+    }),
+    checkin: resolvedCheckin,
+    checkout: resolvedCheckout,
+    children: parseRoomGuestCount('children', children, {
+      defaultValue: 0,
+      min: 0,
+    }),
   };
 };
 
@@ -1075,6 +1192,40 @@ const createLookupService = ({
 
     const images = await repository.listServiceImages(resolvedServiceId);
     return mapImages(images);
+  };
+
+  const getHotelRooms = async ({
+    adults,
+    checkin,
+    checkout,
+    children,
+    hotel_service_id: hotelServiceId,
+  } = {}) => {
+    const resolvedHotelServiceId = parseHotelServiceId(hotelServiceId);
+    const resolvedQuery = parseRoomListQuery({
+      adults,
+      checkin,
+      checkout,
+      children,
+    });
+    const service = await repository.getPublicServiceById(resolvedHotelServiceId);
+
+    if (!service || service.service_type !== SERVICE_TYPE.HOTEL) {
+      throw buildResourceNotFoundError();
+    }
+
+    const rooms = await repository.listActiveRoomTypesByHotel(
+      resolvedHotelServiceId,
+    );
+
+    return rooms
+      .filter((room) =>
+        Number(room.max_adults) >= resolvedQuery.adults &&
+        Number(room.max_children) >= resolvedQuery.children,
+      )
+      .map((room) =>
+        mapHotelRoom(room, service.currency || DEFAULT_AVAILABILITY_CURRENCY),
+      );
   };
 
   const evaluateAvailability = async ({
@@ -1599,6 +1750,7 @@ const createLookupService = ({
 
   return {
     getFeaturedServices,
+    getHotelRooms,
     getPopularLocations,
     getServiceAvailability,
     getPublicEnums,
@@ -1624,6 +1776,7 @@ module.exports = Object.assign(createLookupService(), {
   MAX_LOCATION_LIMIT,
   MAX_SEARCH_LIMIT,
   PUBLIC_SERVICE_TYPE_VALUES,
+  ROOM_LIST_CACHE_SECONDS,
   SORT_OPTION_VALUES,
   createLookupService,
 });

@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getFeaturedServices,
+  getHotelRooms,
   getPopularLocations,
   getPublicEnums,
   getServiceAvailability,
@@ -44,6 +45,11 @@ router.get(
   '/services/:service_id/images',
   publicSearchRateLimit,
   asyncHandler(getServiceImages),
+);
+router.get(
+  '/services/:hotel_service_id/rooms',
+  publicSearchRateLimit,
+  asyncHandler(getHotelRooms),
 );
 router.get(
   '/services/:slug',

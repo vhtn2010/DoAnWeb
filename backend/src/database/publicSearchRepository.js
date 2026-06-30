@@ -390,6 +390,30 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     return result.rows;
   };
 
+  const listActiveRoomTypesByHotel = async (hotelServiceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          name,
+          bed_type,
+          max_adults,
+          max_children,
+          available_rooms,
+          base_price,
+          description,
+          status
+        FROM room_types
+        WHERE hotel_service_id = $1
+          AND status = $2
+        ORDER BY available_rooms DESC, base_price ASC, id ASC
+      `,
+      [hotelServiceId, 'active'],
+    );
+
+    return result.rows;
+  };
+
   const searchServices = async ({
     keyword,
     limit,
@@ -493,6 +517,7 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     getTourDetail,
     getTrainDetail,
     getTrainDetailById,
+    listActiveRoomTypesByHotel,
     listFeaturedServices,
     listServiceImages,
     searchServices,
@@ -532,6 +557,8 @@ module.exports = {
     publicSearchRepository.getTrainDetail,
   getTrainDetailById:
     publicSearchRepository.getTrainDetailById,
+  listActiveRoomTypesByHotel:
+    publicSearchRepository.listActiveRoomTypesByHotel,
   listFeaturedServices:
     publicSearchRepository.listFeaturedServices,
   listServiceImages:

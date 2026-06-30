@@ -36,6 +36,19 @@ const getServiceDetail = async (req, res) => {
   });
 };
 
+const getHotelRooms = async (req, res) => {
+  const data = await lookupService.getHotelRooms({
+    ...req.params,
+    ...req.query,
+  });
+
+  setCacheHeaders(res, lookupService.ROOM_LIST_CACHE_SECONDS);
+  res.success({
+    data,
+    message: 'Hotel rooms retrieved successfully',
+  });
+};
+
 const getPopularLocations = async (req, res) => {
   const data = await lookupService.getPopularLocations(req.query);
 
@@ -90,6 +103,7 @@ const getServices = async (req, res) => {
 
 module.exports = {
   getFeaturedServices,
+  getHotelRooms,
   getPopularLocations,
   getPublicEnums,
   getServiceAvailability,
