@@ -57,7 +57,10 @@ const signSessionToken = (
     tokenType,
   },
 ) => {
-  ensureSecret(secret, tokenType === REFRESH_TOKEN_TYPE ? 'Refresh token' : 'Access token');
+  ensureSecret(
+    secret,
+    tokenType === REFRESH_TOKEN_TYPE ? 'Refresh token' : 'Access token',
+  );
 
   const iat = Math.floor(issuedAt.getTime() / 1000);
   const header = {
@@ -86,7 +89,10 @@ const verifySessionToken = (
     secret,
   },
 ) => {
-  ensureSecret(secret, expectedType === REFRESH_TOKEN_TYPE ? 'Refresh token' : 'Access token');
+  ensureSecret(
+    secret,
+    expectedType === REFRESH_TOKEN_TYPE ? 'Refresh token' : 'Access token',
+  );
 
   if (!token || typeof token !== 'string') {
     throw createTokenExpiredError();
