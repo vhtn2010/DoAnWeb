@@ -16,6 +16,16 @@ const getPublicEnums = (req, res) => {
   });
 };
 
+const getFeaturedServices = async (req, res) => {
+  const data = await lookupService.getFeaturedServices(req.query);
+
+  setCacheHeaders(res, lookupService.FEATURED_CACHE_SECONDS);
+  res.success({
+    data,
+    message: 'Featured services retrieved successfully',
+  });
+};
+
 const getPopularLocations = async (req, res) => {
   const data = await lookupService.getPopularLocations(req.query);
 
@@ -36,8 +46,20 @@ const getServiceFilterOptions = async (req, res) => {
   });
 };
 
+const getServices = async (req, res) => {
+  const result = await lookupService.searchServices(req.query);
+
+  res.success({
+    data: result.services,
+    message: 'Services retrieved successfully',
+    meta: result.meta,
+  });
+};
+
 module.exports = {
+  getFeaturedServices,
   getPopularLocations,
   getPublicEnums,
   getServiceFilterOptions,
+  getServices,
 };

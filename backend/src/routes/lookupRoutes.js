@@ -1,14 +1,20 @@
 const express = require('express');
 const {
+  getFeaturedServices,
   getPopularLocations,
   getPublicEnums,
   getServiceFilterOptions,
+  getServices,
 } = require('../controllers/lookupController');
 const asyncHandler = require('../middleware/asyncHandler');
 const createRateLimit = require('../middleware/rateLimit');
 
 const router = express.Router();
 const publicLookupRateLimit = createRateLimit();
+const publicSearchRateLimit = createRateLimit({
+  max: 60,
+  windowMs: 60 * 1000,
+});
 
 router.get('/lookups/enums', publicLookupRateLimit, getPublicEnums);
 router.get(
@@ -20,6 +26,16 @@ router.get(
   '/services/filter-options',
   publicLookupRateLimit,
   asyncHandler(getServiceFilterOptions),
+);
+router.get(
+  '/services/featured',
+  publicSearchRateLimit,
+  asyncHandler(getFeaturedServices),
+);
+router.get(
+  '/services',
+  publicSearchRateLimit,
+  asyncHandler(getServices),
 );
 
 module.exports = router;
