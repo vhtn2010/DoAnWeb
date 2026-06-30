@@ -9,6 +9,12 @@ const {
   updateAdminService,
 } = require('../controllers/adminServiceCrudController');
 const {
+  addAdminServiceImage,
+  deleteAdminServiceImage,
+  reorderAdminServiceImages,
+  updateAdminServiceImage,
+} = require('../controllers/adminServiceImageController');
+const {
   updateAdminServiceInventory,
 } = require('../controllers/adminServiceInventoryController');
 const {
@@ -62,6 +68,30 @@ router.patch(
   requireAdminAuth,
   adminCatalogRateLimit,
   asyncHandler(updateAdminServiceInventory),
+);
+router.post(
+  '/admin/services/:service_id/images',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(addAdminServiceImage),
+);
+router.put(
+  '/admin/services/:service_id/images/reorder',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(reorderAdminServiceImages),
+);
+router.patch(
+  '/admin/services/:service_id/images/:image_id',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(updateAdminServiceImage),
+);
+router.delete(
+  '/admin/services/:service_id/images/:image_id',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(deleteAdminServiceImage),
 );
 router.post(
   '/admin/services/:service_id/submit-review',
