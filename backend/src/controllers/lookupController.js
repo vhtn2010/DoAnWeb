@@ -26,6 +26,27 @@ const getFeaturedServices = async (req, res) => {
   });
 };
 
+const getCombos = async (req, res) => {
+  const result = await lookupService.getCombos(req.query);
+
+  setCacheHeaders(res, lookupService.COMBO_CACHE_SECONDS);
+  res.success({
+    data: result.combos,
+    message: 'Combos retrieved successfully',
+    meta: result.meta,
+  });
+};
+
+const getComboDetail = async (req, res) => {
+  const data = await lookupService.getComboDetail(req.params);
+
+  setCacheHeaders(res, lookupService.DETAIL_CACHE_SECONDS);
+  res.success({
+    data,
+    message: 'Combo detail retrieved successfully',
+  });
+};
+
 const searchFlights = async (req, res) => {
   const data = await lookupService.searchFlights(req.query);
 
@@ -120,6 +141,8 @@ const getServices = async (req, res) => {
 };
 
 module.exports = {
+  getComboDetail,
+  getCombos,
   getFeaturedServices,
   getHotelRooms,
   getPopularLocations,

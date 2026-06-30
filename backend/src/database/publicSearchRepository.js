@@ -185,6 +185,21 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     return result.rows[0] || null;
   };
 
+  const getPublicComboBySlug = async (slug) => {
+    const result = await queryImpl(
+      `
+        ${BASE_CARD_SELECT.replace('s.created_at,', 's.description,\n    s.provider_name,\n    s.cancellation_policy,\n    s.metadata,\n    s.created_at,')}
+        ${BASE_PUBLIC_WHERE}
+          AND s.service_type = $2
+          AND s.slug = $3
+        LIMIT 1
+      `,
+      ['active', 'combo', slug],
+    );
+
+    return result.rows[0] || null;
+  };
+
   const getPublicServiceById = async (serviceId) => {
     const result = await queryImpl(
       `
@@ -531,6 +546,73 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     return result.rows;
   };
 
+  const searchCombos = async ({
+    limit,
+    location,
+    maxPrice,
+    minPrice,
+    offset,
+  }) => {
+    const params = ['active', 'combo'];
+    let filteredSql = `
+      ${BASE_CARD_SELECT}
+      ${BASE_PUBLIC_WHERE}
+        AND s.service_type = $2
+    `;
+
+    if (location) {
+      params.push(location.toLocaleLowerCase('vi-VN'));
+      filteredSql += `
+        AND LOWER(
+          REGEXP_REPLACE(BTRIM(COALESCE(s.location_text, '')), '\\s+', ' ', 'g')
+        ) = $${params.length}
+      `;
+    }
+
+    if (minPrice != null) {
+      params.push(minPrice);
+      filteredSql += ` AND COALESCE(s.sale_price, s.base_price) >= $${params.length}`;
+    }
+
+    if (maxPrice != null) {
+      params.push(maxPrice);
+      filteredSql += ` AND COALESCE(s.sale_price, s.base_price) <= $${params.length}`;
+    }
+
+    const countParams = [...params];
+    const dataParams = [...params, limit, offset];
+    const limitParam = `$${dataParams.length - 1}`;
+    const offsetParam = `$${dataParams.length}`;
+    const [countResult, dataResult] = await Promise.all([
+      queryImpl(
+        `
+          SELECT COUNT(*) AS total_count
+          FROM (
+            ${filteredSql}
+          ) AS countable_combos
+        `,
+        countParams,
+      ),
+      queryImpl(
+        `
+          SELECT *
+          FROM (
+            ${filteredSql}
+          ) AS combo_cards
+          ORDER BY created_at DESC, id ASC
+          LIMIT ${limitParam}
+          OFFSET ${offsetParam}
+        `,
+        dataParams,
+      ),
+    ]);
+
+    return {
+      rows: dataResult.rows,
+      total: Number(countResult.rows[0]?.total_count || 0),
+    };
+  };
+
   const searchServices = async ({
     keyword,
     limit,
@@ -628,10 +710,12 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     getFlightDetail,
     getFlightDetailById,
     getHotelDetail,
+    getPublicComboBySlug,
     getPublicServiceById,
     getPublicServiceBySlug,
     getRoomTypeById,
     searchFlights,
+    searchCombos,
     searchTrains,
     getTourDetail,
     getTrainDetail,
@@ -664,6 +748,8 @@ module.exports = {
     publicSearchRepository.getFlightDetailById,
   getHotelDetail:
     publicSearchRepository.getHotelDetail,
+  getPublicComboBySlug:
+    publicSearchRepository.getPublicComboBySlug,
   getPublicServiceById:
     publicSearchRepository.getPublicServiceById,
   getPublicServiceBySlug:
@@ -672,6 +758,8 @@ module.exports = {
     publicSearchRepository.getRoomTypeById,
   searchFlights:
     publicSearchRepository.searchFlights,
+  searchCombos:
+    publicSearchRepository.searchCombos,
   searchTrains:
     publicSearchRepository.searchTrains,
   getTourDetail:

@@ -17,6 +17,7 @@ const DEFAULT_SEARCH_LIMIT = 20;
 const DEFAULT_SEARCH_PAGE = 1;
 const DEFAULT_SEARCH_SORT = 'newest';
 const DEFAULT_AVAILABILITY_CURRENCY = 'VND';
+const COMBO_CACHE_SECONDS = 15 * 60;
 const DANGEROUS_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
 const DETAIL_CACHE_SECONDS = 15 * 60;
 const ENUMS_CACHE_SECONDS = 24 * 60 * 60;
@@ -738,6 +739,44 @@ const sanitizeComboItems = (comboItems) => {
     });
 };
 
+const sanitizePublicComboItems = (comboItems) => {
+  if (!Array.isArray(comboItems)) {
+    return [];
+  }
+
+  const allowedKeys = new Set([
+    'service_id',
+    'service_type',
+    'slug',
+    'title',
+    'short_description',
+    'description',
+    'location_text',
+    'quantity',
+  ]);
+
+  return comboItems
+    .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => {
+      const sanitized = {};
+
+      for (const [key, value] of Object.entries(item)) {
+        if (allowedKeys.has(key)) {
+          sanitized[key] = value;
+        }
+      }
+
+      if (sanitized.quantity != null) {
+        const numericQuantity = Number(sanitized.quantity);
+        sanitized.quantity = Number.isFinite(numericQuantity)
+          ? numericQuantity
+          : sanitized.quantity;
+      }
+
+      return sanitized;
+    });
+};
+
 const mapTourDetail = (detail) => ({
   departure_location: detail.departure_location,
   destination_location: detail.destination_location,
@@ -838,6 +877,16 @@ const mapTrainSearchResult = (train) => ({
       ? null
       : Number(train.fare_price),
   currency: train.currency || DEFAULT_AVAILABILITY_CURRENCY,
+});
+
+const mapComboDetail = ({
+  comboItems,
+  isBookable,
+  service,
+}) => ({
+  ...mapBaseServiceDetail(service),
+  combo_items: comboItems,
+  is_bookable: isBookable,
 });
 
 const buildPopularLocations = (services, limit) => {
@@ -950,6 +999,53 @@ const parseTransportRouteQuery = ({ departureDate, from, to }) => {
     departureDate: parseDepartureDate(departureDate),
     from: resolvedFrom,
     to: resolvedTo,
+  };
+};
+
+const parseComboFilters = ({
+  limit,
+  location,
+  max_price: maxPrice,
+  min_price: minPrice,
+  page,
+} = {}) => {
+  const resolvedLocation = parseTextFilter({
+    field: 'location',
+    maxLength: MAX_LOCATION_LENGTH,
+    value: location,
+  });
+  const resolvedMinPrice = parsePriceFilter('min_price', minPrice);
+  const resolvedMaxPrice = parsePriceFilter('max_price', maxPrice);
+
+  if (
+    resolvedMinPrice != null &&
+    resolvedMaxPrice != null &&
+    resolvedMinPrice > resolvedMaxPrice
+  ) {
+    throw buildValidationError(
+      'price_range',
+      'min_price must be less than or equal to max_price',
+    );
+  }
+
+  return {
+    limit: parseBoundedInteger({
+      defaultValue: DEFAULT_SEARCH_LIMIT,
+      field: 'limit',
+      max: MAX_SEARCH_LIMIT,
+      value: limit,
+    }),
+    location: resolvedLocation
+      ? normalizeWhitespace(resolvedLocation)
+      : null,
+    maxPrice: resolvedMaxPrice,
+    minPrice: resolvedMinPrice,
+    page: parseBoundedInteger({
+      defaultValue: DEFAULT_SEARCH_PAGE,
+      field: 'page',
+      max: MAX_PRICE_LIMIT,
+      value: page,
+    }),
   };
 };
 
@@ -1158,6 +1254,24 @@ const buildSuccessfulAvailability = ({
     unitPrice,
   });
 
+const isPublicComboChildReference = async (repository, item) => {
+  if (!item || typeof item !== 'object') {
+    return false;
+  }
+
+  if (!item.service_id || !item.service_type) {
+    return false;
+  }
+
+  const childService = await repository.getPublicServiceById(item.service_id);
+
+  if (!childService) {
+    return false;
+  }
+
+  return childService.service_type === item.service_type;
+};
+
 const createLookupService = ({
   repository = createPublicSearchRepository(),
 } = {}) => {
@@ -1259,6 +1373,54 @@ const createLookupService = ({
     });
 
     return rows.map(mapServiceCard);
+  };
+
+  const getCombos = async (query = {}) => {
+    const filters = parseComboFilters(query);
+    const offset = (filters.page - 1) * filters.limit;
+    const result = await repository.searchCombos({
+      limit: filters.limit,
+      location: filters.location,
+      maxPrice: filters.maxPrice,
+      minPrice: filters.minPrice,
+      offset,
+    });
+
+    return {
+      combos: result.rows.map(mapServiceCard),
+      meta: buildPaginationMeta({
+        limit: filters.limit,
+        page: filters.page,
+        total: result.total,
+      }),
+    };
+  };
+
+  const getComboDetail = async ({ slug } = {}) => {
+    const resolvedSlug = parseSlug(slug);
+    const combo = await repository.getPublicComboBySlug(resolvedSlug);
+
+    if (!combo || combo.service_type !== SERVICE_TYPE.COMBO) {
+      throw buildResourceNotFoundError();
+    }
+
+    const comboItems = sanitizePublicComboItems(combo.metadata?.combo_items);
+    let isBookable = comboItems.length > 0;
+
+    if (isBookable) {
+      for (const item of comboItems) {
+        if (!(await isPublicComboChildReference(repository, item))) {
+          isBookable = false;
+          break;
+        }
+      }
+    }
+
+    return mapComboDetail({
+      comboItems,
+      isBookable,
+      service: combo,
+    });
   };
 
   const getServiceDetail = async ({ slug } = {}) => {
@@ -1974,6 +2136,8 @@ const createLookupService = ({
   };
 
   return {
+    getComboDetail,
+    getCombos,
     getFeaturedServices,
     getHotelRooms,
     getPopularLocations,
@@ -1989,6 +2153,7 @@ const createLookupService = ({
 };
 
 module.exports = Object.assign(createLookupService(), {
+  COMBO_CACHE_SECONDS,
   DETAIL_CACHE_SECONDS,
   DEFAULT_FEATURED_LIMIT,
   DEFAULT_LOCATION_LIMIT,

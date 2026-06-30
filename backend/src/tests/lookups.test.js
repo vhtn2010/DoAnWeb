@@ -432,6 +432,242 @@ test('lookupService.searchServices rejects invalid room, keyword, price range, s
   );
 });
 
+test('lookupService.getCombos validates filters and returns combo cards with pagination meta', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchCombos: async (filters) => {
+        assert.deepEqual(filters, {
+          limit: 2,
+          location: 'Da Nang',
+          maxPrice: 5000000,
+          minPrice: 2000000,
+          offset: 2,
+        });
+
+        return {
+          rows: [
+            {
+              base_price: '5500000',
+              currency: 'VND',
+              id: 'combo-1',
+              location_text: 'Da Nang',
+              primary_image: 'https://example.com/combo.jpg',
+              public_price: '4900000',
+              sale_price: '4900000',
+              service_type: 'combo',
+              short_description: 'Combo bien',
+              slug: 'combo-da-nang',
+              title: 'Combo Da Nang',
+            },
+          ],
+          total: 3,
+        };
+      },
+    },
+  });
+
+  const result = await service.getCombos({
+    limit: '2',
+    location: '  Da Nang ',
+    max_price: '5000000',
+    min_price: '2000000',
+    page: '2',
+  });
+
+  assert.deepEqual(result, {
+    combos: [
+      {
+        base_price: 5500000,
+        currency: 'VND',
+        id: 'combo-1',
+        location_text: 'Da Nang',
+        primary_image: 'https://example.com/combo.jpg',
+        public_price: 4900000,
+        sale_price: 4900000,
+        service_type: 'combo',
+        short_description: 'Combo bien',
+        slug: 'combo-da-nang',
+        title: 'Combo Da Nang',
+      },
+    ],
+    meta: {
+      has_next: false,
+      limit: 2,
+      page: 2,
+      total: 3,
+      total_pages: 2,
+    },
+  });
+});
+
+test('lookupService.getCombos rejects invalid combo filters', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchCombos: async () => ({
+        rows: [],
+        total: 0,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => service.getCombos({ min_price: '6000000', max_price: '1000000' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'price_range',
+          message: 'min_price must be less than or equal to max_price',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getCombos({ limit: '0' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'limit',
+          message: 'limit must be greater than or equal to 1',
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
+test('lookupService.getComboDetail returns sanitized combo detail and bookable state', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicComboBySlug: async (slug) => {
+        if (slug === 'combo-da-nang') {
+          return {
+            base_price: '6000000',
+            cancellation_policy: 'Combo policy',
+            currency: 'VND',
+            description: 'Combo description',
+            id: 'combo-service-1',
+            location_text: 'Da Nang',
+            metadata: {
+              combo_items: [
+                {
+                  admin_note: 'hidden',
+                  description: 'Khach san gan bien',
+                  location_text: 'Da Nang',
+                  quantity: '2',
+                  service_id: 'child-service-1',
+                  service_type: 'hotel',
+                  short_description: 'Resort 3 ngay',
+                  slug: 'hotel-da-nang',
+                  supplier_cost: '123',
+                  title: 'Hotel Da Nang',
+                },
+              ],
+            },
+            primary_image: 'https://example.com/combo.jpg',
+            provider_name: 'Net Viet Travel',
+            public_price: '5200000',
+            sale_price: '5200000',
+            service_type: 'combo',
+            short_description: 'Combo short',
+            slug,
+            title: 'Combo Da Nang',
+          };
+        }
+
+        return {
+          base_price: '4000000',
+          cancellation_policy: null,
+          currency: 'VND',
+          description: 'Incomplete combo',
+          id: 'combo-service-2',
+          location_text: 'Hue',
+          metadata: {
+            combo_items: [],
+          },
+          primary_image: null,
+          provider_name: 'Net Viet Travel',
+          public_price: '3800000',
+          sale_price: null,
+          service_type: 'combo',
+          short_description: 'Incomplete',
+          slug,
+          title: 'Combo Hue',
+        };
+      },
+      getPublicServiceById: async (serviceId) => {
+        assert.equal(serviceId, 'child-service-1');
+
+        return {
+          id: serviceId,
+          service_type: 'hotel',
+          slug: 'hotel-da-nang',
+          title: 'Hotel Da Nang',
+        };
+      },
+    },
+  });
+
+  const detailResult = await service.getComboDetail({
+    slug: 'combo-da-nang',
+  });
+  const incompleteResult = await service.getComboDetail({
+    slug: 'combo-hue',
+  });
+
+  assert.deepEqual(detailResult, {
+    base_price: 6000000,
+    cancellation_policy: 'Combo policy',
+    combo_items: [
+      {
+        description: 'Khach san gan bien',
+        location_text: 'Da Nang',
+        quantity: 2,
+        service_id: 'child-service-1',
+        service_type: 'hotel',
+        short_description: 'Resort 3 ngay',
+        slug: 'hotel-da-nang',
+        title: 'Hotel Da Nang',
+      },
+    ],
+    currency: 'VND',
+    description: 'Combo description',
+    id: 'combo-service-1',
+    is_bookable: true,
+    location_text: 'Da Nang',
+    primary_image: 'https://example.com/combo.jpg',
+    provider_name: 'Net Viet Travel',
+    public_price: 5200000,
+    sale_price: 5200000,
+    service_type: 'combo',
+    short_description: 'Combo short',
+    slug: 'combo-da-nang',
+    title: 'Combo Da Nang',
+  });
+  assert.equal(incompleteResult.is_bookable, false);
+  assert.deepEqual(incompleteResult.combo_items, []);
+});
+
+test('lookupService.getComboDetail returns 404 for invalid combo slug target', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicComboBySlug: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => service.getComboDetail({ slug: 'missing-combo' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      assert.equal(error.statusCode, 404);
+      return true;
+    },
+  );
+});
+
 test('lookupService.searchFlights validates input and returns mapped flight results', async () => {
   const service = lookupService.createLookupService({
     repository: {
@@ -1729,6 +1965,200 @@ test('GET /api/services returns service cards with pagination meta', async () =>
     });
   } finally {
     lookupService.searchServices = originalSearchServices;
+    server.close();
+  }
+});
+
+test('GET /api/services/combos returns combo cards, meta, and cache headers', async () => {
+  const originalGetCombos = lookupService.getCombos;
+  const server = app.listen(0);
+
+  lookupService.getCombos = async (query) => {
+    assert.deepEqual({ ...query }, {
+      limit: '2',
+      location: 'Da Nang',
+      max_price: '5000000',
+      min_price: '1000000',
+      page: '1',
+    });
+
+    return {
+      combos: [
+        {
+          base_price: 5800000,
+          currency: 'VND',
+          id: 'combo-1',
+          location_text: 'Da Nang',
+          primary_image: 'https://example.com/combo.jpg',
+          public_price: 5100000,
+          sale_price: 5100000,
+          service_type: 'combo',
+          short_description: 'Combo card',
+          slug: 'combo-da-nang',
+          title: 'Combo Da Nang',
+        },
+      ],
+      meta: {
+        has_next: false,
+        limit: 2,
+        page: 1,
+        total: 1,
+        total_pages: 1,
+      },
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/combos?location=Da%20Nang&min_price=1000000&max_price=5000000&page=1&limit=2`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Combos retrieved successfully');
+    assert.deepEqual(response.body.data, [
+      {
+        base_price: 5800000,
+        currency: 'VND',
+        id: 'combo-1',
+        location_text: 'Da Nang',
+        primary_image: 'https://example.com/combo.jpg',
+        public_price: 5100000,
+        sale_price: 5100000,
+        service_type: 'combo',
+        short_description: 'Combo card',
+        slug: 'combo-da-nang',
+        title: 'Combo Da Nang',
+      },
+    ]);
+    assert.deepEqual(response.body.meta, {
+      has_next: false,
+      limit: 2,
+      page: 1,
+      total: 1,
+      total_pages: 1,
+    });
+    assert.match(response.headers['cache-control'], /max-age=900/);
+  } finally {
+    lookupService.getCombos = originalGetCombos;
+    server.close();
+  }
+});
+
+test('GET /api/services/combos validates invalid price range without token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/combos?min_price=5000000&max_price=1000000`,
+    );
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.message, 'Validation failed');
+    assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
+    assert.deepEqual(response.body.error.details, [
+      {
+        field: 'price_range',
+        message: 'min_price must be less than or equal to max_price',
+      },
+    ]);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/services/combos/{slug} returns combo detail and cache headers', async () => {
+  const originalGetComboDetail = lookupService.getComboDetail;
+  const server = app.listen(0);
+
+  lookupService.getComboDetail = async (params) => {
+    assert.deepEqual({ ...params }, {
+      slug: 'combo-da-nang',
+    });
+
+    return {
+      base_price: 6000000,
+      cancellation_policy: 'Combo policy',
+      combo_items: [
+        {
+          quantity: 2,
+          service_id: 'child-service-1',
+          service_type: 'hotel',
+          slug: 'hotel-da-nang',
+          title: 'Hotel Da Nang',
+        },
+      ],
+      currency: 'VND',
+      description: 'Combo description',
+      id: 'combo-service-1',
+      is_bookable: true,
+      location_text: 'Da Nang',
+      primary_image: 'https://example.com/combo.jpg',
+      provider_name: 'Net Viet Travel',
+      public_price: 5200000,
+      sale_price: 5200000,
+      service_type: 'combo',
+      short_description: 'Combo short',
+      slug: 'combo-da-nang',
+      title: 'Combo Da Nang',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/combos/combo-da-nang`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Combo detail retrieved successfully');
+    assert.equal(response.body.data.slug, 'combo-da-nang');
+    assert.equal(response.body.data.is_bookable, true);
+    assert.deepEqual(response.body.data.combo_items, [
+      {
+        quantity: 2,
+        service_id: 'child-service-1',
+        service_type: 'hotel',
+        slug: 'hotel-da-nang',
+        title: 'Hotel Da Nang',
+      },
+    ]);
+    assert.match(response.headers['cache-control'], /max-age=900/);
+  } finally {
+    lookupService.getComboDetail = originalGetComboDetail;
+    server.close();
+  }
+});
+
+test('GET /api/services/combos/{slug} propagates 404 for hidden or missing combo', async () => {
+  const originalGetComboDetail = lookupService.getComboDetail;
+  const server = app.listen(0);
+
+  lookupService.getComboDetail = async () => {
+    const error = new Error('Combo not found');
+    error.code = API_ERROR_CODES.RESOURCE_NOT_FOUND;
+    error.statusCode = 404;
+    throw error;
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/combos/hidden-combo`,
+    );
+
+    assert.equal(response.statusCode, 404);
+    assert.equal(response.body.success, false);
+    assert.equal(
+      response.body.error.code,
+      API_ERROR_CODES.RESOURCE_NOT_FOUND,
+    );
+  } finally {
+    lookupService.getComboDetail = originalGetComboDetail;
     server.close();
   }
 });

@@ -1,5 +1,7 @@
 const express = require('express');
 const {
+  getComboDetail,
+  getCombos,
   getFeaturedServices,
   getHotelRooms,
   getPopularLocations,
@@ -46,6 +48,16 @@ router.get(
   '/services',
   publicSearchRateLimit,
   asyncHandler(getServices),
+);
+router.get(
+  '/services/combos',
+  publicSearchRateLimit,
+  asyncHandler(getCombos),
+);
+router.get(
+  '/services/combos/:slug',
+  publicSearchRateLimit,
+  asyncHandler(getComboDetail),
 );
 router.get(
   '/services/flights/search',
