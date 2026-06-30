@@ -5,6 +5,13 @@ const { sessionToken } = require('../config/auth');
 const AppError = require('./AppError');
 
 const ACCESS_TOKEN_TYPE = 'access';
+const REFRESH_TOKEN_TYPE = 'refresh';
+
+const buildEmailVersion = (email) =>
+  crypto
+    .createHash('sha256')
+    .update(String(email || '').trim().toLowerCase())
+    .digest('hex');
 
 const base64urlEncode = (value) =>
   Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -13,19 +20,22 @@ const base64urlDecodeJson = (value) => {
   try {
     return JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
   } catch (error) {
-    throw createTokenExpiredError('Access token is invalid or expired');
+    throw new AppError('Token is invalid or expired', {
+      code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      statusCode: 401,
+    });
   }
 };
 
-const createTokenExpiredError = (message = 'Access token is invalid or expired') =>
+const createTokenExpiredError = (message = 'Token is invalid or expired') =>
   new AppError(message, {
-    code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED || API_ERROR_CODES.UNAUTHORIZED,
+    code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
     statusCode: 401,
   });
 
-const ensureSecret = (secret) => {
+const ensureSecret = (secret, label) => {
   if (!secret) {
-    throw new AppError('Access token secret is not configured', {
+    throw new AppError(`${label} secret is not configured`, {
       code: API_ERROR_CODES.INTERNAL_ERROR,
       statusCode: 500,
     });
@@ -38,41 +48,51 @@ const signToken = (encodedHeader, encodedPayload, secret) =>
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest('base64url');
 
-const createAccessToken = (
+const signSessionToken = (
+  payload,
   {
-    roleCode,
-    userId,
+    expiresInSeconds,
+    issuedAt = new Date(),
+    secret,
+    tokenType,
   },
-  options = {},
 ) => {
-  const secret = options.secret || sessionToken.accessSecret;
+  ensureSecret(
+    secret,
+    tokenType === REFRESH_TOKEN_TYPE ? 'Refresh token' : 'Access token',
+  );
 
-  ensureSecret(secret);
-
-  const issuedAt = options.issuedAt || new Date();
   const iat = Math.floor(issuedAt.getTime() / 1000);
-  const tokenPayload = {
-    exp: iat + (options.expiresInSeconds || sessionToken.accessExpiresInSeconds),
-    iat,
-    jti: crypto.randomUUID(),
-    role_code: roleCode,
-    sub: userId,
-    type: ACCESS_TOKEN_TYPE,
-  };
-  const encodedHeader = base64urlEncode({
+  const header = {
     alg: 'HS256',
     typ: 'JWT',
-  });
+  };
+  const tokenPayload = {
+    ...payload,
+    exp: iat + expiresInSeconds,
+    iat,
+    jti: crypto.randomUUID(),
+    type: tokenType,
+  };
+  const encodedHeader = base64urlEncode(header);
   const encodedPayload = base64urlEncode(tokenPayload);
   const signature = signToken(encodedHeader, encodedPayload, secret);
 
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
-const verifyAccessToken = (token, options = {}) => {
-  const secret = options.secret || sessionToken.accessSecret;
-
-  ensureSecret(secret);
+const verifySessionToken = (
+  token,
+  {
+    expectedType,
+    now = new Date(),
+    secret,
+  },
+) => {
+  ensureSecret(
+    secret,
+    expectedType === REFRESH_TOKEN_TYPE ? 'Refresh token' : 'Access token',
+  );
 
   if (!token || typeof token !== 'string') {
     throw createTokenExpiredError();
@@ -98,17 +118,13 @@ const verifyAccessToken = (token, options = {}) => {
   const header = base64urlDecodeJson(encodedHeader);
   const payload = base64urlDecodeJson(encodedPayload);
 
-  if (
-    header.alg !== 'HS256' ||
-    payload.type !== ACCESS_TOKEN_TYPE ||
-    !payload.sub ||
-    !payload.role_code ||
-    !Number.isFinite(payload.exp)
-  ) {
+  if (header.alg !== 'HS256' || payload.type !== expectedType) {
     throw createTokenExpiredError();
   }
 
-  const now = options.now || new Date();
+  if (!payload.sub || !payload.role_code || !Number.isFinite(payload.exp)) {
+    throw createTokenExpiredError();
+  }
 
   if (payload.exp <= Math.floor(now.getTime() / 1000)) {
     throw createTokenExpiredError();
@@ -117,25 +133,119 @@ const verifyAccessToken = (token, options = {}) => {
   return payload;
 };
 
+const createAccessToken = (
+  {
+    ...claims
+  },
+  options = {},
+) =>
+  signSessionToken(
+    {
+      ...claims,
+      role_code: claims.roleCode,
+      sub: claims.userId,
+    },
+    {
+      expiresInSeconds:
+        options.expiresInSeconds || sessionToken.accessExpiresInSeconds,
+      issuedAt: options.issuedAt,
+      secret: options.secret || sessionToken.accessSecret,
+      tokenType: ACCESS_TOKEN_TYPE,
+    },
+  );
+
+const createRefreshToken = (
+  {
+    ...claims
+  },
+  options = {},
+) =>
+  signSessionToken(
+    {
+      ...claims,
+      role_code: claims.roleCode,
+      sub: claims.userId,
+    },
+    {
+      expiresInSeconds:
+        options.expiresInSeconds || sessionToken.refreshExpiresInSeconds,
+      issuedAt: options.issuedAt,
+      secret: options.secret || sessionToken.refreshSecret,
+      tokenType: REFRESH_TOKEN_TYPE,
+    },
+  );
+
+const verifyAccessToken = (token, options = {}) =>
+  verifySessionToken(token, {
+    ...options,
+    expectedType: ACCESS_TOKEN_TYPE,
+    secret: options.secret || sessionToken.accessSecret,
+  });
+
+const verifyRefreshToken = (token, options = {}) =>
+  verifySessionToken(token, {
+    ...options,
+    expectedType: REFRESH_TOKEN_TYPE,
+    secret: options.secret || sessionToken.refreshSecret,
+  });
+
+const buildSessionTokens = (
+  {
+    ...claims
+  },
+  {
+    issuedAt = new Date(),
+  } = {},
+) => ({
+  accessToken: createAccessToken(
+    {
+      ...claims,
+    },
+    {
+      issuedAt,
+    },
+  ),
+  expiresIn: sessionToken.accessExpiresInSeconds,
+  refreshExpiresIn: sessionToken.refreshExpiresInSeconds,
+  refreshToken: createRefreshToken(
+    {
+      ...claims,
+    },
+    {
+      issuedAt,
+    },
+  ),
+});
+
 const extractBearerToken = (authorizationHeader) => {
   const normalizedValue = String(authorizationHeader || '').trim();
 
   if (!normalizedValue) {
-    throw createTokenExpiredError();
+    throw createTokenExpiredError('Access token is invalid or expired');
   }
 
   const match = normalizedValue.match(/^Bearer\s+(.+)$/i);
 
   if (!match) {
-    throw createTokenExpiredError();
+    throw createTokenExpiredError('Access token is invalid or expired');
   }
 
   return match[1].trim();
 };
 
+const hashSessionToken = (token) =>
+  crypto.createHash('sha256').update(String(token || '')).digest('hex');
+
 module.exports = {
+  ACCESS_TOKEN_TYPE,
+  REFRESH_TOKEN_TYPE,
+  buildSessionTokens,
+  buildEmailVersion,
   createAccessToken,
+  createRefreshToken,
   createTokenExpiredError,
   extractBearerToken,
+  hashSessionToken,
   verifyAccessToken,
+  verifyRefreshToken,
 };
