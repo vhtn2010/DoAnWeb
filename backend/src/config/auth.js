@@ -35,6 +35,15 @@ const authRateLimit = {
       process.env.RATE_LIMIT_WINDOW_MS,
     600000,
   ),
+  resendVerificationMaxRequests: parsePositiveInt(
+    process.env.AUTH_RESEND_VERIFICATION_RATE_LIMIT_MAX_REQUESTS,
+    5,
+  ),
+  resendVerificationWindowMs: parsePositiveInt(
+    process.env.AUTH_RESEND_VERIFICATION_RATE_LIMIT_WINDOW_MS ||
+      process.env.RATE_LIMIT_WINDOW_MS,
+    600000,
+  ),
 };
 
 module.exports = {

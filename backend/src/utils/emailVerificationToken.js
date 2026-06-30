@@ -9,6 +9,41 @@ const signToken = (encodedPayload, secret) =>
     .update(encodedPayload)
     .digest('base64url');
 
+const createTokenInvalidError = () =>
+  new AppError('Verification token is invalid or expired', {
+    code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+    statusCode: 401,
+  });
+
+const ensureSecret = (secret) => {
+  if (!secret) {
+    throw new AppError('Email verification secret is not configured', {
+      code: API_ERROR_CODES.INTERNAL_ERROR,
+      statusCode: 500,
+    });
+  }
+};
+
+const decodeTokenPayload = (encodedPayload) => {
+  try {
+    return JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+  } catch (error) {
+    throw createTokenInvalidError();
+  }
+};
+
+const isSignatureValid = (encodedPayload, signature, secret) => {
+  const expectedSignature = signToken(encodedPayload, secret);
+  const actualBuffer = Buffer.from(signature || '');
+  const expectedBuffer = Buffer.from(expectedSignature);
+
+  if (actualBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
+};
+
 const createEmailVerificationToken = (
   payload,
   {
@@ -17,12 +52,7 @@ const createEmailVerificationToken = (
     secret = emailVerification.secret,
   } = {},
 ) => {
-  if (!secret) {
-    throw new AppError('Email verification secret is not configured', {
-      code: API_ERROR_CODES.INTERNAL_ERROR,
-      statusCode: 500,
-    });
-  }
+  ensureSecret(secret);
 
   const tokenPayload = {
     email: payload.email,
@@ -39,6 +69,52 @@ const createEmailVerificationToken = (
   return `${encodedPayload}.${signToken(encodedPayload, secret)}`;
 };
 
+const verifyEmailVerificationToken = (
+  token,
+  {
+    now = new Date(),
+    secret = emailVerification.secret,
+  } = {},
+) => {
+  ensureSecret(secret);
+
+  if (!token || typeof token !== 'string') {
+    throw createTokenInvalidError();
+  }
+
+  const [encodedPayload, signature, ...remainingParts] = token.split('.');
+
+  if (!encodedPayload || !signature || remainingParts.length > 0) {
+    throw createTokenInvalidError();
+  }
+
+  if (!isSignatureValid(encodedPayload, signature, secret)) {
+    throw createTokenInvalidError();
+  }
+
+  const tokenPayload = decodeTokenPayload(encodedPayload);
+
+  if (
+    tokenPayload?.type !== 'verify_email' ||
+    !tokenPayload?.sub ||
+    !tokenPayload?.email ||
+    !Number.isFinite(tokenPayload?.exp)
+  ) {
+    throw createTokenInvalidError();
+  }
+
+  if (tokenPayload.exp <= Math.floor(now.getTime() / 1000)) {
+    throw createTokenInvalidError();
+  }
+
+  return tokenPayload;
+};
+
+const hashEmailVerificationToken = (token) =>
+  crypto.createHash('sha256').update(String(token || '')).digest('hex');
+
 module.exports = {
   createEmailVerificationToken,
+  hashEmailVerificationToken,
+  verifyEmailVerificationToken,
 };

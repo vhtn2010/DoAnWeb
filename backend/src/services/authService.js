@@ -13,9 +13,17 @@ const {
 } = require('../constants/domainConstraints');
 const { withTransaction } = require('../database/client');
 const AppError = require('../utils/AppError');
-const { createEmailVerificationToken } = require('../utils/emailVerificationToken');
+const {
+  createEmailVerificationToken,
+  hashEmailVerificationToken,
+  verifyEmailVerificationToken,
+} = require('../utils/emailVerificationToken');
 const { sendEmail } = require('./sendgridService');
 
+const AUTH_REGISTER_ACTION = 'auth.register';
+const AUTH_RESEND_VERIFICATION_ACTION = 'auth.resend_verification';
+const AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = 'AUTH_RESEND_VERIFY_EMAIL';
+const AUTH_VERIFY_EMAIL_ACTION = 'auth.verify_email';
 const AUTH_VERIFY_EMAIL_TEMPLATE_CODE = 'AUTH_VERIFY_EMAIL';
 const CUSTOMER_ROLE_CODE = 'customer';
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,7 +36,7 @@ const createValidationError = (details) =>
     statusCode: 400,
   });
 
-const createInternalError = (message = 'Unable to complete registration') =>
+const createInternalError = (message = 'Unable to complete authentication request') =>
   new AppError(message, {
     code: API_ERROR_CODES.INTERNAL_ERROR,
     statusCode: 500,
@@ -46,6 +54,24 @@ const createDuplicateEmailError = () =>
     statusCode: 409,
   });
 
+const createTokenInvalidError = () =>
+  new AppError('Verification token is invalid or expired', {
+    code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+    statusCode: 401,
+  });
+
+const createIneligibleVerificationError = (status) =>
+  new AppError('Account is not eligible for email verification', {
+    code: API_ERROR_CODES.FORBIDDEN,
+    details: [
+      {
+        field: 'status',
+        message: `Account status ${status} is not eligible for email verification`,
+      },
+    ],
+    statusCode: 403,
+  });
+
 const trimToNull = (value) => {
   if (value == null) {
     return null;
@@ -54,6 +80,11 @@ const trimToNull = (value) => {
   const normalizedValue = String(value).trim();
   return normalizedValue || null;
 };
+
+const compactObject = (value) =>
+  Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  );
 
 const normalizeRegisterPayload = (payload = {}) => {
   const details = [];
@@ -131,6 +162,49 @@ const normalizeRegisterPayload = (payload = {}) => {
   };
 };
 
+const normalizeVerifyEmailPayload = (payload = {}) => {
+  const token = String(payload.token || '').trim();
+
+  if (!token) {
+    throw createValidationError([
+      {
+        field: 'token',
+        message: 'Token is required',
+      },
+    ]);
+  }
+
+  return {
+    token,
+  };
+};
+
+const normalizeResendVerificationPayload = (payload = {}) => {
+  const email = String(payload.email || '').trim().toLowerCase();
+
+  if (!email) {
+    throw createValidationError([
+      {
+        field: 'email',
+        message: 'Email is required',
+      },
+    ]);
+  }
+
+  if (!EMAIL_ADDRESS_REGEX.test(email)) {
+    throw createValidationError([
+      {
+        field: 'email',
+        message: 'Email is invalid',
+      },
+    ]);
+  }
+
+  return {
+    email,
+  };
+};
+
 const hashPassword = async (plainTextPassword) =>
   bcrypt.hash(plainTextPassword, passwordHash.bcryptSaltRounds);
 
@@ -181,13 +255,147 @@ const mapRegisteredUser = (user) => ({
   status: user.status,
 });
 
+const buildVerificationResult = ({
+  alreadyVerified = false,
+  emailVerifiedAt,
+  status,
+}) => ({
+  already_verified: alreadyVerified,
+  email_verified_at: emailVerifiedAt
+    ? new Date(emailVerifiedAt).toISOString()
+    : null,
+  message: alreadyVerified
+    ? 'Email already verified.'
+    : 'Email verified successfully.',
+  status,
+});
+
 const isUniqueViolation = (error) =>
   error?.code === '23505' || error?.constraint === 'users_email_key';
 
+const buildVerificationTokenAuditMetadata = ({
+  email,
+  outcome,
+  status,
+  tokenHash,
+}) =>
+  compactObject({
+    email,
+    outcome,
+    status,
+    verification_token_hash: tokenHash,
+  });
+
+const insertUserLog = async (
+  client,
+  {
+    action,
+    createdAt,
+    entityId,
+    entityName = 'users',
+    ipAddress,
+    metadata,
+    userAgent,
+    userId,
+  },
+) =>
+  client.query(
+    `
+      INSERT INTO user_logs (
+        user_id,
+        action,
+        entity_name,
+        entity_id,
+        ip_address,
+        user_agent,
+        metadata,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+    `,
+    [
+      userId || null,
+      action,
+      entityName,
+      entityId || null,
+      ipAddress || null,
+      trimToNull(userAgent),
+      metadata ? JSON.stringify(metadata) : null,
+      createdAt,
+    ],
+  );
+
+const queueEmailLog = async (
+  client,
+  {
+    createdAt,
+    subject,
+    templateCode,
+    toEmail,
+    userId,
+  },
+) =>
+  client.query(
+    `
+      INSERT INTO email_logs (
+        user_id,
+        booking_id,
+        to_email,
+        subject,
+        template_code,
+        status,
+        provider,
+        provider_message_id,
+        error_message,
+        sent_at,
+        created_at
+      )
+      VALUES ($1, NULL, $2, $3, $4, $5, $6, NULL, NULL, NULL, $7)
+      RETURNING id
+    `,
+    [
+      userId,
+      toEmail,
+      subject,
+      templateCode,
+      EMAIL_STATUS.QUEUED,
+      DOMAIN_CONSTRAINTS.emailProvider,
+      createdAt,
+    ],
+  );
+
+const markEmailLogSent = async (
+  client,
+  {
+    emailLogId,
+    messageId,
+    sentAt,
+  },
+) =>
+  client.query(
+    `
+      UPDATE email_logs
+      SET
+        status = $2,
+        provider_message_id = $3,
+        error_message = NULL,
+        sent_at = $4
+      WHERE id = $1
+    `,
+    [
+      emailLogId,
+      EMAIL_STATUS.SENT,
+      messageId || null,
+      sentAt,
+    ],
+  );
+
 const createAuthService = ({
   createEmailVerificationTokenImpl = createEmailVerificationToken,
+  hashEmailVerificationTokenImpl = hashEmailVerificationToken,
   now = () => new Date(),
   sendEmailImpl = sendEmail,
+  verifyEmailVerificationTokenImpl = verifyEmailVerificationToken,
   withTransactionImpl = withTransaction,
 } = {}) => {
   const register = async (payload, context = {}) => {
@@ -258,6 +466,7 @@ const createAuthService = ({
           email: user.email,
           userId: user.id,
         });
+        const tokenHash = hashEmailVerificationTokenImpl(token);
         const { apiVerifyUrl, verificationUrl } = buildVerificationLinks(token);
         const emailContent = buildVerificationEmail({
           apiVerifyUrl,
@@ -266,34 +475,13 @@ const createAuthService = ({
           token,
           verificationUrl,
         });
-        const emailLogResult = await client.query(
-          `
-            INSERT INTO email_logs (
-              user_id,
-              booking_id,
-              to_email,
-              subject,
-              template_code,
-              status,
-              provider,
-              provider_message_id,
-              error_message,
-              sent_at,
-              created_at
-            )
-            VALUES ($1, NULL, $2, $3, $4, $5, $6, NULL, NULL, NULL, $7)
-            RETURNING id
-          `,
-          [
-            user.id,
-            user.email,
-            emailContent.subject,
-            AUTH_VERIFY_EMAIL_TEMPLATE_CODE,
-            EMAIL_STATUS.QUEUED,
-            DOMAIN_CONSTRAINTS.emailProvider,
-            createdAt,
-          ],
-        );
+        const emailLogResult = await queueEmailLog(client, {
+          createdAt,
+          subject: emailContent.subject,
+          templateCode: AUTH_VERIFY_EMAIL_TEMPLATE_CODE,
+          toEmail: user.email,
+          userId: user.id,
+        });
         const sendResult = await sendEmailImpl({
           html: emailContent.html,
           subject: emailContent.subject,
@@ -305,53 +493,26 @@ const createAuthService = ({
         });
         const sentAt = now();
 
-        await client.query(
-          `
-            UPDATE email_logs
-            SET
-              status = $2,
-              provider_message_id = $3,
-              error_message = NULL,
-              sent_at = $4
-            WHERE id = $1
-          `,
-          [
-            emailLogResult.rows[0].id,
-            EMAIL_STATUS.SENT,
-            sendResult.messageId,
-            sentAt,
-          ],
-        );
+        await markEmailLogSent(client, {
+          emailLogId: emailLogResult.rows[0].id,
+          messageId: sendResult.messageId,
+          sentAt,
+        });
 
-        await client.query(
-          `
-            INSERT INTO user_logs (
-              user_id,
-              action,
-              entity_name,
-              entity_id,
-              ip_address,
-              user_agent,
-              metadata,
-              created_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
-          `,
-          [
-            user.id,
-            'auth.register',
-            'users',
-            user.id,
-            context.ipAddress || null,
-            trimToNull(context.userAgent),
-            JSON.stringify({
-              email: user.email,
-              role_code: CUSTOMER_ROLE_CODE,
-              status: user.status,
-            }),
-            sentAt,
-          ],
-        );
+        await insertUserLog(client, {
+          action: AUTH_REGISTER_ACTION,
+          createdAt: sentAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: {
+            email: user.email,
+            role_code: CUSTOMER_ROLE_CODE,
+            status: user.status,
+            verification_token_hash: tokenHash,
+          },
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
 
         return mapRegisteredUser(user);
       });
@@ -372,17 +533,287 @@ const createAuthService = ({
     }
   };
 
+  const verifyEmail = async (payload, context = {}) => {
+    const input = normalizeVerifyEmailPayload(payload);
+    let tokenPayload;
+
+    try {
+      tokenPayload = verifyEmailVerificationTokenImpl(input.token, {
+        now: now(),
+      });
+    } catch (error) {
+      if (error.code === API_ERROR_CODES.AUTH_TOKEN_EXPIRED) {
+        throw error;
+      }
+
+      throw createTokenInvalidError();
+    }
+
+    const tokenHash = hashEmailVerificationTokenImpl(input.token);
+
+    return withTransactionImpl(async (client) => {
+      const userResult = await client.query(
+        `
+          SELECT id, email, full_name, status, email_verified_at
+          FROM users
+          WHERE id = $1 AND email = $2
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [tokenPayload.sub, tokenPayload.email],
+      );
+
+      if (userResult.rowCount === 0) {
+        throw createTokenInvalidError();
+      }
+
+      const user = userResult.rows[0];
+
+      if (user.status === USER_STATUS.ACTIVE) {
+        const createdAt = now();
+
+        await insertUserLog(client, {
+          action: AUTH_VERIFY_EMAIL_ACTION,
+          createdAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: buildVerificationTokenAuditMetadata({
+            email: user.email,
+            outcome: 'already_verified',
+            status: user.status,
+            tokenHash,
+          }),
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
+
+        return buildVerificationResult({
+          alreadyVerified: true,
+          emailVerifiedAt: user.email_verified_at,
+          status: USER_STATUS.ACTIVE,
+        });
+      }
+
+      if (user.status !== USER_STATUS.PENDING_VERIFICATION) {
+        throw createIneligibleVerificationError(user.status);
+      }
+
+      const latestTokenLogResult = await client.query(
+        `
+          SELECT metadata
+          FROM user_logs
+          WHERE
+            user_id = $1
+            AND action IN ($2, $3)
+            AND metadata ->> 'verification_token_hash' IS NOT NULL
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        [
+          user.id,
+          AUTH_REGISTER_ACTION,
+          AUTH_RESEND_VERIFICATION_ACTION,
+        ],
+      );
+
+      if (latestTokenLogResult.rowCount === 0) {
+        throw createTokenInvalidError();
+      }
+
+      const latestTokenHash =
+        latestTokenLogResult.rows[0].metadata?.verification_token_hash || null;
+
+      if (!latestTokenHash || latestTokenHash !== tokenHash) {
+        throw createTokenInvalidError();
+      }
+
+      const usedTokenResult = await client.query(
+        `
+          SELECT id
+          FROM user_logs
+          WHERE
+            user_id = $1
+            AND action = $2
+            AND metadata ->> 'verification_token_hash' = $3
+          LIMIT 1
+        `,
+        [user.id, AUTH_VERIFY_EMAIL_ACTION, tokenHash],
+      );
+
+      if (usedTokenResult.rowCount > 0) {
+        throw createTokenInvalidError();
+      }
+
+      const verifiedAt = now();
+      const updatedUserResult = await client.query(
+        `
+          UPDATE users
+          SET
+            email_verified_at = $2,
+            status = $3,
+            updated_at = $2
+          WHERE id = $1
+          RETURNING status, email_verified_at
+        `,
+        [user.id, verifiedAt, USER_STATUS.ACTIVE],
+      );
+
+      await insertUserLog(client, {
+        action: AUTH_VERIFY_EMAIL_ACTION,
+        createdAt: verifiedAt,
+        entityId: user.id,
+        ipAddress: context.ipAddress,
+        metadata: buildVerificationTokenAuditMetadata({
+          email: user.email,
+          outcome: 'verified',
+          status: USER_STATUS.ACTIVE,
+          tokenHash,
+        }),
+        userAgent: context.userAgent,
+        userId: user.id,
+      });
+
+      return buildVerificationResult({
+        emailVerifiedAt: updatedUserResult.rows[0].email_verified_at,
+        status: updatedUserResult.rows[0].status,
+      });
+    });
+  };
+
+  const resendVerification = async (payload, context = {}) => {
+    const input = normalizeResendVerificationPayload(payload);
+
+    try {
+      return await withTransactionImpl(async (client) => {
+        const userResult = await client.query(
+          `
+            SELECT id, email, full_name, status
+            FROM users
+            WHERE email = $1
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [input.email],
+        );
+        const genericResponse = {
+          data: {
+            acknowledged: true,
+          },
+          message:
+            'If the email is eligible, a verification email will be sent.',
+        };
+
+        if (userResult.rowCount === 0) {
+          return genericResponse;
+        }
+
+        const user = userResult.rows[0];
+        const createdAt = now();
+
+        if (user.status !== USER_STATUS.PENDING_VERIFICATION) {
+          await insertUserLog(client, {
+            action: AUTH_RESEND_VERIFICATION_ACTION,
+            createdAt,
+            entityId: user.id,
+            ipAddress: context.ipAddress,
+            metadata: buildVerificationTokenAuditMetadata({
+              email: user.email,
+              outcome: 'skipped_ineligible_status',
+              status: user.status,
+            }),
+            userAgent: context.userAgent,
+            userId: user.id,
+          });
+
+          return genericResponse;
+        }
+
+        const token = createEmailVerificationTokenImpl({
+          email: user.email,
+          userId: user.id,
+        });
+        const tokenHash = hashEmailVerificationTokenImpl(token);
+        const { apiVerifyUrl, verificationUrl } = buildVerificationLinks(token);
+        const emailContent = buildVerificationEmail({
+          apiVerifyUrl,
+          expiresInMinutes: emailVerification.expiresInMinutes,
+          fullName: user.full_name,
+          token,
+          verificationUrl,
+        });
+        const emailLogResult = await queueEmailLog(client, {
+          createdAt,
+          subject: emailContent.subject,
+          templateCode: AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+          toEmail: user.email,
+          userId: user.id,
+        });
+        const sendResult = await sendEmailImpl({
+          html: emailContent.html,
+          subject: emailContent.subject,
+          text: emailContent.text,
+          to: {
+            email: user.email,
+            name: user.full_name,
+          },
+        });
+        const sentAt = now();
+
+        await markEmailLogSent(client, {
+          emailLogId: emailLogResult.rows[0].id,
+          messageId: sendResult.messageId,
+          sentAt,
+        });
+
+        await insertUserLog(client, {
+          action: AUTH_RESEND_VERIFICATION_ACTION,
+          createdAt: sentAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: buildVerificationTokenAuditMetadata({
+            email: user.email,
+            outcome: 'sent',
+            status: user.status,
+            tokenHash,
+          }),
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
+
+        return genericResponse;
+      });
+    } catch (error) {
+      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
+        throw createInternalError('Email verification service is not configured');
+      }
+
+      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
+        throw createInternalError('Failed to send verification email');
+      }
+
+      throw error;
+    }
+  };
+
   return {
     register,
+    resendVerification,
+    verifyEmail,
   };
 };
 
 const authService = createAuthService();
 
 module.exports = authService;
+module.exports.AUTH_REGISTER_ACTION = AUTH_REGISTER_ACTION;
+module.exports.AUTH_RESEND_VERIFICATION_ACTION = AUTH_RESEND_VERIFICATION_ACTION;
+module.exports.AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE;
+module.exports.AUTH_VERIFY_EMAIL_ACTION = AUTH_VERIFY_EMAIL_ACTION;
 module.exports.AUTH_VERIFY_EMAIL_TEMPLATE_CODE = AUTH_VERIFY_EMAIL_TEMPLATE_CODE;
 module.exports.CUSTOMER_ROLE_CODE = CUSTOMER_ROLE_CODE;
 module.exports.MIN_PASSWORD_LENGTH = MIN_PASSWORD_LENGTH;
 module.exports.buildVerificationEmail = buildVerificationEmail;
 module.exports.createAuthService = createAuthService;
 module.exports.normalizeRegisterPayload = normalizeRegisterPayload;
+module.exports.normalizeResendVerificationPayload = normalizeResendVerificationPayload;
+module.exports.normalizeVerifyEmailPayload = normalizeVerifyEmailPayload;

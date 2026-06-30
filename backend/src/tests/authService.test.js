@@ -3,6 +3,10 @@ const test = require('node:test');
 const bcrypt = require('bcryptjs');
 
 const {
+  AUTH_REGISTER_ACTION,
+  AUTH_RESEND_VERIFICATION_ACTION,
+  AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+  AUTH_VERIFY_EMAIL_ACTION,
   AUTH_VERIFY_EMAIL_TEMPLATE_CODE,
   createAuthService,
 } = require('../services/authService');
@@ -11,6 +15,9 @@ const {
   EMAIL_STATUS,
   USER_STATUS,
 } = require('../constants/domainConstraints');
+const {
+  hashEmailVerificationToken,
+} = require('../utils/emailVerificationToken');
 
 const fixedNow = new Date('2026-06-30T00:00:00.000Z');
 
@@ -19,12 +26,24 @@ const createService = (options = {}) =>
     createEmailVerificationTokenImpl:
       options.createEmailVerificationTokenImpl ||
       (() => 'verify-token'),
+    hashEmailVerificationTokenImpl:
+      options.hashEmailVerificationTokenImpl ||
+      hashEmailVerificationToken,
     now: options.now || (() => fixedNow),
     sendEmailImpl:
       options.sendEmailImpl ||
       (async () => ({
         accepted: true,
         messageId: 'sg-message-1',
+      })),
+    verifyEmailVerificationTokenImpl:
+      options.verifyEmailVerificationTokenImpl ||
+      (() => ({
+        email: 'customer@example.com',
+        exp: Math.floor(fixedNow.getTime() / 1000) + 3600,
+        nonce: 'nonce-1',
+        sub: 'user-1',
+        type: 'verify_email',
       })),
     withTransactionImpl:
       options.withTransactionImpl ||
@@ -177,10 +196,18 @@ test('register creates a pending customer account and writes email and user logs
   );
 
   assert.ok(insertUserLogQuery);
-  assert.equal(insertUserLogQuery.params[1], 'auth.register');
+  assert.equal(insertUserLogQuery.params[1], AUTH_REGISTER_ACTION);
   assert.equal(insertUserLogQuery.params[4], '127.0.0.1');
   assert.equal(insertUserLogQuery.params[5], 'node-test');
-  assert.match(insertUserLogQuery.params[6], /customer@example\.com/);
+
+  const registerMetadata = JSON.parse(insertUserLogQuery.params[6]);
+
+  assert.equal(registerMetadata.email, 'customer@example.com');
+  assert.equal(registerMetadata.role_code, 'customer');
+  assert.equal(
+    registerMetadata.verification_token_hash,
+    hashEmailVerificationToken('verify-token'),
+  );
 
   assert.equal(capturedEmailPayload.to.email, 'customer@example.com');
   assert.equal(capturedEmailPayload.to.name, 'Nguyen Van A');
@@ -247,4 +274,488 @@ test('register blocks duplicate emails before creating the user', async () => {
       error.code === API_ERROR_CODES.DUPLICATE_RESOURCE &&
       error.statusCode === 409,
   );
+});
+
+test('verifyEmail activates a pending account and writes audit log', async () => {
+  const queries = [];
+  const token = 'verify-token';
+  const tokenHash = hashEmailVerificationToken(token);
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('FROM users') && sql.includes('WHERE id = $1 AND email = $2')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              email: 'customer@example.com',
+              email_verified_at: null,
+              full_name: 'Nguyen Van A',
+              id: 'user-1',
+              status: USER_STATUS.PENDING_VERIFICATION,
+            },
+          ],
+        };
+      }
+
+      if (
+        sql.includes('FROM user_logs') &&
+        sql.includes("metadata ->> 'verification_token_hash' IS NOT NULL")
+      ) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              metadata: {
+                verification_token_hash: tokenHash,
+              },
+            },
+          ],
+        };
+      }
+
+      if (
+        sql.includes('FROM user_logs') &&
+        sql.includes("metadata ->> 'verification_token_hash' = $3")
+      ) {
+        return {
+          rowCount: 0,
+          rows: [],
+        };
+      }
+
+      if (sql.includes('UPDATE users')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              email_verified_at: fixedNow,
+              status: USER_STATUS.ACTIVE,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createService({
+    client,
+    verifyEmailVerificationTokenImpl: () => ({
+      email: 'customer@example.com',
+      exp: Math.floor(fixedNow.getTime() / 1000) + 3600,
+      nonce: 'nonce-1',
+      sub: 'user-1',
+      type: 'verify_email',
+    }),
+  });
+
+  const result = await service.verifyEmail(
+    {
+      token,
+    },
+    {
+      ipAddress: '127.0.0.1',
+      userAgent: 'verify-email-test',
+    },
+  );
+
+  assert.deepEqual(result, {
+    already_verified: false,
+    email_verified_at: fixedNow.toISOString(),
+    message: 'Email verified successfully.',
+    status: USER_STATUS.ACTIVE,
+  });
+
+  const updateUserQuery = queries.find((entry) =>
+    entry.sql.includes('UPDATE users'),
+  );
+
+  assert.ok(updateUserQuery);
+  assert.equal(updateUserQuery.params[2], USER_STATUS.ACTIVE);
+
+  const insertUserLogQuery = queries.find((entry) =>
+    entry.sql.includes('INSERT INTO user_logs'),
+  );
+
+  assert.ok(insertUserLogQuery);
+  assert.equal(insertUserLogQuery.params[1], AUTH_VERIFY_EMAIL_ACTION);
+  assert.equal(insertUserLogQuery.params[4], '127.0.0.1');
+  assert.equal(insertUserLogQuery.params[5], 'verify-email-test');
+
+  const verifyMetadata = JSON.parse(insertUserLogQuery.params[6]);
+
+  assert.equal(verifyMetadata.email, 'customer@example.com');
+  assert.equal(verifyMetadata.outcome, 'verified');
+  assert.equal(verifyMetadata.status, USER_STATUS.ACTIVE);
+  assert.equal(verifyMetadata.verification_token_hash, tokenHash);
+});
+
+test('verifyEmail returns idempotent success for an already active account', async () => {
+  const queries = [];
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('FROM users') && sql.includes('WHERE id = $1 AND email = $2')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              email: 'customer@example.com',
+              email_verified_at: fixedNow,
+              full_name: 'Nguyen Van A',
+              id: 'user-1',
+              status: USER_STATUS.ACTIVE,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createService({
+    client,
+  });
+
+  const result = await service.verifyEmail({
+    token: 'verify-token',
+  });
+
+  assert.deepEqual(result, {
+    already_verified: true,
+    email_verified_at: fixedNow.toISOString(),
+    message: 'Email already verified.',
+    status: USER_STATUS.ACTIVE,
+  });
+  assert.equal(
+    queries.some((entry) => entry.sql.includes('UPDATE users')),
+    false,
+  );
+});
+
+test('verifyEmail rejects tokens that are no longer the latest issued token', async () => {
+  const client = {
+    query: async (sql) => {
+      if (sql.includes('FROM users') && sql.includes('WHERE id = $1 AND email = $2')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              email: 'customer@example.com',
+              email_verified_at: null,
+              full_name: 'Nguyen Van A',
+              id: 'user-1',
+              status: USER_STATUS.PENDING_VERIFICATION,
+            },
+          ],
+        };
+      }
+
+      if (
+        sql.includes('FROM user_logs') &&
+        sql.includes("metadata ->> 'verification_token_hash' IS NOT NULL")
+      ) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              metadata: {
+                verification_token_hash: hashEmailVerificationToken('newer-token'),
+              },
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createService({
+    client,
+  });
+
+  await assert.rejects(
+    () =>
+      service.verifyEmail({
+        token: 'verify-token',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.AUTH_TOKEN_EXPIRED &&
+      error.statusCode === 401,
+  );
+});
+
+test('verifyEmail blocks locked or suspended style statuses from becoming active', async () => {
+  const service = createService({
+    client: {
+      query: async (sql) => {
+        if (sql.includes('FROM users') && sql.includes('WHERE id = $1 AND email = $2')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                email: 'customer@example.com',
+                email_verified_at: null,
+                full_name: 'Nguyen Van A',
+                id: 'user-1',
+                status: USER_STATUS.SUSPENDED,
+              },
+            ],
+          };
+        }
+
+        throw new Error(`Unexpected SQL in test: ${sql}`);
+      },
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.verifyEmail({
+        token: 'verify-token',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('resendVerification sends a fresh verification email for pending accounts', async () => {
+  const queries = [];
+  let capturedEmailPayload;
+  const token = 'resend-token';
+  const tokenHash = hashEmailVerificationToken(token);
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('FROM users') && sql.includes('WHERE email = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              email: 'customer@example.com',
+              full_name: 'Nguyen Van A',
+              id: 'user-1',
+              status: USER_STATUS.PENDING_VERIFICATION,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('INSERT INTO email_logs')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'email-log-2',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('UPDATE email_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createService({
+    client,
+    createEmailVerificationTokenImpl: () => token,
+    sendEmailImpl: async (payload) => {
+      capturedEmailPayload = payload;
+
+      return {
+        accepted: true,
+        messageId: 'sg-message-2',
+      };
+    },
+  });
+
+  const result = await service.resendVerification(
+    {
+      email: ' Customer@Example.com ',
+    },
+    {
+      ipAddress: '127.0.0.1',
+      userAgent: 'resend-test',
+    },
+  );
+
+  assert.deepEqual(result, {
+    data: {
+      acknowledged: true,
+    },
+    message: 'If the email is eligible, a verification email will be sent.',
+  });
+
+  const insertEmailLogQuery = queries.find((entry) =>
+    entry.sql.includes('INSERT INTO email_logs'),
+  );
+
+  assert.ok(insertEmailLogQuery);
+  assert.equal(insertEmailLogQuery.params[1], 'customer@example.com');
+  assert.equal(
+    insertEmailLogQuery.params[3],
+    AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+  );
+
+  const insertUserLogQuery = queries.find((entry) =>
+    entry.sql.includes('INSERT INTO user_logs'),
+  );
+
+  assert.ok(insertUserLogQuery);
+  assert.equal(insertUserLogQuery.params[1], AUTH_RESEND_VERIFICATION_ACTION);
+
+  const resendMetadata = JSON.parse(insertUserLogQuery.params[6]);
+
+  assert.equal(resendMetadata.email, 'customer@example.com');
+  assert.equal(resendMetadata.outcome, 'sent');
+  assert.equal(resendMetadata.status, USER_STATUS.PENDING_VERIFICATION);
+  assert.equal(resendMetadata.verification_token_hash, tokenHash);
+  assert.equal(capturedEmailPayload.to.email, 'customer@example.com');
+  assert.match(capturedEmailPayload.text, /resend-token/);
+});
+
+test('resendVerification hides unknown emails and does not send mail', async () => {
+  let sendAttempts = 0;
+  const service = createService({
+    client: {
+      query: async (sql) => {
+        if (sql.includes('FROM users') && sql.includes('WHERE email = $1')) {
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
+
+        throw new Error(`Unexpected SQL in test: ${sql}`);
+      },
+    },
+    sendEmailImpl: async () => {
+      sendAttempts += 1;
+
+      return {
+        accepted: true,
+        messageId: 'sg-message-3',
+      };
+    },
+  });
+
+  const result = await service.resendVerification({
+    email: 'customer@example.com',
+  });
+
+  assert.deepEqual(result, {
+    data: {
+      acknowledged: true,
+    },
+    message: 'If the email is eligible, a verification email will be sent.',
+  });
+  assert.equal(sendAttempts, 0);
+});
+
+test('resendVerification skips ineligible statuses but still writes audit log when user is known', async () => {
+  const queries = [];
+  let sendAttempts = 0;
+  const service = createService({
+    client: {
+      query: async (sql, params = []) => {
+        queries.push({
+          params,
+          sql,
+        });
+
+        if (sql.includes('FROM users') && sql.includes('WHERE email = $1')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                email: 'customer@example.com',
+                full_name: 'Nguyen Van A',
+                id: 'user-1',
+                status: USER_STATUS.ACTIVE,
+              },
+            ],
+          };
+        }
+
+        if (sql.includes('INSERT INTO user_logs')) {
+          return {
+            rowCount: 1,
+            rows: [],
+          };
+        }
+
+        throw new Error(`Unexpected SQL in test: ${sql}`);
+      },
+    },
+    sendEmailImpl: async () => {
+      sendAttempts += 1;
+
+      return {
+        accepted: true,
+        messageId: 'sg-message-4',
+      };
+    },
+  });
+
+  const result = await service.resendVerification({
+    email: 'customer@example.com',
+  });
+
+  assert.deepEqual(result, {
+    data: {
+      acknowledged: true,
+    },
+    message: 'If the email is eligible, a verification email will be sent.',
+  });
+  assert.equal(sendAttempts, 0);
+
+  const insertUserLogQuery = queries.find((entry) =>
+    entry.sql.includes('INSERT INTO user_logs'),
+  );
+  const resendMetadata = JSON.parse(insertUserLogQuery.params[6]);
+
+  assert.equal(insertUserLogQuery.params[1], AUTH_RESEND_VERIFICATION_ACTION);
+  assert.equal(resendMetadata.outcome, 'skipped_ineligible_status');
+  assert.equal(resendMetadata.status, USER_STATUS.ACTIVE);
 });
