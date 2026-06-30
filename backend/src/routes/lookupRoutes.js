@@ -3,7 +3,9 @@ const {
   getFeaturedServices,
   getPopularLocations,
   getPublicEnums,
+  getServiceDetail,
   getServiceFilterOptions,
+  getServiceImages,
   getServices,
 } = require('../controllers/lookupController');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -36,6 +38,16 @@ router.get(
   '/services',
   publicSearchRateLimit,
   asyncHandler(getServices),
+);
+router.get(
+  '/services/:service_id/images',
+  publicSearchRateLimit,
+  asyncHandler(getServiceImages),
+);
+router.get(
+  '/services/:slug',
+  publicSearchRateLimit,
+  asyncHandler(getServiceDetail),
 );
 
 module.exports = router;

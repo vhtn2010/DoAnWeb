@@ -428,6 +428,339 @@ test('lookupService.searchServices rejects invalid room, keyword, price range, s
   );
 });
 
+test('lookupService.getServiceDetail returns mapped tour detail for a public service slug', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceBySlug: async (slug) => {
+        assert.equal(slug, 'tour-da-lat-3n2d');
+
+        return {
+          base_price: '3200000',
+          cancellation_policy: 'Cancel before 7 days',
+          currency: 'VND',
+          description: 'Detailed tour description',
+          id: 'service-tour-1',
+          location_text: 'Da Lat',
+          metadata: {
+            internal_note: 'do not expose',
+          },
+          primary_image: 'https://example.com/tour.jpg',
+          provider_name: 'Net Viet Travel',
+          public_price: '2890000',
+          sale_price: '2890000',
+          service_type: 'tour',
+          short_description: 'Tour short description',
+          slug: 'tour-da-lat-3n2d',
+          title: 'Tour Da Lat 3N2D',
+        };
+      },
+      getTourDetail: async (serviceId) => {
+        assert.equal(serviceId, 'service-tour-1');
+
+        return {
+          departure_location: 'TP.HCM',
+          departure_schedule: [{ date: '2026-07-20', slots: 10 }],
+          destination_location: 'Da Lat',
+          duration_days: 3,
+          duration_nights: 2,
+          excluded_services: 'Personal expenses',
+          included_services: 'Transport and breakfast',
+          itinerary: [{ day: 1, title: 'Start trip' }],
+          max_group_size: 30,
+          terms: 'Tour terms',
+          transport_type: 'bus',
+        };
+      },
+    },
+  });
+
+  const result = await service.getServiceDetail({
+    slug: 'tour-da-lat-3n2d',
+  });
+
+  assert.deepEqual(result, {
+    base_price: 3200000,
+    cancellation_policy: 'Cancel before 7 days',
+    currency: 'VND',
+    description: 'Detailed tour description',
+    details: {
+      departure_location: 'TP.HCM',
+      departure_schedule: [{ date: '2026-07-20', slots: 10 }],
+      destination_location: 'Da Lat',
+      duration_days: 3,
+      duration_nights: 2,
+      excluded_services: 'Personal expenses',
+      included_services: 'Transport and breakfast',
+      itinerary: [{ day: 1, title: 'Start trip' }],
+      max_group_size: 30,
+      terms: 'Tour terms',
+      transport_type: 'bus',
+    },
+    id: 'service-tour-1',
+    location_text: 'Da Lat',
+    primary_image: 'https://example.com/tour.jpg',
+    provider_name: 'Net Viet Travel',
+    public_price: 2890000,
+    sale_price: 2890000,
+    service_type: 'tour',
+    short_description: 'Tour short description',
+    slug: 'tour-da-lat-3n2d',
+    title: 'Tour Da Lat 3N2D',
+  });
+});
+
+test('lookupService.getServiceDetail computes flight is_bookable and sanitizes combo metadata', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getFlightDetail: async () => ({
+        airline_name: 'Vietnam Airlines',
+        arrival_airport: 'DAD',
+        arrival_at: '2099-07-20T10:00:00.000Z',
+        cabin_class: 'business',
+        departure_airport: 'SGN',
+        departure_at: '2099-07-20T08:00:00.000Z',
+        fare_price: '4200000',
+        flight_number: 'VN123',
+        seats_available: 5,
+        status: 'open',
+      }),
+      getPublicServiceBySlug: async (slug) => {
+        if (slug === 'flight-sgn-dad') {
+          return {
+            base_price: '4500000',
+            cancellation_policy: null,
+            currency: 'VND',
+            description: 'Flight detail',
+            id: 'flight-service-1',
+            location_text: 'Da Nang',
+            metadata: null,
+            primary_image: null,
+            provider_name: 'Vietnam Airlines',
+            public_price: '4200000',
+            sale_price: '4200000',
+            service_type: 'flight',
+            short_description: 'Fast flight',
+            slug,
+            title: 'Flight SGN - DAD',
+          };
+        }
+
+        return {
+          base_price: '6000000',
+          cancellation_policy: 'Combo policy',
+          currency: 'VND',
+          description: 'Combo detail',
+          id: 'combo-service-1',
+          location_text: 'Phu Quoc',
+          metadata: {
+            combo_items: [
+              {
+                base_price: '3000000',
+                cloudinary_public_id: 'hidden',
+                location_text: 'Phu Quoc',
+                public_price: '2800000',
+                sale_price: '2800000',
+                service_id: 'child-1',
+                service_type: 'hotel',
+                slug: 'hotel-phu-quoc',
+                title: 'Hotel Phu Quoc',
+              },
+            ],
+            internal_flags: {
+              hidden: true,
+            },
+          },
+          primary_image: 'https://example.com/combo.jpg',
+          provider_name: 'Net Viet Travel',
+          public_price: '5500000',
+          sale_price: '5500000',
+          service_type: 'combo',
+          short_description: 'Combo short',
+          slug,
+          title: 'Combo Phu Quoc',
+        };
+      },
+    },
+  });
+
+  const flightResult = await service.getServiceDetail({
+    slug: 'flight-sgn-dad',
+  });
+  const comboResult = await service.getServiceDetail({
+    slug: 'combo-phu-quoc',
+  });
+
+  assert.equal(flightResult.details.is_bookable, true);
+  assert.deepEqual(comboResult.details, {
+    combo_items: [
+      {
+        base_price: 3000000,
+        location_text: 'Phu Quoc',
+        public_price: 2800000,
+        sale_price: 2800000,
+        service_id: 'child-1',
+        service_type: 'hotel',
+        slug: 'hotel-phu-quoc',
+        title: 'Hotel Phu Quoc',
+      },
+    ],
+  });
+});
+
+test('lookupService.getServiceDetail rejects invalid slug and missing public detail', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getHotelDetail: async () => null,
+      getPublicServiceBySlug: async (slug) => {
+        if (slug === 'hotel-da-nang') {
+          return {
+            base_price: '2000000',
+            cancellation_policy: null,
+            currency: 'VND',
+            description: 'Hotel detail',
+            id: 'hotel-service-1',
+            location_text: 'Da Nang',
+            metadata: null,
+            primary_image: null,
+            provider_name: 'Net Viet Travel',
+            public_price: '2000000',
+            sale_price: null,
+            service_type: 'hotel',
+            short_description: 'Hotel short',
+            slug,
+            title: 'Hotel Da Nang',
+          };
+        }
+
+        return null;
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.getServiceDetail({ slug: 'Bad Slug' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'slug',
+          message:
+            'slug must contain only lowercase letters, numbers, and hyphens',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getServiceDetail({ slug: 'unknown-service' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      assert.equal(error.statusCode, 404);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getServiceDetail({ slug: 'hotel-da-nang' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      assert.equal(error.statusCode, 404);
+      return true;
+    },
+  );
+});
+
+test('lookupService.getServiceImages validates UUID, checks parent service, and returns public image fields only', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async (serviceId) => {
+        assert.equal(serviceId, '11111111-1111-4111-8111-111111111111');
+
+        return {
+          id: serviceId,
+          service_type: 'tour',
+          slug: 'tour-da-lat-3n2d',
+          title: 'Tour Da Lat 3N2D',
+        };
+      },
+      listServiceImages: async (serviceId) => {
+        assert.equal(serviceId, '11111111-1111-4111-8111-111111111111');
+
+        return [
+          {
+            alt_text: 'Primary image',
+            cloudinary_public_id: 'hidden-id',
+            image_url: 'https://example.com/1.jpg',
+            is_primary: true,
+            sort_order: '0',
+          },
+          {
+            alt_text: 'Secondary image',
+            cloudinary_public_id: 'hidden-id-2',
+            image_url: 'https://example.com/2.jpg',
+            is_primary: false,
+            sort_order: '1',
+          },
+        ];
+      },
+    },
+  });
+
+  const result = await service.getServiceImages({
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.deepEqual(result, [
+    {
+      alt_text: 'Primary image',
+      image_url: 'https://example.com/1.jpg',
+      is_primary: true,
+      sort_order: 0,
+    },
+    {
+      alt_text: 'Secondary image',
+      image_url: 'https://example.com/2.jpg',
+      is_primary: false,
+      sort_order: 1,
+    },
+  ]);
+
+  await assert.rejects(
+    () => service.getServiceImages({ service_id: 'not-a-uuid' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'service_id',
+          message: 'service_id must be a valid UUID',
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
+test('lookupService.getServiceImages returns 404 for non-public parent service', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async () => null,
+      listServiceImages: async () => [],
+    },
+  });
+
+  await assert.rejects(
+    () => service.getServiceImages({
+      service_id: '11111111-1111-4111-8111-111111111111',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      assert.equal(error.statusCode, 404);
+      return true;
+    },
+  );
+});
+
 test('GET /api/lookups/enums returns public lookup enums and cache headers', async () => {
   const server = app.listen(0);
 
@@ -722,6 +1055,175 @@ test('GET /api/services returns service cards with pagination meta', async () =>
     });
   } finally {
     lookupService.searchServices = originalSearchServices;
+    server.close();
+  }
+});
+
+test('GET /api/services/{slug} returns public service detail and cache headers', async () => {
+  const originalGetServiceDetail = lookupService.getServiceDetail;
+  const server = app.listen(0);
+
+  lookupService.getServiceDetail = async (params) => {
+    assert.deepEqual({ ...params }, {
+      slug: 'tour-da-lat-3n2d',
+    });
+
+    return {
+      base_price: 3200000,
+      cancellation_policy: 'Cancel before 7 days',
+      currency: 'VND',
+      description: 'Detailed description',
+      details: {
+        duration_days: 3,
+        duration_nights: 2,
+        transport_type: 'bus',
+      },
+      id: 'service-tour-1',
+      location_text: 'Da Lat',
+      primary_image: 'https://example.com/tour.jpg',
+      provider_name: 'Net Viet Travel',
+      public_price: 2890000,
+      sale_price: 2890000,
+      service_type: 'tour',
+      short_description: 'Short description',
+      slug: 'tour-da-lat-3n2d',
+      title: 'Tour Da Lat 3N2D',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/tour-da-lat-3n2d`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Service detail retrieved successfully',
+    );
+    assert.equal(response.body.data.slug, 'tour-da-lat-3n2d');
+    assert.equal(response.body.data.details.transport_type, 'bus');
+    assert.match(response.headers['cache-control'], /max-age=900/);
+  } finally {
+    lookupService.getServiceDetail = originalGetServiceDetail;
+    server.close();
+  }
+});
+
+test('GET /api/services/{slug} validates bad slug format', async () => {
+  const server = app.listen(0);
+
+  try {
+    const badSlugResponse = await request(
+      server,
+      `${apiPrefix}/services/Bad%20Slug`,
+    );
+
+    assert.equal(badSlugResponse.statusCode, 400);
+    assert.equal(badSlugResponse.body.success, false);
+    assert.equal(
+      badSlugResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/services/{slug} returns 404 for hidden or missing service', async () => {
+  const originalGetServiceDetail = lookupService.getServiceDetail;
+  const server = app.listen(0);
+
+  lookupService.getServiceDetail = async () => {
+    const error = new Error('Service not found');
+    error.code = API_ERROR_CODES.RESOURCE_NOT_FOUND;
+    error.statusCode = 404;
+    throw error;
+  };
+
+  try {
+    const notFoundResponse = await request(
+      server,
+      `${apiPrefix}/services/hidden-service`,
+    );
+
+    assert.equal(notFoundResponse.statusCode, 404);
+    assert.equal(notFoundResponse.body.success, false);
+    assert.equal(
+      notFoundResponse.body.error.code,
+      API_ERROR_CODES.RESOURCE_NOT_FOUND,
+    );
+  } finally {
+    lookupService.getServiceDetail = originalGetServiceDetail;
+    server.close();
+  }
+});
+
+test('GET /api/services/{service_id}/images returns public images and cache headers', async () => {
+  const originalGetServiceImages = lookupService.getServiceImages;
+  const server = app.listen(0);
+
+  lookupService.getServiceImages = async (params) => {
+    assert.deepEqual({ ...params }, {
+      service_id: '11111111-1111-4111-8111-111111111111',
+    });
+
+    return [
+      {
+        alt_text: 'Primary image',
+        image_url: 'https://example.com/1.jpg',
+        is_primary: true,
+        sort_order: 0,
+      },
+    ];
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/11111111-1111-4111-8111-111111111111/images`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Service images retrieved successfully',
+    );
+    assert.deepEqual(response.body.data, [
+      {
+        alt_text: 'Primary image',
+        image_url: 'https://example.com/1.jpg',
+        is_primary: true,
+        sort_order: 0,
+      },
+    ]);
+    assert.match(response.headers['cache-control'], /max-age=900/);
+  } finally {
+    lookupService.getServiceImages = originalGetServiceImages;
+    server.close();
+  }
+});
+
+test('GET /api/services/{service_id}/images validates bad UUID', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(server, `${apiPrefix}/services/not-a-uuid/images`);
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.message, 'Validation failed');
+    assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
+    assert.deepEqual(response.body.error.details, [
+      {
+        field: 'service_id',
+        message: 'service_id must be a valid UUID',
+      },
+    ]);
+  } finally {
     server.close();
   }
 });

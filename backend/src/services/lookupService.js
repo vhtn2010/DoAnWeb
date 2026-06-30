@@ -17,9 +17,11 @@ const DEFAULT_SEARCH_LIMIT = 20;
 const DEFAULT_SEARCH_PAGE = 1;
 const DEFAULT_SEARCH_SORT = 'newest';
 const DANGEROUS_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
+const DETAIL_CACHE_SECONDS = 15 * 60;
 const ENUMS_CACHE_SECONDS = 24 * 60 * 60;
 const FEATURED_CACHE_SECONDS = 15 * 60;
 const FILTER_CACHE_SECONDS = 15 * 60;
+const IMAGE_CACHE_SECONDS = 15 * 60;
 const LOCALE = 'vi-VN';
 const MAX_FEATURED_LIMIT = 20;
 const MAX_LOCATION_LENGTH = 100;
@@ -28,6 +30,9 @@ const MAX_PRICE_LIMIT = Number.MAX_SAFE_INTEGER;
 const MAX_QUERY_LENGTH = 100;
 const MAX_SEARCH_LIMIT = 50;
 const MIN_QUERY_LENGTH = 2;
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PUBLIC_SERVICE_TYPE_VALUES = Object.freeze(
   SERVICE_TYPE_VALUES.filter((value) => value !== SERVICE_TYPE.ROOM),
 );
@@ -49,6 +54,12 @@ const buildValidationError = (field, message) =>
       },
     ],
     statusCode: 400,
+  });
+
+const buildResourceNotFoundError = (message = 'Service not found') =>
+  new AppError(message, {
+    code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+    statusCode: 404,
   });
 
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
@@ -296,6 +307,48 @@ const parseSearchSort = (value) => {
   return value;
 };
 
+const parseSlug = (value) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError('slug', 'slug is required');
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    throw buildValidationError('slug', 'slug is required');
+  }
+
+  if (normalized.length > 280) {
+    throw buildValidationError(
+      'slug',
+      'slug must be at most 280 characters long',
+    );
+  }
+
+  if (!SLUG_PATTERN.test(normalized)) {
+    throw buildValidationError(
+      'slug',
+      'slug must contain only lowercase letters, numbers, and hyphens',
+    );
+  }
+
+  return normalized;
+};
+
+const parseServiceId = (value) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError('service_id', 'service_id must be a valid UUID');
+  }
+
+  const normalized = value.trim();
+
+  if (!UUID_PATTERN.test(normalized)) {
+    throw buildValidationError('service_id', 'service_id must be a valid UUID');
+  }
+
+  return normalized;
+};
+
 const toPublicPrice = (service) => {
   if (service.sale_price != null) {
     return Number(service.sale_price);
@@ -325,6 +378,149 @@ const mapServiceCard = (service) => ({
       : Number(service.public_price),
   currency: service.currency || 'VND',
   primary_image: service.primary_image || null,
+});
+
+const mapBaseServiceDetail = (service) => ({
+  id: service.id,
+  service_type: service.service_type,
+  title: service.title,
+  slug: service.slug,
+  short_description: service.short_description,
+  description: service.description,
+  provider_name: service.provider_name,
+  location_text: service.location_text,
+  base_price:
+    service.base_price == null
+      ? null
+      : Number(service.base_price),
+  sale_price:
+    service.sale_price == null
+      ? null
+      : Number(service.sale_price),
+  public_price:
+    service.public_price == null
+      ? toPublicPrice(service)
+      : Number(service.public_price),
+  currency: service.currency || 'VND',
+  cancellation_policy: service.cancellation_policy,
+  primary_image: service.primary_image || null,
+});
+
+const mapImages = (images) =>
+  images.map((image) => ({
+    image_url: image.image_url,
+    alt_text: image.alt_text,
+    sort_order: Number(image.sort_order),
+    is_primary: Boolean(image.is_primary),
+  }));
+
+const sanitizeComboItems = (comboItems) => {
+  if (!Array.isArray(comboItems)) {
+    return [];
+  }
+
+  const allowedKeys = new Set([
+    'service_id',
+    'service_type',
+    'slug',
+    'title',
+    'location_text',
+    'quantity',
+    'base_price',
+    'sale_price',
+    'public_price',
+  ]);
+
+  return comboItems
+    .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => {
+      const sanitized = {};
+
+      for (const [key, value] of Object.entries(item)) {
+        if (allowedKeys.has(key)) {
+          sanitized[key] = value;
+        }
+      }
+
+      if (sanitized.base_price != null) {
+        sanitized.base_price = Number(sanitized.base_price);
+      }
+
+      if (sanitized.sale_price != null) {
+        sanitized.sale_price = Number(sanitized.sale_price);
+      }
+
+      if (sanitized.public_price != null) {
+        sanitized.public_price = Number(sanitized.public_price);
+      }
+
+      return sanitized;
+    });
+};
+
+const mapTourDetail = (detail) => ({
+  departure_location: detail.departure_location,
+  destination_location: detail.destination_location,
+  duration_days: detail.duration_days,
+  duration_nights: detail.duration_nights,
+  transport_type: detail.transport_type,
+  max_group_size: detail.max_group_size,
+  departure_schedule: detail.departure_schedule,
+  itinerary: detail.itinerary,
+  included_services: detail.included_services,
+  excluded_services: detail.excluded_services,
+  terms: detail.terms,
+});
+
+const mapHotelDetail = (detail) => ({
+  star_rating:
+    detail.star_rating == null
+      ? null
+      : Number(detail.star_rating),
+  address: detail.address,
+  checkin_time: detail.checkin_time,
+  checkout_time: detail.checkout_time,
+  amenities: detail.amenities,
+  hotel_policy: detail.hotel_policy,
+});
+
+const mapFlightDetail = (detail) => ({
+  airline_name: detail.airline_name,
+  flight_number: detail.flight_number,
+  departure_airport: detail.departure_airport,
+  arrival_airport: detail.arrival_airport,
+  departure_at: detail.departure_at,
+  arrival_at: detail.arrival_at,
+  cabin_class: detail.cabin_class,
+  seats_available: detail.seats_available,
+  fare_price:
+    detail.fare_price == null
+      ? null
+      : Number(detail.fare_price),
+  status: detail.status,
+  is_bookable:
+    detail.status === 'open' &&
+    Number(detail.seats_available) > 0 &&
+    new Date(detail.departure_at).getTime() > Date.now(),
+});
+
+const mapTrainDetail = (detail) => ({
+  train_number: detail.train_number,
+  departure_station: detail.departure_station,
+  arrival_station: detail.arrival_station,
+  departure_at: detail.departure_at,
+  arrival_at: detail.arrival_at,
+  seat_class: detail.seat_class,
+  seats_available: detail.seats_available,
+  fare_price:
+    detail.fare_price == null
+      ? null
+      : Number(detail.fare_price),
+  status: detail.status,
+  is_bookable:
+    detail.status === 'open' &&
+    Number(detail.seats_available) > 0 &&
+    new Date(detail.departure_at).getTime() > Date.now(),
 });
 
 const buildPopularLocations = (services, limit) => {
@@ -519,6 +715,104 @@ const createLookupService = ({
     return rows.map(mapServiceCard);
   };
 
+  const getServiceDetail = async ({ slug } = {}) => {
+    const resolvedSlug = parseSlug(slug);
+    const service = await repository.getPublicServiceBySlug(resolvedSlug);
+
+    if (!service) {
+      throw buildResourceNotFoundError();
+    }
+
+    const baseDetail = mapBaseServiceDetail(service);
+
+    if (service.service_type === SERVICE_TYPE.TOUR) {
+      const detail = await repository.getTourDetail(service.id);
+
+      if (!detail) {
+        console.error(
+          `Active public service ${service.id} (${service.slug}) is missing tour_details.`,
+        );
+        throw buildResourceNotFoundError();
+      }
+
+      return {
+        ...baseDetail,
+        details: mapTourDetail(detail),
+      };
+    }
+
+    if (service.service_type === SERVICE_TYPE.HOTEL) {
+      const detail = await repository.getHotelDetail(service.id);
+
+      if (!detail) {
+        console.error(
+          `Active public service ${service.id} (${service.slug}) is missing hotel_details.`,
+        );
+        throw buildResourceNotFoundError();
+      }
+
+      return {
+        ...baseDetail,
+        details: mapHotelDetail(detail),
+      };
+    }
+
+    if (service.service_type === SERVICE_TYPE.FLIGHT) {
+      const detail = await repository.getFlightDetail(service.id);
+
+      if (!detail) {
+        console.error(
+          `Active public service ${service.id} (${service.slug}) is missing flight_details.`,
+        );
+        throw buildResourceNotFoundError();
+      }
+
+      return {
+        ...baseDetail,
+        details: mapFlightDetail(detail),
+      };
+    }
+
+    if (service.service_type === SERVICE_TYPE.TRAIN) {
+      const detail = await repository.getTrainDetail(service.id);
+
+      if (!detail) {
+        console.error(
+          `Active public service ${service.id} (${service.slug}) is missing train_details.`,
+        );
+        throw buildResourceNotFoundError();
+      }
+
+      return {
+        ...baseDetail,
+        details: mapTrainDetail(detail),
+      };
+    }
+
+    if (service.service_type === SERVICE_TYPE.COMBO) {
+      return {
+        ...baseDetail,
+        details: {
+          combo_items: sanitizeComboItems(service.metadata?.combo_items),
+        },
+      };
+    }
+
+    throw buildResourceNotFoundError();
+  };
+
+  const getServiceImages = async ({ service_id: serviceId } = {}) => {
+    const resolvedServiceId = parseServiceId(serviceId);
+    const service = await repository.getPublicServiceById(resolvedServiceId);
+
+    if (!service) {
+      throw buildResourceNotFoundError();
+    }
+
+    const images = await repository.listServiceImages(resolvedServiceId);
+    return mapImages(images);
+  };
+
   const searchServices = async ({
     limit,
     location,
@@ -597,12 +891,15 @@ const createLookupService = ({
     getFeaturedServices,
     getPopularLocations,
     getPublicEnums,
+    getServiceDetail,
     getServiceFilterOptions,
+    getServiceImages,
     searchServices,
   };
 };
 
 module.exports = Object.assign(createLookupService(), {
+  DETAIL_CACHE_SECONDS,
   DEFAULT_FEATURED_LIMIT,
   DEFAULT_LOCATION_LIMIT,
   DEFAULT_SEARCH_LIMIT,
@@ -611,6 +908,7 @@ module.exports = Object.assign(createLookupService(), {
   ENUMS_CACHE_SECONDS,
   FEATURED_CACHE_SECONDS,
   FILTER_CACHE_SECONDS,
+  IMAGE_CACHE_SECONDS,
   MAX_FEATURED_LIMIT,
   MAX_LOCATION_LIMIT,
   MAX_SEARCH_LIMIT,

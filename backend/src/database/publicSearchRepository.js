@@ -165,6 +165,151 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     return result.rows;
   };
 
+  const getPublicServiceBySlug = async (slug) => {
+    const result = await queryImpl(
+      `
+        ${BASE_CARD_SELECT.replace('s.created_at,', 's.description,\n    s.provider_name,\n    s.cancellation_policy,\n    s.metadata,\n    s.created_at,')}
+        ${BASE_PUBLIC_WHERE}
+          AND s.slug = $2
+        LIMIT 1
+      `,
+      ['active', slug],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getPublicServiceById = async (serviceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          s.id,
+          s.service_type,
+          s.slug,
+          s.title
+        FROM services s
+        ${BASE_PUBLIC_WHERE}
+          AND s.id = $2
+        LIMIT 1
+      `,
+      ['active', serviceId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getTourDetail = async (serviceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          departure_location,
+          destination_location,
+          duration_days,
+          duration_nights,
+          transport_type,
+          max_group_size,
+          departure_schedule,
+          itinerary,
+          included_services,
+          excluded_services,
+          terms
+        FROM tour_details
+        WHERE service_id = $1
+        LIMIT 1
+      `,
+      [serviceId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getHotelDetail = async (serviceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          star_rating,
+          address,
+          checkin_time,
+          checkout_time,
+          amenities,
+          hotel_policy
+        FROM hotel_details
+        WHERE service_id = $1
+        LIMIT 1
+      `,
+      [serviceId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getFlightDetail = async (serviceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          airline_name,
+          flight_number,
+          departure_airport,
+          arrival_airport,
+          departure_at,
+          arrival_at,
+          cabin_class,
+          seats_available,
+          fare_price,
+          status
+        FROM flight_details
+        WHERE service_id = $1
+        ORDER BY departure_at ASC, id ASC
+        LIMIT 1
+      `,
+      [serviceId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getTrainDetail = async (serviceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          train_number,
+          departure_station,
+          arrival_station,
+          departure_at,
+          arrival_at,
+          seat_class,
+          seats_available,
+          fare_price,
+          status
+        FROM train_details
+        WHERE service_id = $1
+        ORDER BY departure_at ASC, id ASC
+        LIMIT 1
+      `,
+      [serviceId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const listServiceImages = async (serviceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          image_url,
+          alt_text,
+          sort_order,
+          is_primary
+        FROM service_images
+        WHERE service_id = $1
+        ORDER BY is_primary DESC, sort_order ASC, created_at ASC, id ASC
+      `,
+      [serviceId],
+    );
+
+    return result.rows;
+  };
+
   const searchServices = async ({
     keyword,
     limit,
@@ -259,7 +404,14 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     listActiveServiceSummaries,
     listActiveTourTransportTypes,
     listActiveTrainSeatClasses,
+    getFlightDetail,
+    getHotelDetail,
+    getPublicServiceById,
+    getPublicServiceBySlug,
+    getTourDetail,
+    getTrainDetail,
     listFeaturedServices,
+    listServiceImages,
     searchServices,
   };
 };
@@ -279,8 +431,22 @@ module.exports = {
     publicSearchRepository.listActiveTourTransportTypes,
   listActiveTrainSeatClasses:
     publicSearchRepository.listActiveTrainSeatClasses,
+  getFlightDetail:
+    publicSearchRepository.getFlightDetail,
+  getHotelDetail:
+    publicSearchRepository.getHotelDetail,
+  getPublicServiceById:
+    publicSearchRepository.getPublicServiceById,
+  getPublicServiceBySlug:
+    publicSearchRepository.getPublicServiceBySlug,
+  getTourDetail:
+    publicSearchRepository.getTourDetail,
+  getTrainDetail:
+    publicSearchRepository.getTrainDetail,
   listFeaturedServices:
     publicSearchRepository.listFeaturedServices,
+  listServiceImages:
+    publicSearchRepository.listServiceImages,
   searchServices:
     publicSearchRepository.searchServices,
 };

@@ -26,6 +26,16 @@ const getFeaturedServices = async (req, res) => {
   });
 };
 
+const getServiceDetail = async (req, res) => {
+  const data = await lookupService.getServiceDetail(req.params);
+
+  setCacheHeaders(res, lookupService.DETAIL_CACHE_SECONDS);
+  res.success({
+    data,
+    message: 'Service detail retrieved successfully',
+  });
+};
+
 const getPopularLocations = async (req, res) => {
   const data = await lookupService.getPopularLocations(req.query);
 
@@ -46,6 +56,16 @@ const getServiceFilterOptions = async (req, res) => {
   });
 };
 
+const getServiceImages = async (req, res) => {
+  const data = await lookupService.getServiceImages(req.params);
+
+  setCacheHeaders(res, lookupService.IMAGE_CACHE_SECONDS);
+  res.success({
+    data,
+    message: 'Service images retrieved successfully',
+  });
+};
+
 const getServices = async (req, res) => {
   const result = await lookupService.searchServices(req.query);
 
@@ -60,6 +80,8 @@ module.exports = {
   getFeaturedServices,
   getPopularLocations,
   getPublicEnums,
+  getServiceDetail,
   getServiceFilterOptions,
+  getServiceImages,
   getServices,
 };
