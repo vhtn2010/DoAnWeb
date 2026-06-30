@@ -4,6 +4,7 @@ const test = require('node:test');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const {
   PROFILE_AVATAR_UPDATE_ACTION,
+  PROFILE_CHANGE_PASSWORD_ACTION,
   PROFILE_UPDATE_ACTION,
   createProfileService,
 } = require('../services/profileService');
@@ -794,6 +795,327 @@ test('updateCurrentAvatar returns 403 before validating body when current user i
       service.updateCurrentAvatar({
         payload: {
           avatar_url: 'https://example.com/avatar.jpg',
+        },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('updateCurrentPassword updates password hash, sets updated_at, and returns latest profile', async () => {
+  const fixedNow = new Date('2026-06-30T04:00:00.000Z');
+  const queries = [];
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              deleted_at: null,
+              id: 'user-1',
+              password_hash: 'stored-password-hash',
+              status: 'active',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('UPDATE users')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      if (sql.includes('FROM users u') && sql.includes('JOIN roles r')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+              created_at: new Date('2026-06-28T00:00:00.000Z'),
+              deleted_at: null,
+              email: 'customer@example.com',
+              email_verified_at: new Date('2026-06-29T00:00:00.000Z'),
+              full_name: 'Nguyen Van A',
+              id: 'user-1',
+              last_login_at: new Date('2026-06-30T00:00:00.000Z'),
+              permissions: ['profile.read_self', 'profile.change_password'],
+              phone: '0909000000',
+              role_code: 'customer',
+              role_name: 'Customer',
+              status: 'active',
+              updated_at: fixedNow,
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createProfileService({
+    bcryptCompareImpl: async (plainTextPassword, hashedPassword) => {
+      assert.equal(plainTextPassword, 'OldPassword123');
+      assert.equal(hashedPassword, 'stored-password-hash');
+      return true;
+    },
+    bcryptHashImpl: async (plainTextPassword, saltRounds) => {
+      assert.equal(plainTextPassword, 'NewPassword123');
+      assert.equal(saltRounds, 10);
+      return 'new-password-hash';
+    },
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const profile = await service.updateCurrentPassword({
+    ipAddress: '127.0.0.1',
+    payload: {
+      current_password: 'OldPassword123',
+      new_password: 'NewPassword123',
+    },
+    userAgent: 'profile-password-service-test',
+    userId: 'user-1',
+  });
+
+  const updateQuery = queries.find((entry) => entry.sql.includes('UPDATE users'));
+  const logQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
+  const logMetadata = JSON.parse(logQuery.params[6]);
+
+  assert.ok(updateQuery);
+  assert.equal(updateQuery.params[0], 'user-1');
+  assert.equal(updateQuery.params[1], 'new-password-hash');
+  assert.equal(updateQuery.params[2], fixedNow);
+  assert.equal(logQuery.params[1], PROFILE_CHANGE_PASSWORD_ACTION);
+  assert.deepEqual(logMetadata, {
+    password_changed: true,
+    sessions_revoked: false,
+  });
+  assert.equal(Object.hasOwn(logMetadata, 'current_password'), false);
+  assert.equal(Object.hasOwn(logMetadata, 'new_password'), false);
+  assert.equal(Object.hasOwn(logMetadata, 'password_hash'), false);
+  assert.deepEqual(profile, {
+    avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+    created_at: '2026-06-28T00:00:00.000Z',
+    email: 'customer@example.com',
+    email_verified_at: '2026-06-29T00:00:00.000Z',
+    full_name: 'Nguyen Van A',
+    id: 'user-1',
+    last_login_at: '2026-06-30T00:00:00.000Z',
+    permissions: ['profile.read_self', 'profile.change_password'],
+    phone: '0909000000',
+    role: {
+      code: 'customer',
+      name: 'Customer',
+    },
+    status: 'active',
+    updated_at: '2026-06-30T04:00:00.000Z',
+  });
+});
+
+test('updateCurrentPassword rejects missing current_password after current user is loaded', async () => {
+  const service = createProfileService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-password-hash',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentPassword({
+        payload: {
+          new_password: 'NewPassword123',
+        },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some(
+        (detail) =>
+          detail.field === 'current_password' &&
+          detail.message === 'current_password is required',
+      ),
+  );
+});
+
+test('updateCurrentPassword rejects incorrect current_password', async () => {
+  const service = createProfileService({
+    bcryptCompareImpl: async () => false,
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-password-hash',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentPassword({
+        payload: {
+          current_password: 'WrongPassword123',
+          new_password: 'NewPassword123',
+        },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.AUTH_INVALID_CREDENTIALS &&
+      error.statusCode === 401,
+  );
+});
+
+test('updateCurrentPassword rejects weak new_password and same-as-current password', async () => {
+  const service = createProfileService({
+    bcryptCompareImpl: async () => true,
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-password-hash',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentPassword({
+        payload: {
+          current_password: 'Weakpass',
+          new_password: 'Weakpass',
+        },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some(
+        (detail) =>
+          detail.field === 'new_password' &&
+          detail.message === 'new_password must be different from current_password',
+      ),
+  );
+});
+
+test('updateCurrentPassword returns 404 before validating body when current user does not exist', async () => {
+  const service = createProfileService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 0,
+              rows: [],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentPassword({
+        payload: {
+          new_password: 'short',
+        },
+        userId: 'missing-user',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.RESOURCE_NOT_FOUND &&
+      error.statusCode === 404,
+  );
+});
+
+test('updateCurrentPassword returns 403 before validating body when current user is not active', async () => {
+  const service = createProfileService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-password-hash',
+                  status: 'locked',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentPassword({
+        payload: {
+          current_password: 'OldPassword123',
+          new_password: 'weak',
         },
         userId: 'user-1',
       }),

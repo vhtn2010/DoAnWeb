@@ -8,12 +8,14 @@ process.env.JWT_ACCESS_SECRET = 'test-access-secret';
 const app = require('../app');
 const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const { clearRateLimitStore } = require('../middleware/rateLimit');
 const profileService = require('../services/profileService');
 const { createAccessToken } = require('../utils/sessionToken');
 const AppError = require('../utils/AppError');
 
 const originalGetCurrentProfile = profileService.getCurrentProfile;
 const originalUpdateCurrentAvatar = profileService.updateCurrentAvatar;
+const originalUpdateCurrentPassword = profileService.updateCurrentPassword;
 const originalUpdateCurrentProfile = profileService.updateCurrentProfile;
 
 const request = (server, path, options = {}) =>
@@ -43,14 +45,18 @@ const request = (server, path, options = {}) =>
   });
 
 test.beforeEach(() => {
+  clearRateLimitStore('profile-change-password');
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
+  profileService.updateCurrentPassword = originalUpdateCurrentPassword;
   profileService.updateCurrentProfile = originalUpdateCurrentProfile;
 });
 
 test.afterEach(() => {
+  clearRateLimitStore('profile-change-password');
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
+  profileService.updateCurrentPassword = originalUpdateCurrentPassword;
   profileService.updateCurrentProfile = originalUpdateCurrentProfile;
 });
 
@@ -427,6 +433,176 @@ test('PATCH /api/me/avatar surfaces validation errors for invalid avatar_url', a
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
     assert.equal(response.body.error.details[0].field, 'avatar_url');
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/me/password requires access token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/password`, {
+      body: JSON.stringify({
+        current_password: 'OldPassword123',
+        new_password: 'NewPassword123',
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/me/password returns success for authenticated user', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+  let capturedContext;
+
+  profileService.updateCurrentPassword = async (context) => {
+    capturedContext = context;
+
+    return {
+      avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+      created_at: '2026-06-28T00:00:00.000Z',
+      email: 'customer@example.com',
+      email_verified_at: '2026-06-29T00:00:00.000Z',
+      full_name: 'Nguyen Van A',
+      id: 'user-1',
+      last_login_at: '2026-06-30T00:00:00.000Z',
+      permissions: ['profile.read_self', 'profile.change_password'],
+      phone: '0909000000',
+      role: {
+        code: 'customer',
+        name: 'Customer',
+      },
+      status: 'active',
+      updated_at: '2026-06-30T04:00:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/password`, {
+      body: JSON.stringify({
+        current_password: 'OldPassword123',
+        new_password: 'NewPassword123',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'profile-password-route-test',
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Password changed successfully');
+    assert.equal(response.body.data.id, 'user-1');
+    assert.equal(Object.hasOwn(response.body.data, 'password_hash'), false);
+    assert.deepEqual(capturedContext.payload, {
+      current_password: 'OldPassword123',
+      new_password: 'NewPassword123',
+    });
+    assert.equal(capturedContext.userAgent, 'profile-password-route-test');
+    assert.equal(capturedContext.userId, 'user-1');
+    assert.match(capturedContext.ipAddress, /127\.0\.0\.1/);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/me/password surfaces invalid current password errors', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'user-1',
+  });
+
+  profileService.updateCurrentPassword = async () => {
+    throw new AppError('Current password is incorrect', {
+      code: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      statusCode: 401,
+    });
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/password`, {
+      body: JSON.stringify({
+        current_password: 'WrongPassword123',
+        new_password: 'NewPassword123',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_INVALID_CREDENTIALS);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/me/password returns 429 when password change rate limit is exceeded', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+
+  profileService.updateCurrentPassword = async () => ({
+    avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+    created_at: '2026-06-28T00:00:00.000Z',
+    email: 'customer@example.com',
+    email_verified_at: '2026-06-29T00:00:00.000Z',
+    full_name: 'Nguyen Van A',
+    id: 'user-1',
+    last_login_at: '2026-06-30T00:00:00.000Z',
+    permissions: ['profile.read_self', 'profile.change_password'],
+    phone: '0909000000',
+    role: {
+      code: 'customer',
+      name: 'Customer',
+    },
+    status: 'active',
+    updated_at: '2026-06-30T04:00:00.000Z',
+  });
+
+  try {
+    let lastResponse;
+
+    for (let index = 0; index < 6; index += 1) {
+      lastResponse = await request(server, `${apiPrefix}/me/password`, {
+        body: JSON.stringify({
+          current_password: 'OldPassword123',
+          new_password: 'NewPassword123',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'PATCH',
+      });
+    }
+
+    assert.equal(lastResponse.statusCode, 429);
+    assert.equal(lastResponse.body.success, false);
+    assert.equal(lastResponse.body.message, 'Too many password change attempts. Please try again later.');
+    assert.equal(lastResponse.body.error.code, API_ERROR_CODES.RATE_LIMITED);
   } finally {
     server.close();
   }

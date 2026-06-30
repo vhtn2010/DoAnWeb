@@ -1,3 +1,5 @@
+const bcrypt = require('bcryptjs');
+const { passwordHash } = require('../config/auth');
 const { query, withTransaction } = require('../database/client');
 const { cloudinary } = require('../config/cloudinary');
 const {
@@ -7,9 +9,11 @@ const {
 const AppError = require('../utils/AppError');
 
 const PROFILE_AVATAR_UPDATE_ACTION = 'profile.avatar_update';
+const PROFILE_CHANGE_PASSWORD_ACTION = 'profile.change_password';
 const PROFILE_UPDATE_ACTION = 'profile.update';
 const ALLOWED_UPDATE_FIELDS = new Set(['full_name', 'phone']);
 const ALLOWED_AVATAR_FIELDS = new Set(['avatar_url']);
+const ALLOWED_PASSWORD_FIELDS = new Set(['current_password', 'new_password']);
 const FORBIDDEN_UPDATE_FIELDS = [
   'avatar_url',
   'deleted_at',
@@ -35,6 +39,21 @@ const FORBIDDEN_AVATAR_FIELDS = [
   'status',
   'user_id',
 ];
+const FORBIDDEN_PASSWORD_FIELDS = [
+  'avatar_url',
+  'deleted_at',
+  'email',
+  'email_verified_at',
+  'full_name',
+  'is_system_protected',
+  'last_login_at',
+  'password_hash',
+  'phone',
+  'role_id',
+  'status',
+  'user_id',
+];
+const MIN_PASSWORD_LENGTH = 8;
 
 const createNotFoundError = (message = 'User not found') =>
   new AppError(message, {
@@ -46,6 +65,12 @@ const createForbiddenError = (message) =>
   new AppError(message, {
     code: API_ERROR_CODES.FORBIDDEN,
     statusCode: 403,
+  });
+
+const createInvalidCredentialsError = () =>
+  new AppError('Current password is incorrect', {
+    code: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+    statusCode: 401,
   });
 
 const createValidationError = (details) =>
@@ -281,6 +306,110 @@ const normalizeAvatarUpdatePayload = (payload = {}) => {
   };
 };
 
+const normalizePasswordChangePayload = (payload = {}) => {
+  const normalizedPayload =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload
+      : {};
+  const details = [];
+  const providedKeys = Object.keys(normalizedPayload);
+  const disallowedKeys = providedKeys.filter(
+    (key) => !ALLOWED_PASSWORD_FIELDS.has(key),
+  );
+  const hasCurrentPassword = Object.prototype.hasOwnProperty.call(
+    normalizedPayload,
+    'current_password',
+  );
+  const hasNewPassword = Object.prototype.hasOwnProperty.call(
+    normalizedPayload,
+    'new_password',
+  );
+  const currentPassword = hasCurrentPassword
+    ? String(normalizedPayload.current_password || '')
+    : '';
+  const newPassword = hasNewPassword
+    ? String(normalizedPayload.new_password || '')
+    : '';
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        explicitlyForbiddenFields: FORBIDDEN_PASSWORD_FIELDS,
+        scopeLabel: 'PATCH /me/password',
+      }),
+    );
+  }
+
+  if (!hasCurrentPassword || !currentPassword) {
+    details.push({
+      field: 'current_password',
+      message: 'current_password is required',
+    });
+  }
+
+  if (!hasNewPassword || !newPassword) {
+    details.push({
+      field: 'new_password',
+      message: 'new_password is required',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    currentPassword,
+    newPassword,
+  };
+};
+
+const validateNewPasswordPolicy = ({
+  currentPassword,
+  newPassword,
+}) => {
+  const details = [];
+
+  if (newPassword === currentPassword) {
+    details.push({
+      field: 'new_password',
+      message: 'new_password must be different from current_password',
+    });
+  }
+
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    details.push({
+      field: 'new_password',
+      message: `new_password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    });
+  }
+
+  if (!/[a-z]/.test(newPassword)) {
+    details.push({
+      field: 'new_password',
+      message: 'new_password must include at least one lowercase letter',
+    });
+  }
+
+  if (!/[A-Z]/.test(newPassword)) {
+    details.push({
+      field: 'new_password',
+      message: 'new_password must include at least one uppercase letter',
+    });
+  }
+
+  if (!/\d/.test(newPassword)) {
+    details.push({
+      field: 'new_password',
+      message: 'new_password must include at least one number',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+};
+
 const loadCurrentProfileRow = async (queryExecutor, userId) => {
   const result = await queryExecutor(
     `
@@ -335,6 +464,7 @@ const loadEditableUser = async (client, userId) => {
       SELECT
         id,
         full_name,
+        password_hash,
         phone,
         status,
         deleted_at
@@ -410,6 +540,8 @@ const insertProfileUpdateLog = async (
   );
 
 const createProfileService = ({
+  bcryptCompareImpl = bcrypt.compare,
+  bcryptHashImpl = bcrypt.hash,
   now = () => new Date(),
   queryImpl = query,
   withTransactionImpl = withTransaction,
@@ -517,16 +649,80 @@ const createProfileService = ({
       return mapCurrentProfile(updatedProfile);
     });
 
+  const updateCurrentPassword = async ({
+    payload,
+    userId,
+    ipAddress,
+    userAgent,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const currentUser = await loadEditableUser(client, userId);
+
+      ensureCurrentUserCanAccessProfile(currentUser, 'update');
+      const input = normalizePasswordChangePayload(payload);
+      const isCurrentPasswordValid = await bcryptCompareImpl(
+        input.currentPassword,
+        currentUser.password_hash,
+      );
+
+      if (!isCurrentPasswordValid) {
+        throw createInvalidCredentialsError();
+      }
+
+      validateNewPasswordPolicy(input);
+
+      const updatedAt = now();
+      const newPasswordHash = await bcryptHashImpl(
+        input.newPassword,
+        passwordHash.bcryptSaltRounds,
+      );
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            password_hash = $2,
+            updated_at = $3
+          WHERE id = $1
+        `,
+        [userId, newPasswordHash, updatedAt],
+      );
+
+      await insertProfileUpdateLog(client, {
+        action: PROFILE_CHANGE_PASSWORD_ACTION,
+        createdAt: updatedAt,
+        ipAddress,
+        metadata: {
+          password_changed: true,
+          sessions_revoked: false,
+        },
+        userAgent,
+        userId,
+      });
+
+      const updatedProfile = await loadCurrentProfileRow(
+        client.query.bind(client),
+        userId,
+      );
+
+      ensureCurrentUserCanAccessProfile(updatedProfile, 'view');
+
+      return mapCurrentProfile(updatedProfile);
+    });
+
   return {
     getCurrentProfile,
     updateCurrentAvatar,
+    updateCurrentPassword,
     updateCurrentProfile,
   };
 };
 
 module.exports = createProfileService();
 module.exports.PROFILE_AVATAR_UPDATE_ACTION = PROFILE_AVATAR_UPDATE_ACTION;
+module.exports.PROFILE_CHANGE_PASSWORD_ACTION = PROFILE_CHANGE_PASSWORD_ACTION;
 module.exports.PROFILE_UPDATE_ACTION = PROFILE_UPDATE_ACTION;
 module.exports.createProfileService = createProfileService;
 module.exports.normalizeAvatarUpdatePayload = normalizeAvatarUpdatePayload;
+module.exports.normalizePasswordChangePayload = normalizePasswordChangePayload;
 module.exports.normalizeUpdateProfilePayload = normalizeUpdateProfilePayload;

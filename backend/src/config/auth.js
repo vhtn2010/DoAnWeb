@@ -44,6 +44,34 @@ const sessionToken = {
   accessSecret: process.env.JWT_ACCESS_SECRET || null,
 };
 
+const parsePositiveInt = (value, fallback) => {
+  const parsedValue = Number.parseInt(value, 10);
+
+  if (Number.isFinite(parsedValue) && parsedValue > 0) {
+    return parsedValue;
+  }
+
+  return fallback;
+};
+
+const passwordHash = {
+  bcryptSaltRounds: parsePositiveInt(process.env.BCRYPT_SALT_ROUNDS, 10),
+};
+
+const profileRateLimit = {
+  changePasswordMaxRequests: parsePositiveInt(
+    process.env.PROFILE_CHANGE_PASSWORD_RATE_LIMIT_MAX_REQUESTS,
+    5,
+  ),
+  changePasswordWindowMs: parsePositiveInt(
+    process.env.PROFILE_CHANGE_PASSWORD_RATE_LIMIT_WINDOW_MS ||
+      process.env.RATE_LIMIT_WINDOW_MS,
+    600000,
+  ),
+};
+
 module.exports = {
+  passwordHash,
+  profileRateLimit,
   sessionToken,
 };

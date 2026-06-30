@@ -39,8 +39,23 @@ const updateMeAvatar = async (req, res) => {
   });
 };
 
+const updateMePassword = async (req, res) => {
+  const profile = await profileService.updateCurrentPassword({
+    ipAddress: req.ip,
+    payload: req.body,
+    userAgent: req.get('user-agent'),
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: profile,
+    message: 'Password changed successfully',
+  });
+};
+
 module.exports = {
   getMe,
   updateMe,
   updateMeAvatar,
+  updateMePassword,
 };
