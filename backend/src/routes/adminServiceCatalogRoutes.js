@@ -1,5 +1,9 @@
 const express = require('express');
 const {
+  createAdminCombo,
+  updateAdminCombo,
+} = require('../controllers/adminComboController');
+const {
   getAdminServiceDetail,
   listAdminServices,
 } = require('../controllers/adminServiceCatalogController');
@@ -60,6 +64,18 @@ router.get(
   requireAdminAuth,
   adminCatalogRateLimit,
   asyncHandler(listAdminServices),
+);
+router.post(
+  '/admin/services/combos',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(createAdminCombo),
+);
+router.patch(
+  '/admin/services/combos/:service_id',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(updateAdminCombo),
 );
 router.post(
   '/admin/services',
