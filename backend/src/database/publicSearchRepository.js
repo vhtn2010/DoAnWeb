@@ -54,6 +54,12 @@ const SEARCH_SORT_SQL = Object.freeze({
   price_desc: 'public_price DESC, created_at DESC, id ASC',
 });
 
+const buildNormalizedTextSql = (column) => `
+  LOWER(
+    REGEXP_REPLACE(BTRIM(COALESCE(${column}, '')), '\\s+', ' ', 'g')
+  )
+`;
+
 const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
   const listActiveServiceSummaries = async ({ serviceType } = {}) => {
     const params = ['active'];
@@ -414,6 +420,117 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     return result.rows;
   };
 
+  const searchFlights = async ({
+    cabinClass,
+    departureDateEnd,
+    departureDateStart,
+    from,
+    to,
+  }) => {
+    const params = [
+      'active',
+      'flight',
+      'open',
+      from,
+      to,
+      departureDateStart.toISOString(),
+      departureDateEnd.toISOString(),
+    ];
+    let sql = `
+      SELECT
+        s.id AS service_id,
+        s.slug,
+        fd.id AS flight_detail_id,
+        fd.airline_name,
+        fd.flight_number,
+        fd.departure_airport,
+        fd.arrival_airport,
+        fd.departure_at,
+        fd.arrival_at,
+        fd.cabin_class,
+        fd.seats_available,
+        fd.fare_price,
+        COALESCE(s.currency, 'VND') AS currency
+      FROM services s
+      INNER JOIN flight_details fd ON fd.service_id = s.id
+      WHERE s.status = $1
+        AND s.deleted_at IS NULL
+        AND s.service_type = $2
+        AND fd.status = $3
+        AND fd.seats_available > 0
+        AND fd.departure_at >= NOW()
+        AND ${buildNormalizedTextSql('fd.departure_airport')} = $4
+        AND ${buildNormalizedTextSql('fd.arrival_airport')} = $5
+        AND fd.departure_at >= $6
+        AND fd.departure_at < $7
+    `;
+
+    if (cabinClass) {
+      params.push(cabinClass);
+      sql += ` AND fd.cabin_class = $${params.length}`;
+    }
+
+    sql += ' ORDER BY fd.departure_at ASC, fd.id ASC';
+
+    const result = await queryImpl(sql, params);
+    return result.rows;
+  };
+
+  const searchTrains = async ({
+    departureDateEnd,
+    departureDateStart,
+    from,
+    seatClass,
+    to,
+  }) => {
+    const params = [
+      'active',
+      'train',
+      'open',
+      from,
+      to,
+      departureDateStart.toISOString(),
+      departureDateEnd.toISOString(),
+    ];
+    let sql = `
+      SELECT
+        s.id AS service_id,
+        s.slug,
+        td.id AS train_detail_id,
+        td.train_number,
+        td.departure_station,
+        td.arrival_station,
+        td.departure_at,
+        td.arrival_at,
+        td.seat_class,
+        td.seats_available,
+        td.fare_price,
+        COALESCE(s.currency, 'VND') AS currency
+      FROM services s
+      INNER JOIN train_details td ON td.service_id = s.id
+      WHERE s.status = $1
+        AND s.deleted_at IS NULL
+        AND s.service_type = $2
+        AND td.status = $3
+        AND td.seats_available > 0
+        AND td.departure_at >= NOW()
+        AND ${buildNormalizedTextSql('td.departure_station')} = $4
+        AND ${buildNormalizedTextSql('td.arrival_station')} = $5
+        AND td.departure_at >= $6
+        AND td.departure_at < $7
+    `;
+
+    if (seatClass) {
+      params.push(seatClass);
+      sql += ` AND td.seat_class = $${params.length}`;
+    }
+
+    sql += ' ORDER BY td.departure_at ASC, td.id ASC';
+
+    const result = await queryImpl(sql, params);
+    return result.rows;
+  };
+
   const searchServices = async ({
     keyword,
     limit,
@@ -514,6 +631,8 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     getPublicServiceById,
     getPublicServiceBySlug,
     getRoomTypeById,
+    searchFlights,
+    searchTrains,
     getTourDetail,
     getTrainDetail,
     getTrainDetailById,
@@ -551,6 +670,10 @@ module.exports = {
     publicSearchRepository.getPublicServiceBySlug,
   getRoomTypeById:
     publicSearchRepository.getRoomTypeById,
+  searchFlights:
+    publicSearchRepository.searchFlights,
+  searchTrains:
+    publicSearchRepository.searchTrains,
   getTourDetail:
     publicSearchRepository.getTourDetail,
   getTrainDetail:

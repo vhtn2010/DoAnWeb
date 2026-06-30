@@ -4,11 +4,13 @@ const {
   getHotelRooms,
   getPopularLocations,
   getPublicEnums,
+  searchFlights,
   getServiceAvailability,
   getServiceDetail,
   getServiceFilterOptions,
   getServiceImages,
   getServices,
+  searchTrains,
 } = require('../controllers/lookupController');
 const asyncHandler = require('../middleware/asyncHandler');
 const createRateLimit = require('../middleware/rateLimit');
@@ -17,6 +19,10 @@ const router = express.Router();
 const publicLookupRateLimit = createRateLimit();
 const publicSearchRateLimit = createRateLimit({
   max: 60,
+  windowMs: 60 * 1000,
+});
+const publicTransportRateLimit = createRateLimit({
+  max: 30,
   windowMs: 60 * 1000,
 });
 
@@ -40,6 +46,16 @@ router.get(
   '/services',
   publicSearchRateLimit,
   asyncHandler(getServices),
+);
+router.get(
+  '/services/flights/search',
+  publicTransportRateLimit,
+  asyncHandler(searchFlights),
+);
+router.get(
+  '/services/trains/search',
+  publicTransportRateLimit,
+  asyncHandler(searchTrains),
 );
 router.get(
   '/services/:service_id/images',

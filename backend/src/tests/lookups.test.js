@@ -432,6 +432,231 @@ test('lookupService.searchServices rejects invalid room, keyword, price range, s
   );
 });
 
+test('lookupService.searchFlights validates input and returns mapped flight results', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchFlights: async (filters) => {
+        assert.deepEqual(filters, {
+          cabinClass: 'business',
+          departureDateEnd: new Date('2099-07-20T17:00:00.000Z'),
+          departureDateStart: new Date('2099-07-19T17:00:00.000Z'),
+          from: 'sgn',
+          to: 'dad',
+        });
+
+        return [
+          {
+            airline_name: 'Vietnam Airlines',
+            arrival_airport: 'DAD',
+            arrival_at: '2099-07-20T03:30:00.000Z',
+            cabin_class: 'business',
+            currency: null,
+            departure_airport: 'SGN',
+            departure_at: '2099-07-20T01:00:00.000Z',
+            fare_price: '4200000',
+            flight_detail_id: 'flight-detail-1',
+            flight_number: 'VN123',
+            seats_available: '7',
+            service_id: 'flight-service-1',
+            slug: 'flight-sgn-dad',
+          },
+        ];
+      },
+    },
+  });
+
+  const result = await service.searchFlights({
+    cabin_class: 'business',
+    departure_date: '2099-07-20',
+    from: '  SGN  ',
+    to: ' dad ',
+  });
+
+  assert.deepEqual(result, [
+    {
+      airline_name: 'Vietnam Airlines',
+      arrival_airport: 'DAD',
+      arrival_at: '2099-07-20T03:30:00.000Z',
+      cabin_class: 'business',
+      currency: 'VND',
+      departure_airport: 'SGN',
+      departure_at: '2099-07-20T01:00:00.000Z',
+      fare_price: 4200000,
+      flight_detail_id: 'flight-detail-1',
+      flight_number: 'VN123',
+      seats_available: 7,
+      service_id: 'flight-service-1',
+      slug: 'flight-sgn-dad',
+    },
+  ]);
+});
+
+test('lookupService.searchFlights rejects invalid route, date, and cabin class', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchFlights: async () => [],
+    },
+  });
+
+  await assert.rejects(
+    () => service.searchFlights({
+      departure_date: '2099-07-20',
+      from: 'SGN',
+      to: 'sgn',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'route',
+          message: 'from and to must be different',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.searchFlights({
+      departure_date: '2099-02-30',
+      from: 'SGN',
+      to: 'DAD',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'departure_date',
+          message: 'departure_date must be a valid date in YYYY-MM-DD format',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.searchFlights({
+      cabin_class: 'vip',
+      departure_date: '2099-07-20',
+      from: 'SGN',
+      to: 'DAD',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'cabin_class',
+          message:
+            'cabin_class must be one of: economy, premium_economy, business, first',
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
+test('lookupService.searchTrains validates input and returns mapped train results', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchTrains: async (filters) => {
+        assert.deepEqual(filters, {
+          departureDateEnd: new Date('2099-07-20T17:00:00.000Z'),
+          departureDateStart: new Date('2099-07-19T17:00:00.000Z'),
+          from: 'ha noi',
+          seatClass: 'soft_seat',
+          to: 'da nang',
+        });
+
+        return [
+          {
+            arrival_at: '2099-07-20T13:00:00.000Z',
+            arrival_station: 'Da Nang',
+            currency: 'VND',
+            departure_at: '2099-07-20T03:00:00.000Z',
+            departure_station: 'Ha Noi',
+            fare_price: '850000',
+            seat_class: 'soft_seat',
+            seats_available: '12',
+            service_id: 'train-service-1',
+            slug: 'train-ha-noi-da-nang',
+            train_detail_id: 'train-detail-1',
+            train_number: 'SE3',
+          },
+        ];
+      },
+    },
+  });
+
+  const result = await service.searchTrains({
+    departure_date: '2099-07-20',
+    from: ' Ha Noi ',
+    seat_class: 'soft_seat',
+    to: 'Da Nang',
+  });
+
+  assert.deepEqual(result, [
+    {
+      arrival_at: '2099-07-20T13:00:00.000Z',
+      arrival_station: 'Da Nang',
+      currency: 'VND',
+      departure_at: '2099-07-20T03:00:00.000Z',
+      departure_station: 'Ha Noi',
+      fare_price: 850000,
+      seat_class: 'soft_seat',
+      seats_available: 12,
+      service_id: 'train-service-1',
+      slug: 'train-ha-noi-da-nang',
+      train_detail_id: 'train-detail-1',
+      train_number: 'SE3',
+    },
+  ]);
+});
+
+test('lookupService.searchTrains rejects missing from and invalid seat class', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchTrains: async () => [],
+    },
+  });
+
+  await assert.rejects(
+    () => service.searchTrains({
+      departure_date: '2099-07-20',
+      to: 'Da Nang',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'from',
+          message: 'from is required',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.searchTrains({
+      departure_date: '2099-07-20',
+      from: 'Ha Noi',
+      seat_class: 'business',
+      to: 'Da Nang',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'seat_class',
+          message:
+            'seat_class must be one of: hard_seat, soft_seat, sleeper, vip',
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
 test('lookupService.getServiceDetail returns mapped tour detail for a public service slug', async () => {
   const service = lookupService.createLookupService({
     repository: {
@@ -1504,6 +1729,179 @@ test('GET /api/services returns service cards with pagination meta', async () =>
     });
   } finally {
     lookupService.searchServices = originalSearchServices;
+    server.close();
+  }
+});
+
+test('GET /api/services/flights/search returns public flight search results', async () => {
+  const originalSearchFlights = lookupService.searchFlights;
+  const server = app.listen(0);
+
+  lookupService.searchFlights = async (query) => {
+    assert.deepEqual({ ...query }, {
+      cabin_class: 'economy',
+      departure_date: '2099-07-20',
+      from: 'SGN',
+      to: 'DAD',
+    });
+
+    return [
+      {
+        airline_name: 'Vietnam Airlines',
+        arrival_airport: 'DAD',
+        arrival_at: '2099-07-20T03:30:00.000Z',
+        cabin_class: 'economy',
+        currency: 'VND',
+        departure_airport: 'SGN',
+        departure_at: '2099-07-20T01:00:00.000Z',
+        fare_price: 2100000,
+        flight_detail_id: 'flight-detail-1',
+        flight_number: 'VN123',
+        seats_available: 9,
+        service_id: 'flight-service-1',
+        slug: 'flight-sgn-dad',
+      },
+    ];
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/flights/search?from=SGN&to=DAD&departure_date=2099-07-20&cabin_class=economy`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Flights retrieved successfully');
+    assert.deepEqual(response.body.data, [
+      {
+        airline_name: 'Vietnam Airlines',
+        arrival_airport: 'DAD',
+        arrival_at: '2099-07-20T03:30:00.000Z',
+        cabin_class: 'economy',
+        currency: 'VND',
+        departure_airport: 'SGN',
+        departure_at: '2099-07-20T01:00:00.000Z',
+        fare_price: 2100000,
+        flight_detail_id: 'flight-detail-1',
+        flight_number: 'VN123',
+        seats_available: 9,
+        service_id: 'flight-service-1',
+        slug: 'flight-sgn-dad',
+      },
+    ]);
+  } finally {
+    lookupService.searchFlights = originalSearchFlights;
+    server.close();
+  }
+});
+
+test('GET /api/services/flights/search validates required query without token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/flights/search?to=DAD&departure_date=2099-07-20`,
+    );
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.message, 'Validation failed');
+    assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
+    assert.deepEqual(response.body.error.details, [
+      {
+        field: 'from',
+        message: 'from is required',
+      },
+    ]);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/services/trains/search returns public train search results', async () => {
+  const originalSearchTrains = lookupService.searchTrains;
+  const server = app.listen(0);
+
+  lookupService.searchTrains = async (query) => {
+    assert.deepEqual({ ...query }, {
+      departure_date: '2099-07-20',
+      from: 'Ha Noi',
+      seat_class: 'sleeper',
+      to: 'Da Nang',
+    });
+
+    return [
+      {
+        arrival_at: '2099-07-20T13:00:00.000Z',
+        arrival_station: 'Da Nang',
+        currency: 'VND',
+        departure_at: '2099-07-20T03:00:00.000Z',
+        departure_station: 'Ha Noi',
+        fare_price: 990000,
+        seat_class: 'sleeper',
+        seats_available: 5,
+        service_id: 'train-service-1',
+        slug: 'train-ha-noi-da-nang',
+        train_detail_id: 'train-detail-1',
+        train_number: 'SE3',
+      },
+    ];
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/trains/search?from=Ha%20Noi&to=Da%20Nang&departure_date=2099-07-20&seat_class=sleeper`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Trains retrieved successfully');
+    assert.deepEqual(response.body.data, [
+      {
+        arrival_at: '2099-07-20T13:00:00.000Z',
+        arrival_station: 'Da Nang',
+        currency: 'VND',
+        departure_at: '2099-07-20T03:00:00.000Z',
+        departure_station: 'Ha Noi',
+        fare_price: 990000,
+        seat_class: 'sleeper',
+        seats_available: 5,
+        service_id: 'train-service-1',
+        slug: 'train-ha-noi-da-nang',
+        train_detail_id: 'train-detail-1',
+        train_number: 'SE3',
+      },
+    ]);
+  } finally {
+    lookupService.searchTrains = originalSearchTrains;
+    server.close();
+  }
+});
+
+test('GET /api/services/trains/search validates invalid seat class', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/trains/search?from=Ha%20Noi&to=Da%20Nang&departure_date=2099-07-20&seat_class=business`,
+    );
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.message, 'Validation failed');
+    assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
+    assert.deepEqual(response.body.error.details, [
+      {
+        field: 'seat_class',
+        message:
+          'seat_class must be one of: hard_seat, soft_seat, sleeper, vip',
+      },
+    ]);
+  } finally {
     server.close();
   }
 });

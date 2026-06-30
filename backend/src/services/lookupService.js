@@ -23,6 +23,7 @@ const ENUMS_CACHE_SECONDS = 24 * 60 * 60;
 const FEATURED_CACHE_SECONDS = 15 * 60;
 const FILTER_CACHE_SECONDS = 15 * 60;
 const IMAGE_CACHE_SECONDS = 15 * 60;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const LOCALE = 'vi-VN';
 const MAX_AVAILABILITY_QUANTITY = 20;
 const MAX_FEATURED_LIMIT = 20;
@@ -36,6 +37,7 @@ const ROOM_LIST_CACHE_SECONDS = 15 * 60;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const VIETNAM_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
 const PUBLIC_SERVICE_TYPE_VALUES = Object.freeze(
   SERVICE_TYPE_VALUES.filter((value) => value !== SERVICE_TYPE.ROOM),
 );
@@ -509,6 +511,108 @@ const parseRoomDate = (field, value) => {
   return parsed;
 };
 
+const parseRequiredTextField = ({
+  field,
+  maxLength = MAX_LOCATION_LENGTH,
+  value,
+}) => {
+  const resolvedValue = parseTextFilter({
+    field,
+    maxLength,
+    rejectDangerousCharacters: true,
+    value,
+  });
+
+  if (!resolvedValue) {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  return resolvedValue;
+};
+
+const parseOptionalEnumFilter = (field, allowedValues, value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (Array.isArray(value) || typeof value !== 'string') {
+    throw buildValidationError(
+      field,
+      `${field} must be one of: ${allowedValues.join(', ')}`,
+    );
+  }
+
+  if (!allowedValues.includes(value)) {
+    throw buildValidationError(
+      field,
+      `${field} must be one of: ${allowedValues.join(', ')}`,
+    );
+  }
+
+  return value;
+};
+
+const parseDateOnly = (field, value) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  if (!ISO_DATE_PATTERN.test(normalized)) {
+    throw buildValidationError(
+      field,
+      `${field} must be a valid date in YYYY-MM-DD format`,
+    );
+  }
+
+  const [year, month, day] = normalized.split('-').map((part) => Number(part));
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    throw buildValidationError(
+      field,
+      `${field} must be a valid date in YYYY-MM-DD format`,
+    );
+  }
+
+  return normalized;
+};
+
+const getVietnamDateString = (date = new Date()) =>
+  new Date(date.getTime() + VIETNAM_UTC_OFFSET_MS).toISOString().slice(0, 10);
+
+const parseDepartureDate = (value) => {
+  const normalized = parseDateOnly('departure_date', value);
+
+  if (normalized < getVietnamDateString()) {
+    throw buildValidationError(
+      'departure_date',
+      'departure_date must not be in the past',
+    );
+  }
+
+  return normalized;
+};
+
+const buildVietnamDateRange = (dateString) => {
+  const [year, month, day] = dateString.split('-').map((part) => Number(part));
+
+  return {
+    end: new Date(Date.UTC(year, month - 1, day + 1, -7, 0, 0, 0)),
+    start: new Date(Date.UTC(year, month - 1, day, -7, 0, 0, 0)),
+  };
+};
+
 const toPublicPrice = (service) => {
   if (service.sale_price != null) {
     return Number(service.sale_price);
@@ -699,6 +803,43 @@ const mapTrainDetail = (detail) => ({
     new Date(detail.departure_at).getTime() > Date.now(),
 });
 
+const mapFlightSearchResult = (flight) => ({
+  service_id: flight.service_id,
+  flight_detail_id: flight.flight_detail_id,
+  slug: flight.slug,
+  airline_name: flight.airline_name,
+  flight_number: flight.flight_number,
+  departure_airport: flight.departure_airport,
+  arrival_airport: flight.arrival_airport,
+  departure_at: flight.departure_at,
+  arrival_at: flight.arrival_at,
+  cabin_class: flight.cabin_class,
+  seats_available: Number(flight.seats_available),
+  fare_price:
+    flight.fare_price == null
+      ? null
+      : Number(flight.fare_price),
+  currency: flight.currency || DEFAULT_AVAILABILITY_CURRENCY,
+});
+
+const mapTrainSearchResult = (train) => ({
+  service_id: train.service_id,
+  train_detail_id: train.train_detail_id,
+  slug: train.slug,
+  train_number: train.train_number,
+  departure_station: train.departure_station,
+  arrival_station: train.arrival_station,
+  departure_at: train.departure_at,
+  arrival_at: train.arrival_at,
+  seat_class: train.seat_class,
+  seats_available: Number(train.seats_available),
+  fare_price:
+    train.fare_price == null
+      ? null
+      : Number(train.fare_price),
+  currency: train.currency || DEFAULT_AVAILABILITY_CURRENCY,
+});
+
 const buildPopularLocations = (services, limit) => {
   const groups = new Map();
 
@@ -785,6 +926,30 @@ const buildPaginationMeta = ({ limit, page, total }) => {
     page,
     total,
     total_pages: totalPages,
+  };
+};
+
+const parseTransportRouteQuery = ({ departureDate, from, to }) => {
+  const resolvedFrom = parseRequiredTextField({
+    field: 'from',
+    value: from,
+  });
+  const resolvedTo = parseRequiredTextField({
+    field: 'to',
+    value: to,
+  });
+
+  if (
+    resolvedFrom.toLocaleLowerCase(LOCALE) ===
+    resolvedTo.toLocaleLowerCase(LOCALE)
+  ) {
+    throw buildValidationError('route', 'from and to must be different');
+  }
+
+  return {
+    departureDate: parseDepartureDate(departureDate),
+    from: resolvedFrom,
+    to: resolvedTo,
   };
 };
 
@@ -1748,6 +1913,66 @@ const createLookupService = ({
     };
   };
 
+  const searchFlights = async ({
+    cabin_class: cabinClass,
+    departure_date: departureDate,
+    from,
+    to,
+  } = {}) => {
+    const resolvedRoute = parseTransportRouteQuery({
+      departureDate,
+      from,
+      to,
+    });
+    const resolvedCabinClass = parseOptionalEnumFilter(
+      'cabin_class',
+      CABIN_CLASS_VALUES,
+      cabinClass,
+    );
+    const departureRange = buildVietnamDateRange(
+      resolvedRoute.departureDate,
+    );
+    const rows = await repository.searchFlights({
+      cabinClass: resolvedCabinClass,
+      departureDateEnd: departureRange.end,
+      departureDateStart: departureRange.start,
+      from: resolvedRoute.from.toLocaleLowerCase(LOCALE),
+      to: resolvedRoute.to.toLocaleLowerCase(LOCALE),
+    });
+
+    return rows.map(mapFlightSearchResult);
+  };
+
+  const searchTrains = async ({
+    departure_date: departureDate,
+    from,
+    seat_class: seatClass,
+    to,
+  } = {}) => {
+    const resolvedRoute = parseTransportRouteQuery({
+      departureDate,
+      from,
+      to,
+    });
+    const resolvedSeatClass = parseOptionalEnumFilter(
+      'seat_class',
+      SEAT_CLASS_VALUES,
+      seatClass,
+    );
+    const departureRange = buildVietnamDateRange(
+      resolvedRoute.departureDate,
+    );
+    const rows = await repository.searchTrains({
+      departureDateEnd: departureRange.end,
+      departureDateStart: departureRange.start,
+      from: resolvedRoute.from.toLocaleLowerCase(LOCALE),
+      seatClass: resolvedSeatClass,
+      to: resolvedRoute.to.toLocaleLowerCase(LOCALE),
+    });
+
+    return rows.map(mapTrainSearchResult);
+  };
+
   return {
     getFeaturedServices,
     getHotelRooms,
@@ -1757,7 +1982,9 @@ const createLookupService = ({
     getServiceDetail,
     getServiceFilterOptions,
     getServiceImages,
+    searchFlights,
     searchServices,
+    searchTrains,
   };
 };
 

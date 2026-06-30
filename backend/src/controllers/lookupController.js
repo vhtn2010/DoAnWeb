@@ -26,6 +26,15 @@ const getFeaturedServices = async (req, res) => {
   });
 };
 
+const searchFlights = async (req, res) => {
+  const data = await lookupService.searchFlights(req.query);
+
+  res.success({
+    data,
+    message: 'Flights retrieved successfully',
+  });
+};
+
 const getServiceDetail = async (req, res) => {
   const data = await lookupService.getServiceDetail(req.params);
 
@@ -79,6 +88,15 @@ const getServiceImages = async (req, res) => {
   });
 };
 
+const searchTrains = async (req, res) => {
+  const data = await lookupService.searchTrains(req.query);
+
+  res.success({
+    data,
+    message: 'Trains retrieved successfully',
+  });
+};
+
 const getServiceAvailability = async (req, res) => {
   const data = await lookupService.getServiceAvailability({
     ...req.params,
@@ -106,9 +124,11 @@ module.exports = {
   getHotelRooms,
   getPopularLocations,
   getPublicEnums,
+  searchFlights,
   getServiceAvailability,
   getServiceDetail,
   getServiceFilterOptions,
   getServiceImages,
   getServices,
+  searchTrains,
 };
