@@ -2,6 +2,8 @@ const express = require('express');
 const { profileRateLimit } = require('../config/auth');
 const {
   getMe,
+  getMyLogs,
+  requestAccountDeactivation,
   updateMe,
   updateMeAvatar,
   updateMePassword,
@@ -28,6 +30,13 @@ router.get(
   }),
   asyncHandler(getMe),
 );
+router.get(
+  '/me/logs',
+  authRequired({
+    allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
+  }),
+  asyncHandler(getMyLogs),
+);
 router.patch(
   '/me',
   authRequired({
@@ -49,6 +58,13 @@ router.patch(
   }),
   changePasswordRateLimiter,
   asyncHandler(updateMePassword),
+);
+router.post(
+  '/me/account-deactivation-request',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  asyncHandler(requestAccountDeactivation),
 );
 
 module.exports = router;
