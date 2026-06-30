@@ -97,7 +97,22 @@ const requireAdminAuth = (req, res, next) => {
   next();
 };
 
+const requireAdminRoles = (roles) => (req, res, next) => {
+  if (!req.auth?.role) {
+    next(buildAuthError('Access token is missing or expired'));
+    return;
+  }
+
+  if (!Array.isArray(roles) || !roles.includes(req.auth.role)) {
+    next(buildForbiddenError());
+    return;
+  }
+
+  next();
+};
+
 module.exports = {
   ADMIN_ROLE_VALUES,
   requireAdminAuth,
+  requireAdminRoles,
 };

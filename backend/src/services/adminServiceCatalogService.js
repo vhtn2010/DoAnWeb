@@ -353,7 +353,9 @@ const resolveScopeServiceIds = (auth) => {
     return null;
   }
 
-  return auth.serviceScopeIds || null;
+  return Array.isArray(auth.serviceScopeIds)
+    ? auth.serviceScopeIds
+    : [];
 };
 
 const createAdminServiceCatalogService = ({

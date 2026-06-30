@@ -10,13 +10,34 @@ const app = require('../app');
 const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const adminServiceCatalogService = require('../services/adminServiceCatalogService');
+const adminServiceCrudService = require('../services/adminServiceCrudService');
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
     const { port } = server.address();
+    const body = options.body == null
+      ? null
+      : (typeof options.body === 'string'
+          ? options.body
+          : JSON.stringify(options.body));
+    const headers = {
+      ...(options.headers || {}),
+    };
+
+    if (body && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (body && !headers['Content-Length']) {
+      headers['Content-Length'] = Buffer.byteLength(body);
+    }
+
     const req = http.request(
       `http://127.0.0.1:${port}${path}`,
-      options,
+      {
+        ...options,
+        headers,
+      },
       (res) => {
         let body = '';
 
@@ -35,7 +56,7 @@ const request = (server, path, options = {}) =>
     );
 
     req.on('error', reject);
-    req.end();
+    req.end(body);
   });
 
 const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
@@ -357,6 +378,211 @@ test('adminServiceCatalogService.getServiceDetail sanitizes combo items and reje
   );
 });
 
+test('adminServiceCrudService.createService creates a draft service with generated slug and code', async () => {
+  const service = adminServiceCrudService.createAdminServiceCrudService({
+    catalogService: {
+      getServiceDetail: async ({ service_id: serviceId }) => ({
+        id: serviceId,
+        status: 'draft',
+      }),
+    },
+    repository: {
+      createService: async ({ actorUserId, detailPayload, servicePayload }) => {
+        assert.equal(actorUserId, 'staff-1');
+        assert.equal(servicePayload.service_type, 'hotel');
+        assert.equal(servicePayload.status, 'draft');
+        assert.equal(servicePayload.currency, 'VND');
+        assert.equal(servicePayload.slug, 'khach-san-da-lat');
+        assert.match(servicePayload.service_code, /^SVC-[A-F0-9]{8}$/);
+        assert.deepEqual(detailPayload, {
+          address: '12 Ho Xuan Huong',
+          amenities: ['pool'],
+          checkin_time: '14:00',
+          checkout_time: '12:00',
+          hotel_policy: 'No smoking',
+          star_rating: 4,
+        });
+
+        return {
+          id: '33333333-3333-4333-8333-333333333333',
+        };
+      },
+      getServiceByCode: async () => null,
+      getServiceBySlug: async () => null,
+    },
+  });
+
+  const result = await service.createService({
+    auth: {
+      role: 'staff',
+      userId: 'staff-1',
+    },
+    body: {
+      base_price: 2500000,
+      details: {
+        address: '12 Ho Xuan Huong',
+        amenities: ['pool'],
+        checkin_time: '14:00',
+        checkout_time: '12:00',
+        hotel_policy: 'No smoking',
+        star_rating: 4,
+      },
+      service_type: 'hotel',
+      title: 'Khach san Da Lat',
+    },
+  });
+
+  assert.deepEqual(result, {
+    id: '33333333-3333-4333-8333-333333333333',
+    status: 'draft',
+  });
+});
+
+test('adminServiceCrudService rejects service_type=room on create', async () => {
+  const service = adminServiceCrudService.createAdminServiceCrudService({
+    repository: {
+      createService: async () => {
+        throw new Error('should not reach repository');
+      },
+      getServiceByCode: async () => null,
+      getServiceBySlug: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => service.createService({
+      auth: {
+        role: 'admin',
+        userId: 'admin-1',
+      },
+      body: {
+        base_price: 1000000,
+        service_type: 'room',
+        title: 'Room only',
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'service_type',
+          message:
+            'service_type must be one of: tour, hotel, flight, train, combo',
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
+test('adminServiceCrudService.updateService keeps service_type immutable and passes serviceType separately', async () => {
+  let updateCall = null;
+  const service = adminServiceCrudService.createAdminServiceCrudService({
+    catalogRepository: {
+      getHotelDetail: async () => ({
+        address: 'Old address',
+        amenities: ['wifi'],
+        checkin_time: '14:00',
+        checkout_time: '12:00',
+        hotel_policy: null,
+        star_rating: '4',
+      }),
+    },
+    catalogService: {
+      getServiceDetail: async ({ service_id: serviceId }) => ({
+        id: serviceId,
+        status: 'draft',
+      }),
+    },
+    repository: {
+      getServiceByCode: async () => null,
+      getServiceById: async () => ({
+        base_price: '2000000',
+        currency: 'VND',
+        id: '11111111-1111-4111-8111-111111111111',
+        metadata: null,
+        sale_price: null,
+        service_type: 'hotel',
+        title: 'Old title',
+      }),
+      getServiceBySlug: async () => null,
+      updateService: async (payload) => {
+        updateCall = payload;
+        return { id: payload.serviceId };
+      },
+    },
+  });
+
+  const result = await service.updateService({
+    auth: {
+      role: 'admin',
+      userId: 'admin-1',
+    },
+    body: {
+      base_price: 2200000,
+      details: {
+        address: 'New address',
+      },
+      title: 'New title',
+    },
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.deepEqual(result, {
+    id: '11111111-1111-4111-8111-111111111111',
+    status: 'draft',
+  });
+  assert.equal(updateCall.serviceType, 'hotel');
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(updateCall.servicePayload, 'service_type'),
+    false,
+  );
+  assert.deepEqual(updateCall.detailPayload, {
+    address: 'New address',
+    amenities: ['wifi'],
+    checkin_time: '14:00',
+    checkout_time: '12:00',
+    hotel_policy: null,
+    star_rating: 4,
+  });
+});
+
+test('adminServiceCrudService.deleteService blocks unfinished bookings', async () => {
+  const service = adminServiceCrudService.createAdminServiceCrudService({
+    repository: {
+      getServiceById: async () => ({
+        deleted_at: null,
+        id: '11111111-1111-4111-8111-111111111111',
+        status: 'active',
+      }),
+      hasBlockingBookings: async () => true,
+    },
+  });
+
+  await assert.rejects(
+    () => service.deleteService({
+      auth: {
+        role: 'admin',
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'No longer available',
+      },
+      service_id: '11111111-1111-4111-8111-111111111111',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      assert.deepEqual(error.details, [
+        {
+          field: 'service',
+          message: 'service cannot be deleted while unfinished bookings exist',
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
 test('GET /api/admin/services requires a bearer token', async () => {
   const server = app.listen(0);
 
@@ -474,6 +700,228 @@ test('GET /api/admin/services returns admin catalog list with filters and meta',
     });
   } finally {
     adminServiceCatalogService.listServices = originalListServices;
+    server.close();
+  }
+});
+
+test('POST /api/admin/services returns 201 with created service detail', async () => {
+  const originalCreateService = adminServiceCrudService.createService;
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    role: 'staff',
+    sub: 'staff-1',
+  });
+
+  adminServiceCrudService.createService = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'staff',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          role: 'staff',
+          sub: 'staff-1',
+        },
+        userId: 'staff-1',
+      },
+      body: {
+        base_price: 3200000,
+        details: {
+          departure_location: 'Ho Chi Minh',
+          destination_location: 'Da Nang',
+          duration_days: 3,
+          duration_nights: 2,
+          transport_type: 'flight',
+        },
+        service_type: 'tour',
+        title: 'Tour Da Nang',
+      },
+    });
+
+    return {
+      id: '44444444-4444-4444-8444-444444444444',
+      status: 'draft',
+      title: 'Tour Da Nang',
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/admin/services`, {
+      body: {
+        base_price: 3200000,
+        details: {
+          departure_location: 'Ho Chi Minh',
+          destination_location: 'Da Nang',
+          duration_days: 3,
+          duration_nights: 2,
+          transport_type: 'flight',
+        },
+        service_type: 'tour',
+        title: 'Tour Da Nang',
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Admin service created successfully');
+    assert.equal(response.body.data.status, 'draft');
+  } finally {
+    adminServiceCrudService.createService = originalCreateService;
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/services/{service_id} returns updated service detail', async () => {
+  const originalUpdateService = adminServiceCrudService.updateService;
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    role_code: 'admin',
+    sub: 'admin-1',
+  });
+
+  adminServiceCrudService.updateService = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'admin',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          role_code: 'admin',
+          sub: 'admin-1',
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        base_price: 3500000,
+        title: 'Tour Da Nang Updated',
+      },
+      service_id: '11111111-1111-4111-8111-111111111111',
+    });
+
+    return {
+      id: '11111111-1111-4111-8111-111111111111',
+      title: 'Tour Da Nang Updated',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/services/11111111-1111-4111-8111-111111111111`,
+      {
+        body: {
+          base_price: 3500000,
+          title: 'Tour Da Nang Updated',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Admin service updated successfully');
+    assert.equal(response.body.data.title, 'Tour Da Nang Updated');
+  } finally {
+    adminServiceCrudService.updateService = originalUpdateService;
+    server.close();
+  }
+});
+
+test('DELETE /api/admin/services/{service_id} blocks staff role with 403', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    role: 'staff',
+    sub: 'staff-1',
+  });
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/services/11111111-1111-4111-8111-111111111111`,
+      {
+        body: {
+          reason: 'No longer used',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'DELETE',
+      },
+    );
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('DELETE /api/admin/services/{service_id} returns soft delete result for admin', async () => {
+  const originalDeleteService = adminServiceCrudService.deleteService;
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    role: 'system_admin',
+    sub: 'sys-1',
+  });
+
+  adminServiceCrudService.deleteService = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'system_admin',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          role: 'system_admin',
+          sub: 'sys-1',
+        },
+        userId: 'sys-1',
+      },
+      body: {
+        reason: 'Legacy service cleanup',
+      },
+      service_id: '11111111-1111-4111-8111-111111111111',
+    });
+
+    return {
+      deleted_at: '2026-06-30T08:00:00.000Z',
+      id: '11111111-1111-4111-8111-111111111111',
+      status: 'deleted',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/services/11111111-1111-4111-8111-111111111111`,
+      {
+        body: {
+          reason: 'Legacy service cleanup',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'DELETE',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Admin service deleted successfully');
+    assert.equal(response.body.data.status, 'deleted');
+  } finally {
+    adminServiceCrudService.deleteService = originalDeleteService;
     server.close();
   }
 });
