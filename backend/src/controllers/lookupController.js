@@ -1,0 +1,43 @@
+const lookupService = require('../services/lookupService');
+
+const setCacheHeaders = (res, seconds) => {
+  res.set(
+    'Cache-Control',
+    `public, max-age=${seconds}, s-maxage=${seconds}, stale-while-revalidate=60`,
+  );
+};
+
+const getPublicEnums = (req, res) => {
+  setCacheHeaders(res, lookupService.ENUMS_CACHE_SECONDS);
+
+  res.success({
+    data: lookupService.getPublicEnums(),
+    message: 'Lookup enums retrieved successfully',
+  });
+};
+
+const getPopularLocations = async (req, res) => {
+  const data = await lookupService.getPopularLocations(req.query);
+
+  setCacheHeaders(res, lookupService.FILTER_CACHE_SECONDS);
+  res.success({
+    data,
+    message: 'Popular locations retrieved successfully',
+  });
+};
+
+const getServiceFilterOptions = async (req, res) => {
+  const data = await lookupService.getServiceFilterOptions();
+
+  setCacheHeaders(res, lookupService.FILTER_CACHE_SECONDS);
+  res.success({
+    data,
+    message: 'Service filter options retrieved successfully',
+  });
+};
+
+module.exports = {
+  getPopularLocations,
+  getPublicEnums,
+  getServiceFilterOptions,
+};

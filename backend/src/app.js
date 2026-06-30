@@ -7,6 +7,7 @@ const apiResponse = require('./middleware/apiResponse');
 const asyncHandler = require('./middleware/asyncHandler');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
+const lookupRoutes = require('./routes/lookupRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const {
   isSupabaseConfigured,
@@ -33,6 +34,7 @@ if (!isTest) {
 }
 
 app.use(apiPrefix, systemRoutes);
+app.use(apiPrefix, lookupRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
   res.success({
