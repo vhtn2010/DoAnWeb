@@ -1,5 +1,31 @@
 const authService = require('../services/authService');
 
+const changeEmailRequest = async (req, res) => {
+  const result = await authService.changeEmailRequest(req.body, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result.data,
+    message: result.message,
+  });
+};
+
+const changeEmailConfirm = async (req, res) => {
+  const result = await authService.changeEmailConfirm(req.body, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result.data,
+    message: result.message,
+  });
+};
+
 const register = async (req, res) => {
   const user = await authService.register(req.body, {
     ipAddress: req.ip,
@@ -106,6 +132,8 @@ const resendVerification = async (req, res) => {
 };
 
 module.exports = {
+  changeEmailConfirm,
+  changeEmailRequest,
   forgotPassword,
   login,
   logout,

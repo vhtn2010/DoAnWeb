@@ -73,6 +73,18 @@ const passwordReset = {
     null,
 };
 
+const changeEmail = {
+  expiresInMinutes: parsePositiveInt(
+    process.env.CHANGE_EMAIL_EXPIRES_IN_MINUTES,
+    30,
+  ),
+  secret:
+    process.env.CHANGE_EMAIL_SECRET ||
+    process.env.JWT_REFRESH_SECRET ||
+    process.env.JWT_ACCESS_SECRET ||
+    null,
+};
+
 const sessionToken = {
   accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '30m',
   accessExpiresInSeconds: parseDurationToSeconds(
@@ -113,6 +125,15 @@ const authRateLimit = {
       process.env.RATE_LIMIT_WINDOW_MS,
     600000,
   ),
+  changeEmailRequestMaxRequests: parsePositiveInt(
+    process.env.AUTH_CHANGE_EMAIL_REQUEST_RATE_LIMIT_MAX_REQUESTS,
+    5,
+  ),
+  changeEmailRequestWindowMs: parsePositiveInt(
+    process.env.AUTH_CHANGE_EMAIL_REQUEST_RATE_LIMIT_WINDOW_MS ||
+      process.env.RATE_LIMIT_WINDOW_MS,
+    600000,
+  ),
   registerMaxRequests: parsePositiveInt(
     process.env.AUTH_REGISTER_RATE_LIMIT_MAX_REQUESTS ||
       process.env.RATE_LIMIT_MAX_REQUESTS,
@@ -145,6 +166,7 @@ const authRateLimit = {
 
 module.exports = {
   authRateLimit,
+  changeEmail,
   emailVerification,
   passwordHash,
   passwordReset,

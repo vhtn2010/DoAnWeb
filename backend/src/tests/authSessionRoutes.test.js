@@ -17,6 +17,7 @@ const AppError = require('../utils/AppError');
 const originalLogin = authService.login;
 const originalLogout = authService.logout;
 const originalRefreshToken = authService.refreshToken;
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -49,6 +50,7 @@ test.beforeEach(() => {
   authService.login = originalLogin;
   authService.logout = originalLogout;
   authService.refreshToken = originalRefreshToken;
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
 });
 
 test.afterEach(() => {
@@ -56,6 +58,7 @@ test.afterEach(() => {
   authService.login = originalLogin;
   authService.logout = originalLogout;
   authService.refreshToken = originalRefreshToken;
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
 });
 
 test('POST /api/auth/login returns session payload and permissions', async () => {
@@ -236,6 +239,8 @@ test('POST /api/auth/logout requires a valid access token', async () => {
 test('POST /api/auth/logout returns success for authenticated users', async () => {
   const server = app.listen(0);
   const accessToken = createAccessToken({
+    emlv: 'email-version',
+    pwdv: 'password-version',
     roleCode: 'customer',
     userId: 'user-1',
   });
@@ -253,6 +258,16 @@ test('POST /api/auth/logout returns success for authenticated users', async () =
       message: 'Logout successful.',
     };
   };
+  authService.resolveAuthenticatedUser = async () => ({
+    roleCode: 'customer',
+    tokenId: 'access-jti-1',
+    user: {
+      email: 'customer@example.com',
+      id: 'user-1',
+      role_code: 'customer',
+    },
+    userId: 'user-1',
+  });
 
   try {
     const response = await request(server, `${apiPrefix}/auth/logout`, {

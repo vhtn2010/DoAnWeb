@@ -1,6 +1,8 @@
 const express = require('express');
 const { authRateLimit } = require('../config/auth');
 const {
+  changeEmailConfirm,
+  changeEmailRequest,
   forgotPassword,
   login,
   logout,
@@ -84,6 +86,21 @@ const resetPasswordRateLimiter = createRateLimiter({
   windowMs: authRateLimit.resetPasswordWindowMs,
 });
 
+const changeEmailRequestRateLimiter = createRateLimiter({
+  keyGenerator: (req) => {
+    const normalizedEmail =
+      typeof req.body?.new_email === 'string'
+        ? req.body.new_email.trim().toLowerCase()
+        : 'unknown';
+
+    return `auth-change-email-request:${req.auth?.userId || 'anonymous'}:${req.ip || 'anonymous'}:${normalizedEmail || 'unknown'}`;
+  },
+  maxRequests: authRateLimit.changeEmailRequestMaxRequests,
+  message: 'Too many change email requests. Please try again later.',
+  storeKey: 'auth-change-email-request',
+  windowMs: authRateLimit.changeEmailRequestWindowMs,
+});
+
 router.post('/auth/register', registerRateLimiter, asyncHandler(register));
 router.post('/auth/login', loginRateLimiter, asyncHandler(login));
 router.post(
@@ -109,6 +126,21 @@ router.post(
   '/auth/resend-verification',
   resendVerificationRateLimiter,
   asyncHandler(resendVerification),
+);
+router.post(
+  '/auth/change-email/request',
+  authRequired({
+    allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
+  }),
+  changeEmailRequestRateLimiter,
+  asyncHandler(changeEmailRequest),
+);
+router.post(
+  '/auth/change-email/confirm',
+  authRequired({
+    allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
+  }),
+  asyncHandler(changeEmailConfirm),
 );
 
 module.exports = router;

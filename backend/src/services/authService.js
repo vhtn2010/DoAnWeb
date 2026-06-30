@@ -4,7 +4,12 @@ const {
   backendUrl,
   frontendUrl,
 } = require('../config');
-const { emailVerification, passwordHash, passwordReset } = require('../config/auth');
+const {
+  changeEmail,
+  emailVerification,
+  passwordHash,
+  passwordReset,
+} = require('../config/auth');
 const {
   API_ERROR_CODES,
   DOMAIN_CONSTRAINTS,
@@ -13,6 +18,10 @@ const {
 } = require('../constants/domainConstraints');
 const { withTransaction } = require('../database/client');
 const AppError = require('../utils/AppError');
+const {
+  createChangeEmailToken,
+  verifyChangeEmailToken,
+} = require('../utils/changeEmailToken');
 const {
   createEmailVerificationToken,
   hashEmailVerificationToken,
@@ -24,6 +33,7 @@ const {
   verifyResetPasswordToken,
 } = require('../utils/resetPasswordToken');
 const {
+  buildEmailVersion,
   buildSessionTokens,
   createTokenExpiredError,
   hashSessionToken,
@@ -31,6 +41,9 @@ const {
 } = require('../utils/sessionToken');
 const { sendEmail } = require('./sendgridService');
 
+const AUTH_CHANGE_EMAIL_CONFIRMED_ACTION = 'auth.change_email_confirmed';
+const AUTH_CHANGE_EMAIL_CONFIRM_TEMPLATE_CODE = 'AUTH_CHANGE_EMAIL_CONFIRM';
+const AUTH_CHANGE_EMAIL_REQUESTED_ACTION = 'auth.change_email_requested';
 const AUTH_LOGIN_FAILED_ACTION = 'auth.login_failed';
 const AUTH_LOGIN_SUCCESS_ACTION = 'auth.login_success';
 const AUTH_FORGOT_PASSWORD_REQUESTED_ACTION = 'auth.forgot_password_requested';
@@ -95,6 +108,12 @@ const createRefreshTokenInvalidError = () =>
 
 const createResetPasswordTokenInvalidError = () =>
   new AppError('Reset password token is invalid or expired', {
+    code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+    statusCode: 401,
+  });
+
+const createChangeEmailTokenInvalidError = () =>
+  new AppError('Change email token is invalid or expired', {
     code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
     statusCode: 401,
   });
@@ -313,6 +332,49 @@ const normalizeForgotPasswordPayload = (payload = {}) => {
   };
 };
 
+const normalizeChangeEmailRequestPayload = (payload = {}) => {
+  const newEmail = String(payload.new_email || '').trim().toLowerCase();
+
+  if (!newEmail) {
+    throw createValidationError([
+      {
+        field: 'new_email',
+        message: 'new_email is required',
+      },
+    ]);
+  }
+
+  if (!EMAIL_ADDRESS_REGEX.test(newEmail)) {
+    throw createValidationError([
+      {
+        field: 'new_email',
+        message: 'new_email is invalid',
+      },
+    ]);
+  }
+
+  return {
+    newEmail,
+  };
+};
+
+const normalizeChangeEmailConfirmPayload = (payload = {}) => {
+  const token = String(payload.token || '').trim();
+
+  if (!token) {
+    throw createValidationError([
+      {
+        field: 'token',
+        message: 'Token is required',
+      },
+    ]);
+  }
+
+  return {
+    token,
+  };
+};
+
 const normalizeResetPasswordPayload = (payload = {}) => {
   const details = [];
   const token = String(payload.token || '').trim();
@@ -470,6 +532,44 @@ const buildResetPasswordEmail = ({
   ].join('\n\n'),
 });
 
+const buildChangeEmailConfirmLinks = (token) => {
+  const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
+  const normalizedBackendUrl = backendUrl.replace(/\/$/, '');
+
+  return {
+    apiConfirmUrl: `${normalizedBackendUrl}${apiPrefix}/auth/change-email/confirm`,
+    confirmUrl: `${normalizedFrontendUrl}/change-email/confirm?token=${encodeURIComponent(token)}`,
+  };
+};
+
+const buildChangeEmailConfirmEmail = ({
+  apiConfirmUrl,
+  confirmUrl,
+  expiresInMinutes,
+  fullName,
+  token,
+}) => ({
+  html: [
+    `<p>Xin chao ${fullName},</p>`,
+    '<p>He thong da nhan duoc yeu cau doi email dang nhap cho tai khoan Net Viet Travel cua ban.</p>',
+    `<p>Vui long xac nhan email moi trong vong ${expiresInMinutes} phut tai lien ket sau:</p>`,
+    `<p><a href="${confirmUrl}">${confirmUrl}</a></p>`,
+    '<p>Neu can goi API truc tiep, hay gui token nay toi POST /auth/change-email/confirm:</p>',
+    `<p><code>${token}</code></p>`,
+    `<p>API: <code>${apiConfirmUrl}</code></p>`,
+  ].join(''),
+  subject: 'Xac nhan doi email dang nhap Net Viet Travel',
+  text: [
+    `Xin chao ${fullName},`,
+    'He thong da nhan duoc yeu cau doi email dang nhap cho tai khoan Net Viet Travel cua ban.',
+    `Vui long xac nhan email moi trong vong ${expiresInMinutes} phut tai:`,
+    confirmUrl,
+    'Neu can goi API truc tiep, gui token nay toi POST /auth/change-email/confirm:',
+    token,
+    `API: ${apiConfirmUrl}`,
+  ].join('\n\n'),
+});
+
 const mapRegisteredUser = (user) => ({
   email: user.email,
   full_name: user.full_name,
@@ -536,6 +636,21 @@ const buildRefreshTokenAuditMetadata = ({
     status,
   });
 
+const buildChangeEmailAuditMetadata = ({
+  currentEmail,
+  newEmail,
+  outcome,
+  sessionsRevoked,
+  status,
+}) =>
+  compactObject({
+    current_email: currentEmail,
+    new_email: newEmail,
+    outcome,
+    sessions_revoked: sessionsRevoked,
+    status,
+  });
+
 const isPasswordResetRequestAllowed = (user) =>
   ![
     USER_STATUS.DELETED,
@@ -549,6 +664,21 @@ const isPasswordResetExecutionAllowed = (user) =>
     USER_STATUS.DISABLED,
     USER_STATUS.SUSPENDED,
   ].includes(user.status);
+
+const isEmailChangeAllowed = (user) => user.status === USER_STATUS.ACTIVE;
+
+const buildSessionIdentityClaims = (
+  user,
+  {
+    buildEmailVersionImpl,
+    buildPasswordVersionImpl,
+  },
+) => ({
+  emlv: buildEmailVersionImpl(user.email),
+  pwdv: buildPasswordVersionImpl(user.password_hash),
+  roleCode: user.role_code,
+  userId: user.id,
+});
 
 const insertUserLog = async (
   client,
@@ -762,14 +892,17 @@ const isRefreshTokenRevoked = async (client, userId, tokenHash) => {
 
 const createAuthService = ({
   bcryptCompareImpl = bcrypt.compare,
+  buildEmailVersionImpl = buildEmailVersion,
   buildPasswordVersionImpl = buildPasswordVersion,
   buildSessionTokensImpl = buildSessionTokens,
+  createChangeEmailTokenImpl = createChangeEmailToken,
   createEmailVerificationTokenImpl = createEmailVerificationToken,
   createResetPasswordTokenImpl = createResetPasswordToken,
   hashEmailVerificationTokenImpl = hashEmailVerificationToken,
   hashSessionTokenImpl = hashSessionToken,
   now = () => new Date(),
   sendEmailImpl = sendEmail,
+  verifyChangeEmailTokenImpl = verifyChangeEmailToken,
   verifyEmailVerificationTokenImpl = verifyEmailVerificationToken,
   verifyResetPasswordTokenImpl = verifyResetPasswordToken,
   verifyRefreshTokenImpl = verifyRefreshToken,
@@ -990,13 +1123,11 @@ const createAuthService = ({
       }
 
       const permissions = await loadPermissionsByRoleId(client, user.role_id);
-      const passwordVersion = buildPasswordVersionImpl(user.password_hash);
       const session = buildSessionTokensImpl(
-        {
-          pwdv: passwordVersion,
-          roleCode: user.role_code,
-          userId: user.id,
-        },
+        buildSessionIdentityClaims(user, {
+          buildEmailVersionImpl,
+          buildPasswordVersionImpl,
+        }),
         {
           issuedAt: createdAt,
         },
@@ -1064,10 +1195,18 @@ const createAuthService = ({
       }
 
       const currentPasswordVersion = buildPasswordVersionImpl(user.password_hash);
+      const currentEmailVersion = buildEmailVersionImpl(user.email);
 
       if (
         !tokenPayload.pwdv ||
         tokenPayload.pwdv !== currentPasswordVersion
+      ) {
+        throw createRefreshTokenInvalidError();
+      }
+
+      if (
+        !tokenPayload.emlv ||
+        tokenPayload.emlv !== currentEmailVersion
       ) {
         throw createRefreshTokenInvalidError();
       }
@@ -1101,11 +1240,10 @@ const createAuthService = ({
       const permissions = await loadPermissionsByRoleId(client, user.role_id);
       const createdAt = now();
       const session = buildSessionTokensImpl(
-        {
-          pwdv: currentPasswordVersion,
-          roleCode: user.role_code,
-          userId: user.id,
-        },
+        buildSessionIdentityClaims(user, {
+          buildEmailVersionImpl,
+          buildPasswordVersionImpl,
+        }),
         {
           issuedAt: createdAt,
         },
@@ -1140,6 +1278,33 @@ const createAuthService = ({
     });
   };
 
+  const resolveAuthenticatedUser = async (tokenPayload) =>
+    withTransactionImpl(async (client) => {
+      const user = await loadUserById(client, tokenPayload.sub);
+
+      if (!user) {
+        throw createAccessTokenInvalidError();
+      }
+
+      const currentPasswordVersion = buildPasswordVersionImpl(user.password_hash);
+      const currentEmailVersion = buildEmailVersionImpl(user.email);
+
+      if (!tokenPayload.pwdv || tokenPayload.pwdv !== currentPasswordVersion) {
+        throw createAccessTokenInvalidError();
+      }
+
+      if (!tokenPayload.emlv || tokenPayload.emlv !== currentEmailVersion) {
+        throw createAccessTokenInvalidError();
+      }
+
+      return {
+        roleCode: user.role_code,
+        tokenId: tokenPayload.jti,
+        user,
+        userId: user.id,
+      };
+    });
+
   const logout = async (payload, context = {}) =>
     withTransactionImpl(async (client) => {
       const input = normalizeLogoutPayload(payload);
@@ -1170,6 +1335,217 @@ const createAuthService = ({
         message: 'Logout successful.',
       };
     });
+
+  const changeEmailRequest = async (payload, context = {}) => {
+    const input = normalizeChangeEmailRequestPayload(payload);
+
+    try {
+      return await withTransactionImpl(async (client) => {
+        const user = await loadUserById(client, context.userId, {
+          forUpdate: true,
+        });
+
+        if (!user) {
+          throw createNotFoundError();
+        }
+
+        if (!isEmailChangeAllowed(user)) {
+          throw createForbiddenStatusError(user.status, 'change email');
+        }
+
+        if (input.newEmail === user.email) {
+          throw createValidationError([
+            {
+              field: 'new_email',
+              message: 'new_email must be different from current email',
+            },
+          ]);
+        }
+
+        const existingUser = await loadUserByEmail(client, input.newEmail);
+
+        if (existingUser) {
+          throw createDuplicateEmailError();
+        }
+
+        const createdAt = now();
+        const token = createChangeEmailTokenImpl({
+          currentEmail: user.email,
+          emailVersion: buildEmailVersionImpl(user.email),
+          newEmail: input.newEmail,
+          userId: user.id,
+        });
+        const { apiConfirmUrl, confirmUrl } = buildChangeEmailConfirmLinks(token);
+        const emailContent = buildChangeEmailConfirmEmail({
+          apiConfirmUrl,
+          confirmUrl,
+          expiresInMinutes: changeEmail.expiresInMinutes,
+          fullName: user.full_name,
+          token,
+        });
+        const emailLogResult = await queueEmailLog(client, {
+          createdAt,
+          subject: emailContent.subject,
+          templateCode: AUTH_CHANGE_EMAIL_CONFIRM_TEMPLATE_CODE,
+          toEmail: input.newEmail,
+          userId: user.id,
+        });
+        const sendResult = await sendEmailImpl({
+          html: emailContent.html,
+          subject: emailContent.subject,
+          text: emailContent.text,
+          to: {
+            email: input.newEmail,
+            name: user.full_name,
+          },
+        });
+        const sentAt = now();
+
+        await markEmailLogSent(client, {
+          emailLogId: emailLogResult.rows[0].id,
+          messageId: sendResult.messageId,
+          sentAt,
+        });
+
+        await insertUserLog(client, {
+          action: AUTH_CHANGE_EMAIL_REQUESTED_ACTION,
+          createdAt: sentAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: buildChangeEmailAuditMetadata({
+            currentEmail: user.email,
+            newEmail: input.newEmail,
+            outcome: 'confirmation_sent',
+            sessionsRevoked: false,
+            status: user.status,
+          }),
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
+
+        return {
+          data: {
+            acknowledged: true,
+          },
+          message: 'Change email confirmation has been sent.',
+        };
+      });
+    } catch (error) {
+      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
+        throw createInternalError('Change email service is not configured');
+      }
+
+      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
+        throw createInternalError('Failed to send change email confirmation');
+      }
+
+      if (isUniqueViolation(error)) {
+        throw createDuplicateEmailError();
+      }
+
+      throw error;
+    }
+  };
+
+  const changeEmailConfirm = async (payload, context = {}) => {
+    const input = normalizeChangeEmailConfirmPayload(payload);
+    let tokenPayload;
+
+    try {
+      tokenPayload = verifyChangeEmailTokenImpl(input.token, {
+        now: now(),
+      });
+    } catch (error) {
+      if (error.code === API_ERROR_CODES.AUTH_TOKEN_EXPIRED) {
+        throw error;
+      }
+
+      throw createChangeEmailTokenInvalidError();
+    }
+
+    if (tokenPayload.sub !== context.userId) {
+      throw new AppError('Change email token does not belong to current user', {
+        code: API_ERROR_CODES.FORBIDDEN,
+        statusCode: 403,
+      });
+    }
+
+    try {
+      return await withTransactionImpl(async (client) => {
+        const user = await loadUserById(client, context.userId, {
+          forUpdate: true,
+        });
+
+        if (!user) {
+          throw createNotFoundError();
+        }
+
+        if (!isEmailChangeAllowed(user)) {
+          throw createForbiddenStatusError(user.status, 'change email');
+        }
+
+        const currentEmailVersion = buildEmailVersionImpl(user.email);
+
+        if (
+          user.email !== tokenPayload.current_email ||
+          !tokenPayload.emlv ||
+          tokenPayload.emlv !== currentEmailVersion
+        ) {
+          throw createChangeEmailTokenInvalidError();
+        }
+
+        const existingUser = await loadUserByEmail(client, tokenPayload.new_email);
+
+        if (existingUser && existingUser.id !== user.id) {
+          throw createDuplicateEmailError();
+        }
+
+        const createdAt = now();
+
+        await client.query(
+          `
+            UPDATE users
+            SET
+              email = $2,
+              email_verified_at = $3,
+              updated_at = $3
+            WHERE id = $1
+          `,
+          [user.id, tokenPayload.new_email, createdAt],
+        );
+
+        await insertUserLog(client, {
+          action: AUTH_CHANGE_EMAIL_CONFIRMED_ACTION,
+          createdAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: buildChangeEmailAuditMetadata({
+            currentEmail: user.email,
+            newEmail: tokenPayload.new_email,
+            outcome: 'confirmed',
+            sessionsRevoked: true,
+            status: user.status,
+          }),
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
+
+        return {
+          data: {
+            acknowledged: true,
+            email: tokenPayload.new_email,
+          },
+          message: 'Email changed successfully.',
+        };
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw createDuplicateEmailError();
+      }
+
+      throw error;
+    }
+  };
 
   const forgotPassword = async (payload, context = {}) => {
     const input = normalizeForgotPasswordPayload(payload);
@@ -1619,9 +1995,12 @@ const createAuthService = ({
   };
 
   return {
+    changeEmailConfirm,
+    changeEmailRequest,
     forgotPassword,
     login,
     logout,
+    resolveAuthenticatedUser,
     refreshToken,
     register,
     resetPassword,
@@ -1633,6 +2012,9 @@ const createAuthService = ({
 const authService = createAuthService();
 
 module.exports = authService;
+module.exports.AUTH_CHANGE_EMAIL_CONFIRMED_ACTION = AUTH_CHANGE_EMAIL_CONFIRMED_ACTION;
+module.exports.AUTH_CHANGE_EMAIL_CONFIRM_TEMPLATE_CODE = AUTH_CHANGE_EMAIL_CONFIRM_TEMPLATE_CODE;
+module.exports.AUTH_CHANGE_EMAIL_REQUESTED_ACTION = AUTH_CHANGE_EMAIL_REQUESTED_ACTION;
 module.exports.AUTH_LOGIN_FAILED_ACTION = AUTH_LOGIN_FAILED_ACTION;
 module.exports.AUTH_LOGIN_SUCCESS_ACTION = AUTH_LOGIN_SUCCESS_ACTION;
 module.exports.AUTH_FORGOT_PASSWORD_REQUESTED_ACTION = AUTH_FORGOT_PASSWORD_REQUESTED_ACTION;
@@ -1647,10 +2029,13 @@ module.exports.AUTH_VERIFY_EMAIL_ACTION = AUTH_VERIFY_EMAIL_ACTION;
 module.exports.AUTH_VERIFY_EMAIL_TEMPLATE_CODE = AUTH_VERIFY_EMAIL_TEMPLATE_CODE;
 module.exports.CUSTOMER_ROLE_CODE = CUSTOMER_ROLE_CODE;
 module.exports.MIN_PASSWORD_LENGTH = MIN_PASSWORD_LENGTH;
+module.exports.buildChangeEmailConfirmEmail = buildChangeEmailConfirmEmail;
 module.exports.buildVerificationEmail = buildVerificationEmail;
 module.exports.buildResetPasswordEmail = buildResetPasswordEmail;
 module.exports.createAccessTokenInvalidError = createAccessTokenInvalidError;
 module.exports.createAuthService = createAuthService;
+module.exports.normalizeChangeEmailConfirmPayload = normalizeChangeEmailConfirmPayload;
+module.exports.normalizeChangeEmailRequestPayload = normalizeChangeEmailRequestPayload;
 module.exports.normalizeForgotPasswordPayload = normalizeForgotPasswordPayload;
 module.exports.normalizeLoginPayload = normalizeLoginPayload;
 module.exports.normalizeLogoutPayload = normalizeLogoutPayload;

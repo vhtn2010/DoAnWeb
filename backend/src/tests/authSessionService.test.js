@@ -13,7 +13,7 @@ const {
   USER_STATUS,
 } = require('../constants/domainConstraints');
 const { buildPasswordVersion } = require('../utils/resetPasswordToken');
-const { hashSessionToken } = require('../utils/sessionToken');
+const { buildEmailVersion, hashSessionToken } = require('../utils/sessionToken');
 
 const fixedNow = new Date('2026-06-30T00:00:00.000Z');
 
@@ -45,6 +45,7 @@ const createService = (options = {}) =>
     verifyRefreshTokenImpl:
       options.verifyRefreshTokenImpl ||
       (() => ({
+        emlv: buildEmailVersion('customer@example.com'),
         exp: Math.floor(fixedNow.getTime() / 1000) + 3600,
         jti: 'refresh-jti-1',
         pwdv: buildPasswordVersion('hashed-password'),
@@ -360,6 +361,7 @@ test('refreshToken rotates refresh token for active users and logs the new hash'
     }),
     client,
     verifyRefreshTokenImpl: () => ({
+      emlv: buildEmailVersion('customer@example.com'),
       exp: Math.floor(fixedNow.getTime() / 1000) + 3600,
       jti: 'refresh-jti-1',
       pwdv: buildPasswordVersion('hashed-password'),
@@ -487,6 +489,7 @@ test('refreshToken rejects tokens issued before the latest password reset', asyn
   const service = createService({
     client,
     verifyRefreshTokenImpl: () => ({
+      emlv: buildEmailVersion('customer@example.com'),
       exp: Math.floor(fixedNow.getTime() / 1000) + 3600,
       jti: 'refresh-jti-1',
       pwdv: buildPasswordVersion('old-password-hash'),
@@ -560,4 +563,45 @@ test('logout records an idempotent logout event and hashes refresh_token when pr
   assert.equal(logoutMetadata.outcome, 'logout');
   assert.equal(logoutMetadata.refresh_token_hash, refreshTokenHash);
   assert.equal(logoutMetadata.access_token_id, 'access-jti-1');
+});
+
+test('resolveAuthenticatedUser rejects access tokens issued before email change', async () => {
+  const service = createService({
+    client: {
+      query: async (sql) => {
+        if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                email: 'new-email@example.com',
+                full_name: 'Nguyen Van A',
+                id: 'user-1',
+                password_hash: 'hashed-password',
+                role_code: 'customer',
+                role_id: 'role-customer-1',
+                status: USER_STATUS.ACTIVE,
+              },
+            ],
+          };
+        }
+
+        throw new Error(`Unexpected SQL in test: ${sql}`);
+      },
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.resolveAuthenticatedUser({
+        emlv: buildEmailVersion('old-email@example.com'),
+        jti: 'access-jti-1',
+        pwdv: buildPasswordVersion('hashed-password'),
+        role_code: 'customer',
+        sub: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.AUTH_TOKEN_EXPIRED &&
+      error.statusCode === 401,
+  );
 });

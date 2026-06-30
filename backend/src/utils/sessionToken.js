@@ -7,6 +7,12 @@ const AppError = require('./AppError');
 const ACCESS_TOKEN_TYPE = 'access';
 const REFRESH_TOKEN_TYPE = 'refresh';
 
+const buildEmailVersion = (email) =>
+  crypto
+    .createHash('sha256')
+    .update(String(email || '').trim().toLowerCase())
+    .digest('hex');
+
 const base64urlEncode = (value) =>
   Buffer.from(JSON.stringify(value)).toString('base64url');
 
@@ -228,6 +234,7 @@ module.exports = {
   ACCESS_TOKEN_TYPE,
   REFRESH_TOKEN_TYPE,
   buildSessionTokens,
+  buildEmailVersion,
   createAccessToken,
   createRefreshToken,
   createTokenExpiredError,
