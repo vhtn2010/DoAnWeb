@@ -16,6 +16,7 @@ const DEFAULT_LOCATION_LIMIT = 10;
 const DEFAULT_SEARCH_LIMIT = 20;
 const DEFAULT_SEARCH_PAGE = 1;
 const DEFAULT_SEARCH_SORT = 'newest';
+const DEFAULT_AVAILABILITY_CURRENCY = 'VND';
 const DANGEROUS_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
 const DETAIL_CACHE_SECONDS = 15 * 60;
 const ENUMS_CACHE_SECONDS = 24 * 60 * 60;
@@ -23,6 +24,7 @@ const FEATURED_CACHE_SECONDS = 15 * 60;
 const FILTER_CACHE_SECONDS = 15 * 60;
 const IMAGE_CACHE_SECONDS = 15 * 60;
 const LOCALE = 'vi-VN';
+const MAX_AVAILABILITY_QUANTITY = 20;
 const MAX_FEATURED_LIMIT = 20;
 const MAX_LOCATION_LENGTH = 100;
 const MAX_LOCATION_LIMIT = 50;
@@ -349,6 +351,104 @@ const parseServiceId = (value) => {
   return normalized;
 };
 
+const parseRequiredServiceType = (value) => {
+  if (value == null || value === '') {
+    throw buildValidationError('service_type', 'service_type is required');
+  }
+
+  if (Array.isArray(value) || typeof value !== 'string') {
+    throw buildValidationError('service_type', 'service_type is required');
+  }
+
+  if (value === SERVICE_TYPE.ROOM) {
+    throw buildValidationError(
+      'service_type',
+      'service_type must be one of: tour, hotel, flight, train, combo',
+    );
+  }
+
+  if (!PUBLIC_SERVICE_TYPE_VALUES.includes(value)) {
+    throw buildValidationError(
+      'service_type',
+      'service_type must be one of: tour, hotel, flight, train, combo',
+    );
+  }
+
+  return value;
+};
+
+const parseQuantity = (value) => {
+  if (value == null || value === '') {
+    throw buildValidationError('quantity', 'quantity is required');
+  }
+
+  if (typeof value === 'string' && !/^\d+$/.test(value)) {
+    throw buildValidationError('quantity', 'quantity must be a positive integer');
+  }
+
+  if (
+    typeof value === 'number' &&
+    (!Number.isInteger(value) || value < 1)
+  ) {
+    throw buildValidationError('quantity', 'quantity must be a positive integer');
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw buildValidationError('quantity', 'quantity must be a positive integer');
+  }
+
+  if (parsed > MAX_AVAILABILITY_QUANTITY) {
+    throw buildValidationError(
+      'quantity',
+      `quantity must be less than or equal to ${MAX_AVAILABILITY_QUANTITY}`,
+    );
+  }
+
+  return parsed;
+};
+
+const parseOptionalIsoDateTime = (field, value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    throw buildValidationError(field, `${field} must be a valid ISO 8601 datetime`);
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw buildValidationError(field, `${field} must be a valid ISO 8601 datetime`);
+  }
+
+  return parsed;
+};
+
+const parseReferenceId = (value) => {
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value.trim())) {
+    throw buildValidationError('reference_id', 'reference_id must be a valid UUID');
+  }
+
+  return value.trim();
+};
+
+const parseOptionalGuestCount = (field, value) => {
+  if (value == null) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw buildValidationError(field, `${field} must be a non-negative integer`);
+  }
+
+  return parsed;
+};
+
 const toPublicPrice = (service) => {
   if (service.sale_price != null) {
     return Number(service.sale_price);
@@ -493,7 +593,7 @@ const mapFlightDetail = (detail) => ({
   arrival_at: detail.arrival_at,
   cabin_class: detail.cabin_class,
   seats_available: detail.seats_available,
-  fare_price:
+      fare_price:
     detail.fare_price == null
       ? null
       : Number(detail.fare_price),
@@ -611,6 +711,170 @@ const buildPaginationMeta = ({ limit, page, total }) => {
     total_pages: totalPages,
   };
 };
+
+const createAvailabilityIssue = (code, message) => ({
+  code,
+  message,
+});
+
+const buildAvailabilityResponse = ({
+  available,
+  availableQuantity,
+  currency = DEFAULT_AVAILABILITY_CURRENCY,
+  issues = [],
+  totalAmount,
+  unitPrice,
+}) => ({
+  available,
+  available_quantity: availableQuantity,
+  unit_price: unitPrice,
+  total_amount: totalAmount,
+  currency,
+  issues,
+});
+
+const buildUnavailableAvailability = ({
+  availableQuantity = 0,
+  currency = DEFAULT_AVAILABILITY_CURRENCY,
+  issues,
+  quantity = 0,
+  unitPrice,
+}) =>
+  buildAvailabilityResponse({
+    available: false,
+    availableQuantity,
+    currency,
+    issues,
+    totalAmount: unitPrice == null ? null : unitPrice * quantity,
+    unitPrice,
+  });
+
+const isFutureDate = (date) => date.getTime() > Date.now();
+
+const parseAvailabilityPayload = ({
+  service,
+  serviceId,
+  body = {},
+}) => {
+  const resolvedServiceId = parseServiceId(serviceId);
+  const resolvedServiceType = parseRequiredServiceType(body.service_type);
+  const resolvedQuantity = parseQuantity(body.quantity);
+  const resolvedStartAt = parseOptionalIsoDateTime('start_at', body.start_at);
+  const resolvedEndAt = parseOptionalIsoDateTime('end_at', body.end_at);
+
+  if (resolvedEndAt && resolvedStartAt && resolvedEndAt <= resolvedStartAt) {
+    throw buildValidationError(
+      'end_at',
+      'end_at must be greater than start_at',
+    );
+  }
+
+  if (resolvedStartAt && !isFutureDate(resolvedStartAt)) {
+    throw buildValidationError(
+      'start_at',
+      'start_at must be in the future',
+    );
+  }
+
+  if (resolvedEndAt && !isFutureDate(resolvedEndAt)) {
+    throw buildValidationError(
+      'end_at',
+      'end_at must be in the future',
+    );
+  }
+
+  if (service && resolvedServiceType !== service.service_type) {
+    throw buildValidationError(
+      'service_type',
+      'service_type does not match the target service',
+    );
+  }
+
+  return {
+    endAt: resolvedEndAt,
+    quantity: resolvedQuantity,
+    referenceId: body.reference_id,
+    serviceId: resolvedServiceId,
+    serviceType: resolvedServiceType,
+    startAt: resolvedStartAt,
+  };
+};
+
+const resolvePublicPriceAndCurrency = (service) => ({
+  currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+  unitPrice: toPublicPrice(service),
+});
+
+const extractAvailableSlotsFromSchedule = (scheduleItem) => {
+  if (!scheduleItem || typeof scheduleItem !== 'object') {
+    return 0;
+  }
+
+  const slotKeys = ['available_slots', 'availableSlots', 'slots_available'];
+
+  for (const key of slotKeys) {
+    const value = Number(scheduleItem[key]);
+
+    if (Number.isFinite(value) && value >= 0) {
+      return value;
+    }
+  }
+
+  return 0;
+};
+
+const normalizeScheduleDateValue = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toISOString().slice(0, 10);
+};
+
+const findMatchingDepartureSchedule = (departureSchedule, startAt) => {
+  if (!Array.isArray(departureSchedule) || !startAt) {
+    return null;
+  }
+
+  const targetDate = startAt.toISOString().slice(0, 10);
+
+  return departureSchedule.find((item) => {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+
+    return normalizeScheduleDateValue(item.date || item.departure_at) === targetDate;
+  }) || null;
+};
+
+const buildSuccessfulAvailability = ({
+  availableQuantity,
+  currency,
+  quantity,
+  unitPrice,
+}) =>
+  buildAvailabilityResponse({
+    available: quantity <= availableQuantity,
+    availableQuantity,
+    currency,
+    issues:
+      quantity <= availableQuantity
+        ? []
+        : [
+            createAvailabilityIssue(
+              'INSUFFICIENT_AVAILABILITY',
+              'Requested quantity exceeds the available inventory.',
+            ),
+          ],
+    totalAmount: unitPrice * quantity,
+    unitPrice,
+  });
 
 const createLookupService = ({
   repository = createPublicSearchRepository(),
@@ -813,6 +1077,452 @@ const createLookupService = ({
     return mapImages(images);
   };
 
+  const evaluateAvailability = async ({
+    body = {},
+    expectedServiceType,
+    service,
+    serviceId,
+  }) => {
+    const parsedPayload = parseAvailabilityPayload({
+      body,
+      service,
+      serviceId,
+    });
+    const serviceType = expectedServiceType || parsedPayload.serviceType;
+
+    if (serviceType === SERVICE_TYPE.TOUR) {
+      const detail = await repository.getTourDetail(service.id);
+
+      if (!detail) {
+        console.error(
+          `Active public service ${service.id} (${service.slug || service.title || service.id}) is missing tour_details.`,
+        );
+        throw buildResourceNotFoundError();
+      }
+
+      const { currency, unitPrice } = resolvePublicPriceAndCurrency(service);
+      const departureSchedule = Array.isArray(detail.departure_schedule)
+        ? detail.departure_schedule
+        : [];
+
+      if (parsedPayload.startAt) {
+        const matchedSchedule = findMatchingDepartureSchedule(
+          departureSchedule,
+          parsedPayload.startAt,
+        );
+
+        if (!matchedSchedule) {
+          return buildUnavailableAvailability({
+            availableQuantity: 0,
+            currency,
+            issues: [
+              createAvailabilityIssue(
+                'SCHEDULE_NOT_FOUND',
+                'No departure schedule matches the requested start time.',
+              ),
+            ],
+            quantity: parsedPayload.quantity,
+            unitPrice,
+          });
+        }
+
+        const availableQuantity = extractAvailableSlotsFromSchedule(
+          matchedSchedule,
+        );
+
+        return buildSuccessfulAvailability({
+          availableQuantity,
+          currency,
+          quantity: parsedPayload.quantity,
+          unitPrice,
+        });
+      }
+
+      const futureSchedules = departureSchedule.filter((item) => {
+        const normalizedDate = normalizeScheduleDateValue(
+          item?.date || item?.departure_at,
+        );
+
+        return normalizedDate
+          ? new Date(`${normalizedDate}T00:00:00.000Z`).getTime() > Date.now()
+          : false;
+      });
+
+      if (futureSchedules.length === 0) {
+        return buildUnavailableAvailability({
+          availableQuantity: 0,
+          currency,
+          issues: [
+            createAvailabilityIssue(
+              'NO_FUTURE_SCHEDULE',
+              'No future departure schedule is currently available.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice,
+        });
+      }
+
+      const availableQuantity = futureSchedules.reduce(
+        (max, item) => Math.max(max, extractAvailableSlotsFromSchedule(item)),
+        0,
+      );
+
+      return buildSuccessfulAvailability({
+        availableQuantity,
+        currency,
+        quantity: parsedPayload.quantity,
+        unitPrice,
+      });
+    }
+
+    if (serviceType === SERVICE_TYPE.HOTEL) {
+      if (!parsedPayload.referenceId) {
+        throw buildValidationError(
+          'reference_id',
+          'reference_id is required for hotel availability',
+        );
+      }
+
+      const referenceId = parseReferenceId(parsedPayload.referenceId);
+      const roomType = await repository.getRoomTypeById(referenceId);
+
+      if (!roomType || roomType.hotel_service_id !== service.id) {
+        return buildUnavailableAvailability({
+          availableQuantity: 0,
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: [
+            createAvailabilityIssue(
+              'ROOM_TYPE_NOT_FOUND',
+              'The requested room type is not available for this hotel.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice: null,
+        });
+      }
+
+      if (roomType.status !== 'active') {
+        return buildUnavailableAvailability({
+          availableQuantity: Number(roomType.available_rooms || 0),
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: [
+            createAvailabilityIssue(
+              'ROOM_TYPE_NOT_ACTIVE',
+              'The requested room type is not active.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice: Number(roomType.base_price),
+        });
+      }
+
+      const adults = parseOptionalGuestCount('options.adults', body.options?.adults);
+      const children = parseOptionalGuestCount(
+        'options.children',
+        body.options?.children,
+      );
+      const capacityIssues = [];
+
+      if (adults != null && adults > Number(roomType.max_adults)) {
+        capacityIssues.push(
+          createAvailabilityIssue(
+            'MAX_ADULTS_EXCEEDED',
+            'The requested number of adults exceeds the room capacity.',
+          ),
+        );
+      }
+
+      if (children != null && children > Number(roomType.max_children)) {
+        capacityIssues.push(
+          createAvailabilityIssue(
+            'MAX_CHILDREN_EXCEEDED',
+            'The requested number of children exceeds the room capacity.',
+          ),
+        );
+      }
+
+      if (capacityIssues.length > 0) {
+        return buildUnavailableAvailability({
+          availableQuantity: Number(roomType.available_rooms),
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: capacityIssues,
+          quantity: parsedPayload.quantity,
+          unitPrice: Number(roomType.base_price),
+        });
+      }
+
+      return buildSuccessfulAvailability({
+        availableQuantity: Number(roomType.available_rooms),
+        currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+        quantity: parsedPayload.quantity,
+        unitPrice: Number(roomType.base_price),
+      });
+    }
+
+    if (serviceType === SERVICE_TYPE.FLIGHT) {
+      if (!parsedPayload.referenceId) {
+        throw buildValidationError(
+          'reference_id',
+          'reference_id is required for flight availability',
+        );
+      }
+
+      const referenceId = parseReferenceId(parsedPayload.referenceId);
+      const detail = await repository.getFlightDetailById(referenceId);
+
+      if (!detail || detail.service_id !== service.id) {
+        return buildUnavailableAvailability({
+          availableQuantity: 0,
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: [
+            createAvailabilityIssue(
+              'FLIGHT_NOT_FOUND',
+              'The requested flight inventory was not found.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice: null,
+        });
+      }
+
+      if (detail.status !== 'open') {
+        return buildUnavailableAvailability({
+          availableQuantity: Number(detail.seats_available),
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: [
+            createAvailabilityIssue(
+              'FLIGHT_NOT_OPEN',
+              'The requested flight is not open for booking.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice: Number(detail.fare_price),
+        });
+      }
+
+      if (!isFutureDate(new Date(detail.departure_at))) {
+        return buildUnavailableAvailability({
+          availableQuantity: Number(detail.seats_available),
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: [
+            createAvailabilityIssue(
+              'FLIGHT_DEPARTED',
+              'The requested flight has already departed.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice: Number(detail.fare_price),
+        });
+      }
+
+      return buildSuccessfulAvailability({
+        availableQuantity: Number(detail.seats_available),
+        currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+        quantity: parsedPayload.quantity,
+        unitPrice: Number(detail.fare_price),
+      });
+    }
+
+    if (serviceType === SERVICE_TYPE.TRAIN) {
+      if (!parsedPayload.referenceId) {
+        throw buildValidationError(
+          'reference_id',
+          'reference_id is required for train availability',
+        );
+      }
+
+      const referenceId = parseReferenceId(parsedPayload.referenceId);
+      const detail = await repository.getTrainDetailById(referenceId);
+
+      if (!detail || detail.service_id !== service.id) {
+        return buildUnavailableAvailability({
+          availableQuantity: 0,
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: [
+            createAvailabilityIssue(
+              'TRAIN_NOT_FOUND',
+              'The requested train inventory was not found.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice: null,
+        });
+      }
+
+      if (detail.status !== 'open') {
+        return buildUnavailableAvailability({
+          availableQuantity: Number(detail.seats_available),
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: [
+            createAvailabilityIssue(
+              'TRAIN_NOT_OPEN',
+              'The requested train is not open for booking.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice: Number(detail.fare_price),
+        });
+      }
+
+      if (!isFutureDate(new Date(detail.departure_at))) {
+        return buildUnavailableAvailability({
+          availableQuantity: Number(detail.seats_available),
+          currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+          issues: [
+            createAvailabilityIssue(
+              'TRAIN_DEPARTED',
+              'The requested train has already departed.',
+            ),
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice: Number(detail.fare_price),
+        });
+      }
+
+      return buildSuccessfulAvailability({
+        availableQuantity: Number(detail.seats_available),
+        currency: service.currency || DEFAULT_AVAILABILITY_CURRENCY,
+        quantity: parsedPayload.quantity,
+        unitPrice: Number(detail.fare_price),
+      });
+    }
+
+    if (serviceType === SERVICE_TYPE.COMBO) {
+      const { currency, unitPrice } = resolvePublicPriceAndCurrency(service);
+      const comboItems = Array.isArray(service.metadata?.combo_items)
+        ? service.metadata.combo_items
+        : [];
+
+      if (comboItems.length === 0) {
+        return buildAvailabilityResponse({
+          available: true,
+          availableQuantity: null,
+          currency,
+          issues: [],
+          totalAmount: unitPrice * parsedPayload.quantity,
+          unitPrice,
+        });
+      }
+
+      const childResults = [];
+
+      for (const item of comboItems) {
+        if (!item || typeof item !== 'object') {
+          continue;
+        }
+
+        if (!item.service_id || !item.service_type) {
+          childResults.push(
+            buildUnavailableAvailability({
+              availableQuantity: 0,
+              currency,
+              issues: [
+                createAvailabilityIssue(
+                  'COMBO_ITEM_INVALID',
+                  'A combo item is missing required availability information.',
+                ),
+              ],
+              quantity: parsedPayload.quantity,
+              unitPrice,
+            }),
+          );
+          continue;
+        }
+
+        const childService = await repository.getPublicServiceById(item.service_id);
+
+        if (!childService) {
+          childResults.push(
+            buildUnavailableAvailability({
+              availableQuantity: 0,
+              currency,
+              issues: [
+                createAvailabilityIssue(
+                  'COMBO_ITEM_UNAVAILABLE',
+                  'A combo item is not publicly available.',
+                ),
+              ],
+              quantity: parsedPayload.quantity,
+              unitPrice,
+            }),
+          );
+          continue;
+        }
+
+        const childQuantity = Number(item.quantity) > 0
+          ? Number(item.quantity) * parsedPayload.quantity
+          : parsedPayload.quantity;
+
+        childResults.push(
+          await evaluateAvailability({
+            body: {
+              end_at: item.end_at || body.end_at,
+              options: item.options || body.options,
+              quantity: childQuantity,
+              reference_id: item.reference_id,
+              service_type: item.service_type,
+              start_at: item.start_at || body.start_at,
+            },
+            expectedServiceType: item.service_type,
+            service: childService,
+            serviceId: item.service_id,
+          }),
+        );
+      }
+
+      const firstUnavailable = childResults.find((result) => !result.available);
+
+      if (firstUnavailable) {
+        return buildUnavailableAvailability({
+          availableQuantity: null,
+          currency,
+          issues: [
+            createAvailabilityIssue(
+              'COMBO_ITEM_UNAVAILABLE',
+              'At least one combo item is not currently available.',
+            ),
+            ...firstUnavailable.issues,
+          ],
+          quantity: parsedPayload.quantity,
+          unitPrice,
+        });
+      }
+
+      return buildAvailabilityResponse({
+        available: true,
+        availableQuantity: null,
+        currency,
+        issues: [],
+        totalAmount: unitPrice * parsedPayload.quantity,
+        unitPrice,
+      });
+    }
+
+    throw buildValidationError(
+      'service_type',
+      'service_type must be one of: tour, hotel, flight, train, combo',
+    );
+  };
+
+  const getServiceAvailability = async ({
+    body = {},
+    service_id: serviceId,
+  } = {}) => {
+    const resolvedServiceId = parseServiceId(serviceId);
+    const service = await repository.getPublicServiceById(resolvedServiceId);
+
+    if (!service) {
+      throw buildResourceNotFoundError();
+    }
+
+    return evaluateAvailability({
+      body,
+      service,
+      serviceId: resolvedServiceId,
+    });
+  };
+
   const searchServices = async ({
     limit,
     location,
@@ -890,6 +1600,7 @@ const createLookupService = ({
   return {
     getFeaturedServices,
     getPopularLocations,
+    getServiceAvailability,
     getPublicEnums,
     getServiceDetail,
     getServiceFilterOptions,

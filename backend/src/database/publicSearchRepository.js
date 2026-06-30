@@ -186,7 +186,11 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
           s.id,
           s.service_type,
           s.slug,
-          s.title
+          s.title,
+          s.base_price,
+          s.sale_price,
+          s.currency,
+          s.metadata
         FROM services s
         ${BASE_PUBLIC_WHERE}
           AND s.id = $2
@@ -287,6 +291,82 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
         LIMIT 1
       `,
       [serviceId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getRoomTypeById = async (roomTypeId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          hotel_service_id,
+          name,
+          max_adults,
+          max_children,
+          total_rooms,
+          available_rooms,
+          base_price,
+          status
+        FROM room_types
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [roomTypeId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getFlightDetailById = async (flightDetailId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          service_id,
+          airline_name,
+          flight_number,
+          departure_airport,
+          arrival_airport,
+          departure_at,
+          arrival_at,
+          cabin_class,
+          seats_total,
+          seats_available,
+          fare_price,
+          status
+        FROM flight_details
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [flightDetailId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getTrainDetailById = async (trainDetailId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          service_id,
+          train_number,
+          departure_station,
+          arrival_station,
+          departure_at,
+          arrival_at,
+          seat_class,
+          seats_total,
+          seats_available,
+          fare_price,
+          status
+        FROM train_details
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [trainDetailId],
     );
 
     return result.rows[0] || null;
@@ -405,11 +485,14 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     listActiveTourTransportTypes,
     listActiveTrainSeatClasses,
     getFlightDetail,
+    getFlightDetailById,
     getHotelDetail,
     getPublicServiceById,
     getPublicServiceBySlug,
+    getRoomTypeById,
     getTourDetail,
     getTrainDetail,
+    getTrainDetailById,
     listFeaturedServices,
     listServiceImages,
     searchServices,
@@ -433,16 +516,22 @@ module.exports = {
     publicSearchRepository.listActiveTrainSeatClasses,
   getFlightDetail:
     publicSearchRepository.getFlightDetail,
+  getFlightDetailById:
+    publicSearchRepository.getFlightDetailById,
   getHotelDetail:
     publicSearchRepository.getHotelDetail,
   getPublicServiceById:
     publicSearchRepository.getPublicServiceById,
   getPublicServiceBySlug:
     publicSearchRepository.getPublicServiceBySlug,
+  getRoomTypeById:
+    publicSearchRepository.getRoomTypeById,
   getTourDetail:
     publicSearchRepository.getTourDetail,
   getTrainDetail:
     publicSearchRepository.getTrainDetail,
+  getTrainDetailById:
+    publicSearchRepository.getTrainDetailById,
   listFeaturedServices:
     publicSearchRepository.listFeaturedServices,
   listServiceImages:

@@ -32,6 +32,10 @@ const request = (server, path, options = {}) =>
       },
     );
 
+    if (options.body) {
+      req.write(options.body);
+    }
+
     req.on('error', reject);
     req.end();
   });
@@ -761,6 +765,278 @@ test('lookupService.getServiceImages returns 404 for non-public parent service',
   );
 });
 
+test('lookupService.getServiceAvailability returns tour availability for matching future schedule', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async (serviceId) => {
+        assert.equal(serviceId, '11111111-1111-4111-8111-111111111111');
+
+        return {
+          base_price: '3500000',
+          currency: 'VND',
+          id: serviceId,
+          metadata: null,
+          sale_price: '3200000',
+          service_type: 'tour',
+          slug: 'tour-da-lat',
+          title: 'Tour Da Lat',
+        };
+      },
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            available_slots: 5,
+            date: '2099-07-20',
+          },
+        ],
+      }),
+    },
+  });
+
+  const result = await service.getServiceAvailability({
+    body: {
+      quantity: 2,
+      service_type: 'tour',
+      start_at: '2099-07-20T07:00:00.000Z',
+    },
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.deepEqual(result, {
+    available: true,
+    available_quantity: 5,
+    currency: 'VND',
+    issues: [],
+    total_amount: 6400000,
+    unit_price: 3200000,
+  });
+});
+
+test('lookupService.getServiceAvailability validates service_type mismatch and quantity rules', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async () => ({
+        base_price: '1000000',
+        currency: 'VND',
+        id: '11111111-1111-4111-8111-111111111111',
+        metadata: null,
+        sale_price: null,
+        service_type: 'hotel',
+        slug: 'hotel-test',
+        title: 'Hotel Test',
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => service.getServiceAvailability({
+      body: {
+        quantity: 1,
+        service_type: 'tour',
+      },
+      service_id: '11111111-1111-4111-8111-111111111111',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'service_type',
+          message: 'service_type does not match the target service',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getServiceAvailability({
+      body: {
+        quantity: 0,
+        service_type: 'hotel',
+      },
+      service_id: '11111111-1111-4111-8111-111111111111',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'quantity',
+          message: 'quantity must be a positive integer',
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
+test('lookupService.getServiceAvailability returns hotel availability based on room type inventory and capacity', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async () => ({
+        base_price: '1200000',
+        currency: 'VND',
+        id: '11111111-1111-4111-8111-111111111111',
+        metadata: null,
+        sale_price: null,
+        service_type: 'hotel',
+        slug: 'hotel-da-nang',
+        title: 'Hotel Da Nang',
+      }),
+      getRoomTypeById: async (referenceId) => {
+        assert.equal(referenceId, '22222222-2222-4222-8222-222222222222');
+
+        return {
+          available_rooms: 3,
+          base_price: '1500000',
+          hotel_service_id: '11111111-1111-4111-8111-111111111111',
+          id: referenceId,
+          max_adults: 2,
+          max_children: 1,
+          status: 'active',
+        };
+      },
+    },
+  });
+
+  const availableResult = await service.getServiceAvailability({
+    body: {
+      quantity: 2,
+      reference_id: '22222222-2222-4222-8222-222222222222',
+      service_type: 'hotel',
+      start_at: '2099-07-20T14:00:00.000Z',
+      end_at: '2099-07-22T12:00:00.000Z',
+    },
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.equal(availableResult.available, true);
+  assert.equal(availableResult.available_quantity, 3);
+  assert.equal(availableResult.unit_price, 1500000);
+
+  const capacityResult = await service.getServiceAvailability({
+    body: {
+      options: {
+        adults: 3,
+      },
+      quantity: 1,
+      reference_id: '22222222-2222-4222-8222-222222222222',
+      service_type: 'hotel',
+      start_at: '2099-07-20T14:00:00.000Z',
+      end_at: '2099-07-22T12:00:00.000Z',
+    },
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.equal(capacityResult.available, false);
+  assert.equal(capacityResult.issues[0].code, 'MAX_ADULTS_EXCEEDED');
+});
+
+test('lookupService.getServiceAvailability returns flight or train unavailable without mutating inventory', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getFlightDetailById: async () => ({
+        departure_at: '2099-07-20T08:00:00.000Z',
+        fare_price: '2500000',
+        seats_available: 1,
+        service_id: '11111111-1111-4111-8111-111111111111',
+        status: 'open',
+      }),
+      getPublicServiceById: async () => ({
+        base_price: '2600000',
+        currency: 'VND',
+        id: '11111111-1111-4111-8111-111111111111',
+        metadata: null,
+        sale_price: null,
+        service_type: 'flight',
+        slug: 'flight-sgn-dad',
+        title: 'Flight SGN DAD',
+      }),
+    },
+  });
+
+  const result = await service.getServiceAvailability({
+    body: {
+      quantity: 2,
+      reference_id: '33333333-3333-4333-8333-333333333333',
+      service_type: 'flight',
+    },
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.deepEqual(result, {
+    available: false,
+    available_quantity: 1,
+    currency: 'VND',
+    issues: [
+      {
+        code: 'INSUFFICIENT_AVAILABILITY',
+        message: 'Requested quantity exceeds the available inventory.',
+      },
+    ],
+    total_amount: 5000000,
+    unit_price: 2500000,
+  });
+});
+
+test('lookupService.getServiceAvailability checks combo child items', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async (serviceId) => {
+        if (serviceId === '11111111-1111-4111-8111-111111111111') {
+          return {
+            base_price: '5000000',
+            currency: 'VND',
+            id: serviceId,
+            metadata: {
+              combo_items: [
+                {
+                  quantity: 1,
+                  reference_id: '44444444-4444-4444-8444-444444444444',
+                  service_id: '55555555-5555-4555-8555-555555555555',
+                  service_type: 'train',
+                },
+              ],
+            },
+            sale_price: '4500000',
+            service_type: 'combo',
+            slug: 'combo-test',
+            title: 'Combo Test',
+          };
+        }
+
+        return {
+          base_price: '1000000',
+          currency: 'VND',
+          id: serviceId,
+          metadata: null,
+          sale_price: null,
+          service_type: 'train',
+          slug: 'train-child',
+          title: 'Train Child',
+        };
+      },
+      getTrainDetailById: async () => ({
+        departure_at: '2099-07-20T08:00:00.000Z',
+        fare_price: '900000',
+        seats_available: 0,
+        service_id: '55555555-5555-4555-8555-555555555555',
+        status: 'open',
+      }),
+    },
+  });
+
+  const result = await service.getServiceAvailability({
+    body: {
+      quantity: 1,
+      service_type: 'combo',
+    },
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.equal(result.available, false);
+  assert.equal(result.issues[0].code, 'COMBO_ITEM_UNAVAILABLE');
+});
+
 test('GET /api/lookups/enums returns public lookup enums and cache headers', async () => {
   const server = app.listen(0);
 
@@ -1224,6 +1500,140 @@ test('GET /api/services/{service_id}/images validates bad UUID', async () => {
       },
     ]);
   } finally {
+    server.close();
+  }
+});
+
+test('POST /api/services/{service_id}/availability returns read-only availability payload', async () => {
+  const originalGetServiceAvailability = lookupService.getServiceAvailability;
+  const server = app.listen(0);
+
+  lookupService.getServiceAvailability = async (payload) => {
+    assert.deepEqual(payload, {
+      body: {
+        quantity: 2,
+        reference_id: '22222222-2222-4222-8222-222222222222',
+        service_type: 'hotel',
+        start_at: '2099-07-20T14:00:00.000Z',
+        end_at: '2099-07-22T12:00:00.000Z',
+      },
+      service_id: '11111111-1111-4111-8111-111111111111',
+    });
+
+    return {
+      available: true,
+      available_quantity: 3,
+      currency: 'VND',
+      issues: [],
+      total_amount: 3000000,
+      unit_price: 1500000,
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/11111111-1111-4111-8111-111111111111/availability`,
+      {
+        body: JSON.stringify({
+          quantity: 2,
+          reference_id: '22222222-2222-4222-8222-222222222222',
+          service_type: 'hotel',
+          start_at: '2099-07-20T14:00:00.000Z',
+          end_at: '2099-07-22T12:00:00.000Z',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Service availability retrieved successfully',
+    );
+    assert.deepEqual(response.body.data, {
+      available: true,
+      available_quantity: 3,
+      currency: 'VND',
+      issues: [],
+      total_amount: 3000000,
+      unit_price: 1500000,
+    });
+  } finally {
+    lookupService.getServiceAvailability = originalGetServiceAvailability;
+    server.close();
+  }
+});
+
+test('POST /api/services/{service_id}/availability validates bad UUID', async () => {
+  const server = app.listen(0);
+
+  try {
+    const invalidResponse = await request(
+      server,
+      `${apiPrefix}/services/not-a-uuid/availability`,
+      {
+        body: JSON.stringify({
+          quantity: 1,
+          service_type: 'tour',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(invalidResponse.statusCode, 400);
+    assert.equal(invalidResponse.body.success, false);
+    assert.equal(
+      invalidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/services/{service_id}/availability propagates 404 for hidden or missing service', async () => {
+  const originalGetServiceAvailability = lookupService.getServiceAvailability;
+  const server = app.listen(0);
+
+  lookupService.getServiceAvailability = async () => {
+    const error = new Error('Service not found');
+    error.code = API_ERROR_CODES.RESOURCE_NOT_FOUND;
+    error.statusCode = 404;
+    throw error;
+  };
+
+  try {
+    const notFoundResponse = await request(
+      server,
+      `${apiPrefix}/services/11111111-1111-4111-8111-111111111111/availability`,
+      {
+        body: JSON.stringify({
+          quantity: 1,
+          service_type: 'tour',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(notFoundResponse.statusCode, 404);
+    assert.equal(notFoundResponse.body.success, false);
+    assert.equal(
+      notFoundResponse.body.error.code,
+      API_ERROR_CODES.RESOURCE_NOT_FOUND,
+    );
+  } finally {
+    lookupService.getServiceAvailability = originalGetServiceAvailability;
     server.close();
   }
 });

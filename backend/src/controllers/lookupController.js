@@ -66,6 +66,18 @@ const getServiceImages = async (req, res) => {
   });
 };
 
+const getServiceAvailability = async (req, res) => {
+  const data = await lookupService.getServiceAvailability({
+    ...req.params,
+    body: req.body,
+  });
+
+  res.success({
+    data,
+    message: 'Service availability retrieved successfully',
+  });
+};
+
 const getServices = async (req, res) => {
   const result = await lookupService.searchServices(req.query);
 
@@ -80,6 +92,7 @@ module.exports = {
   getFeaturedServices,
   getPopularLocations,
   getPublicEnums,
+  getServiceAvailability,
   getServiceDetail,
   getServiceFilterOptions,
   getServiceImages,

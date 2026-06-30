@@ -3,6 +3,7 @@ const {
   getFeaturedServices,
   getPopularLocations,
   getPublicEnums,
+  getServiceAvailability,
   getServiceDetail,
   getServiceFilterOptions,
   getServiceImages,
@@ -48,6 +49,11 @@ router.get(
   '/services/:slug',
   publicSearchRateLimit,
   asyncHandler(getServiceDetail),
+);
+router.post(
+  '/services/:service_id/availability',
+  publicSearchRateLimit,
+  asyncHandler(getServiceAvailability),
 );
 
 module.exports = router;
