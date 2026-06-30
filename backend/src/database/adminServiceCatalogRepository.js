@@ -34,9 +34,13 @@ const createAdminServiceCatalogRepository = ({ queryImpl = query } = {}) => {
       `);
     }
 
-    if (Array.isArray(allowedServiceIds) && allowedServiceIds.length > 0) {
-      params.push(allowedServiceIds);
-      conditions.push(`s.id = ANY($${params.length}::uuid[])`);
+    if (Array.isArray(allowedServiceIds)) {
+      if (allowedServiceIds.length === 0) {
+        conditions.push('1 = 0');
+      } else {
+        params.push(allowedServiceIds);
+        conditions.push(`s.id = ANY($${params.length}::uuid[])`);
+      }
     }
 
     return {
