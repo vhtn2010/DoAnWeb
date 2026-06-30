@@ -1,5 +1,9 @@
 const express = require('express');
-const { getMe, updateMe } = require('../controllers/profileController');
+const {
+  getMe,
+  updateMe,
+  updateMeAvatar,
+} = require('../controllers/profileController');
 const { authRequired } = require('../middleware/authSession');
 const asyncHandler = require('../middleware/asyncHandler');
 
@@ -18,6 +22,13 @@ router.patch(
     allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
   }),
   asyncHandler(updateMe),
+);
+router.patch(
+  '/me/avatar',
+  authRequired({
+    allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
+  }),
+  asyncHandler(updateMeAvatar),
 );
 
 module.exports = router;

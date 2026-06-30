@@ -13,6 +13,7 @@ const { createAccessToken } = require('../utils/sessionToken');
 const AppError = require('../utils/AppError');
 
 const originalGetCurrentProfile = profileService.getCurrentProfile;
+const originalUpdateCurrentAvatar = profileService.updateCurrentAvatar;
 const originalUpdateCurrentProfile = profileService.updateCurrentProfile;
 
 const request = (server, path, options = {}) =>
@@ -43,11 +44,13 @@ const request = (server, path, options = {}) =>
 
 test.beforeEach(() => {
   profileService.getCurrentProfile = originalGetCurrentProfile;
+  profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
   profileService.updateCurrentProfile = originalUpdateCurrentProfile;
 });
 
 test.afterEach(() => {
   profileService.getCurrentProfile = originalGetCurrentProfile;
+  profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
   profileService.updateCurrentProfile = originalUpdateCurrentProfile;
 });
 
@@ -299,6 +302,131 @@ test('PATCH /api/me surfaces validation errors for forbidden fields', async () =
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
     assert.equal(response.body.error.details[0].field, 'email');
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/me/avatar requires access token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/avatar`, {
+      body: JSON.stringify({
+        avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/me/avatar returns updated avatar profile for authenticated user', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+  let capturedContext;
+
+  profileService.updateCurrentAvatar = async (context) => {
+    capturedContext = context;
+
+    return {
+      avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+      created_at: '2026-06-28T00:00:00.000Z',
+      email: 'customer@example.com',
+      email_verified_at: '2026-06-29T00:00:00.000Z',
+      full_name: 'Nguyen Van A',
+      id: 'user-1',
+      last_login_at: '2026-06-30T00:00:00.000Z',
+      permissions: ['profile.read_self', 'profile.update_self'],
+      phone: '0909000000',
+      role: {
+        code: 'customer',
+        name: 'Customer',
+      },
+      status: 'active',
+      updated_at: '2026-06-30T03:00:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/avatar`, {
+      body: JSON.stringify({
+        avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'profile-avatar-route-test',
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Avatar updated successfully');
+    assert.equal(
+      response.body.data.avatar_url,
+      'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+    );
+    assert.equal(Object.hasOwn(response.body.data, 'password_hash'), false);
+    assert.deepEqual(capturedContext.payload, {
+      avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+    });
+    assert.equal(capturedContext.userAgent, 'profile-avatar-route-test');
+    assert.equal(capturedContext.userId, 'user-1');
+    assert.match(capturedContext.ipAddress, /127\.0\.0\.1/);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/me/avatar surfaces validation errors for invalid avatar_url', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'user-1',
+  });
+
+  profileService.updateCurrentAvatar = async () => {
+    throw new AppError('Validation failed', {
+      code: API_ERROR_CODES.VALIDATION_ERROR,
+      details: [
+        {
+          field: 'avatar_url',
+          message: 'avatar_url must be a valid Cloudinary delivery URL',
+        },
+      ],
+      statusCode: 400,
+    });
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/avatar`, {
+      body: JSON.stringify({
+        avatar_url: 'https://example.com/avatar.jpg',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
+    assert.equal(response.body.error.details[0].field, 'avatar_url');
   } finally {
     server.close();
   }

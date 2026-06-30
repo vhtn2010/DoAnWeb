@@ -1,12 +1,15 @@
 const { query, withTransaction } = require('../database/client');
+const { cloudinary } = require('../config/cloudinary');
 const {
   API_ERROR_CODES,
   USER_STATUS,
 } = require('../constants/domainConstraints');
 const AppError = require('../utils/AppError');
 
+const PROFILE_AVATAR_UPDATE_ACTION = 'profile.avatar_update';
 const PROFILE_UPDATE_ACTION = 'profile.update';
 const ALLOWED_UPDATE_FIELDS = new Set(['full_name', 'phone']);
+const ALLOWED_AVATAR_FIELDS = new Set(['avatar_url']);
 const FORBIDDEN_UPDATE_FIELDS = [
   'avatar_url',
   'deleted_at',
@@ -15,6 +18,19 @@ const FORBIDDEN_UPDATE_FIELDS = [
   'is_system_protected',
   'last_login_at',
   'password_hash',
+  'role_id',
+  'status',
+  'user_id',
+];
+const FORBIDDEN_AVATAR_FIELDS = [
+  'deleted_at',
+  'email',
+  'email_verified_at',
+  'full_name',
+  'is_system_protected',
+  'last_login_at',
+  'password_hash',
+  'phone',
   'role_id',
   'status',
   'user_id',
@@ -67,6 +83,61 @@ const trimToNull = (value) => {
   return normalizedValue || null;
 };
 
+const buildDisallowedFieldDetails = (
+  fields,
+  {
+    explicitlyForbiddenFields,
+    scopeLabel,
+  },
+) =>
+  fields.map((field) => ({
+    field,
+    message: explicitlyForbiddenFields.includes(field)
+      ? `${field} is not allowed in ${scopeLabel}`
+      : `${field} is not allowed`,
+  }));
+
+const parseHttpUrl = (value) => {
+  try {
+    const parsedUrl = new URL(value);
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+
+    return parsedUrl;
+  } catch (error) {
+    return null;
+  }
+};
+
+const isAllowedAvatarUrl = (value) => {
+  const parsedUrl = parseHttpUrl(value);
+
+  if (!parsedUrl) {
+    return false;
+  }
+
+  if (parsedUrl.hostname !== 'res.cloudinary.com') {
+    return false;
+  }
+
+  const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+
+  if (pathSegments.length < 4) {
+    return false;
+  }
+
+  if (
+    cloudinary.cloudName &&
+    pathSegments[0] !== cloudinary.cloudName
+  ) {
+    return false;
+  }
+
+  return pathSegments[1] === 'image' && pathSegments[2] === 'upload';
+};
+
 const normalizeUpdateProfilePayload = (payload = {}) => {
   const normalizedPayload =
     payload && typeof payload === 'object' && !Array.isArray(payload)
@@ -87,14 +158,12 @@ const normalizeUpdateProfilePayload = (payload = {}) => {
   );
 
   for (const field of disallowedKeys) {
-    const isExplicitlyForbidden = FORBIDDEN_UPDATE_FIELDS.includes(field);
-
-    details.push({
-      field,
-      message: isExplicitlyForbidden
-        ? `${field} is not allowed in PATCH /me`
-        : `${field} is not allowed`,
-    });
+    details.push(
+      ...buildDisallowedFieldDetails([field], {
+        explicitlyForbiddenFields: FORBIDDEN_UPDATE_FIELDS,
+        scopeLabel: 'PATCH /me',
+      }),
+    );
   }
 
   if (!hasFullName && !hasPhone) {
@@ -148,6 +217,67 @@ const normalizeUpdateProfilePayload = (payload = {}) => {
     hasFullName,
     hasPhone,
     phone,
+  };
+};
+
+const normalizeAvatarUpdatePayload = (payload = {}) => {
+  const normalizedPayload =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload
+      : {};
+  const details = [];
+  const providedKeys = Object.keys(normalizedPayload);
+  const disallowedKeys = providedKeys.filter(
+    (key) => !ALLOWED_AVATAR_FIELDS.has(key),
+  );
+  const hasAvatarUrl = Object.prototype.hasOwnProperty.call(
+    normalizedPayload,
+    'avatar_url',
+  );
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        explicitlyForbiddenFields: FORBIDDEN_AVATAR_FIELDS,
+        scopeLabel: 'PATCH /me/avatar',
+      }),
+    );
+  }
+
+  if (!hasAvatarUrl) {
+    details.push({
+      field: 'avatar_url',
+      message: 'avatar_url is required',
+    });
+  }
+
+  const avatarUrl = hasAvatarUrl
+    ? String(normalizedPayload.avatar_url || '').trim()
+    : null;
+
+  if (hasAvatarUrl && !avatarUrl) {
+    details.push({
+      field: 'avatar_url',
+      message: 'avatar_url is required',
+    });
+  } else if (hasAvatarUrl && !parseHttpUrl(avatarUrl)) {
+    details.push({
+      field: 'avatar_url',
+      message: 'avatar_url must be a valid http or https URL',
+    });
+  } else if (hasAvatarUrl && !isAllowedAvatarUrl(avatarUrl)) {
+    details.push({
+      field: 'avatar_url',
+      message: 'avatar_url must be a valid Cloudinary delivery URL',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    avatarUrl,
   };
 };
 
@@ -240,9 +370,11 @@ const ensureCurrentUserCanAccessProfile = (currentUser, action) => {
 const insertProfileUpdateLog = async (
   client,
   {
+    action = PROFILE_UPDATE_ACTION,
     changedFields,
     createdAt,
     ipAddress,
+    metadata,
     userAgent,
     userId,
   },
@@ -263,14 +395,16 @@ const insertProfileUpdateLog = async (
     `,
     [
       userId,
-      PROFILE_UPDATE_ACTION,
+      action,
       'users',
       userId,
       ipAddress || null,
       trimToNull(userAgent),
-      JSON.stringify({
-        changed_fields: changedFields,
-      }),
+      JSON.stringify(
+        metadata || {
+          changed_fields: changedFields,
+        },
+      ),
       createdAt,
     ],
   );
@@ -289,12 +423,11 @@ const createProfileService = ({
   };
 
   const updateCurrentProfile = async ({ payload, userId, ipAddress, userAgent }) => {
-    const input = normalizeUpdateProfilePayload(payload);
-
     return withTransactionImpl(async (client) => {
       const currentUser = await loadEditableUser(client, userId);
 
       ensureCurrentUserCanAccessProfile(currentUser, 'update');
+      const input = normalizeUpdateProfilePayload(payload);
 
       const setClauses = [];
       const params = [userId];
@@ -344,13 +477,56 @@ const createProfileService = ({
     });
   };
 
+  const updateCurrentAvatar = async ({ payload, userId, ipAddress, userAgent }) =>
+    withTransactionImpl(async (client) => {
+      const currentUser = await loadEditableUser(client, userId);
+
+      ensureCurrentUserCanAccessProfile(currentUser, 'update');
+      const input = normalizeAvatarUpdatePayload(payload);
+      const updatedAt = now();
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            avatar_url = $2,
+            updated_at = $3
+          WHERE id = $1
+        `,
+        [userId, input.avatarUrl, updatedAt],
+      );
+
+      await insertProfileUpdateLog(client, {
+        action: PROFILE_AVATAR_UPDATE_ACTION,
+        createdAt: updatedAt,
+        ipAddress,
+        metadata: {
+          avatar_changed: true,
+        },
+        userAgent,
+        userId,
+      });
+
+      const updatedProfile = await loadCurrentProfileRow(
+        client.query.bind(client),
+        userId,
+      );
+
+      ensureCurrentUserCanAccessProfile(updatedProfile, 'view');
+
+      return mapCurrentProfile(updatedProfile);
+    });
+
   return {
     getCurrentProfile,
+    updateCurrentAvatar,
     updateCurrentProfile,
   };
 };
 
 module.exports = createProfileService();
+module.exports.PROFILE_AVATAR_UPDATE_ACTION = PROFILE_AVATAR_UPDATE_ACTION;
 module.exports.PROFILE_UPDATE_ACTION = PROFILE_UPDATE_ACTION;
 module.exports.createProfileService = createProfileService;
+module.exports.normalizeAvatarUpdatePayload = normalizeAvatarUpdatePayload;
 module.exports.normalizeUpdateProfilePayload = normalizeUpdateProfilePayload;
