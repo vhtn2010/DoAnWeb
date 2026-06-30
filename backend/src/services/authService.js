@@ -4,7 +4,7 @@ const {
   backendUrl,
   frontendUrl,
 } = require('../config');
-const { emailVerification, passwordHash } = require('../config/auth');
+const { emailVerification, passwordHash, passwordReset } = require('../config/auth');
 const {
   API_ERROR_CODES,
   DOMAIN_CONSTRAINTS,
@@ -19,6 +19,11 @@ const {
   verifyEmailVerificationToken,
 } = require('../utils/emailVerificationToken');
 const {
+  buildPasswordVersion,
+  createResetPasswordToken,
+  verifyResetPasswordToken,
+} = require('../utils/resetPasswordToken');
+const {
   buildSessionTokens,
   createTokenExpiredError,
   hashSessionToken,
@@ -28,9 +33,12 @@ const { sendEmail } = require('./sendgridService');
 
 const AUTH_LOGIN_FAILED_ACTION = 'auth.login_failed';
 const AUTH_LOGIN_SUCCESS_ACTION = 'auth.login_success';
+const AUTH_FORGOT_PASSWORD_REQUESTED_ACTION = 'auth.forgot_password_requested';
 const AUTH_LOGOUT_ACTION = 'auth.logout';
 const AUTH_REFRESH_TOKEN_ACTION = 'auth.refresh_token';
 const AUTH_REGISTER_ACTION = 'auth.register';
+const AUTH_RESET_PASSWORD_ACTION = 'auth.reset_password';
+const AUTH_RESET_PASSWORD_TEMPLATE_CODE = 'AUTH_RESET_PASSWORD';
 const AUTH_RESEND_VERIFICATION_ACTION = 'auth.resend_verification';
 const AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = 'AUTH_RESEND_VERIFY_EMAIL';
 const AUTH_VERIFY_EMAIL_ACTION = 'auth.verify_email';
@@ -84,6 +92,12 @@ const createVerificationTokenInvalidError = () =>
 
 const createRefreshTokenInvalidError = () =>
   createTokenExpiredError('Refresh token is invalid or expired');
+
+const createResetPasswordTokenInvalidError = () =>
+  new AppError('Reset password token is invalid or expired', {
+    code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+    statusCode: 401,
+  });
 
 const createAccessTokenInvalidError = () =>
   createTokenExpiredError('Access token is invalid or expired');
@@ -273,6 +287,66 @@ const normalizeResendVerificationPayload = (payload = {}) => {
   };
 };
 
+const normalizeForgotPasswordPayload = (payload = {}) => {
+  const email = String(payload.email || '').trim().toLowerCase();
+
+  if (!email) {
+    throw createValidationError([
+      {
+        field: 'email',
+        message: 'Email is required',
+      },
+    ]);
+  }
+
+  if (!EMAIL_ADDRESS_REGEX.test(email)) {
+    throw createValidationError([
+      {
+        field: 'email',
+        message: 'Email is invalid',
+      },
+    ]);
+  }
+
+  return {
+    email,
+  };
+};
+
+const normalizeResetPasswordPayload = (payload = {}) => {
+  const details = [];
+  const token = String(payload.token || '').trim();
+  const newPassword = String(payload.new_password || '');
+
+  if (!token) {
+    details.push({
+      field: 'token',
+      message: 'Token is required',
+    });
+  }
+
+  if (!newPassword) {
+    details.push({
+      field: 'new_password',
+      message: 'new_password is required',
+    });
+  } else if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    details.push({
+      field: 'new_password',
+      message: `new_password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    token,
+    newPassword,
+  };
+};
+
 const normalizeRefreshTokenPayload = (payload = {}) => {
   const refreshToken = String(payload.refresh_token || '').trim();
 
@@ -358,6 +432,44 @@ const buildVerificationEmail = ({
   ].join('\n\n'),
 });
 
+const buildResetPasswordLinks = (token) => {
+  const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
+  const normalizedBackendUrl = backendUrl.replace(/\/$/, '');
+
+  return {
+    apiResetUrl: `${normalizedBackendUrl}${apiPrefix}/auth/reset-password`,
+    resetUrl: `${normalizedFrontendUrl}/reset-password?token=${encodeURIComponent(token)}`,
+  };
+};
+
+const buildResetPasswordEmail = ({
+  apiResetUrl,
+  expiresInMinutes,
+  fullName,
+  resetUrl,
+  token,
+}) => ({
+  html: [
+    `<p>Xin chao ${fullName},</p>`,
+    '<p>He thong da nhan duoc yeu cau dat lai mat khau cho tai khoan Net Viet Travel cua ban.</p>',
+    `<p>Vui long dat lai mat khau trong vong ${expiresInMinutes} phut tai lien ket sau:</p>`,
+    `<p><a href="${resetUrl}">${resetUrl}</a></p>`,
+    '<p>Neu can goi API truc tiep, hay gui token nay toi POST /auth/reset-password kem new_password:</p>',
+    `<p><code>${token}</code></p>`,
+    `<p>API: <code>${apiResetUrl}</code></p>`,
+  ].join(''),
+  subject: 'Dat lai mat khau Net Viet Travel',
+  text: [
+    `Xin chao ${fullName},`,
+    'He thong da nhan duoc yeu cau dat lai mat khau cho tai khoan Net Viet Travel cua ban.',
+    `Vui long dat lai mat khau trong vong ${expiresInMinutes} phut tai:`,
+    resetUrl,
+    'Neu can goi API truc tiep, gui token nay toi POST /auth/reset-password kem new_password:',
+    token,
+    `API: ${apiResetUrl}`,
+  ].join('\n\n'),
+});
+
 const mapRegisteredUser = (user) => ({
   email: user.email,
   full_name: user.full_name,
@@ -423,6 +535,20 @@ const buildRefreshTokenAuditMetadata = ({
     role_code: roleCode,
     status,
   });
+
+const isPasswordResetRequestAllowed = (user) =>
+  ![
+    USER_STATUS.DELETED,
+    USER_STATUS.DISABLED,
+    USER_STATUS.SUSPENDED,
+  ].includes(user.status);
+
+const isPasswordResetExecutionAllowed = (user) =>
+  ![
+    USER_STATUS.DELETED,
+    USER_STATUS.DISABLED,
+    USER_STATUS.SUSPENDED,
+  ].includes(user.status);
 
 const insertUserLog = async (
   client,
@@ -636,13 +762,16 @@ const isRefreshTokenRevoked = async (client, userId, tokenHash) => {
 
 const createAuthService = ({
   bcryptCompareImpl = bcrypt.compare,
+  buildPasswordVersionImpl = buildPasswordVersion,
   buildSessionTokensImpl = buildSessionTokens,
   createEmailVerificationTokenImpl = createEmailVerificationToken,
+  createResetPasswordTokenImpl = createResetPasswordToken,
   hashEmailVerificationTokenImpl = hashEmailVerificationToken,
   hashSessionTokenImpl = hashSessionToken,
   now = () => new Date(),
   sendEmailImpl = sendEmail,
   verifyEmailVerificationTokenImpl = verifyEmailVerificationToken,
+  verifyResetPasswordTokenImpl = verifyResetPasswordToken,
   verifyRefreshTokenImpl = verifyRefreshToken,
   withTransactionImpl = withTransaction,
 } = {}) => {
@@ -861,8 +990,10 @@ const createAuthService = ({
       }
 
       const permissions = await loadPermissionsByRoleId(client, user.role_id);
+      const passwordVersion = buildPasswordVersionImpl(user.password_hash);
       const session = buildSessionTokensImpl(
         {
+          pwdv: passwordVersion,
           roleCode: user.role_code,
           userId: user.id,
         },
@@ -932,6 +1063,15 @@ const createAuthService = ({
         throw createNotFoundError();
       }
 
+      const currentPasswordVersion = buildPasswordVersionImpl(user.password_hash);
+
+      if (
+        !tokenPayload.pwdv ||
+        tokenPayload.pwdv !== currentPasswordVersion
+      ) {
+        throw createRefreshTokenInvalidError();
+      }
+
       const latestRefreshTokenHash = await loadLatestRefreshTokenHash(
         client,
         user.id,
@@ -962,6 +1102,7 @@ const createAuthService = ({
       const createdAt = now();
       const session = buildSessionTokensImpl(
         {
+          pwdv: currentPasswordVersion,
           roleCode: user.role_code,
           userId: user.id,
         },
@@ -1029,6 +1170,191 @@ const createAuthService = ({
         message: 'Logout successful.',
       };
     });
+
+  const forgotPassword = async (payload, context = {}) => {
+    const input = normalizeForgotPasswordPayload(payload);
+
+    try {
+      return await withTransactionImpl(async (client) => {
+        const user = await loadUserByEmail(client, input.email, {
+          forUpdate: true,
+        });
+        const genericResponse = {
+          data: {
+            acknowledged: true,
+          },
+          message:
+            'If the email is eligible, a password reset email will be sent.',
+        };
+
+        if (!user) {
+          return genericResponse;
+        }
+
+        const createdAt = now();
+
+        if (!isPasswordResetRequestAllowed(user)) {
+          await insertUserLog(client, {
+            action: AUTH_FORGOT_PASSWORD_REQUESTED_ACTION,
+            createdAt,
+            entityId: user.id,
+            ipAddress: context.ipAddress,
+            metadata: {
+              email: user.email,
+              outcome: 'skipped_ineligible_status',
+              status: user.status,
+            },
+            userAgent: context.userAgent,
+            userId: user.id,
+          });
+
+          return genericResponse;
+        }
+
+        const token = createResetPasswordTokenImpl({
+          email: user.email,
+          passwordVersion: buildPasswordVersionImpl(user.password_hash),
+          userId: user.id,
+        });
+        const { apiResetUrl, resetUrl } = buildResetPasswordLinks(token);
+        const emailContent = buildResetPasswordEmail({
+          apiResetUrl,
+          expiresInMinutes: passwordReset.expiresInMinutes,
+          fullName: user.full_name,
+          resetUrl,
+          token,
+        });
+        const emailLogResult = await queueEmailLog(client, {
+          createdAt,
+          subject: emailContent.subject,
+          templateCode: AUTH_RESET_PASSWORD_TEMPLATE_CODE,
+          toEmail: user.email,
+          userId: user.id,
+        });
+        const sendResult = await sendEmailImpl({
+          html: emailContent.html,
+          subject: emailContent.subject,
+          text: emailContent.text,
+          to: {
+            email: user.email,
+            name: user.full_name,
+          },
+        });
+        const sentAt = now();
+
+        await markEmailLogSent(client, {
+          emailLogId: emailLogResult.rows[0].id,
+          messageId: sendResult.messageId,
+          sentAt,
+        });
+
+        await insertUserLog(client, {
+          action: AUTH_FORGOT_PASSWORD_REQUESTED_ACTION,
+          createdAt: sentAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: {
+            email: user.email,
+            outcome: 'reset_email_sent',
+            status: user.status,
+          },
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
+
+        return genericResponse;
+      });
+    } catch (error) {
+      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
+        throw createInternalError('Password reset email service is not configured');
+      }
+
+      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
+        throw createInternalError('Failed to send password reset email');
+      }
+
+      throw error;
+    }
+  };
+
+  const resetPassword = async (payload, context = {}) => {
+    const input = normalizeResetPasswordPayload(payload);
+    let tokenPayload;
+
+    try {
+      tokenPayload = verifyResetPasswordTokenImpl(input.token, {
+        now: now(),
+      });
+    } catch (error) {
+      if (error.code === API_ERROR_CODES.AUTH_TOKEN_EXPIRED) {
+        throw error;
+      }
+
+      throw createResetPasswordTokenInvalidError();
+    }
+
+    return withTransactionImpl(async (client) => {
+      const user = await loadUserById(client, tokenPayload.sub, {
+        forUpdate: true,
+      });
+
+      if (!user) {
+        throw createNotFoundError();
+      }
+
+      if (user.email !== tokenPayload.email) {
+        throw createResetPasswordTokenInvalidError();
+      }
+
+      const currentPasswordVersion = buildPasswordVersionImpl(user.password_hash);
+
+      if (
+        !tokenPayload.pwdv ||
+        tokenPayload.pwdv !== currentPasswordVersion
+      ) {
+        throw createResetPasswordTokenInvalidError();
+      }
+
+      if (!isPasswordResetExecutionAllowed(user)) {
+        throw createForbiddenStatusError(user.status, 'reset password');
+      }
+
+      const createdAt = now();
+      const newPasswordHash = await hashPassword(input.newPassword);
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            password_hash = $2,
+            updated_at = $3
+          WHERE id = $1
+        `,
+        [user.id, newPasswordHash, createdAt],
+      );
+
+      await insertUserLog(client, {
+        action: AUTH_RESET_PASSWORD_ACTION,
+        createdAt,
+        entityId: user.id,
+        ipAddress: context.ipAddress,
+        metadata: {
+          email: user.email,
+          sessions_revoked: true,
+          status: user.status,
+        },
+        userAgent: context.userAgent,
+        userId: user.id,
+      });
+
+      return {
+        data: {
+          acknowledged: true,
+        },
+        message: 'Password reset successful.',
+      };
+    });
+  };
 
   const verifyEmail = async (payload, context = {}) => {
     const input = normalizeVerifyEmailPayload(payload);
@@ -1293,10 +1619,12 @@ const createAuthService = ({
   };
 
   return {
+    forgotPassword,
     login,
     logout,
     refreshToken,
     register,
+    resetPassword,
     resendVerification,
     verifyEmail,
   };
@@ -1307,9 +1635,12 @@ const authService = createAuthService();
 module.exports = authService;
 module.exports.AUTH_LOGIN_FAILED_ACTION = AUTH_LOGIN_FAILED_ACTION;
 module.exports.AUTH_LOGIN_SUCCESS_ACTION = AUTH_LOGIN_SUCCESS_ACTION;
+module.exports.AUTH_FORGOT_PASSWORD_REQUESTED_ACTION = AUTH_FORGOT_PASSWORD_REQUESTED_ACTION;
 module.exports.AUTH_LOGOUT_ACTION = AUTH_LOGOUT_ACTION;
 module.exports.AUTH_REFRESH_TOKEN_ACTION = AUTH_REFRESH_TOKEN_ACTION;
 module.exports.AUTH_REGISTER_ACTION = AUTH_REGISTER_ACTION;
+module.exports.AUTH_RESET_PASSWORD_ACTION = AUTH_RESET_PASSWORD_ACTION;
+module.exports.AUTH_RESET_PASSWORD_TEMPLATE_CODE = AUTH_RESET_PASSWORD_TEMPLATE_CODE;
 module.exports.AUTH_RESEND_VERIFICATION_ACTION = AUTH_RESEND_VERIFICATION_ACTION;
 module.exports.AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE;
 module.exports.AUTH_VERIFY_EMAIL_ACTION = AUTH_VERIFY_EMAIL_ACTION;
@@ -1317,11 +1648,14 @@ module.exports.AUTH_VERIFY_EMAIL_TEMPLATE_CODE = AUTH_VERIFY_EMAIL_TEMPLATE_CODE
 module.exports.CUSTOMER_ROLE_CODE = CUSTOMER_ROLE_CODE;
 module.exports.MIN_PASSWORD_LENGTH = MIN_PASSWORD_LENGTH;
 module.exports.buildVerificationEmail = buildVerificationEmail;
+module.exports.buildResetPasswordEmail = buildResetPasswordEmail;
 module.exports.createAccessTokenInvalidError = createAccessTokenInvalidError;
 module.exports.createAuthService = createAuthService;
+module.exports.normalizeForgotPasswordPayload = normalizeForgotPasswordPayload;
 module.exports.normalizeLoginPayload = normalizeLoginPayload;
 module.exports.normalizeLogoutPayload = normalizeLogoutPayload;
 module.exports.normalizeRefreshTokenPayload = normalizeRefreshTokenPayload;
 module.exports.normalizeRegisterPayload = normalizeRegisterPayload;
+module.exports.normalizeResetPasswordPayload = normalizeResetPasswordPayload;
 module.exports.normalizeResendVerificationPayload = normalizeResendVerificationPayload;
 module.exports.normalizeVerifyEmailPayload = normalizeVerifyEmailPayload;

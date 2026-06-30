@@ -61,6 +61,18 @@ const emailVerification = {
     null,
 };
 
+const passwordReset = {
+  expiresInMinutes: parsePositiveInt(
+    process.env.PASSWORD_RESET_EXPIRES_IN_MINUTES,
+    30,
+  ),
+  secret:
+    process.env.PASSWORD_RESET_SECRET ||
+    process.env.JWT_REFRESH_SECRET ||
+    process.env.JWT_ACCESS_SECRET ||
+    null,
+};
+
 const sessionToken = {
   accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '30m',
   accessExpiresInSeconds: parseDurationToSeconds(
@@ -92,6 +104,15 @@ const authRateLimit = {
       process.env.RATE_LIMIT_WINDOW_MS,
     600000,
   ),
+  forgotPasswordMaxRequests: parsePositiveInt(
+    process.env.AUTH_FORGOT_PASSWORD_RATE_LIMIT_MAX_REQUESTS,
+    5,
+  ),
+  forgotPasswordWindowMs: parsePositiveInt(
+    process.env.AUTH_FORGOT_PASSWORD_RATE_LIMIT_WINDOW_MS ||
+      process.env.RATE_LIMIT_WINDOW_MS,
+    600000,
+  ),
   registerMaxRequests: parsePositiveInt(
     process.env.AUTH_REGISTER_RATE_LIMIT_MAX_REQUESTS ||
       process.env.RATE_LIMIT_MAX_REQUESTS,
@@ -111,11 +132,21 @@ const authRateLimit = {
       process.env.RATE_LIMIT_WINDOW_MS,
     600000,
   ),
+  resetPasswordMaxRequests: parsePositiveInt(
+    process.env.AUTH_RESET_PASSWORD_RATE_LIMIT_MAX_REQUESTS,
+    5,
+  ),
+  resetPasswordWindowMs: parsePositiveInt(
+    process.env.AUTH_RESET_PASSWORD_RATE_LIMIT_WINDOW_MS ||
+      process.env.RATE_LIMIT_WINDOW_MS,
+    600000,
+  ),
 };
 
 module.exports = {
   authRateLimit,
   emailVerification,
   passwordHash,
+  passwordReset,
   sessionToken,
 };

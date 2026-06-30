@@ -12,6 +12,7 @@ const {
   API_ERROR_CODES,
   USER_STATUS,
 } = require('../constants/domainConstraints');
+const { buildPasswordVersion } = require('../utils/resetPasswordToken');
 const { hashSessionToken } = require('../utils/sessionToken');
 
 const fixedNow = new Date('2026-06-30T00:00:00.000Z');
@@ -46,6 +47,7 @@ const createService = (options = {}) =>
       (() => ({
         exp: Math.floor(fixedNow.getTime() / 1000) + 3600,
         jti: 'refresh-jti-1',
+        pwdv: buildPasswordVersion('hashed-password'),
         role_code: 'customer',
         sub: 'user-1',
         type: 'refresh',
@@ -360,6 +362,7 @@ test('refreshToken rotates refresh token for active users and logs the new hash'
     verifyRefreshTokenImpl: () => ({
       exp: Math.floor(fixedNow.getTime() / 1000) + 3600,
       jti: 'refresh-jti-1',
+      pwdv: buildPasswordVersion('hashed-password'),
       role_code: 'customer',
       sub: 'user-1',
       type: 'refresh',
@@ -445,6 +448,52 @@ test('refreshToken rejects tokens that are no longer the latest issued token', a
   };
   const service = createService({
     client,
+  });
+
+  await assert.rejects(
+    () =>
+      service.refreshToken({
+        refresh_token: 'incoming-refresh-token',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.AUTH_TOKEN_EXPIRED &&
+      error.statusCode === 401,
+  );
+});
+
+test('refreshToken rejects tokens issued before the latest password reset', async () => {
+  const client = {
+    query: async (sql) => {
+      if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              email: 'customer@example.com',
+              full_name: 'Nguyen Van A',
+              id: 'user-1',
+              password_hash: 'new-password-hash',
+              role_code: 'customer',
+              role_id: 'role-customer-1',
+              status: USER_STATUS.ACTIVE,
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createService({
+    client,
+    verifyRefreshTokenImpl: () => ({
+      exp: Math.floor(fixedNow.getTime() / 1000) + 3600,
+      jti: 'refresh-jti-1',
+      pwdv: buildPasswordVersion('old-password-hash'),
+      role_code: 'customer',
+      sub: 'user-1',
+      type: 'refresh',
+    }),
   });
 
   await assert.rejects(

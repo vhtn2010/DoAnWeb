@@ -26,6 +26,18 @@ const login = async (req, res) => {
   });
 };
 
+const forgotPassword = async (req, res) => {
+  const result = await authService.forgotPassword(req.body, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  res.success({
+    data: result.data,
+    message: result.message,
+  });
+};
+
 const refreshToken = async (req, res) => {
   const result = await authService.refreshToken(req.body, {
     ipAddress: req.ip,
@@ -45,6 +57,18 @@ const logout = async (req, res) => {
     tokenId: req.auth.tokenId,
     userAgent: req.get('user-agent'),
     userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result.data,
+    message: result.message,
+  });
+};
+
+const resetPassword = async (req, res) => {
+  const result = await authService.resetPassword(req.body, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
   });
 
   res.success({
@@ -82,10 +106,12 @@ const resendVerification = async (req, res) => {
 };
 
 module.exports = {
+  forgotPassword,
   login,
   logout,
   refreshToken,
   register,
+  resetPassword,
   resendVerification,
   verifyEmail,
 };

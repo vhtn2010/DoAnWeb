@@ -123,15 +123,15 @@ const verifySessionToken = (
 
 const createAccessToken = (
   {
-    roleCode,
-    userId,
+    ...claims
   },
   options = {},
 ) =>
   signSessionToken(
     {
-      role_code: roleCode,
-      sub: userId,
+      ...claims,
+      role_code: claims.roleCode,
+      sub: claims.userId,
     },
     {
       expiresInSeconds:
@@ -144,15 +144,15 @@ const createAccessToken = (
 
 const createRefreshToken = (
   {
-    roleCode,
-    userId,
+    ...claims
   },
   options = {},
 ) =>
   signSessionToken(
     {
-      role_code: roleCode,
-      sub: userId,
+      ...claims,
+      role_code: claims.roleCode,
+      sub: claims.userId,
     },
     {
       expiresInSeconds:
@@ -179,8 +179,7 @@ const verifyRefreshToken = (token, options = {}) =>
 
 const buildSessionTokens = (
   {
-    roleCode,
-    userId,
+    ...claims
   },
   {
     issuedAt = new Date(),
@@ -188,8 +187,7 @@ const buildSessionTokens = (
 ) => ({
   accessToken: createAccessToken(
     {
-      roleCode,
-      userId,
+      ...claims,
     },
     {
       issuedAt,
@@ -199,8 +197,7 @@ const buildSessionTokens = (
   refreshExpiresIn: sessionToken.refreshExpiresInSeconds,
   refreshToken: createRefreshToken(
     {
-      roleCode,
-      userId,
+      ...claims,
     },
     {
       issuedAt,
