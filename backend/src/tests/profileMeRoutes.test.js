@@ -16,6 +16,9 @@ const AppError = require('../utils/AppError');
 
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetCurrentProfile = profileService.getCurrentProfile;
+const originalGetCurrentUserLogs = profileService.getCurrentUserLogs;
+const originalRequestAccountDeactivation =
+  profileService.requestAccountDeactivation;
 const originalUpdateCurrentAvatar = profileService.updateCurrentAvatar;
 const originalUpdateCurrentPassword = profileService.updateCurrentPassword;
 const originalUpdateCurrentProfile = profileService.updateCurrentProfile;
@@ -64,6 +67,9 @@ test.beforeEach(() => {
   clearRateLimitStore('profile-change-password');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   profileService.getCurrentProfile = originalGetCurrentProfile;
+  profileService.getCurrentUserLogs = originalGetCurrentUserLogs;
+  profileService.requestAccountDeactivation =
+    originalRequestAccountDeactivation;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
   profileService.updateCurrentPassword = originalUpdateCurrentPassword;
   profileService.updateCurrentProfile = originalUpdateCurrentProfile;
@@ -73,6 +79,9 @@ test.afterEach(() => {
   clearRateLimitStore('profile-change-password');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   profileService.getCurrentProfile = originalGetCurrentProfile;
+  profileService.getCurrentUserLogs = originalGetCurrentUserLogs;
+  profileService.requestAccountDeactivation =
+    originalRequestAccountDeactivation;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
   profileService.updateCurrentPassword = originalUpdateCurrentPassword;
   profileService.updateCurrentProfile = originalUpdateCurrentProfile;
@@ -681,6 +690,301 @@ test('PATCH /api/me/password returns 429 when password change rate limit is exce
     assert.equal(lastResponse.body.success, false);
     assert.equal(lastResponse.body.message, 'Too many password change attempts. Please try again later.');
     assert.equal(lastResponse.body.error.code, API_ERROR_CODES.RATE_LIMITED);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/me/logs requires access token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/logs`);
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/me/logs returns current user logs with pagination meta', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+  profileService.getCurrentUserLogs = async (context) => {
+    capturedContext = context;
+
+    return {
+      data: [
+        {
+          action: 'profile.update',
+          created_at: '2026-07-01T10:00:00.000Z',
+          entity_id: 'user-1',
+          entity_name: 'users',
+          id: 'log-1',
+          ip_address: '127.0.0.1',
+          metadata: {
+            changed_fields: ['full_name'],
+          },
+          user_agent: 'profile-log-test',
+        },
+      ],
+      meta: {
+        has_next: true,
+        limit: 10,
+        page: 2,
+        total: 11,
+        total_pages: 2,
+      },
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/logs?page=2&limit=10`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Profile activity logs retrieved successfully',
+    );
+    assert.equal(response.body.data[0].id, 'log-1');
+    assert.deepEqual(response.body.meta, {
+      has_next: true,
+      limit: 10,
+      page: 2,
+      total: 11,
+      total_pages: 2,
+    });
+    assert.equal(capturedContext.userId, 'user-1');
+    assert.equal(capturedContext.query.page, '2');
+    assert.equal(capturedContext.query.limit, '10');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/me/logs surfaces validation errors for invalid pagination', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'user-1',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'admin',
+      userId: 'user-1',
+    });
+  profileService.getCurrentUserLogs = async () => {
+    throw new AppError('Validation failed', {
+      code: API_ERROR_CODES.VALIDATION_ERROR,
+      details: [
+        {
+          field: 'limit',
+          message: 'limit must be an integer between 1 and 100',
+        },
+      ],
+      statusCode: 400,
+    });
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/logs?limit=101`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
+    assert.equal(response.body.error.details[0].field, 'limit');
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/me/account-deactivation-request requires access token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/me/account-deactivation-request`,
+      {
+        body: JSON.stringify({
+          reason: 'I no longer need this account',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/me/account-deactivation-request returns request status for customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+  profileService.requestAccountDeactivation = async (context) => {
+    capturedContext = context;
+
+    return {
+      request_status: 'requested',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/me/account-deactivation-request`,
+      {
+        body: JSON.stringify({
+          reason: '  I want to deactivate my account  ',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'profile-deactivation-route-test',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Account deactivation request submitted successfully',
+    );
+    assert.deepEqual(response.body.data, {
+      request_status: 'requested',
+    });
+    assert.deepEqual(capturedContext.payload, {
+      reason: '  I want to deactivate my account  ',
+    });
+    assert.equal(capturedContext.roleCode, 'customer');
+    assert.equal(capturedContext.userId, 'user-1');
+    assert.equal(capturedContext.userAgent, 'profile-deactivation-route-test');
+    assert.match(capturedContext.ipAddress, /127\.0\.0\.1/);
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/me/account-deactivation-request returns 403 for non-customer role', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'user-1',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'user-1',
+    });
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/me/account-deactivation-request`,
+      {
+        body: JSON.stringify({
+          reason: 'Please deactivate',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/me/account-deactivation-request surfaces duplicate requests', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+  profileService.requestAccountDeactivation = async () => {
+    throw new AppError('An account deactivation request is already pending', {
+      code: API_ERROR_CODES.DUPLICATE_RESOURCE,
+      statusCode: 409,
+    });
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/me/account-deactivation-request`,
+      {
+        body: JSON.stringify({
+          reason: 'Please deactivate',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.body.success, false);
+    assert.equal(
+      response.body.error.code,
+      API_ERROR_CODES.DUPLICATE_RESOURCE,
+    );
   } finally {
     server.close();
   }

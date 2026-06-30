@@ -11,9 +11,31 @@ const AppError = require('../utils/AppError');
 const PROFILE_AVATAR_UPDATE_ACTION = 'profile.avatar_update';
 const PROFILE_CHANGE_PASSWORD_ACTION = 'profile.change_password';
 const PROFILE_UPDATE_ACTION = 'profile.update';
+const ACCOUNT_DEACTIVATION_REQUEST_ACTION = 'account.deactivation_requested';
 const ALLOWED_UPDATE_FIELDS = new Set(['full_name', 'phone']);
 const ALLOWED_AVATAR_FIELDS = new Set(['avatar_url']);
 const ALLOWED_PASSWORD_FIELDS = new Set(['current_password', 'new_password']);
+const LOG_METADATA_SENSITIVE_KEYS = new Set([
+  'access_token',
+  'authorization',
+  'change_email_token',
+  'current_password',
+  'email_verification_token',
+  'new_password',
+  'password',
+  'password_hash',
+  'refresh_token',
+  'refresh_token_hash',
+  'reset_password_token',
+  'secret',
+  'token',
+  'verification_token',
+  'verification_token_hash',
+]);
+const DEFAULT_LOGS_PAGE = 1;
+const DEFAULT_LOGS_LIMIT = 20;
+const MAX_LOGS_LIMIT = 100;
+const MAX_DEACTIVATION_REASON_LENGTH = 500;
 const FORBIDDEN_UPDATE_FIELDS = [
   'avatar_url',
   'deleted_at',
@@ -108,6 +130,52 @@ const trimToNull = (value) => {
   return normalizedValue || null;
 };
 
+const parsePositiveInteger = (value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) {
+    return Number.NaN;
+  }
+
+  return Number.parseInt(value.trim(), 10);
+};
+
+const maskSensitiveMetadata = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(maskSensitiveMetadata);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        LOG_METADATA_SENSITIVE_KEYS.has(key)
+          ? '[REDACTED]'
+          : maskSensitiveMetadata(nestedValue),
+      ]),
+    );
+  }
+
+  return value;
+};
+
+const mapUserLogRow = (row) => ({
+  action: row.action,
+  created_at: row.created_at?.toISOString?.() || row.created_at,
+  entity_id: row.entity_id,
+  entity_name: row.entity_name,
+  id: row.id,
+  ip_address: row.ip_address,
+  metadata: maskSensitiveMetadata(row.metadata || null),
+  user_agent: row.user_agent,
+});
+
 const buildDisallowedFieldDetails = (
   fields,
   {
@@ -134,6 +202,74 @@ const parseHttpUrl = (value) => {
   } catch (error) {
     return null;
   }
+};
+
+const normalizeLogsQuery = (query = {}) => {
+  const normalizedQuery =
+    query && typeof query === 'object' && !Array.isArray(query) ? query : {};
+  const details = [];
+  const rawPage = parsePositiveInteger(normalizedQuery.page);
+  const rawLimit = parsePositiveInteger(normalizedQuery.limit);
+
+  if (Number.isNaN(rawPage) || (rawPage != null && rawPage < 1)) {
+    details.push({
+      field: 'page',
+      message: 'page must be an integer greater than or equal to 1',
+    });
+  }
+
+  if (
+    Number.isNaN(rawLimit) ||
+    (rawLimit != null && (rawLimit < 1 || rawLimit > MAX_LOGS_LIMIT))
+  ) {
+    details.push({
+      field: 'limit',
+      message: `limit must be an integer between 1 and ${MAX_LOGS_LIMIT}`,
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    limit: rawLimit ?? DEFAULT_LOGS_LIMIT,
+    page: rawPage ?? DEFAULT_LOGS_PAGE,
+  };
+};
+
+const normalizeAccountDeactivationPayload = (payload = {}) => {
+  const normalizedPayload =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload
+      : {};
+  const reason = trimToNull(normalizedPayload.reason);
+  const details = [];
+
+  if (!Object.prototype.hasOwnProperty.call(normalizedPayload, 'reason')) {
+    details.push({
+      field: 'reason',
+      message: 'reason is required',
+    });
+  } else if (!reason) {
+    details.push({
+      field: 'reason',
+      message: 'reason must not be empty',
+    });
+  } else if (reason.length > MAX_DEACTIVATION_REASON_LENGTH) {
+    details.push({
+      field: 'reason',
+      message: `reason must be at most ${MAX_DEACTIVATION_REASON_LENGTH} characters`,
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    reason,
+  };
 };
 
 const isAllowedAvatarUrl = (value) => {
@@ -479,6 +615,23 @@ const loadEditableUser = async (client, userId) => {
   return result.rows[0] || null;
 };
 
+const loadCurrentUserState = async (queryExecutor, userId) => {
+  const result = await queryExecutor(
+    `
+      SELECT
+        id,
+        status,
+        deleted_at
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [userId],
+  );
+
+  return result.rows[0] || null;
+};
+
 const ensureCurrentUserCanAccessProfile = (currentUser, action) => {
   if (!currentUser) {
     throw createNotFoundError();
@@ -495,6 +648,10 @@ const ensureCurrentUserCanAccessProfile = (currentUser, action) => {
       `Account with status ${currentUser.status} is not allowed to ${action} profile`,
     );
   }
+};
+
+const ensureCurrentUserIsActive = (currentUser, action) => {
+  ensureCurrentUserCanAccessProfile(currentUser, action);
 };
 
 const insertProfileUpdateLog = async (
@@ -539,6 +696,23 @@ const insertProfileUpdateLog = async (
     ],
   );
 
+const findPendingDeactivationRequest = async (client, userId) => {
+  const result = await client.query(
+    `
+      SELECT id
+      FROM user_logs
+      WHERE user_id = $1
+        AND action = $2
+        AND metadata ->> 'request_status' = 'requested'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [userId, ACCOUNT_DEACTIVATION_REQUEST_ACTION],
+  );
+
+  return result.rows[0] || null;
+};
+
 const createProfileService = ({
   bcryptCompareImpl = bcrypt.compare,
   bcryptHashImpl = bcrypt.hash,
@@ -552,6 +726,55 @@ const createProfileService = ({
     ensureCurrentUserCanAccessProfile(currentUser, 'view');
 
     return mapCurrentProfile(currentUser);
+  };
+
+  const getCurrentUserLogs = async ({ query, userId }) => {
+    const currentUser = await loadCurrentUserState(queryImpl, userId);
+
+    ensureCurrentUserIsActive(currentUser, 'view');
+    const pagination = normalizeLogsQuery(query);
+    const offset = (pagination.page - 1) * pagination.limit;
+    const countResult = await queryImpl(
+      `
+        SELECT COUNT(*)::integer AS total
+        FROM user_logs
+        WHERE user_id = $1
+      `,
+      [userId],
+    );
+    const total = countResult.rows[0]?.total || 0;
+    const logsResult = await queryImpl(
+      `
+        SELECT
+          id,
+          action,
+          entity_name,
+          entity_id,
+          metadata,
+          ip_address,
+          user_agent,
+          created_at
+        FROM user_logs
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2
+        OFFSET $3
+      `,
+      [userId, pagination.limit, offset],
+    );
+    const totalPages =
+      total === 0 ? 0 : Math.ceil(total / pagination.limit);
+
+    return {
+      data: logsResult.rows.map(mapUserLogRow),
+      meta: {
+        has_next: pagination.page < totalPages,
+        limit: pagination.limit,
+        page: pagination.page,
+        total,
+        total_pages: totalPages,
+      },
+    };
   };
 
   const updateCurrentProfile = async ({ payload, userId, ipAddress, userAgent }) => {
@@ -710,8 +933,57 @@ const createProfileService = ({
       return mapCurrentProfile(updatedProfile);
     });
 
+  const requestAccountDeactivation = async ({
+    payload,
+    roleCode,
+    userId,
+    ipAddress,
+    userAgent,
+  }) => {
+    if (roleCode !== 'customer') {
+      throw createForbiddenError(
+        'Only customer accounts can request account deactivation',
+      );
+    }
+
+    return withTransactionImpl(async (client) => {
+      const currentUser = await loadEditableUser(client, userId);
+
+      ensureCurrentUserIsActive(currentUser, 'request account deactivation');
+      const input = normalizeAccountDeactivationPayload(payload);
+      const existingRequest = await findPendingDeactivationRequest(client, userId);
+
+      if (existingRequest) {
+        throw new AppError('An account deactivation request is already pending', {
+          code: API_ERROR_CODES.DUPLICATE_RESOURCE,
+          statusCode: 409,
+        });
+      }
+
+      const requestedAt = now();
+
+      await insertProfileUpdateLog(client, {
+        action: ACCOUNT_DEACTIVATION_REQUEST_ACTION,
+        createdAt: requestedAt,
+        ipAddress,
+        metadata: {
+          reason: input.reason,
+          request_status: 'requested',
+        },
+        userAgent,
+        userId,
+      });
+
+      return {
+        request_status: 'requested',
+      };
+    });
+  };
+
   return {
     getCurrentProfile,
+    getCurrentUserLogs,
+    requestAccountDeactivation,
     updateCurrentAvatar,
     updateCurrentPassword,
     updateCurrentProfile,
@@ -720,9 +992,16 @@ const createProfileService = ({
 
 module.exports = createProfileService();
 module.exports.PROFILE_AVATAR_UPDATE_ACTION = PROFILE_AVATAR_UPDATE_ACTION;
+module.exports.ACCOUNT_DEACTIVATION_REQUEST_ACTION =
+  ACCOUNT_DEACTIVATION_REQUEST_ACTION;
 module.exports.PROFILE_CHANGE_PASSWORD_ACTION = PROFILE_CHANGE_PASSWORD_ACTION;
 module.exports.PROFILE_UPDATE_ACTION = PROFILE_UPDATE_ACTION;
 module.exports.createProfileService = createProfileService;
+module.exports.maskSensitiveMetadata = maskSensitiveMetadata;
+module.exports.mapUserLogRow = mapUserLogRow;
+module.exports.normalizeAccountDeactivationPayload =
+  normalizeAccountDeactivationPayload;
 module.exports.normalizeAvatarUpdatePayload = normalizeAvatarUpdatePayload;
+module.exports.normalizeLogsQuery = normalizeLogsQuery;
 module.exports.normalizePasswordChangePayload = normalizePasswordChangePayload;
 module.exports.normalizeUpdateProfilePayload = normalizeUpdateProfilePayload;

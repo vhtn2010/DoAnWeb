@@ -53,8 +53,38 @@ const updateMePassword = async (req, res) => {
   });
 };
 
+const getMyLogs = async (req, res) => {
+  const result = await profileService.getCurrentUserLogs({
+    query: req.query,
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result.data,
+    message: 'Profile activity logs retrieved successfully',
+    meta: result.meta,
+  });
+};
+
+const requestAccountDeactivation = async (req, res) => {
+  const result = await profileService.requestAccountDeactivation({
+    ipAddress: req.ip,
+    payload: req.body,
+    roleCode: req.auth.roleCode,
+    userAgent: req.get('user-agent'),
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result,
+    message: 'Account deactivation request submitted successfully',
+  });
+};
+
 module.exports = {
   getMe,
+  getMyLogs,
+  requestAccountDeactivation,
   updateMe,
   updateMeAvatar,
   updateMePassword,

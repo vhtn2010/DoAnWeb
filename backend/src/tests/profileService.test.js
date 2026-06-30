@@ -3,10 +3,15 @@ const test = require('node:test');
 
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const {
+  ACCOUNT_DEACTIVATION_REQUEST_ACTION,
   PROFILE_AVATAR_UPDATE_ACTION,
   PROFILE_CHANGE_PASSWORD_ACTION,
   PROFILE_UPDATE_ACTION,
   createProfileService,
+  mapUserLogRow,
+  maskSensitiveMetadata,
+  normalizeAccountDeactivationPayload,
+  normalizeLogsQuery,
 } = require('../services/profileService');
 
 test('getCurrentProfile returns safe profile data with role and permissions', async () => {
@@ -140,6 +145,387 @@ test('getCurrentProfile returns 403 when current user was soft deleted', async (
     (error) =>
       error.code === API_ERROR_CODES.FORBIDDEN &&
       error.statusCode === 403,
+  );
+});
+
+test('normalizeLogsQuery applies defaults and validates bounds', () => {
+  assert.deepEqual(normalizeLogsQuery({}), {
+    limit: 20,
+    page: 1,
+  });
+  assert.deepEqual(
+    normalizeLogsQuery({
+      limit: '100',
+      page: '2',
+    }),
+    {
+      limit: 100,
+      page: 2,
+    },
+  );
+  assert.throws(
+    () =>
+      normalizeLogsQuery({
+        limit: '101',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'limit'),
+  );
+});
+
+test('maskSensitiveMetadata redacts nested sensitive values', () => {
+  assert.deepEqual(
+    maskSensitiveMetadata({
+      nested: {
+        refresh_token: 'secret-token',
+      },
+      password_hash: 'hash-value',
+      safe: 'value',
+      tokens: [
+        {
+          token: 'abc',
+        },
+      ],
+    }),
+    {
+      nested: {
+        refresh_token: '[REDACTED]',
+      },
+      password_hash: '[REDACTED]',
+      safe: 'value',
+      tokens: [
+        {
+          token: '[REDACTED]',
+        },
+      ],
+    },
+  );
+});
+
+test('mapUserLogRow returns safe log payload', () => {
+  assert.deepEqual(
+    mapUserLogRow({
+      action: 'auth.login_success',
+      created_at: new Date('2026-07-01T10:00:00.000Z'),
+      entity_id: 'user-1',
+      entity_name: 'users',
+      id: 'log-1',
+      ip_address: '127.0.0.1',
+      metadata: {
+        refresh_token: 'sensitive',
+        safe_flag: true,
+      },
+      user_agent: 'Mozilla/5.0',
+    }),
+    {
+      action: 'auth.login_success',
+      created_at: '2026-07-01T10:00:00.000Z',
+      entity_id: 'user-1',
+      entity_name: 'users',
+      id: 'log-1',
+      ip_address: '127.0.0.1',
+      metadata: {
+        refresh_token: '[REDACTED]',
+        safe_flag: true,
+      },
+      user_agent: 'Mozilla/5.0',
+    },
+  );
+});
+
+test('getCurrentUserLogs returns current user logs with masked metadata and pagination meta', async () => {
+  const capturedQueries = [];
+  const service = createProfileService({
+    queryImpl: async (sql, params = []) => {
+      capturedQueries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('FROM users') && sql.includes('WHERE id = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              deleted_at: null,
+              id: 'user-1',
+              status: 'active',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('COUNT(*)::integer AS total')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              total: 3,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('FROM user_logs') && sql.includes('ORDER BY created_at DESC')) {
+        return {
+          rowCount: 2,
+          rows: [
+            {
+              action: 'auth.login_success',
+              created_at: new Date('2026-07-01T10:00:00.000Z'),
+              entity_id: 'user-1',
+              entity_name: 'users',
+              id: 'log-1',
+              ip_address: '127.0.0.1',
+              metadata: {
+                refresh_token: 'secret-token',
+                safe_flag: true,
+              },
+              user_agent: 'Browser 1',
+            },
+            {
+              action: 'profile.update',
+              created_at: new Date('2026-07-01T09:00:00.000Z'),
+              entity_id: 'user-1',
+              entity_name: 'users',
+              id: 'log-2',
+              ip_address: '127.0.0.2',
+              metadata: {
+                changed_fields: ['full_name'],
+              },
+              user_agent: 'Browser 2',
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  });
+
+  const result = await service.getCurrentUserLogs({
+    query: {
+      limit: '2',
+      page: '1',
+    },
+    userId: 'user-1',
+  });
+
+  assert.equal(capturedQueries.length, 3);
+  assert.deepEqual(result.meta, {
+    has_next: true,
+    limit: 2,
+    page: 1,
+    total: 3,
+    total_pages: 2,
+  });
+  assert.equal(result.data[0].metadata.refresh_token, '[REDACTED]');
+  assert.equal(result.data[1].metadata.changed_fields[0], 'full_name');
+});
+
+test('getCurrentUserLogs rejects inactive current user before reading logs', async () => {
+  let logQueryAttempts = 0;
+  const service = createProfileService({
+    queryImpl: async (sql) => {
+      if (sql.includes('FROM users') && sql.includes('WHERE id = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              deleted_at: null,
+              id: 'user-1',
+              status: 'locked',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('FROM user_logs')) {
+        logQueryAttempts += 1;
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.getCurrentUserLogs({
+        query: {},
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+
+  assert.equal(logQueryAttempts, 0);
+});
+
+test('normalizeAccountDeactivationPayload trims and validates reason', () => {
+  assert.deepEqual(
+    normalizeAccountDeactivationPayload({
+      reason: '  Please deactivate my account  ',
+    }),
+    {
+      reason: 'Please deactivate my account',
+    },
+  );
+  assert.throws(
+    () =>
+      normalizeAccountDeactivationPayload({
+        reason: '   ',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'reason'),
+  );
+});
+
+test('requestAccountDeactivation writes request log without mutating user status', async () => {
+  const fixedNow = new Date('2026-07-01T11:00:00.000Z');
+  const queries = [];
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              deleted_at: null,
+              id: 'user-1',
+              password_hash: 'stored-hash',
+              status: 'active',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('FROM user_logs') && sql.includes("metadata ->> 'request_status' = 'requested'")) {
+        return {
+          rowCount: 0,
+          rows: [],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createProfileService({
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const result = await service.requestAccountDeactivation({
+    ipAddress: '127.0.0.1',
+    payload: {
+      reason: '  I no longer need this account  ',
+    },
+    roleCode: 'customer',
+    userAgent: 'profile-deactivation-service-test',
+    userId: 'user-1',
+  });
+
+  const updateUserQueries = queries.filter((entry) =>
+    entry.sql.includes('UPDATE users'),
+  );
+  const logQuery = queries.find((entry) =>
+    entry.sql.includes('INSERT INTO user_logs'),
+  );
+  const logMetadata = JSON.parse(logQuery.params[6]);
+
+  assert.equal(updateUserQueries.length, 0);
+  assert.equal(logQuery.params[1], ACCOUNT_DEACTIVATION_REQUEST_ACTION);
+  assert.deepEqual(logMetadata, {
+    reason: 'I no longer need this account',
+    request_status: 'requested',
+  });
+  assert.deepEqual(result, {
+    request_status: 'requested',
+  });
+});
+
+test('requestAccountDeactivation rejects non-customer roles', async () => {
+  const service = createProfileService();
+
+  await assert.rejects(
+    () =>
+      service.requestAccountDeactivation({
+        payload: {
+          reason: 'Please deactivate',
+        },
+        roleCode: 'staff',
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('requestAccountDeactivation rejects duplicate pending requests', async () => {
+  const service = createProfileService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-hash',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          if (
+            sql.includes('FROM user_logs') &&
+            sql.includes("metadata ->> 'request_status' = 'requested'")
+          ) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'log-1',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.requestAccountDeactivation({
+        payload: {
+          reason: 'Please deactivate',
+        },
+        roleCode: 'customer',
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.DUPLICATE_RESOURCE &&
+      error.statusCode === 409,
   );
 });
 
