@@ -3,56 +3,72 @@ const AppError = require('../utils/AppError');
 
 const stores = new Map();
 
-const getStore = (storeKey) => {
-  if (!stores.has(storeKey)) {
-    stores.set(storeKey, new Map());
-  }
-
-  return stores.get(storeKey);
-};
-
-const clearRateLimitStore = (storeKey) => {
-  if (storeKey) {
-    stores.delete(storeKey);
-    return;
-  }
-
-  stores.clear();
-};
+const pruneEntries = (timestamps, now, windowMs) =>
+  timestamps.filter((timestamp) => now - timestamp < windowMs);
 
 const createRateLimiter = ({
   keyGenerator = (req) => req.ip || 'anonymous',
   maxRequests,
   message = 'Too many requests. Please try again later.',
-  storeKey = 'default',
+  storeKey,
   windowMs,
-}) => (req, res, next) => {
-  const store = getStore(storeKey);
-  const now = Date.now();
-  const key = String(keyGenerator(req) || 'anonymous');
-  const entry = store.get(key);
-
-  if (!entry || now >= entry.resetAt) {
-    store.set(key, {
-      count: 1,
-      resetAt: now + windowMs,
-    });
-    next();
-    return;
+} = {}) => {
+  if (!storeKey) {
+    throw new Error('storeKey is required for createRateLimiter');
   }
 
-  if (entry.count >= maxRequests) {
-    next(
-      new AppError(message, {
-        code: API_ERROR_CODES.RATE_LIMITED,
-        statusCode: 429,
-      }),
+  if (!Number.isFinite(windowMs) || windowMs <= 0) {
+    throw new Error('windowMs must be a positive number');
+  }
+
+  if (!Number.isFinite(maxRequests) || maxRequests <= 0) {
+    throw new Error('maxRequests must be a positive number');
+  }
+
+  if (!stores.has(storeKey)) {
+    stores.set(storeKey, new Map());
+  }
+
+  const store = stores.get(storeKey);
+
+  return (req, res, next) => {
+    const now = Date.now();
+    const rateKey = keyGenerator(req);
+    const recentTimestamps = pruneEntries(
+      store.get(rateKey) || [],
+      now,
+      windowMs,
     );
+
+    recentTimestamps.push(now);
+    store.set(rateKey, recentTimestamps);
+
+    if (recentTimestamps.length > maxRequests) {
+      next(
+        new AppError(message, {
+          code: API_ERROR_CODES.RATE_LIMITED,
+          statusCode: 429,
+        }),
+      );
+      return;
+    }
+
+    next();
+  };
+};
+
+const clearRateLimitStore = (storeKey) => {
+  if (storeKey) {
+    if (stores.has(storeKey)) {
+      stores.get(storeKey).clear();
+    }
+
     return;
   }
 
-  entry.count += 1;
-  next();
+  for (const store of stores.values()) {
+    store.clear();
+  }
 };
 
 module.exports = {

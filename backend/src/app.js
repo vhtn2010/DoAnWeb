@@ -7,6 +7,7 @@ const apiResponse = require('./middleware/apiResponse');
 const asyncHandler = require('./middleware/asyncHandler');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
+const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const {
@@ -34,6 +35,7 @@ if (!isTest) {
 }
 
 app.use(apiPrefix, systemRoutes);
+app.use(apiPrefix, authRoutes);
 app.use(apiPrefix, profileRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {

@@ -1,17 +1,20 @@
 const { Pool } = require('pg');
-const { getDatabaseConfig } = require('./config');
+const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const AppError = require('../utils/AppError');
+const { getDatabaseConfig, isDatabaseConfigured } = require('./config');
 
 let pool;
 
 const getPool = () => {
+  if (!isDatabaseConfigured()) {
+    throw new AppError('Database is not configured', {
+      code: API_ERROR_CODES.INTERNAL_ERROR,
+      statusCode: 500,
+    });
+  }
+
   if (!pool) {
-    const config = getDatabaseConfig();
-
-    if (!config) {
-      throw new Error('Database connection is not configured');
-    }
-
-    pool = new Pool(config);
+    pool = new Pool(getDatabaseConfig());
   }
 
   return pool;
@@ -19,8 +22,20 @@ const getPool = () => {
 
 const query = (text, params) => getPool().query(text, params);
 
-const withTransaction = async (callback) => {
-  const client = await getPool().connect();
+const releaseClient = async (client) => {
+  if (typeof client.release === 'function') {
+    client.release();
+    return;
+  }
+
+  if (typeof client.end === 'function') {
+    await client.end();
+  }
+};
+
+const withTransaction = async (callback, options = {}) => {
+  const activePool = options.pool || getPool();
+  const client = await activePool.connect();
 
   try {
     await client.query('BEGIN');
@@ -31,12 +46,12 @@ const withTransaction = async (callback) => {
     try {
       await client.query('ROLLBACK');
     } catch (rollbackError) {
-      // Ignore rollback errors and surface the original failure.
+      error.rollbackError = rollbackError;
     }
 
     throw error;
   } finally {
-    client.release();
+    await releaseClient(client);
   }
 };
 
