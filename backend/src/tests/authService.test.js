@@ -60,7 +60,7 @@ test('register creates a pending customer account and writes email and user logs
         sql,
       });
 
-      if (sql.includes('FROM users') && sql.includes('WHERE email = $1')) {
+      if (sql.includes('FROM users u') && sql.includes('WHERE u.email = $1')) {
         return {
           rowCount: 0,
           rows: [],
@@ -247,7 +247,7 @@ test('register blocks duplicate emails before creating the user', async () => {
   const service = createService({
     client: {
       query: async (sql) => {
-        if (sql.includes('FROM users') && sql.includes('WHERE email = $1')) {
+        if (sql.includes('FROM users u') && sql.includes('WHERE u.email = $1')) {
           return {
             rowCount: 1,
             rows: [

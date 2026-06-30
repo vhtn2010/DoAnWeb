@@ -3,6 +3,8 @@ const http = require('node:http');
 const test = require('node:test');
 
 process.env.NODE_ENV = 'test';
+process.env.JWT_ACCESS_SECRET = 'test-access-secret';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
 
 const app = require('../app');
 const { apiPrefix } = require('../config');

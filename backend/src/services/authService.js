@@ -18,8 +18,18 @@ const {
   hashEmailVerificationToken,
   verifyEmailVerificationToken,
 } = require('../utils/emailVerificationToken');
+const {
+  buildSessionTokens,
+  createTokenExpiredError,
+  hashSessionToken,
+  verifyRefreshToken,
+} = require('../utils/sessionToken');
 const { sendEmail } = require('./sendgridService');
 
+const AUTH_LOGIN_FAILED_ACTION = 'auth.login_failed';
+const AUTH_LOGIN_SUCCESS_ACTION = 'auth.login_success';
+const AUTH_LOGOUT_ACTION = 'auth.logout';
+const AUTH_REFRESH_TOKEN_ACTION = 'auth.refresh_token';
 const AUTH_REGISTER_ACTION = 'auth.register';
 const AUTH_RESEND_VERIFICATION_ACTION = 'auth.resend_verification';
 const AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = 'AUTH_RESEND_VERIFY_EMAIL';
@@ -54,22 +64,46 @@ const createDuplicateEmailError = () =>
     statusCode: 409,
   });
 
-const createTokenInvalidError = () =>
+const createInvalidCredentialsError = () =>
+  new AppError('Email or password is incorrect', {
+    code: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+    statusCode: 401,
+  });
+
+const createEmailNotVerifiedError = () =>
+  new AppError('Email is not verified', {
+    code: API_ERROR_CODES.AUTH_EMAIL_NOT_VERIFIED,
+    statusCode: 401,
+  });
+
+const createVerificationTokenInvalidError = () =>
   new AppError('Verification token is invalid or expired', {
     code: API_ERROR_CODES.AUTH_TOKEN_EXPIRED,
     statusCode: 401,
   });
 
-const createIneligibleVerificationError = (status) =>
-  new AppError('Account is not eligible for email verification', {
+const createRefreshTokenInvalidError = () =>
+  createTokenExpiredError('Refresh token is invalid or expired');
+
+const createAccessTokenInvalidError = () =>
+  createTokenExpiredError('Access token is invalid or expired');
+
+const createForbiddenStatusError = (status, action = 'perform this action') =>
+  new AppError(`Account with status ${status} is not allowed to ${action}`, {
     code: API_ERROR_CODES.FORBIDDEN,
     details: [
       {
         field: 'status',
-        message: `Account status ${status} is not eligible for email verification`,
+        message: `Account status ${status} is not allowed to ${action}`,
       },
     ],
     statusCode: 403,
+  });
+
+const createNotFoundError = (message = 'User not found') =>
+  new AppError(message, {
+    code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+    statusCode: 404,
   });
 
 const trimToNull = (value) => {
@@ -162,6 +196,40 @@ const normalizeRegisterPayload = (payload = {}) => {
   };
 };
 
+const normalizeLoginPayload = (payload = {}) => {
+  const details = [];
+  const email = String(payload.email || '').trim().toLowerCase();
+  const password = String(payload.password || '');
+
+  if (!email) {
+    details.push({
+      field: 'email',
+      message: 'Email is required',
+    });
+  } else if (!EMAIL_ADDRESS_REGEX.test(email)) {
+    details.push({
+      field: 'email',
+      message: 'Email is invalid',
+    });
+  }
+
+  if (!password) {
+    details.push({
+      field: 'password',
+      message: 'Password is required',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    email,
+    password,
+  };
+};
+
 const normalizeVerifyEmailPayload = (payload = {}) => {
   const token = String(payload.token || '').trim();
 
@@ -202,6 +270,50 @@ const normalizeResendVerificationPayload = (payload = {}) => {
 
   return {
     email,
+  };
+};
+
+const normalizeRefreshTokenPayload = (payload = {}) => {
+  const refreshToken = String(payload.refresh_token || '').trim();
+
+  if (!refreshToken) {
+    throw createValidationError([
+      {
+        field: 'refresh_token',
+        message: 'refresh_token is required',
+      },
+    ]);
+  }
+
+  return {
+    refreshToken,
+  };
+};
+
+const normalizeLogoutPayload = (payload = {}) => {
+  if (!Object.prototype.hasOwnProperty.call(payload, 'refresh_token')) {
+    return {
+      refreshToken: null,
+    };
+  }
+
+  if (payload.refresh_token == null || payload.refresh_token === '') {
+    return {
+      refreshToken: null,
+    };
+  }
+
+  if (typeof payload.refresh_token !== 'string') {
+    throw createValidationError([
+      {
+        field: 'refresh_token',
+        message: 'refresh_token must be a string when provided',
+      },
+    ]);
+  }
+
+  return {
+    refreshToken: payload.refresh_token.trim() || null,
   };
 };
 
@@ -255,6 +367,13 @@ const mapRegisteredUser = (user) => ({
   status: user.status,
 });
 
+const mapAuthenticatedUser = (user) => ({
+  email: user.email,
+  full_name: user.full_name,
+  id: user.id,
+  role: user.role_code,
+});
+
 const buildVerificationResult = ({
   alreadyVerified = false,
   emailVerifiedAt,
@@ -284,6 +403,25 @@ const buildVerificationTokenAuditMetadata = ({
     outcome,
     status,
     verification_token_hash: tokenHash,
+  });
+
+const buildRefreshTokenAuditMetadata = ({
+  email,
+  outcome,
+  previousTokenHash,
+  refreshTokenHash,
+  roleCode,
+  status,
+  tokenId,
+}) =>
+  compactObject({
+    access_token_id: tokenId,
+    email,
+    outcome,
+    previous_refresh_token_hash: previousTokenHash,
+    refresh_token_hash: refreshTokenHash,
+    role_code: roleCode,
+    status,
   });
 
 const insertUserLog = async (
@@ -390,12 +528,122 @@ const markEmailLogSent = async (
     ],
   );
 
+const loadUserByEmail = async (client, email, { forUpdate = false } = {}) => {
+  const result = await client.query(
+    `
+      SELECT
+        u.id,
+        u.role_id,
+        u.email,
+        u.phone,
+        u.password_hash,
+        u.full_name,
+        u.status,
+        u.email_verified_at,
+        u.last_login_at,
+        r.code AS role_code
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE u.email = $1
+      LIMIT 1
+      ${forUpdate ? 'FOR UPDATE' : ''}
+    `,
+    [email],
+  );
+
+  return result.rows[0] || null;
+};
+
+const loadUserById = async (client, userId, { forUpdate = false } = {}) => {
+  const result = await client.query(
+    `
+      SELECT
+        u.id,
+        u.role_id,
+        u.email,
+        u.phone,
+        u.password_hash,
+        u.full_name,
+        u.status,
+        u.email_verified_at,
+        u.last_login_at,
+        r.code AS role_code
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE u.id = $1
+      LIMIT 1
+      ${forUpdate ? 'FOR UPDATE' : ''}
+    `,
+    [userId],
+  );
+
+  return result.rows[0] || null;
+};
+
+const loadPermissionsByRoleId = async (client, roleId) => {
+  const result = await client.query(
+    `
+      SELECT p.code
+      FROM role_permissions rp
+      JOIN permissions p ON p.id = rp.permission_id
+      WHERE rp.role_id = $1
+      ORDER BY p.code ASC
+    `,
+    [roleId],
+  );
+
+  return result.rows.map((row) => row.code);
+};
+
+const loadLatestRefreshTokenHash = async (client, userId) => {
+  const result = await client.query(
+    `
+      SELECT metadata
+      FROM user_logs
+      WHERE
+        user_id = $1
+        AND action IN ($2, $3)
+        AND metadata ->> 'refresh_token_hash' IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [
+      userId,
+      AUTH_LOGIN_SUCCESS_ACTION,
+      AUTH_REFRESH_TOKEN_ACTION,
+    ],
+  );
+
+  return result.rows[0]?.metadata?.refresh_token_hash || null;
+};
+
+const isRefreshTokenRevoked = async (client, userId, tokenHash) => {
+  const result = await client.query(
+    `
+      SELECT id
+      FROM user_logs
+      WHERE
+        user_id = $1
+        AND action = $2
+        AND metadata ->> 'refresh_token_hash' = $3
+      LIMIT 1
+    `,
+    [userId, AUTH_LOGOUT_ACTION, tokenHash],
+  );
+
+  return result.rowCount > 0;
+};
+
 const createAuthService = ({
+  bcryptCompareImpl = bcrypt.compare,
+  buildSessionTokensImpl = buildSessionTokens,
   createEmailVerificationTokenImpl = createEmailVerificationToken,
   hashEmailVerificationTokenImpl = hashEmailVerificationToken,
+  hashSessionTokenImpl = hashSessionToken,
   now = () => new Date(),
   sendEmailImpl = sendEmail,
   verifyEmailVerificationTokenImpl = verifyEmailVerificationToken,
+  verifyRefreshTokenImpl = verifyRefreshToken,
   withTransactionImpl = withTransaction,
 } = {}) => {
   const register = async (payload, context = {}) => {
@@ -403,17 +651,9 @@ const createAuthService = ({
 
     try {
       return await withTransactionImpl(async (client) => {
-        const existingUserResult = await client.query(
-          `
-            SELECT id
-            FROM users
-            WHERE email = $1
-            LIMIT 1
-          `,
-          [input.email],
-        );
+        const existingUser = await loadUserByEmail(client, input.email);
 
-        if (existingUserResult.rowCount > 0) {
+        if (existingUser) {
           throw createDuplicateEmailError();
         }
 
@@ -533,6 +773,263 @@ const createAuthService = ({
     }
   };
 
+  const login = async (payload, context = {}) =>
+    withTransactionImpl(async (client) => {
+      const input = normalizeLoginPayload(payload);
+      const createdAt = now();
+      const user = await loadUserByEmail(client, input.email, {
+        forUpdate: true,
+      });
+
+      if (!user) {
+        await insertUserLog(client, {
+          action: AUTH_LOGIN_FAILED_ACTION,
+          createdAt,
+          entityId: null,
+          ipAddress: context.ipAddress,
+          metadata: {
+            email: input.email,
+            outcome: 'invalid_credentials',
+          },
+          userAgent: context.userAgent,
+          userId: null,
+        });
+
+        throw createInvalidCredentialsError();
+      }
+
+      const isPasswordValid = await bcryptCompareImpl(
+        input.password,
+        user.password_hash,
+      );
+
+      if (!isPasswordValid) {
+        await insertUserLog(client, {
+          action: AUTH_LOGIN_FAILED_ACTION,
+          createdAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: {
+            email: user.email,
+            outcome: 'invalid_credentials',
+            role_code: user.role_code,
+            status: user.status,
+          },
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
+
+        throw createInvalidCredentialsError();
+      }
+
+      if (user.status === USER_STATUS.PENDING_VERIFICATION) {
+        await insertUserLog(client, {
+          action: AUTH_LOGIN_FAILED_ACTION,
+          createdAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: {
+            email: user.email,
+            outcome: 'email_not_verified',
+            role_code: user.role_code,
+            status: user.status,
+          },
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
+
+        throw createEmailNotVerifiedError();
+      }
+
+      if (user.status !== USER_STATUS.ACTIVE) {
+        await insertUserLog(client, {
+          action: AUTH_LOGIN_FAILED_ACTION,
+          createdAt,
+          entityId: user.id,
+          ipAddress: context.ipAddress,
+          metadata: {
+            email: user.email,
+            outcome: 'forbidden_status',
+            role_code: user.role_code,
+            status: user.status,
+          },
+          userAgent: context.userAgent,
+          userId: user.id,
+        });
+
+        throw createForbiddenStatusError(user.status, 'sign in');
+      }
+
+      const permissions = await loadPermissionsByRoleId(client, user.role_id);
+      const session = buildSessionTokensImpl(
+        {
+          roleCode: user.role_code,
+          userId: user.id,
+        },
+        {
+          issuedAt: createdAt,
+        },
+      );
+      const refreshTokenHash = hashSessionTokenImpl(session.refreshToken);
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            last_login_at = $2,
+            updated_at = $2
+          WHERE id = $1
+        `,
+        [user.id, createdAt],
+      );
+
+      await insertUserLog(client, {
+        action: AUTH_LOGIN_SUCCESS_ACTION,
+        createdAt,
+        entityId: user.id,
+        ipAddress: context.ipAddress,
+        metadata: buildRefreshTokenAuditMetadata({
+          email: user.email,
+          outcome: 'login_success',
+          refreshTokenHash,
+          roleCode: user.role_code,
+          status: user.status,
+        }),
+        userAgent: context.userAgent,
+        userId: user.id,
+      });
+
+      return {
+        access_token: session.accessToken,
+        expires_in: session.expiresIn,
+        permissions,
+        refresh_expires_in: session.refreshExpiresIn,
+        refresh_token: session.refreshToken,
+        user: mapAuthenticatedUser(user),
+      };
+    });
+
+  const refreshToken = async (payload, context = {}) => {
+    const input = normalizeRefreshTokenPayload(payload);
+    let tokenPayload;
+
+    try {
+      tokenPayload = verifyRefreshTokenImpl(input.refreshToken, {
+        now: now(),
+      });
+    } catch (error) {
+      throw createRefreshTokenInvalidError();
+    }
+
+    const incomingRefreshTokenHash = hashSessionTokenImpl(input.refreshToken);
+
+    return withTransactionImpl(async (client) => {
+      const user = await loadUserById(client, tokenPayload.sub, {
+        forUpdate: true,
+      });
+
+      if (!user) {
+        throw createNotFoundError();
+      }
+
+      const latestRefreshTokenHash = await loadLatestRefreshTokenHash(
+        client,
+        user.id,
+      );
+
+      if (
+        !latestRefreshTokenHash ||
+        latestRefreshTokenHash !== incomingRefreshTokenHash
+      ) {
+        throw createRefreshTokenInvalidError();
+      }
+
+      const revoked = await isRefreshTokenRevoked(
+        client,
+        user.id,
+        incomingRefreshTokenHash,
+      );
+
+      if (revoked) {
+        throw createRefreshTokenInvalidError();
+      }
+
+      if (user.status !== USER_STATUS.ACTIVE) {
+        throw createForbiddenStatusError(user.status, 'refresh session');
+      }
+
+      const permissions = await loadPermissionsByRoleId(client, user.role_id);
+      const createdAt = now();
+      const session = buildSessionTokensImpl(
+        {
+          roleCode: user.role_code,
+          userId: user.id,
+        },
+        {
+          issuedAt: createdAt,
+        },
+      );
+      const newRefreshTokenHash = hashSessionTokenImpl(session.refreshToken);
+
+      await insertUserLog(client, {
+        action: AUTH_REFRESH_TOKEN_ACTION,
+        createdAt,
+        entityId: user.id,
+        ipAddress: context.ipAddress,
+        metadata: buildRefreshTokenAuditMetadata({
+          email: user.email,
+          outcome: 'rotated',
+          previousTokenHash: incomingRefreshTokenHash,
+          refreshTokenHash: newRefreshTokenHash,
+          roleCode: user.role_code,
+          status: user.status,
+        }),
+        userAgent: context.userAgent,
+        userId: user.id,
+      });
+
+      return {
+        access_token: session.accessToken,
+        expires_in: session.expiresIn,
+        permissions,
+        refresh_expires_in: session.refreshExpiresIn,
+        refresh_token: session.refreshToken,
+        user: mapAuthenticatedUser(user),
+      };
+    });
+  };
+
+  const logout = async (payload, context = {}) =>
+    withTransactionImpl(async (client) => {
+      const input = normalizeLogoutPayload(payload);
+      const createdAt = now();
+      const refreshTokenHash = input.refreshToken
+        ? hashSessionTokenImpl(input.refreshToken)
+        : undefined;
+
+      await insertUserLog(client, {
+        action: AUTH_LOGOUT_ACTION,
+        createdAt,
+        entityId: context.userId,
+        ipAddress: context.ipAddress,
+        metadata: buildRefreshTokenAuditMetadata({
+          outcome: 'logout',
+          refreshTokenHash,
+          roleCode: context.roleCode,
+          tokenId: context.tokenId,
+        }),
+        userAgent: context.userAgent,
+        userId: context.userId,
+      });
+
+      return {
+        data: {
+          acknowledged: true,
+        },
+        message: 'Logout successful.',
+      };
+    });
+
   const verifyEmail = async (payload, context = {}) => {
     const input = normalizeVerifyEmailPayload(payload);
     let tokenPayload;
@@ -546,7 +1043,7 @@ const createAuthService = ({
         throw error;
       }
 
-      throw createTokenInvalidError();
+      throw createVerificationTokenInvalidError();
     }
 
     const tokenHash = hashEmailVerificationTokenImpl(input.token);
@@ -564,7 +1061,7 @@ const createAuthService = ({
       );
 
       if (userResult.rowCount === 0) {
-        throw createTokenInvalidError();
+        throw createVerificationTokenInvalidError();
       }
 
       const user = userResult.rows[0];
@@ -595,7 +1092,7 @@ const createAuthService = ({
       }
 
       if (user.status !== USER_STATUS.PENDING_VERIFICATION) {
-        throw createIneligibleVerificationError(user.status);
+        throw createForbiddenStatusError(user.status, 'verify email');
       }
 
       const latestTokenLogResult = await client.query(
@@ -617,14 +1114,14 @@ const createAuthService = ({
       );
 
       if (latestTokenLogResult.rowCount === 0) {
-        throw createTokenInvalidError();
+        throw createVerificationTokenInvalidError();
       }
 
       const latestTokenHash =
         latestTokenLogResult.rows[0].metadata?.verification_token_hash || null;
 
       if (!latestTokenHash || latestTokenHash !== tokenHash) {
-        throw createTokenInvalidError();
+        throw createVerificationTokenInvalidError();
       }
 
       const usedTokenResult = await client.query(
@@ -641,7 +1138,7 @@ const createAuthService = ({
       );
 
       if (usedTokenResult.rowCount > 0) {
-        throw createTokenInvalidError();
+        throw createVerificationTokenInvalidError();
       }
 
       const verifiedAt = now();
@@ -796,6 +1293,9 @@ const createAuthService = ({
   };
 
   return {
+    login,
+    logout,
+    refreshToken,
     register,
     resendVerification,
     verifyEmail,
@@ -805,6 +1305,10 @@ const createAuthService = ({
 const authService = createAuthService();
 
 module.exports = authService;
+module.exports.AUTH_LOGIN_FAILED_ACTION = AUTH_LOGIN_FAILED_ACTION;
+module.exports.AUTH_LOGIN_SUCCESS_ACTION = AUTH_LOGIN_SUCCESS_ACTION;
+module.exports.AUTH_LOGOUT_ACTION = AUTH_LOGOUT_ACTION;
+module.exports.AUTH_REFRESH_TOKEN_ACTION = AUTH_REFRESH_TOKEN_ACTION;
 module.exports.AUTH_REGISTER_ACTION = AUTH_REGISTER_ACTION;
 module.exports.AUTH_RESEND_VERIFICATION_ACTION = AUTH_RESEND_VERIFICATION_ACTION;
 module.exports.AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE;
@@ -813,7 +1317,11 @@ module.exports.AUTH_VERIFY_EMAIL_TEMPLATE_CODE = AUTH_VERIFY_EMAIL_TEMPLATE_CODE
 module.exports.CUSTOMER_ROLE_CODE = CUSTOMER_ROLE_CODE;
 module.exports.MIN_PASSWORD_LENGTH = MIN_PASSWORD_LENGTH;
 module.exports.buildVerificationEmail = buildVerificationEmail;
+module.exports.createAccessTokenInvalidError = createAccessTokenInvalidError;
 module.exports.createAuthService = createAuthService;
+module.exports.normalizeLoginPayload = normalizeLoginPayload;
+module.exports.normalizeLogoutPayload = normalizeLogoutPayload;
+module.exports.normalizeRefreshTokenPayload = normalizeRefreshTokenPayload;
 module.exports.normalizeRegisterPayload = normalizeRegisterPayload;
 module.exports.normalizeResendVerificationPayload = normalizeResendVerificationPayload;
 module.exports.normalizeVerifyEmailPayload = normalizeVerifyEmailPayload;

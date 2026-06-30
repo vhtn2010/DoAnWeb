@@ -8,6 +8,43 @@ const parsePositiveInt = (value, fallback) => {
   return fallback;
 };
 
+const parseDurationToSeconds = (value, fallback) => {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    return fallback;
+  }
+
+  if (/^\d+$/.test(normalizedValue)) {
+    return Number.parseInt(normalizedValue, 10);
+  }
+
+  const match = normalizedValue.match(/^(\d+)\s*([smhd])$/i);
+
+  if (!match) {
+    return fallback;
+  }
+
+  const amount = Number.parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+  const unitToSeconds = {
+    d: 86400,
+    h: 3600,
+    m: 60,
+    s: 1,
+  };
+
+  return amount * unitToSeconds[unit];
+};
+
 const passwordHash = {
   bcryptSaltRounds: parsePositiveInt(process.env.BCRYPT_SALT_ROUNDS, 10),
 };
@@ -24,7 +61,37 @@ const emailVerification = {
     null,
 };
 
+const sessionToken = {
+  accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '30m',
+  accessExpiresInSeconds: parseDurationToSeconds(
+    process.env.JWT_ACCESS_EXPIRES_IN || '30m',
+    1800,
+  ),
+  accessSecret:
+    process.env.JWT_ACCESS_SECRET ||
+    process.env.EMAIL_VERIFICATION_SECRET ||
+    null,
+  refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  refreshExpiresInSeconds: parseDurationToSeconds(
+    process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+    604800,
+  ),
+  refreshSecret:
+    process.env.JWT_REFRESH_SECRET ||
+    process.env.JWT_ACCESS_SECRET ||
+    null,
+};
+
 const authRateLimit = {
+  loginMaxRequests: parsePositiveInt(
+    process.env.AUTH_LOGIN_RATE_LIMIT_MAX_REQUESTS,
+    10,
+  ),
+  loginWindowMs: parsePositiveInt(
+    process.env.AUTH_LOGIN_RATE_LIMIT_WINDOW_MS ||
+      process.env.RATE_LIMIT_WINDOW_MS,
+    600000,
+  ),
   registerMaxRequests: parsePositiveInt(
     process.env.AUTH_REGISTER_RATE_LIMIT_MAX_REQUESTS ||
       process.env.RATE_LIMIT_MAX_REQUESTS,
@@ -50,4 +117,5 @@ module.exports = {
   authRateLimit,
   emailVerification,
   passwordHash,
+  sessionToken,
 };
