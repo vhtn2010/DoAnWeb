@@ -25,10 +25,19 @@ const initializeDatabase = async () => {
 
   const result = await runMigrations();
 
-  if (result.status === 'applied') {
-    console.log(
-      `Applied ${result.applied.length} database migration(s): ${result.applied.join(', ')}`,
-    );
+  if (result.status === 'changed') {
+    if (result.applied.length > 0) {
+      console.log(
+        `Applied ${result.applied.length} database migration(s): ${result.applied.join(', ')}`,
+      );
+    }
+
+    if (result.reconciled.length > 0) {
+      console.log(
+        `Reconciled ${result.reconciled.length} database migration checksum mismatch(es): ${result.reconciled.join(', ')}`,
+      );
+    }
+
     return;
   }
 

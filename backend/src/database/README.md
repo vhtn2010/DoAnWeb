@@ -22,6 +22,11 @@ Companion rollback file:
 
 - `backend/src/database/migrations/001_initial_schema.down.sql`
 
+Checksum behavior:
+
+- Production keeps strict checksum validation and fails startup if an applied migration file changes.
+- Non-production environments automatically re-apply the canonical schema file and refresh the stored checksum when `001_initial_schema.up.sql` evolves.
+
 Suggested apply options:
 
 - `npm run db:push`
