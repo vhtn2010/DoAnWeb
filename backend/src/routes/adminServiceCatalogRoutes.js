@@ -9,6 +9,14 @@ const {
   updateAdminService,
 } = require('../controllers/adminServiceCrudController');
 const {
+  approveAdminService,
+  hideAdminService,
+  rejectAdminService,
+  restoreAdminService,
+  submitAdminServiceReview,
+  updateAdminServiceStatus,
+} = require('../controllers/adminServiceWorkflowController');
+const {
   requireAdminAuth,
   requireAdminRoles,
 } = require('../middleware/adminAuth');
@@ -45,6 +53,47 @@ router.patch(
   requireAdminAuth,
   adminCatalogRateLimit,
   asyncHandler(updateAdminService),
+);
+router.post(
+  '/admin/services/:service_id/submit-review',
+  requireAdminAuth,
+  adminCatalogRateLimit,
+  asyncHandler(submitAdminServiceReview),
+);
+router.post(
+  '/admin/services/:service_id/approve',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminCatalogRateLimit,
+  asyncHandler(approveAdminService),
+);
+router.post(
+  '/admin/services/:service_id/reject',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminCatalogRateLimit,
+  asyncHandler(rejectAdminService),
+);
+router.post(
+  '/admin/services/:service_id/hide',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminCatalogRateLimit,
+  asyncHandler(hideAdminService),
+);
+router.post(
+  '/admin/services/:service_id/restore',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminCatalogRateLimit,
+  asyncHandler(restoreAdminService),
+);
+router.patch(
+  '/admin/services/:service_id/status',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminCatalogRateLimit,
+  asyncHandler(updateAdminServiceStatus),
 );
 router.delete(
   '/admin/services/:service_id',
