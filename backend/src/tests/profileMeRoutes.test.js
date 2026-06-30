@@ -9,14 +9,30 @@ const app = require('../app');
 const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const { clearRateLimitStore } = require('../middleware/rateLimit');
+const authService = require('../services/authService');
 const profileService = require('../services/profileService');
 const { createAccessToken } = require('../utils/sessionToken');
 const AppError = require('../utils/AppError');
 
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetCurrentProfile = profileService.getCurrentProfile;
 const originalUpdateCurrentAvatar = profileService.updateCurrentAvatar;
 const originalUpdateCurrentPassword = profileService.updateCurrentPassword;
 const originalUpdateCurrentProfile = profileService.updateCurrentProfile;
+
+const createAuthContext = ({
+  roleCode = 'customer',
+  userId = 'user-1',
+} = {}) => ({
+  roleCode,
+  tokenId: 'access-jti-1',
+  user: {
+    email: `${userId}@example.com`,
+    id: userId,
+    role_code: roleCode,
+  },
+  userId,
+});
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -46,6 +62,7 @@ const request = (server, path, options = {}) =>
 
 test.beforeEach(() => {
   clearRateLimitStore('profile-change-password');
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
   profileService.updateCurrentPassword = originalUpdateCurrentPassword;
@@ -54,6 +71,7 @@ test.beforeEach(() => {
 
 test.afterEach(() => {
   clearRateLimitStore('profile-change-password');
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
   profileService.updateCurrentPassword = originalUpdateCurrentPassword;
@@ -81,6 +99,12 @@ test('GET /api/me returns current profile for authenticated user', async () => {
     userId: 'user-1',
   });
   let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
 
   profileService.getCurrentProfile = async (context) => {
     capturedContext = context;
@@ -142,6 +166,12 @@ test('GET /api/me returns 403 for disallowed role', async () => {
     userId: 'user-1',
   });
 
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'guest',
+      userId: 'user-1',
+    });
+
   try {
     const response = await request(server, `${apiPrefix}/me`, {
       headers: {
@@ -164,6 +194,12 @@ test('GET /api/me surfaces resource not found when current user is missing', asy
     roleCode: 'staff',
     userId: 'missing-user',
   });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'missing-user',
+    });
 
   profileService.getCurrentProfile = async () => {
     throw new AppError('User not found', {
@@ -217,6 +253,12 @@ test('PATCH /api/me returns updated profile for authenticated user', async () =>
     userId: 'user-1',
   });
   let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
 
   profileService.updateCurrentProfile = async (context) => {
     capturedContext = context;
@@ -278,6 +320,12 @@ test('PATCH /api/me surfaces validation errors for forbidden fields', async () =
     roleCode: 'admin',
     userId: 'user-1',
   });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'admin',
+      userId: 'user-1',
+    });
 
   profileService.updateCurrentProfile = async () => {
     throw new AppError('Validation failed', {
@@ -343,6 +391,12 @@ test('PATCH /api/me/avatar returns updated avatar profile for authenticated user
   });
   let capturedContext;
 
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+
   profileService.updateCurrentAvatar = async (context) => {
     capturedContext = context;
 
@@ -403,6 +457,12 @@ test('PATCH /api/me/avatar surfaces validation errors for invalid avatar_url', a
     roleCode: 'admin',
     userId: 'user-1',
   });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'admin',
+      userId: 'user-1',
+    });
 
   profileService.updateCurrentAvatar = async () => {
     throw new AppError('Validation failed', {
@@ -469,6 +529,12 @@ test('PATCH /api/me/password returns success for authenticated user', async () =
   });
   let capturedContext;
 
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+
   profileService.updateCurrentPassword = async (context) => {
     capturedContext = context;
 
@@ -529,6 +595,12 @@ test('PATCH /api/me/password surfaces invalid current password errors', async ()
     userId: 'user-1',
   });
 
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'user-1',
+    });
+
   profileService.updateCurrentPassword = async () => {
     throw new AppError('Current password is incorrect', {
       code: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
@@ -563,6 +635,12 @@ test('PATCH /api/me/password returns 429 when password change rate limit is exce
     roleCode: 'customer',
     userId: 'user-1',
   });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
 
   profileService.updateCurrentPassword = async () => ({
     avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
