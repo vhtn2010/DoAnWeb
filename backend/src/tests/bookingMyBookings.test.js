@@ -412,7 +412,7 @@ test('bookingService.getMyBookingStatusHistory returns ascending timeline with s
         },
         {
           changed_by: '22222222-2222-4222-8222-222222222222',
-          changed_by_role_code: 'admin',
+          changed_by_role_code: 'system_admin',
           created_at: '2026-07-01T02:00:00.000Z',
           from_status: 'pending_payment',
           id: '33333333-3333-4333-8333-333333333333',
