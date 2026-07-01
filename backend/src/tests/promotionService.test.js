@@ -210,3 +210,30 @@ test('getPublicPromotionById returns RESOURCE_NOT_FOUND for missing or non-publi
     },
   );
 });
+
+test('getPublicPromotionById returns RESOURCE_NOT_FOUND for future active promotions', async () => {
+  const currentTime = new Date('2026-07-01T09:00:00.000Z');
+  const service = createPromotionService({
+    now: () => currentTime,
+    repository: {
+      getPublicPromotionById: async () =>
+        createPromotionRow({
+          status: 'active',
+          validFrom: new Date('2026-07-02T00:00:00.000Z'),
+          validTo: new Date('2026-07-31T23:59:59.000Z'),
+        }),
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.getPublicPromotionById({
+        promotion_id: '99999999-9999-4999-8999-999999999999',
+      }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      assert.equal(error.statusCode, 404);
+      return true;
+    },
+  );
+});
