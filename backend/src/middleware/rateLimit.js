@@ -1,61 +1,56 @@
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const AppError = require('../utils/AppError');
 
-const DEFAULT_MAX_REQUESTS = 120;
-const DEFAULT_WINDOW_MS = 60 * 1000;
+const stores = new Map();
+let legacyStoreCounter = 0;
 
-const cleanupExpiredEntries = (store, now) => {
-  for (const [key, entry] of store.entries()) {
-    if (entry.resetAt <= now) {
-      store.delete(key);
-    }
-  }
-};
+const pruneEntries = (timestamps, now, windowMs) =>
+  timestamps.filter((timestamp) => now - timestamp < windowMs);
 
-const createRateLimit = ({
-  max = DEFAULT_MAX_REQUESTS,
-  windowMs = DEFAULT_WINDOW_MS,
+const createRateLimiter = ({
+  keyGenerator = (req) => req.ip || 'anonymous',
+  maxRequests,
+  message = 'Too many requests. Please try again later.',
+  storeKey,
+  windowMs,
 } = {}) => {
-  const store = new Map();
+  if (!storeKey) {
+    throw new Error('storeKey is required for createRateLimiter');
+  }
+
+  if (!Number.isFinite(windowMs) || windowMs <= 0) {
+    throw new Error('windowMs must be a positive number');
+  }
+
+  if (!Number.isFinite(maxRequests) || maxRequests <= 0) {
+    throw new Error('maxRequests must be a positive number');
+  }
+
+  if (!stores.has(storeKey)) {
+    stores.set(storeKey, new Map());
+  }
+
+  const store = stores.get(storeKey);
 
   return (req, res, next) => {
     const now = Date.now();
-    const key = req.ip || req.socket?.remoteAddress || 'anonymous';
+    const rateKey = keyGenerator(req);
+    const recentTimestamps = pruneEntries(
+      store.get(rateKey) || [],
+      now,
+      windowMs,
+    );
 
-    if (store.size > max * 2) {
-      cleanupExpiredEntries(store, now);
-    }
+    recentTimestamps.push(now);
+    store.set(rateKey, recentTimestamps);
 
-    const current = store.get(key);
-
-    if (!current || current.resetAt <= now) {
-      store.set(key, {
-        count: 1,
-        resetAt: now + windowMs,
-      });
-      next();
-      return;
-    }
-
-    current.count += 1;
-
-    if (current.count > max) {
-      const retryAfterSeconds = Math.max(
-        1,
-        Math.ceil((current.resetAt - now) / 1000),
+    if (recentTimestamps.length > maxRequests) {
+      next(
+        new AppError(message, {
+          code: API_ERROR_CODES.RATE_LIMITED,
+          statusCode: 429,
+        }),
       );
-
-      res.set('Retry-After', String(retryAfterSeconds));
-      res.error({
-        code: API_ERROR_CODES.RATE_LIMITED,
-        details: [
-          {
-            field: 'request',
-            message: `Too many requests. Retry after ${retryAfterSeconds} second(s).`,
-          },
-        ],
-        message: 'Too many requests',
-        statusCode: 429,
-      });
       return;
     }
 
@@ -63,4 +58,32 @@ const createRateLimit = ({
   };
 };
 
+const createRateLimit = ({
+  max = 120,
+  message = 'Too many requests. Please try again later.',
+  windowMs = 60 * 1000,
+} = {}) =>
+  createRateLimiter({
+    maxRequests: max,
+    message,
+    storeKey: `legacy-rate-limit:${legacyStoreCounter += 1}`,
+    windowMs,
+  });
+
+const clearRateLimitStore = (storeKey) => {
+  if (storeKey) {
+    if (stores.has(storeKey)) {
+      stores.get(storeKey).clear();
+    }
+
+    return;
+  }
+
+  for (const store of stores.values()) {
+    store.clear();
+  }
+};
+
 module.exports = createRateLimit;
+module.exports.clearRateLimitStore = clearRateLimitStore;
+module.exports.createRateLimiter = createRateLimiter;
