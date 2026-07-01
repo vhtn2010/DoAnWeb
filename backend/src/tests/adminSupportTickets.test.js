@@ -23,6 +23,7 @@ const SERVICE_ID = '11111111-1111-4111-8111-111111111111';
 const originalAssignAdminTicket = supportService.assignAdminTicket;
 const originalGetAdminTicketDetail = supportService.getAdminTicketDetail;
 const originalListAdminTickets = supportService.listAdminTickets;
+const originalReplyToAdminTicket = supportService.replyToAdminTicket;
 const originalUpdateAdminTicket = supportService.updateAdminTicket;
 
 const request = (server, path, options = {}) =>
@@ -75,6 +76,7 @@ test.afterEach(() => {
   supportService.assignAdminTicket = originalAssignAdminTicket;
   supportService.getAdminTicketDetail = originalGetAdminTicketDetail;
   supportService.listAdminTickets = originalListAdminTickets;
+  supportService.replyToAdminTicket = originalReplyToAdminTicket;
   supportService.updateAdminTicket = originalUpdateAdminTicket;
 });
 
@@ -575,6 +577,159 @@ test('supportService.assignAdminTicket rejects invalid assign target and missing
   );
 });
 
+test('supportService.replyToAdminTicket creates public reply and moves ticket to waiting_customer', async () => {
+  let createReplyPayload = null;
+  const service = createSupportService({
+    repository: {
+      createAdminReply: async (payload) => {
+        createReplyPayload = payload;
+
+        return {
+          reply: {
+            created_at: '2026-07-01T10:25:00.000Z',
+            id: REPLY_ID,
+            is_internal_note: false,
+            message: payload.message,
+            sender_full_name: 'Support Staff',
+            sender_id: STAFF_ID,
+            sender_role_code: 'staff',
+            sender_type: 'staff',
+          },
+          ticket: {
+            assigned_to: ASSIGNED_STAFF_ID,
+            closed_at: null,
+            id: TICKET_ID,
+            priority: 'normal',
+            status: 'waiting_customer',
+            ticket_code: 'TK20260701AAAA0001',
+            updated_at: '2026-07-01T10:25:00.000Z',
+          },
+        };
+      },
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: ASSIGNED_STAFF_ID,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'assigned',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:20:00.000Z',
+      }),
+    },
+  });
+
+  const result = await service.replyToAdminTicket({
+    auth: {
+      role: 'staff',
+      tokenPayload: {
+        permissions: ['support.reply'],
+      },
+      userId: STAFF_ID,
+    },
+    body: {
+      message: 'We have updated your request.',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(createReplyPayload.action, 'admin.support.reply_create');
+  assert.equal(createReplyPayload.senderType, 'staff');
+  assert.equal(createReplyPayload.isInternalNote, false);
+  assert.equal(createReplyPayload.toStatus, 'waiting_customer');
+  assert.equal(result.ticket.status, 'waiting_customer');
+  assert.equal(result.reply.is_internal_note, false);
+});
+
+test('supportService.replyToAdminTicket creates internal note without changing status and rejects invalid access', async () => {
+  let createReplyPayload = null;
+  const service = createSupportService({
+    repository: {
+      createAdminReply: async (payload) => {
+        createReplyPayload = payload;
+
+        return {
+          reply: {
+            created_at: '2026-07-01T10:27:00.000Z',
+            id: REPLY_ID,
+            is_internal_note: true,
+            message: payload.message,
+            sender_full_name: 'Admin User',
+            sender_id: ADMIN_ID,
+            sender_role_code: 'admin',
+            sender_type: 'admin',
+          },
+          ticket: {
+            assigned_to: ASSIGNED_STAFF_ID,
+            closed_at: null,
+            id: TICKET_ID,
+            priority: 'high',
+            status: 'resolved',
+            ticket_code: 'TK20260701AAAA0001',
+            updated_at: '2026-07-01T10:27:00.000Z',
+          },
+        };
+      },
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: ASSIGNED_STAFF_ID,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'high',
+        status: 'resolved',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:20:00.000Z',
+      }),
+    },
+  });
+
+  const result = await service.replyToAdminTicket({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['support.reply'],
+      },
+      userId: ADMIN_ID,
+    },
+    body: {
+      is_internal_note: true,
+      message: 'Internal follow-up note.',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(createReplyPayload.senderType, 'admin');
+  assert.equal(createReplyPayload.isInternalNote, true);
+  assert.equal(createReplyPayload.toStatus, undefined);
+  assert.equal(result.ticket.status, 'resolved');
+  assert.equal(result.reply.is_internal_note, true);
+
+  const forbiddenService = createSupportService({
+    repository: {
+      createAdminReply: async () => null,
+      getTicketByIdForAdmin: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => forbiddenService.replyToAdminTicket({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['support.assign'],
+        },
+        userId: STAFF_ID,
+      },
+      body: {
+        message: 'Please check',
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+});
+
 test('GET /admin/support/tickets requires admin authentication', async () => {
   const server = app.listen(0);
 
@@ -892,6 +1047,101 @@ test('PATCH /admin/support/tickets/{ticket_id} and assign route block customer r
 
     assert.equal(assignResponse.statusCode, 403);
     assert.equal(assignResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /admin/support/tickets/{ticket_id}/replies creates admin reply', async () => {
+  const server = app.listen(0);
+  supportService.replyToAdminTicket = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.role, 'admin');
+    assert.equal(ticketId, TICKET_ID);
+    assert.equal(body.message, 'We are processing your request.');
+    assert.equal(body.is_internal_note, false);
+
+    return {
+      reply: {
+        created_at: '2026-07-01T10:30:00.000Z',
+        id: REPLY_ID,
+        is_internal_note: false,
+        message: 'We are processing your request.',
+        sender: {
+          full_name: 'Admin User',
+          id: ADMIN_ID,
+          role_code: 'admin',
+          type: 'admin',
+        },
+      },
+      ticket: {
+        assigned_to: ASSIGNED_STAFF_ID,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'waiting_customer',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:30:00.000Z',
+      },
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/replies`,
+      {
+        body: {
+          is_internal_note: false,
+          message: 'We are processing your request.',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.reply'],
+            roleCode: 'admin',
+            userId: ADMIN_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.ticket.status, 'waiting_customer');
+    assert.equal(response.body.data.reply.is_internal_note, false);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /admin/support/tickets/{ticket_id}/replies blocks customer role', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/replies`,
+      {
+        body: {
+          message: 'Please help',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.reply'],
+            roleCode: 'customer',
+            userId: '99999999-9999-4999-8999-999999999999',
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

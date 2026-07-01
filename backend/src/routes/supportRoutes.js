@@ -7,6 +7,7 @@ const {
   getMySupportTicketDetail,
   listAdminSupportTickets,
   listMySupportTickets,
+  replyToAdminSupportTicket,
   replyToSupportTicket,
   updateAdminSupportTicket,
 } = require('../controllers/supportController');
@@ -114,6 +115,13 @@ router.post(
   requireAdminAuth,
   adminSupportTicketReadRateLimit,
   asyncHandler(assignAdminSupportTicket),
+);
+
+router.post(
+  '/admin/support/tickets/:ticket_id/replies',
+  requireAdminAuth,
+  adminSupportTicketReadRateLimit,
+  asyncHandler(replyToAdminSupportTicket),
 );
 
 module.exports = router;

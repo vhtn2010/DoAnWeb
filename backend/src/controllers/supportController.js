@@ -64,6 +64,20 @@ const assignAdminSupportTicket = async (req, res) => {
   });
 };
 
+const replyToAdminSupportTicket = async (req, res) => {
+  const data = await supportService.replyToAdminTicket({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Admin support ticket reply created successfully',
+    statusCode: 201,
+  });
+};
+
 const listMySupportTickets = async (req, res) => {
   const data = await supportService.listMyTickets({
     auth: req.auth,
@@ -125,5 +139,6 @@ module.exports = {
   getMySupportTicketDetail,
   listAdminSupportTickets,
   listMySupportTickets,
+  replyToAdminSupportTicket,
   replyToSupportTicket,
 };

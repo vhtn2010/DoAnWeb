@@ -101,6 +101,108 @@ const createSupportRepository = ({
       pool: getPool(),
     });
 
+  const createAdminReply = async ({
+    action,
+    actorUserId,
+    isInternalNote,
+    message,
+    metadata,
+    senderType,
+    ticketId,
+    toStatus,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const replyResult = await client.query(
+        `
+          INSERT INTO support_replies (
+            ticket_id,
+            sender_id,
+            sender_type,
+            message,
+            is_internal_note,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+          RETURNING
+            id,
+            ticket_id,
+            sender_id,
+            sender_type,
+            message,
+            is_internal_note,
+            created_at
+        `,
+        [
+          ticketId,
+          actorUserId,
+          senderType,
+          message,
+          isInternalNote,
+        ],
+      );
+
+      const ticketParams = [ticketId];
+      const ticketAssignments = ['updated_at = NOW()'];
+
+      if (toStatus !== undefined) {
+        ticketParams.push(toStatus);
+        ticketAssignments.unshift(`status = $${ticketParams.length}`);
+      }
+
+      const ticketResult = await client.query(
+        `
+          UPDATE support_tickets
+          SET ${ticketAssignments.join(', ')}
+          WHERE id = $1
+          RETURNING
+            id,
+            ticket_code,
+            user_id,
+            booking_id,
+            service_id,
+            customer_name,
+            customer_email,
+            customer_phone,
+            subject,
+            status,
+            priority,
+            assigned_to,
+            created_at,
+            updated_at,
+            closed_at
+        `,
+        ticketParams,
+      );
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          action,
+          'support_ticket',
+          ticketId,
+          metadata || null,
+        ],
+      );
+
+      return {
+        reply: replyResult.rows[0] || null,
+        ticket: ticketResult.rows[0] || null,
+      };
+    }, {
+      pool: getPool(),
+    });
+
   const listTicketsForAdmin = async ({
     assignedTo,
     limit,
@@ -690,6 +792,7 @@ const createSupportRepository = ({
   return {
     addCustomerReply,
     closeTicketByCustomer,
+    createAdminReply,
     createTicket,
     getBookingById,
     getAssignableAdminUserById,
