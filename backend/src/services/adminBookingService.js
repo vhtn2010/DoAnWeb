@@ -1,5 +1,6 @@
 const {
   API_ERROR_CODES,
+  BOOKING_ITEM_STATUS_VALUES,
   BOOKING_STATUS_TRANSITIONS,
   BOOKING_STATUS_VALUES,
 } = require('../constants/domainConstraints');
@@ -181,6 +182,26 @@ const parseBookingId = (value) => {
   return normalized;
 };
 
+const parseBookingItemId = (value) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError(
+      'booking_item_id',
+      'booking_item_id must be a valid UUID',
+    );
+  }
+
+  const normalized = value.trim();
+
+  if (!UUID_PATTERN.test(normalized)) {
+    throw buildValidationError(
+      'booking_item_id',
+      'booking_item_id must be a valid UUID',
+    );
+  }
+
+  return normalized;
+};
+
 const buildPaginationMeta = ({
   limit,
   page,
@@ -356,6 +377,45 @@ const ensureAdminBookingExpireAccess = (auth) => {
   throw buildForbiddenError();
 };
 
+const ensureAdminBookingItemStatusAccess = (auth) => {
+  const role = auth?.role;
+
+  if (!['staff', 'admin', 'system_admin'].includes(role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'booking.update_status',
+      'booking.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureAdminBookingItemTravellerAccess = (auth) => {
+  const role = auth?.role;
+
+  if (!['staff', 'admin', 'system_admin'].includes(role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'booking.update_status',
+      'booking.update_item',
+      'booking.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
 const resolveScopeServiceIds = (auth) => {
   if (auth?.role !== 'staff') {
     return null;
@@ -503,6 +563,22 @@ const sanitizeBookingStatusUpdateResult = (booking) => ({
   updated_at: booking.updated_at,
 });
 
+const sanitizeBookingItemMutationResult = (item) => ({
+  booking_id: item.booking_id,
+  end_at: item.end_at,
+  id: item.id,
+  quantity: Number(item.quantity),
+  reference_id: item.reference_id,
+  service_id: item.service_id,
+  service_type: item.service_type,
+  start_at: item.start_at,
+  status: item.status,
+  title: item.title_snapshot,
+  total_amount: roundMoney(item.total_amount),
+  traveller_info: item.traveller_info ?? null,
+  unit_price: roundMoney(item.unit_price),
+});
+
 const sanitizeBookingDetail = ({
   booking,
   items,
@@ -572,6 +648,17 @@ const parseRequiredReason = (value) => {
   return normalized;
 };
 
+const parseRequiredBookingItemStatus = (value) => {
+  if (typeof value !== 'string' || !BOOKING_ITEM_STATUS_VALUES.includes(value)) {
+    throw buildValidationError(
+      'status',
+      `status must be one of: ${BOOKING_ITEM_STATUS_VALUES.join(', ')}`,
+    );
+  }
+
+  return value;
+};
+
 const parseOptionalReason = (value) => {
   if (value == null) {
     return null;
@@ -634,6 +721,99 @@ const buildCurrentBookingStatusResult = (booking) =>
     status: booking.status,
     updated_at: booking.updated_at,
   });
+
+const SENSITIVE_TRAVELLER_KEYS = [
+  'password',
+  'token',
+  'secret',
+  'card',
+  'credit_card',
+  'debit_card',
+  'cvv',
+  'cvc',
+  'pin',
+];
+
+const containsSensitiveTravellerKeys = (value) => {
+  if (Array.isArray(value)) {
+    return value.some((entry) => containsSensitiveTravellerKeys(entry));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  return Object.entries(value).some(([key, nestedValue]) => {
+    const normalizedKey = String(key).toLowerCase();
+
+    if (SENSITIVE_TRAVELLER_KEYS.some((needle) => normalizedKey.includes(needle))) {
+      return true;
+    }
+
+    return containsSensitiveTravellerKeys(nestedValue);
+  });
+};
+
+const summarizeTravellerInfoForLog = (travellerInfo) => {
+  const topLevel = Array.isArray(travellerInfo)
+    ? travellerInfo
+    : [travellerInfo];
+  const sample = topLevel.find(
+    (entry) => entry && typeof entry === 'object' && !Array.isArray(entry),
+  );
+
+  return {
+    payload_type: Array.isArray(travellerInfo) ? 'array' : 'object',
+    traveller_count: Array.isArray(travellerInfo) ? travellerInfo.length : 1,
+    top_level_keys: sample ? Object.keys(sample).sort() : [],
+  };
+};
+
+const parseTravellerInfo = (value) => {
+  if (!Array.isArray(value) && (!value || typeof value !== 'object')) {
+    throw buildValidationError(
+      'traveller_info',
+      'traveller_info must be a JSON object or array',
+    );
+  }
+
+  if (containsSensitiveTravellerKeys(value)) {
+    throw buildValidationError(
+      'traveller_info',
+      'traveller_info contains restricted sensitive fields',
+    );
+  }
+
+  return value;
+};
+
+const validateBookingItemStatusTransition = ({
+  currentStatus,
+  nextStatus,
+}) => {
+  if (currentStatus === nextStatus) {
+    return 'idempotent';
+  }
+
+  const allowedTransitions = {
+    cancelled: [],
+    completed: ['refunded'],
+    confirmed: ['cancelled', 'completed', 'failed', 'refunded'],
+    failed: [],
+    pending: ['cancelled', 'confirmed', 'failed'],
+    refunded: [],
+  };
+
+  const transitions = allowedTransitions[currentStatus] || [];
+
+  if (!transitions.includes(nextStatus)) {
+    throw buildInvalidStateTransitionError(
+      'Booking item state no longer allows this transition',
+    );
+  }
+
+  return 'update';
+};
 
 const createAdminBookingService = ({
   repository = createAdminBookingRepository(),
@@ -986,6 +1166,95 @@ const createAdminBookingService = ({
     return sanitizeBookingStatusUpdateResult(updatedBooking);
   };
 
+  const updateBookingItemStatus = async ({
+    auth,
+    body,
+    booking_item_id: bookingItemId,
+  } = {}) => {
+    ensureAdminBookingItemStatusAccess(auth);
+
+    const parsedBookingItemId = parseBookingItemId(bookingItemId);
+    const nextStatus = parseRequiredBookingItemStatus(body?.status);
+    const reason = body?.reason == null
+      ? null
+      : parseOptionalReason(body.reason);
+
+    if (
+      ['cancelled', 'failed'].includes(nextStatus) &&
+      !reason
+    ) {
+      throw buildValidationError(
+        'reason',
+        'reason is required when status is cancelled or failed',
+      );
+    }
+
+    const item = await repository.getBookingItemById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingItemId: parsedBookingItemId,
+    });
+
+    if (!item) {
+      throw buildResourceNotFoundError('Booking item not found');
+    }
+
+    const transitionResult = validateBookingItemStatusTransition({
+      currentStatus: item.status,
+      nextStatus,
+    });
+
+    if (transitionResult === 'idempotent') {
+      return sanitizeBookingItemMutationResult(item);
+    }
+
+    const updatedItem = await repository.updateBookingItemStatus({
+      actorUserId: auth?.userId || null,
+      bookingItemId: parsedBookingItemId,
+      fromStatus: item.status,
+      reason,
+      toStatus: nextStatus,
+    });
+
+    return sanitizeBookingItemMutationResult(updatedItem);
+  };
+
+  const updateBookingItemTravellerInfo = async ({
+    auth,
+    body,
+    booking_item_id: bookingItemId,
+  } = {}) => {
+    ensureAdminBookingItemTravellerAccess(auth);
+
+    const parsedBookingItemId = parseBookingItemId(bookingItemId);
+    const travellerInfo = parseTravellerInfo(body?.traveller_info);
+    const item = await repository.getBookingItemById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingItemId: parsedBookingItemId,
+    });
+
+    if (!item) {
+      throw buildResourceNotFoundError('Booking item not found');
+    }
+
+    if (
+      auth?.role === 'staff' &&
+      ['completed', 'cancelled', 'refunded'].includes(item.booking_status)
+    ) {
+      throw buildInvalidStateTransitionError(
+        'Traveller info can no longer be updated for this booking item',
+      );
+    }
+
+    const updatedItem = await repository.updateBookingItemTravellerInfo({
+      actorUserId: auth?.userId || null,
+      bookingItemId: parsedBookingItemId,
+      travellerInfo,
+      travellerInfoLogSummary: summarizeTravellerInfoForLog(travellerInfo),
+    });
+
+    return sanitizeBookingItemMutationResult(updatedItem);
+  };
+
   return {
     cancelBooking,
     completeBooking,
@@ -994,6 +1263,8 @@ const createAdminBookingService = ({
     getBookingDetail,
     getBookingStatusHistory,
     listBookings,
+    updateBookingItemStatus,
+    updateBookingItemTravellerInfo,
     updateBookingStatus,
   };
 };
