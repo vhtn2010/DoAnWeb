@@ -2,6 +2,7 @@ const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const AppError = require('../utils/AppError');
 
 const stores = new Map();
+let legacyStoreCounter = 0;
 
 const pruneEntries = (timestamps, now, windowMs) =>
   timestamps.filter((timestamp) => now - timestamp < windowMs);
@@ -57,6 +58,18 @@ const createRateLimiter = ({
   };
 };
 
+const createRateLimit = ({
+  max = 120,
+  message = 'Too many requests. Please try again later.',
+  windowMs = 60 * 1000,
+} = {}) =>
+  createRateLimiter({
+    maxRequests: max,
+    message,
+    storeKey: `legacy-rate-limit:${legacyStoreCounter += 1}`,
+    windowMs,
+  });
+
 const clearRateLimitStore = (storeKey) => {
   if (storeKey) {
     if (stores.has(storeKey)) {
@@ -71,7 +84,6 @@ const clearRateLimitStore = (storeKey) => {
   }
 };
 
-module.exports = {
-  clearRateLimitStore,
-  createRateLimiter,
-};
+module.exports = createRateLimit;
+module.exports.clearRateLimitStore = clearRateLimitStore;
+module.exports.createRateLimiter = createRateLimiter;
