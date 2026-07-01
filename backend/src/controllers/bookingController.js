@@ -1,5 +1,18 @@
 const bookingService = require('../services/bookingService');
 
+const requestBookingCancellation = async (req, res) => {
+  const data = await bookingService.requestBookingCancellation({
+    auth: req.auth,
+    body: req.body,
+    bookingId: req.params.booking_id,
+  });
+
+  res.success({
+    data,
+    message: 'Booking cancellation request submitted successfully',
+  });
+};
+
 const getMyBookingDetail = async (req, res) => {
   const data = await bookingService.getMyBookingDetail({
     auth: req.auth,
@@ -69,4 +82,5 @@ module.exports = {
   getMyBookingItems,
   getMyBookingStatusHistory,
   listMyBookings,
+  requestBookingCancellation,
 };

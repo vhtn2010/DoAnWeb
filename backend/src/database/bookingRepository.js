@@ -17,6 +17,12 @@ const createVoucherUsageLimitError = () =>
     statusCode: 400,
   });
 
+const createInvalidStateTransitionError = () =>
+  new AppError('Booking state no longer allows this action', {
+    code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+    statusCode: 400,
+  });
+
 const createBookingRepository = ({
   getPoolImpl = getPool,
   queryImpl = query,
@@ -697,6 +703,71 @@ const createBookingRepository = ({
     }
   };
 
+  const requestBookingCancellation = async ({
+    actorUserId,
+    bookingId,
+    fromStatus,
+    reason,
+  }) => {
+    const pool = getPoolImpl();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const bookingResult = await client.query(
+        `
+          UPDATE bookings
+          SET
+            status = $2,
+            updated_at = NOW()
+          WHERE id = $1
+            AND status = $3
+          RETURNING
+            id,
+            booking_code,
+            status,
+            updated_at
+        `,
+        [bookingId, 'cancel_requested', fromStatus],
+      );
+
+      if (bookingResult.rowCount !== 1) {
+        throw createInvalidStateTransitionError();
+      }
+
+      await client.query(
+        `
+          INSERT INTO booking_status_histories (
+            booking_id,
+            from_status,
+            to_status,
+            reason,
+            changed_by,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          bookingId,
+          fromStatus,
+          'cancel_requested',
+          reason,
+          actorUserId,
+        ],
+      );
+
+      await client.query('COMMIT');
+
+      return bookingResult.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+
   return {
     countActiveBookingsByVoucherAndUser,
     createCheckout,
@@ -715,6 +786,7 @@ const createBookingRepository = ({
     listBookingStatusHistoriesByBookingId,
     listBookingsByUser,
     listCartItemsByCartId,
+    requestBookingCancellation,
   };
 };
 

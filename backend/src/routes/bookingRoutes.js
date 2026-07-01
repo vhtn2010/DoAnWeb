@@ -5,6 +5,7 @@ const {
   getMyBookingItems,
   getMyBookingStatusHistory,
   listMyBookings,
+  requestBookingCancellation,
 } = require('../controllers/bookingController');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authRequired } = require('../middleware/authSession');
@@ -46,6 +47,13 @@ router.get(
   authRequired({ allowedRoles: ['customer'] }),
   customerBookingReadRateLimit,
   asyncHandler(getMyBookingStatusHistory),
+);
+
+router.post(
+  '/bookings/:booking_id/cancel-request',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerCheckoutRateLimit,
+  asyncHandler(requestBookingCancellation),
 );
 
 router.post(
