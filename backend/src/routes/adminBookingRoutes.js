@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getAdminBookingDetail,
+  getAdminBookingStatusHistory,
   listAdminBookings,
 } = require('../controllers/adminBookingController');
 const {
@@ -28,6 +29,13 @@ router.get(
   requireAdminAuth,
   adminBookingRateLimit,
   asyncHandler(getAdminBookingDetail),
+);
+
+router.get(
+  '/admin/bookings/:booking_id/status-history',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(getAdminBookingStatusHistory),
 );
 
 module.exports = router;
