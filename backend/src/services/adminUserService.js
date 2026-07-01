@@ -1,16 +1,70 @@
-const { query } = require('../database/client');
+const bcrypt = require('bcryptjs');
+const { apiPrefix, backendUrl, frontendUrl } = require('../config');
+const { passwordHash, emailVerification } = require('../config/auth');
+const { query, withTransaction } = require('../database/client');
 const {
   API_ERROR_CODES,
+  DOMAIN_CONSTRAINTS,
+  EMAIL_STATUS,
   USER_STATUS,
   USER_STATUS_VALUES,
 } = require('../constants/domainConstraints');
 const AppError = require('../utils/AppError');
+const {
+  buildVerificationEmail,
+  MIN_PASSWORD_LENGTH,
+} = require('./authService');
 const { mapUserLogRow } = require('./profileService');
+const {
+  createEmailVerificationToken,
+  hashEmailVerificationToken,
+} = require('../utils/emailVerificationToken');
+const { sendEmail } = require('./sendgridService');
 
 const ADMIN_ALLOWED_ROLE_CODES = new Set(['admin', 'system_admin']);
+const ADMIN_USER_CREATE_ACTION = 'admin.user.create';
+const ADMIN_USER_UPDATE_PROFILE_ACTION = 'admin.user.update_profile';
+const ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE = 'ADMIN_USER_VERIFY_EMAIL';
+const CUSTOMER_ROLE_CODE = 'customer';
+const SYSTEM_ADMIN_ROLE_CODE = 'system_admin';
+const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const ALLOWED_CREATE_FIELDS = new Set([
+  'email',
+  'password',
+  'full_name',
+  'phone',
+  'role_code',
+]);
+const ALLOWED_UPDATE_FIELDS = new Set(['full_name', 'phone', 'avatar_url']);
+const FORBIDDEN_CREATE_FIELDS = [
+  'avatar_url',
+  'created_at',
+  'deleted_at',
+  'email_verified_at',
+  'is_system_protected',
+  'last_login_at',
+  'password_hash',
+  'role_id',
+  'status',
+  'updated_at',
+];
+const FORBIDDEN_UPDATE_FIELDS = [
+  'created_at',
+  'deleted_at',
+  'email',
+  'email_verified_at',
+  'is_system_protected',
+  'last_login_at',
+  'password',
+  'password_hash',
+  'role_code',
+  'role_id',
+  'status',
+  'updated_at',
+];
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -25,6 +79,33 @@ const createNotFoundError = (message = 'User not found') =>
   new AppError(message, {
     code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
     statusCode: 404,
+  });
+
+const createDuplicateEmailError = () =>
+  new AppError('Email already exists', {
+    code: API_ERROR_CODES.DUPLICATE_RESOURCE,
+    details: [
+      {
+        field: 'email',
+        message: 'Email already exists',
+      },
+    ],
+    statusCode: 409,
+  });
+
+const createForbiddenError = (message, details) =>
+  new AppError(message, {
+    code: API_ERROR_CODES.FORBIDDEN,
+    details,
+    statusCode: 403,
+  });
+
+const createInternalError = (
+  message = 'Unable to complete admin user request',
+) =>
+  new AppError(message, {
+    code: API_ERROR_CODES.INTERNAL_ERROR,
+    statusCode: 500,
   });
 
 const trimToNull = (value) => {
@@ -50,6 +131,46 @@ const parsePositiveInteger = (value) => {
   }
 
   return Number.parseInt(value.trim(), 10);
+};
+
+const compactObject = (value) =>
+  Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  );
+
+const isUniqueViolation = (error) =>
+  error?.code === '23505' || error?.constraint === 'users_email_key';
+
+const parseHttpUrl = (value) => {
+  try {
+    const parsedUrl = new URL(value);
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+
+    return parsedUrl;
+  } catch (error) {
+    return null;
+  }
+};
+
+const isAllowedAvatarUrl = (value) => {
+  const parsedUrl = parseHttpUrl(value);
+
+  if (!parsedUrl) {
+    return false;
+  }
+
+  if (parsedUrl.hostname !== 'res.cloudinary.com') {
+    return false;
+  }
+
+  const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+
+  return pathSegments.length >= 4 &&
+    pathSegments[1] === 'image' &&
+    pathSegments[2] === 'upload';
 };
 
 const normalizePagination = (input = {}) => {
@@ -98,6 +219,20 @@ const normalizeUserId = (userId) => {
 
   return normalizedUserId;
 };
+
+const buildDisallowedFieldDetails = (
+  fields,
+  {
+    explicitlyForbiddenFields,
+    scopeLabel,
+  },
+) =>
+  fields.map((field) => ({
+    field,
+    message: explicitlyForbiddenFields.includes(field)
+      ? `${field} is not allowed in ${scopeLabel}`
+      : `${field} is not allowed`,
+  }));
 
 const mapAdminUser = (row) => ({
   avatar_url: row.avatar_url,
@@ -157,8 +292,222 @@ const normalizeListUsersQuery = (rawQuery = {}) => {
   };
 };
 
-const loadRoleByCode = async (queryImpl, roleCode) => {
-  const result = await queryImpl(
+const normalizeCreateUserPayload = (payload = {}) => {
+  const normalizedPayload =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload
+      : {};
+  const details = [];
+  const providedKeys = Object.keys(normalizedPayload);
+  const disallowedKeys = providedKeys.filter(
+    (key) => !ALLOWED_CREATE_FIELDS.has(key),
+  );
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        explicitlyForbiddenFields: FORBIDDEN_CREATE_FIELDS,
+        scopeLabel: 'POST /admin/users',
+      }),
+    );
+  }
+
+  const email = String(normalizedPayload.email || '').trim().toLowerCase();
+  const password = String(normalizedPayload.password || '');
+  const fullName = String(normalizedPayload.full_name || '').trim();
+  const phone = trimToNull(normalizedPayload.phone);
+  const roleCode = trimToNull(normalizedPayload.role_code);
+
+  if (!email) {
+    details.push({
+      field: 'email',
+      message: 'email is required',
+    });
+  } else if (!EMAIL_ADDRESS_REGEX.test(email)) {
+    details.push({
+      field: 'email',
+      message: 'email is invalid',
+    });
+  }
+
+  if (!password) {
+    details.push({
+      field: 'password',
+      message: 'password is required',
+    });
+  } else if (password.length < MIN_PASSWORD_LENGTH) {
+    details.push({
+      field: 'password',
+      message: `password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    });
+  }
+
+  if (!fullName) {
+    details.push({
+      field: 'full_name',
+      message: 'full_name is required',
+    });
+  } else if (fullName.length > 150) {
+    details.push({
+      field: 'full_name',
+      message: 'full_name must be at most 150 characters',
+    });
+  }
+
+  if (phone && phone.length > 20) {
+    details.push({
+      field: 'phone',
+      message: 'phone must be at most 20 characters',
+    });
+  }
+
+  if (!roleCode) {
+    details.push({
+      field: 'role_code',
+      message: 'role_code is required',
+    });
+  } else if (!/^[a-z_]+$/.test(roleCode)) {
+    details.push({
+      field: 'role_code',
+      message: 'role_code must be a valid lowercase snake_case role code',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    email,
+    fullName,
+    password,
+    phone,
+    roleCode,
+  };
+};
+
+const normalizeUpdateUserPayload = (payload = {}) => {
+  const normalizedPayload =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload
+      : {};
+  const details = [];
+  const providedKeys = Object.keys(normalizedPayload);
+  const disallowedKeys = providedKeys.filter(
+    (key) => !ALLOWED_UPDATE_FIELDS.has(key),
+  );
+  const hasFullName = Object.prototype.hasOwnProperty.call(
+    normalizedPayload,
+    'full_name',
+  );
+  const hasPhone = Object.prototype.hasOwnProperty.call(
+    normalizedPayload,
+    'phone',
+  );
+  const hasAvatarUrl = Object.prototype.hasOwnProperty.call(
+    normalizedPayload,
+    'avatar_url',
+  );
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        explicitlyForbiddenFields: FORBIDDEN_UPDATE_FIELDS,
+        scopeLabel: 'PATCH /admin/users/{user_id}',
+      }),
+    );
+  }
+
+  if (!hasFullName && !hasPhone && !hasAvatarUrl) {
+    details.push({
+      field: 'body',
+      message: 'At least one of full_name, phone, or avatar_url is required',
+    });
+  }
+
+  let fullName;
+
+  if (hasFullName) {
+    fullName = String(normalizedPayload.full_name || '').trim();
+
+    if (!fullName) {
+      details.push({
+        field: 'full_name',
+        message: 'full_name must not be empty',
+      });
+    } else if (fullName.length > 150) {
+      details.push({
+        field: 'full_name',
+        message: 'full_name must be at most 150 characters',
+      });
+    }
+  }
+
+  let phone;
+
+  if (hasPhone) {
+    phone = trimToNull(normalizedPayload.phone);
+
+    if (phone && phone.length > 20) {
+      details.push({
+        field: 'phone',
+        message: 'phone must be at most 20 characters',
+      });
+    }
+  }
+
+  let avatarUrl;
+
+  if (hasAvatarUrl) {
+    avatarUrl =
+      normalizedPayload.avatar_url == null
+        ? null
+        : String(normalizedPayload.avatar_url).trim();
+
+    if (avatarUrl && !parseHttpUrl(avatarUrl)) {
+      details.push({
+        field: 'avatar_url',
+        message: 'avatar_url must be a valid http or https URL',
+      });
+    } else if (avatarUrl && !isAllowedAvatarUrl(avatarUrl)) {
+      details.push({
+        field: 'avatar_url',
+        message: 'avatar_url must be a valid Cloudinary delivery URL',
+      });
+    }
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    avatarUrl,
+    changedFields: [
+      ...(hasFullName ? ['full_name'] : []),
+      ...(hasPhone ? ['phone'] : []),
+      ...(hasAvatarUrl ? ['avatar_url'] : []),
+    ],
+    fullName,
+    hasAvatarUrl,
+    hasFullName,
+    hasPhone,
+    phone,
+  };
+};
+
+const buildVerificationLinks = (token) => {
+  const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
+  const normalizedBackendUrl = backendUrl.replace(/\/$/, '');
+
+  return {
+    apiVerifyUrl: `${normalizedBackendUrl}${apiPrefix}/auth/verify-email`,
+    verificationUrl: `${normalizedFrontendUrl}/verify-email?token=${encodeURIComponent(token)}`,
+  };
+};
+
+const loadRoleByCode = async (queryExecutor, roleCode) => {
+  const result = await queryExecutor(
     `
       SELECT
         id,
@@ -175,8 +524,28 @@ const loadRoleByCode = async (queryImpl, roleCode) => {
   return result.rows[0] || null;
 };
 
-const loadUserById = async (queryImpl, userId) => {
-  const result = await queryImpl(
+const loadUserByEmail = async (queryExecutor, email) => {
+  const result = await queryExecutor(
+    `
+      SELECT
+        u.id,
+        u.email
+      FROM users u
+      WHERE u.email = $1
+      LIMIT 1
+    `,
+    [email],
+  );
+
+  return result.rows[0] || null;
+};
+
+const loadUserById = async (
+  queryExecutor,
+  userId,
+  { forUpdate = false } = {},
+) => {
+  const result = await queryExecutor(
     `
       SELECT
         u.id,
@@ -187,6 +556,7 @@ const loadUserById = async (queryImpl, userId) => {
         u.status,
         u.email_verified_at,
         u.last_login_at,
+        u.is_system_protected,
         u.created_at,
         u.updated_at,
         u.deleted_at,
@@ -198,6 +568,7 @@ const loadUserById = async (queryImpl, userId) => {
       JOIN roles r ON r.id = u.role_id
       WHERE u.id = $1
       LIMIT 1
+      ${forUpdate ? 'FOR UPDATE' : ''}
     `,
     [userId],
   );
@@ -205,8 +576,178 @@ const loadUserById = async (queryImpl, userId) => {
   return result.rows[0] || null;
 };
 
+const loadActorById = async (queryExecutor, actorUserId) => {
+  const actor = await loadUserById(queryExecutor, actorUserId);
+
+  if (!actor) {
+    throw createNotFoundError('Authenticated admin user not found');
+  }
+
+  return actor;
+};
+
+const insertUserLog = async (
+  client,
+  {
+    action,
+    createdAt,
+    entityId,
+    entityName = 'users',
+    ipAddress,
+    metadata,
+    targetUserId,
+    userAgent,
+  },
+) =>
+  client.query(
+    `
+      INSERT INTO user_logs (
+        user_id,
+        action,
+        entity_name,
+        entity_id,
+        ip_address,
+        user_agent,
+        metadata,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+    `,
+    [
+      targetUserId || null,
+      action,
+      entityName,
+      entityId || null,
+      ipAddress || null,
+      trimToNull(userAgent),
+      metadata ? JSON.stringify(metadata) : null,
+      createdAt,
+    ],
+  );
+
+const queueEmailLog = async (
+  client,
+  {
+    createdAt,
+    subject,
+    templateCode,
+    toEmail,
+    userId,
+  },
+) =>
+  client.query(
+    `
+      INSERT INTO email_logs (
+        user_id,
+        booking_id,
+        to_email,
+        subject,
+        template_code,
+        status,
+        provider,
+        provider_message_id,
+        error_message,
+        sent_at,
+        created_at
+      )
+      VALUES ($1, NULL, $2, $3, $4, $5, $6, NULL, NULL, NULL, $7)
+      RETURNING id
+    `,
+    [
+      userId,
+      toEmail,
+      subject,
+      templateCode,
+      EMAIL_STATUS.QUEUED,
+      DOMAIN_CONSTRAINTS.emailProvider,
+      createdAt,
+    ],
+  );
+
+const markEmailLogSent = async (
+  client,
+  {
+    emailLogId,
+    messageId,
+    sentAt,
+  },
+) =>
+  client.query(
+    `
+      UPDATE email_logs
+      SET
+        status = $2,
+        provider_message_id = $3,
+        error_message = NULL,
+        sent_at = $4
+      WHERE id = $1
+    `,
+    [
+      emailLogId,
+      EMAIL_STATUS.SENT,
+      messageId || null,
+      sentAt,
+    ],
+  );
+
+const ensureActorCanCreateRole = (actor, targetRole) => {
+  if (targetRole.code === CUSTOMER_ROLE_CODE) {
+    throw createForbiddenError(
+      'Customer accounts must be created through the public auth registration flow',
+    );
+  }
+
+  if (targetRole.code === SYSTEM_ADMIN_ROLE_CODE) {
+    throw createForbiddenError(
+      'system_admin accounts cannot be created through this API',
+    );
+  }
+
+  if (actor.role_code === 'admin') {
+    if (targetRole.code === 'admin') {
+      throw createForbiddenError('Admin cannot create another admin user');
+    }
+
+    if (targetRole.level >= actor.role_level) {
+      throw createForbiddenError(
+        'Admin can only create users with a lower role level',
+      );
+    }
+  }
+
+  if (actor.role_code === 'system_admin' && targetRole.level >= actor.role_level) {
+    throw createForbiddenError(
+      'Target role level must be lower than the system admin actor',
+    );
+  }
+};
+
+const ensureActorCanUpdateTarget = (actor, targetUser) => {
+  if (targetUser.deleted_at != null || targetUser.status === USER_STATUS.DELETED) {
+    throw createForbiddenError('Deleted users cannot be updated');
+  }
+
+  if (actor.role_code === 'admin') {
+    if (targetUser.role_code === SYSTEM_ADMIN_ROLE_CODE) {
+      throw createForbiddenError('Admin cannot update a system admin user');
+    }
+
+    if (targetUser.role_level >= actor.role_level) {
+      throw createForbiddenError(
+        'Admin can only update users with a lower role level',
+      );
+    }
+  }
+};
+
 const createAdminUserService = ({
+  bcryptHashImpl = bcrypt.hash,
+  createEmailVerificationTokenImpl = createEmailVerificationToken,
+  hashEmailVerificationTokenImpl = hashEmailVerificationToken,
+  now = () => new Date(),
   queryImpl = query,
+  sendEmailImpl = sendEmail,
+  withTransactionImpl = withTransaction,
 } = {}) => {
   const getUsers = async ({ query: rawQuery }) => {
     const filters = normalizeListUsersQuery(rawQuery);
@@ -372,17 +913,256 @@ const createAdminUserService = ({
     };
   };
 
+  const createUser = async ({
+    actorUserId,
+    ipAddress,
+    payload,
+    userAgent,
+  }) => {
+    const input = normalizeCreateUserPayload(payload);
+
+    try {
+      return await withTransactionImpl(async (client) => {
+        const actor = await loadActorById(client.query.bind(client), actorUserId);
+        const existingUser = await loadUserByEmail(
+          client.query.bind(client),
+          input.email,
+        );
+
+        if (existingUser) {
+          throw createDuplicateEmailError();
+        }
+
+        const targetRole = await loadRoleByCode(
+          client.query.bind(client),
+          input.roleCode,
+        );
+
+        if (!targetRole) {
+          throw new AppError('Role not found', {
+            code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+            statusCode: 404,
+          });
+        }
+
+        ensureActorCanCreateRole(actor, targetRole);
+
+        const createdAt = now();
+        const passwordHashValue = await bcryptHashImpl(
+          input.password,
+          passwordHash.bcryptSaltRounds,
+        );
+        const userResult = await client.query(
+          `
+            INSERT INTO users (
+              role_id,
+              email,
+              phone,
+              password_hash,
+              full_name,
+              avatar_url,
+              status,
+              email_verified_at,
+              last_login_at,
+              is_system_protected,
+              created_at,
+              updated_at,
+              deleted_at
+            )
+            VALUES (
+              $1, $2, $3, $4, $5, NULL, $6, NULL, NULL, FALSE, $7, $7, NULL
+            )
+            RETURNING id
+          `,
+          [
+            targetRole.id,
+            input.email,
+            input.phone,
+            passwordHashValue,
+            input.fullName,
+            USER_STATUS.PENDING_VERIFICATION,
+            createdAt,
+          ],
+        );
+        const createdUserId = userResult.rows[0].id;
+        const createdUser = await loadUserById(
+          client.query.bind(client),
+          createdUserId,
+        );
+        const token = createEmailVerificationTokenImpl({
+          email: createdUser.email,
+          userId: createdUser.id,
+        });
+        const tokenHash = hashEmailVerificationTokenImpl(token);
+        const { apiVerifyUrl, verificationUrl } = buildVerificationLinks(token);
+        const emailContent = buildVerificationEmail({
+          apiVerifyUrl,
+          expiresInMinutes: emailVerification.expiresInMinutes,
+          fullName: createdUser.full_name,
+          token,
+          verificationUrl,
+        });
+        const emailLogResult = await queueEmailLog(client, {
+          createdAt,
+          subject: emailContent.subject,
+          templateCode: ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE,
+          toEmail: createdUser.email,
+          userId: createdUser.id,
+        });
+        const sendResult = await sendEmailImpl({
+          html: emailContent.html,
+          subject: emailContent.subject,
+          text: emailContent.text,
+          to: {
+            email: createdUser.email,
+            name: createdUser.full_name,
+          },
+        });
+        const sentAt = now();
+
+        await markEmailLogSent(client, {
+          emailLogId: emailLogResult.rows[0].id,
+          messageId: sendResult.messageId,
+          sentAt,
+        });
+
+        await insertUserLog(client, {
+          action: ADMIN_USER_CREATE_ACTION,
+          createdAt: sentAt,
+          entityId: createdUser.id,
+          ipAddress,
+          metadata: {
+            actor_user_id: actorUserId,
+            email: createdUser.email,
+            role_code: createdUser.role_code,
+            status: createdUser.status,
+            target_user_id: createdUser.id,
+            verification_token_hash: tokenHash,
+          },
+          targetUserId: createdUser.id,
+          userAgent,
+        });
+
+        return mapAdminUser(createdUser);
+      });
+    } catch (error) {
+      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
+        throw createInternalError('Email verification service is not configured');
+      }
+
+      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
+        throw createInternalError('Failed to send verification email');
+      }
+
+      if (isUniqueViolation(error)) {
+        throw createDuplicateEmailError();
+      }
+
+      throw error;
+    }
+  };
+
+  const updateUser = async ({
+    actorUserId,
+    ipAddress,
+    payload,
+    userAgent,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const normalizedUserId = normalizeUserId(userId);
+      const actor = await loadActorById(client.query.bind(client), actorUserId);
+      const targetUser = await loadUserById(
+        client.query.bind(client),
+        normalizedUserId,
+        {
+          forUpdate: true,
+        },
+      );
+
+      if (!targetUser) {
+        throw createNotFoundError();
+      }
+
+      ensureActorCanUpdateTarget(actor, targetUser);
+      const input = normalizeUpdateUserPayload(payload);
+      const setClauses = [];
+      const params = [normalizedUserId];
+      let parameterIndex = 2;
+
+      if (input.hasFullName) {
+        setClauses.push(`full_name = $${parameterIndex}`);
+        params.push(input.fullName);
+        parameterIndex += 1;
+      }
+
+      if (input.hasPhone) {
+        setClauses.push(`phone = $${parameterIndex}`);
+        params.push(input.phone);
+        parameterIndex += 1;
+      }
+
+      if (input.hasAvatarUrl) {
+        setClauses.push(`avatar_url = $${parameterIndex}`);
+        params.push(input.avatarUrl);
+        parameterIndex += 1;
+      }
+
+      const updatedAt = now();
+      setClauses.push(`updated_at = $${parameterIndex}`);
+      params.push(updatedAt);
+
+      await client.query(
+        `
+          UPDATE users
+          SET ${setClauses.join(', ')}
+          WHERE id = $1
+        `,
+        params,
+      );
+
+      await insertUserLog(client, {
+        action: ADMIN_USER_UPDATE_PROFILE_ACTION,
+        createdAt: updatedAt,
+        entityId: normalizedUserId,
+        ipAddress,
+        metadata: compactObject({
+          actor_user_id: actorUserId,
+          changed_fields: input.changedFields,
+          target_user_id: normalizedUserId,
+        }),
+        targetUserId: normalizedUserId,
+        userAgent,
+      });
+
+      const updatedUser = await loadUserById(
+        client.query.bind(client),
+        normalizedUserId,
+      );
+
+      return mapAdminUser(updatedUser);
+    });
+
   return {
+    createUser,
     getUserById,
     getUserLogs,
     getUsers,
+    updateUser,
   };
 };
 
 module.exports = createAdminUserService();
 module.exports.ADMIN_ALLOWED_ROLE_CODES = ADMIN_ALLOWED_ROLE_CODES;
+module.exports.ADMIN_USER_CREATE_ACTION = ADMIN_USER_CREATE_ACTION;
+module.exports.ADMIN_USER_UPDATE_PROFILE_ACTION =
+  ADMIN_USER_UPDATE_PROFILE_ACTION;
+module.exports.ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE =
+  ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE;
 module.exports.createAdminUserService = createAdminUserService;
 module.exports.mapAdminUser = mapAdminUser;
+module.exports.normalizeCreateUserPayload = normalizeCreateUserPayload;
 module.exports.normalizeListUsersQuery = normalizeListUsersQuery;
 module.exports.normalizePagination = normalizePagination;
+module.exports.normalizeUpdateUserPayload = normalizeUpdateUserPayload;
 module.exports.normalizeUserId = normalizeUserId;

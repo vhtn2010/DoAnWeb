@@ -14,9 +14,11 @@ const { createAccessToken } = require('../utils/sessionToken');
 const AppError = require('../utils/AppError');
 
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
+const originalCreateUser = adminUserService.createUser;
 const originalGetUsers = adminUserService.getUsers;
 const originalGetUserById = adminUserService.getUserById;
 const originalGetUserLogs = adminUserService.getUserLogs;
+const originalUpdateUser = adminUserService.updateUser;
 
 const createAuthContext = ({
   roleCode = 'admin',
@@ -56,16 +58,20 @@ const request = (server, path, options = {}) =>
 
 test.beforeEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  adminUserService.createUser = originalCreateUser;
   adminUserService.getUsers = originalGetUsers;
   adminUserService.getUserById = originalGetUserById;
   adminUserService.getUserLogs = originalGetUserLogs;
+  adminUserService.updateUser = originalUpdateUser;
 });
 
 test.afterEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  adminUserService.createUser = originalCreateUser;
   adminUserService.getUsers = originalGetUsers;
   adminUserService.getUserById = originalGetUserById;
   adminUserService.getUserLogs = originalGetUserLogs;
+  adminUserService.updateUser = originalUpdateUser;
 });
 
 test('GET /api/admin/users requires access token', async () => {
@@ -372,6 +378,215 @@ test('GET /api/admin/users/:userId/logs returns scoped user logs with meta', asy
     });
     assert.equal(capturedContext.userId, '11111111-1111-4111-8111-111111111111');
     assert.equal(capturedContext.query.page, '2');
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/admin/users returns created user for admin', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'admin-user-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () => createAuthContext();
+  adminUserService.createUser = async (context) => {
+    capturedContext = context;
+
+    return {
+      email: 'staff@example.com',
+      full_name: 'Staff User',
+      id: '11111111-1111-4111-8111-111111111111',
+      role: {
+        code: 'staff',
+        id: '22222222-2222-4222-8222-222222222222',
+        level: 10,
+        name: 'Staff',
+      },
+      status: 'pending_verification',
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/admin/users`, {
+      body: JSON.stringify({
+        email: 'staff@example.com',
+        full_name: 'Staff User',
+        password: 'Password123',
+        role_code: 'staff',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'admin-user-create-route-test',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'User created successfully');
+    assert.equal(response.body.data.email, 'staff@example.com');
+    assert.equal(Object.hasOwn(response.body.data, 'password_hash'), false);
+    assert.equal(capturedContext.actorUserId, 'admin-user-1');
+    assert.equal(capturedContext.userAgent, 'admin-user-create-route-test');
+    assert.equal(typeof capturedContext.payload, 'object');
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/admin/users surfaces duplicate email conflict', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'system_admin',
+    userId: 'sys-admin-1',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'system_admin',
+      userId: 'sys-admin-1',
+    });
+  adminUserService.createUser = async () => {
+    throw new AppError('Email already exists', {
+      code: API_ERROR_CODES.DUPLICATE_RESOURCE,
+      statusCode: 409,
+    });
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/admin/users`, {
+      body: JSON.stringify({
+        email: 'staff@example.com',
+        full_name: 'Staff User',
+        password: 'Password123',
+        role_code: 'staff',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.body.success, false);
+    assert.equal(
+      response.body.error.code,
+      API_ERROR_CODES.DUPLICATE_RESOURCE,
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/users/:userId returns updated user for system admin', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'system_admin',
+    userId: 'sys-admin-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'system_admin',
+      userId: 'sys-admin-1',
+    });
+  adminUserService.updateUser = async (context) => {
+    capturedContext = context;
+
+    return {
+      avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+      email: 'staff@example.com',
+      full_name: 'Updated Staff User',
+      id: '11111111-1111-4111-8111-111111111111',
+      phone: '0909123456',
+      role: {
+        code: 'staff',
+        id: '22222222-2222-4222-8222-222222222222',
+        level: 10,
+        name: 'Staff',
+      },
+      status: 'active',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/users/11111111-1111-4111-8111-111111111111`,
+      {
+        body: JSON.stringify({
+          avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+          full_name: 'Updated Staff User',
+          phone: '0909123456',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'admin-user-update-route-test',
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'User updated successfully');
+    assert.equal(response.body.data.full_name, 'Updated Staff User');
+    assert.equal(capturedContext.actorUserId, 'sys-admin-1');
+    assert.equal(capturedContext.userId, '11111111-1111-4111-8111-111111111111');
+    assert.equal(capturedContext.userAgent, 'admin-user-update-route-test');
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/users/:userId surfaces validation errors', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'admin-user-1',
+  });
+
+  authService.resolveAuthenticatedUser = async () => createAuthContext();
+  adminUserService.updateUser = async () => {
+    throw new AppError('Validation failed', {
+      code: API_ERROR_CODES.VALIDATION_ERROR,
+      details: [
+        {
+          field: 'email',
+          message: 'email is not allowed in PATCH /admin/users/{user_id}',
+        },
+      ],
+      statusCode: 400,
+    });
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/users/11111111-1111-4111-8111-111111111111`,
+      {
+        body: JSON.stringify({
+          email: 'new@example.com',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
+    assert.equal(response.body.error.details[0].field, 'email');
   } finally {
     server.close();
   }
