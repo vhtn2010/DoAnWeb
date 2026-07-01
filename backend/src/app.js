@@ -18,6 +18,7 @@ const bookingRoutes = require('./routes/bookingRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const promotionRoutes = require('./routes/promotionRoutes');
 const voucherRoutes = require('./routes/voucherRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const {
@@ -58,6 +59,7 @@ app.use(apiPrefix, profileRoutes);
 app.use(apiPrefix, lookupRoutes);
 app.use(apiPrefix, bookingRoutes);
 app.use(apiPrefix, cartRoutes);
+app.use(apiPrefix, promotionRoutes);
 app.use(apiPrefix, voucherRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
