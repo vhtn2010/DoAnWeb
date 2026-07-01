@@ -3,13 +3,19 @@ const test = require('node:test');
 
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const {
+  ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+  ADMIN_USER_CHANGE_STATUS_ACTION,
   ADMIN_USER_CREATE_ACTION,
+  ADMIN_USER_RESEND_VERIFICATION_ACTION,
+  ADMIN_USER_SOFT_DELETE_ACTION,
   ADMIN_USER_UPDATE_PROFILE_ACTION,
   ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE,
   createAdminUserService,
   normalizeListUsersQuery,
   normalizeCreateUserPayload,
+  normalizeDeleteUserPayload,
   normalizePagination,
+  normalizeStatusChangePayload,
   normalizeUpdateUserPayload,
   normalizeUserId,
 } = require('../services/adminUserService');
@@ -128,6 +134,45 @@ test('normalizeUpdateUserPayload validates allowed fields and cloudinary avatar_
     (error) =>
       error.code === API_ERROR_CODES.VALIDATION_ERROR &&
       error.details?.some((detail) => detail.field === 'email'),
+  );
+});
+
+test('normalizeStatusChangePayload validates status enum and required reason', () => {
+  assert.deepEqual(
+    normalizeStatusChangePayload({
+      reason: 'Repeated abuse',
+      status: 'locked',
+    }),
+    {
+      reason: 'Repeated abuse',
+      status: 'locked',
+    },
+  );
+  assert.throws(
+    () =>
+      normalizeStatusChangePayload({
+        status: 'pending_verification',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'status'),
+  );
+});
+
+test('normalizeDeleteUserPayload requires reason', () => {
+  assert.deepEqual(
+    normalizeDeleteUserPayload({
+      reason: ' Left the company ',
+    }),
+    {
+      reason: 'Left the company',
+    },
+  );
+  assert.throws(
+    () => normalizeDeleteUserPayload({}),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'reason'),
   );
 });
 
@@ -769,6 +814,440 @@ test('updateUser blocks admin from updating system_admin target', async () => {
         payload: {
           full_name: 'Nope',
         },
+        userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('changeUserStatus updates deleted_at for deleted status and writes audit log', async () => {
+  const fixedNow = new Date('2026-07-01T13:00:00.000Z');
+  const queries = [];
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({ params, sql });
+
+      if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+        if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                role_code: 'admin',
+                role_id: 'role-admin-id',
+                role_level: 90,
+                deleted_at: null,
+                status: 'active',
+              },
+            ],
+          };
+        }
+
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              avatar_url: null,
+              created_at: fixedNow,
+              deleted_at: null,
+              email: 'staff@example.com',
+              email_verified_at: new Date('2026-06-30T00:00:00.000Z'),
+              full_name: 'Staff User',
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              is_system_protected: false,
+              last_login_at: null,
+              phone: '0909000000',
+              role_code: 'staff',
+              role_id: 'role-staff-id',
+              role_level: 10,
+              role_name: 'Staff',
+              status: params[0] === 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+                ? 'deleted'
+                : 'active',
+              updated_at: fixedNow,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('UPDATE users')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createAdminUserService({
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const result = await service.changeUserStatus({
+    actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    ipAddress: '127.0.0.1',
+    payload: {
+      reason: 'Policy violation',
+      status: 'deleted',
+    },
+    userAgent: 'admin-status-service-test',
+    userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  });
+
+  const updateQuery = queries.find((entry) => entry.sql.includes('UPDATE users'));
+  const userLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
+  const userLogMetadata = JSON.parse(userLogQuery.params[6]);
+
+  assert.equal(updateQuery.params[1], 'deleted');
+  assert.equal(updateQuery.params[2], fixedNow);
+  assert.equal(userLogQuery.params[1], ADMIN_USER_CHANGE_STATUS_ACTION);
+  assert.deepEqual(userLogMetadata, {
+    actor_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    from_status: 'deleted',
+    reason: 'Policy violation',
+    sessions_revoked: true,
+    target_user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    to_status: 'deleted',
+  });
+  assert.equal(result.status, 'deleted');
+});
+
+test('changeUserStatus rejects activating user without verified email', async () => {
+  const service = createAdminUserService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql, params = []) => {
+          if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+            if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+              return {
+                rowCount: 1,
+                rows: [
+                  {
+                    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    role_code: 'system_admin',
+                    role_id: 'role-system-admin-id',
+                    role_level: 100,
+                    deleted_at: null,
+                    status: 'active',
+                  },
+                ],
+              };
+            }
+
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                  role_code: 'staff',
+                  role_id: 'role-staff-id',
+                  role_level: 10,
+                  deleted_at: null,
+                  email_verified_at: null,
+                  is_system_protected: false,
+                  status: 'pending_verification',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.changeUserStatus({
+        actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        payload: {
+          status: 'active',
+        },
+        userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('deleteUser returns idempotent success for already deleted user', async () => {
+  const service = createAdminUserService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql, params = []) => {
+          if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+            if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+              return {
+                rowCount: 1,
+                rows: [
+                  {
+                    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    role_code: 'system_admin',
+                    role_id: 'role-system-admin-id',
+                    role_level: 100,
+                    deleted_at: null,
+                    status: 'active',
+                  },
+                ],
+              };
+            }
+
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  avatar_url: null,
+                  created_at: new Date('2026-07-01T13:00:00.000Z'),
+                  deleted_at: new Date('2026-07-01T13:00:00.000Z'),
+                  email: 'staff@example.com',
+                  email_verified_at: null,
+                  full_name: 'Deleted Staff',
+                  id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                  is_system_protected: false,
+                  last_login_at: null,
+                  phone: null,
+                  role_code: 'staff',
+                  role_id: 'role-staff-id',
+                  role_level: 10,
+                  role_name: 'Staff',
+                  status: 'deleted',
+                  updated_at: new Date('2026-07-01T13:00:00.000Z'),
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  const result = await service.deleteUser({
+    actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    payload: {
+      reason: 'No longer needed',
+    },
+    userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  });
+
+  assert.equal(result.request_status, 'already_deleted');
+  assert.equal(result.deleted, true);
+});
+
+test('deleteUser soft deletes active user and writes audit log', async () => {
+  const fixedNow = new Date('2026-07-01T14:00:00.000Z');
+  const queries = [];
+  let targetReadCount = 0;
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({ params, sql });
+
+      if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+        if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                role_code: 'system_admin',
+                role_id: 'role-system-admin-id',
+                role_level: 100,
+                deleted_at: null,
+                status: 'active',
+              },
+            ],
+          };
+        }
+
+        targetReadCount += 1;
+
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              avatar_url: null,
+              created_at: fixedNow,
+              deleted_at: targetReadCount > 1 ? fixedNow : null,
+              email: 'staff@example.com',
+              email_verified_at: null,
+              full_name: 'Deleted Staff',
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              is_system_protected: false,
+              last_login_at: null,
+              phone: null,
+              role_code: 'staff',
+              role_id: 'role-staff-id',
+              role_level: 10,
+              role_name: 'Staff',
+              status: targetReadCount > 1 ? 'deleted' : 'active',
+              updated_at: fixedNow,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('UPDATE users')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createAdminUserService({
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const result = await service.deleteUser({
+    actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    ipAddress: '127.0.0.1',
+    payload: {
+      reason: 'Requested by management',
+    },
+    userAgent: 'admin-delete-service-test',
+    userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  });
+
+  const updateQuery = queries.find((entry) => entry.sql.includes('UPDATE users'));
+  const userLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
+  const userLogMetadata = JSON.parse(userLogQuery.params[6]);
+
+  assert.equal(updateQuery.params[1], 'deleted');
+  assert.equal(userLogQuery.params[1], ADMIN_USER_SOFT_DELETE_ACTION);
+  assert.deepEqual(userLogMetadata, {
+    actor_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    from_status: 'active',
+    reason: 'Requested by management',
+    sessions_revoked: true,
+    target_user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    to_status: 'deleted',
+  });
+  assert.equal(result.request_status, 'deleted');
+});
+
+test('resendVerificationEmail queues email and writes audit log for pending user', async () => {
+  const fixedNow = new Date('2026-07-01T15:00:00.000Z');
+  const queries = [];
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({ params, sql });
+
+      if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              avatar_url: null,
+              created_at: fixedNow,
+              deleted_at: null,
+              email: 'staff@example.com',
+              email_verified_at: null,
+              full_name: 'Pending Staff',
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              is_system_protected: false,
+              last_login_at: null,
+              phone: null,
+              role_code: 'staff',
+              role_id: 'role-staff-id',
+              role_level: 10,
+              role_name: 'Staff',
+              status: 'pending_verification',
+              updated_at: fixedNow,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('INSERT INTO email_logs')) {
+        return {
+          rowCount: 1,
+          rows: [{ id: 'email-log-2' }],
+        };
+      }
+
+      if (sql.includes('UPDATE email_logs')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createAdminUserService({
+    createEmailVerificationTokenImpl: () => 'new-verification-token',
+    hashEmailVerificationTokenImpl: () => 'new-verification-token-hash',
+    now: () => fixedNow,
+    sendEmailImpl: async () => ({
+      messageId: 'sendgrid-message-2',
+    }),
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const result = await service.resendVerificationEmail({
+    actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    ipAddress: '127.0.0.1',
+    userAgent: 'admin-resend-service-test',
+    userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  });
+
+  const emailLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO email_logs'));
+  const userLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
+  const userLogMetadata = JSON.parse(userLogQuery.params[6]);
+
+  assert.equal(emailLogQuery.params[3], ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE);
+  assert.equal(userLogQuery.params[1], ADMIN_USER_RESEND_VERIFICATION_ACTION);
+  assert.deepEqual(userLogMetadata, {
+    actor_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    from_status: 'pending_verification',
+    sessions_revoked: false,
+    target_user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    to_status: 'pending_verification',
+    verification_token_hash: 'new-verification-token-hash',
+  });
+  assert.equal(result.request_status, 'resent');
+});
+
+test('resendVerificationEmail rejects non-pending target status', async () => {
+  const service = createAdminUserService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async () => ({
+          rowCount: 1,
+          rows: [
+            {
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              email: 'staff@example.com',
+              email_verified_at: new Date('2026-06-30T00:00:00.000Z'),
+              full_name: 'Active Staff',
+              role_code: 'staff',
+              role_id: 'role-staff-id',
+              role_level: 10,
+              role_name: 'Staff',
+              status: 'active',
+            },
+          ],
+        }),
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.resendVerificationEmail({
+        actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       }),
     (error) =>

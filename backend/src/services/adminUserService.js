@@ -23,14 +23,20 @@ const { sendEmail } = require('./sendgridService');
 
 const ADMIN_ALLOWED_ROLE_CODES = new Set(['admin', 'system_admin']);
 const ADMIN_USER_CREATE_ACTION = 'admin.user.create';
+const ADMIN_USER_CHANGE_STATUS_ACTION = 'admin.user.change_status';
+const ADMIN_USER_SOFT_DELETE_ACTION = 'admin.user.soft_delete';
+const ADMIN_USER_RESEND_VERIFICATION_ACTION =
+  'admin.user.resend_verification';
 const ADMIN_USER_UPDATE_PROFILE_ACTION = 'admin.user.update_profile';
 const ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE = 'ADMIN_USER_VERIFY_EMAIL';
+const ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = 'ADMIN_RESEND_VERIFY_EMAIL';
 const CUSTOMER_ROLE_CODE = 'customer';
 const SYSTEM_ADMIN_ROLE_CODE = 'system_admin';
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const STATUS_CHANGEABLE_VALUES = ['locked', 'suspended', 'disabled', 'active', 'deleted'];
 const ALLOWED_CREATE_FIELDS = new Set([
   'email',
   'password',
@@ -64,6 +70,33 @@ const FORBIDDEN_UPDATE_FIELDS = [
   'role_id',
   'status',
   'updated_at',
+];
+const FORBIDDEN_STATUS_FIELDS = [
+  'deleted_at',
+  'email',
+  'email_verified_at',
+  'full_name',
+  'is_system_protected',
+  'last_login_at',
+  'password',
+  'password_hash',
+  'phone',
+  'role_code',
+  'role_id',
+];
+const FORBIDDEN_DELETE_FIELDS = [
+  'status',
+  'deleted_at',
+  'email',
+  'email_verified_at',
+  'full_name',
+  'is_system_protected',
+  'last_login_at',
+  'password',
+  'password_hash',
+  'phone',
+  'role_code',
+  'role_id',
 ];
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -496,6 +529,109 @@ const normalizeUpdateUserPayload = (payload = {}) => {
   };
 };
 
+const normalizeStatusChangePayload = (payload = {}) => {
+  const normalizedPayload =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload
+      : {};
+  const details = [];
+  const providedKeys = Object.keys(normalizedPayload);
+  const allowedFields = new Set(['status', 'reason']);
+  const disallowedKeys = providedKeys.filter((key) => !allowedFields.has(key));
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        explicitlyForbiddenFields: FORBIDDEN_STATUS_FIELDS,
+        scopeLabel: 'PATCH /admin/users/{user_id}/status',
+      }),
+    );
+  }
+
+  const status = trimToNull(normalizedPayload.status);
+  const reason = trimToNull(normalizedPayload.reason);
+
+  if (!status) {
+    details.push({
+      field: 'status',
+      message: 'status is required',
+    });
+  } else if (!STATUS_CHANGEABLE_VALUES.includes(status)) {
+    details.push({
+      field: 'status',
+      message: `status must be one of: ${STATUS_CHANGEABLE_VALUES.join(', ')}`,
+    });
+  }
+
+  if (
+    ['locked', 'suspended', 'disabled', 'deleted'].includes(status) &&
+    !reason
+  ) {
+    details.push({
+      field: 'reason',
+      message: 'reason is required for the requested status transition',
+    });
+  }
+
+  if (reason && reason.length > 500) {
+    details.push({
+      field: 'reason',
+      message: 'reason must be at most 500 characters',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    reason,
+    status,
+  };
+};
+
+const normalizeDeleteUserPayload = (payload = {}) => {
+  const normalizedPayload =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload
+      : {};
+  const details = [];
+  const providedKeys = Object.keys(normalizedPayload);
+  const allowedFields = new Set(['reason']);
+  const disallowedKeys = providedKeys.filter((key) => !allowedFields.has(key));
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        explicitlyForbiddenFields: FORBIDDEN_DELETE_FIELDS,
+        scopeLabel: 'DELETE /admin/users/{user_id}',
+      }),
+    );
+  }
+
+  const reason = trimToNull(normalizedPayload.reason);
+
+  if (!reason) {
+    details.push({
+      field: 'reason',
+      message: 'reason is required',
+    });
+  } else if (reason.length > 500) {
+    details.push({
+      field: 'reason',
+      message: 'reason must be at most 500 characters',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    reason,
+  };
+};
+
 const buildVerificationLinks = (token) => {
   const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
   const normalizedBackendUrl = backendUrl.replace(/\/$/, '');
@@ -739,6 +875,47 @@ const ensureActorCanUpdateTarget = (actor, targetUser) => {
     }
   }
 };
+
+const ensureActorCanManageTargetLifecycle = (actor, targetUser) => {
+  if (actor.id === targetUser.id) {
+    throw createForbiddenError(
+      'Admin users cannot manage their own lifecycle through this API',
+    );
+  }
+
+  if (actor.role_code === 'admin') {
+    if (targetUser.role_code === SYSTEM_ADMIN_ROLE_CODE) {
+      throw createForbiddenError(
+        'Admin cannot manage the lifecycle of a system admin user',
+      );
+    }
+
+    if (targetUser.role_level >= actor.role_level) {
+      throw createForbiddenError(
+        'Admin can only manage lifecycle for users with a lower role level',
+      );
+    }
+  }
+};
+
+const buildLifecycleAuditMetadata = ({
+  actorUserId,
+  fromStatus,
+  reason,
+  sessionsRevoked,
+  targetUserId,
+  toStatus,
+  verificationTokenHash,
+}) =>
+  compactObject({
+    actor_user_id: actorUserId,
+    from_status: fromStatus,
+    reason,
+    sessions_revoked: sessionsRevoked,
+    target_user_id: targetUserId,
+    to_status: toStatus,
+    verification_token_hash: verificationTokenHash,
+  });
 
 const createAdminUserService = ({
   bcryptHashImpl = bcrypt.hash,
@@ -1143,18 +1320,336 @@ const createAdminUserService = ({
       return mapAdminUser(updatedUser);
     });
 
+  const changeUserStatus = async ({
+    actorUserId,
+    ipAddress,
+    payload,
+    userAgent,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const normalizedUserId = normalizeUserId(userId);
+      const actor = await loadActorById(client.query.bind(client), actorUserId);
+      const targetUser = await loadUserById(
+        client.query.bind(client),
+        normalizedUserId,
+        {
+          forUpdate: true,
+        },
+      );
+
+      if (!targetUser) {
+        throw createNotFoundError();
+      }
+
+      ensureActorCanManageTargetLifecycle(actor, targetUser);
+      const input = normalizeStatusChangePayload(payload);
+
+      if (input.status === USER_STATUS.DELETED && targetUser.is_system_protected) {
+        throw createForbiddenError(
+          'System protected users cannot be deleted',
+        );
+      }
+
+      if (input.status === USER_STATUS.ACTIVE) {
+        if (targetUser.deleted_at != null) {
+          throw createForbiddenError('Deleted users cannot be reactivated');
+        }
+
+        if (targetUser.email_verified_at == null) {
+          throw createForbiddenError(
+            'User email must be verified before activating the account',
+          );
+        }
+
+        if (
+          ![
+            USER_STATUS.LOCKED,
+            USER_STATUS.SUSPENDED,
+            USER_STATUS.DISABLED,
+            USER_STATUS.ACTIVE,
+          ].includes(targetUser.status)
+        ) {
+          throw createForbiddenError(
+            `Account with status ${targetUser.status} cannot be activated through this endpoint`,
+          );
+        }
+      }
+
+      if (targetUser.status === USER_STATUS.DELETED && input.status !== USER_STATUS.DELETED) {
+        throw createForbiddenError(
+          'Deleted users cannot be transitioned through this endpoint',
+        );
+      }
+
+      const updatedAt = now();
+      const sessionsRevoked = input.status !== USER_STATUS.ACTIVE;
+      const deletedAtValue =
+        input.status === USER_STATUS.DELETED ? updatedAt : null;
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            status = $2,
+            deleted_at = $3,
+            updated_at = $4
+          WHERE id = $1
+        `,
+        [
+          normalizedUserId,
+          input.status,
+          deletedAtValue,
+          updatedAt,
+        ],
+      );
+
+      await insertUserLog(client, {
+        action: ADMIN_USER_CHANGE_STATUS_ACTION,
+        createdAt: updatedAt,
+        entityId: normalizedUserId,
+        ipAddress,
+        metadata: buildLifecycleAuditMetadata({
+          actorUserId,
+          fromStatus: targetUser.status,
+          reason: input.reason,
+          sessionsRevoked,
+          targetUserId: normalizedUserId,
+          toStatus: input.status,
+        }),
+        targetUserId: normalizedUserId,
+        userAgent,
+      });
+
+      const updatedUser = await loadUserById(
+        client.query.bind(client),
+        normalizedUserId,
+      );
+
+      return {
+        ...mapAdminUser(updatedUser),
+        sessions_revoked: sessionsRevoked,
+      };
+    });
+
+  const deleteUser = async ({
+    actorUserId,
+    ipAddress,
+    payload,
+    userAgent,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const normalizedUserId = normalizeUserId(userId);
+      const actor = await loadActorById(client.query.bind(client), actorUserId);
+      const targetUser = await loadUserById(
+        client.query.bind(client),
+        normalizedUserId,
+        {
+          forUpdate: true,
+        },
+      );
+
+      if (!targetUser) {
+        throw createNotFoundError();
+      }
+
+      ensureActorCanManageTargetLifecycle(actor, targetUser);
+      const input = normalizeDeleteUserPayload(payload);
+
+      if (targetUser.is_system_protected) {
+        throw createForbiddenError(
+          'System protected users cannot be deleted',
+        );
+      }
+
+      if (targetUser.status === USER_STATUS.DELETED && targetUser.deleted_at != null) {
+        return {
+          ...mapAdminUser(targetUser),
+          deleted: true,
+          request_status: 'already_deleted',
+          sessions_revoked: true,
+        };
+      }
+
+      const deletedAt = now();
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            status = $2,
+            deleted_at = $3,
+            updated_at = $3
+          WHERE id = $1
+        `,
+        [
+          normalizedUserId,
+          USER_STATUS.DELETED,
+          deletedAt,
+        ],
+      );
+
+      await insertUserLog(client, {
+        action: ADMIN_USER_SOFT_DELETE_ACTION,
+        createdAt: deletedAt,
+        entityId: normalizedUserId,
+        ipAddress,
+        metadata: buildLifecycleAuditMetadata({
+          actorUserId,
+          fromStatus: targetUser.status,
+          reason: input.reason,
+          sessionsRevoked: true,
+          targetUserId: normalizedUserId,
+          toStatus: USER_STATUS.DELETED,
+        }),
+        targetUserId: normalizedUserId,
+        userAgent,
+      });
+
+      const deletedUser = await loadUserById(
+        client.query.bind(client),
+        normalizedUserId,
+      );
+
+      return {
+        ...mapAdminUser(deletedUser),
+        deleted: true,
+        request_status: 'deleted',
+        sessions_revoked: true,
+      };
+    });
+
+  const resendVerificationEmail = async ({
+    actorUserId,
+    ipAddress,
+    userAgent,
+    userId,
+  }) => {
+    try {
+      return await withTransactionImpl(async (client) => {
+        const normalizedUserId = normalizeUserId(userId);
+        const targetUser = await loadUserById(
+          client.query.bind(client),
+          normalizedUserId,
+          {
+            forUpdate: true,
+          },
+        );
+
+        if (!targetUser) {
+          throw createNotFoundError();
+        }
+
+        if (targetUser.status !== USER_STATUS.PENDING_VERIFICATION) {
+          throw createForbiddenError(
+            'Verification email can only be resent for pending_verification users',
+          );
+        }
+
+        if (targetUser.email_verified_at != null) {
+          throw createForbiddenError(
+            'Email is already verified for this user',
+          );
+        }
+
+        const createdAt = now();
+        const token = createEmailVerificationTokenImpl({
+          email: targetUser.email,
+          userId: targetUser.id,
+        });
+        const tokenHash = hashEmailVerificationTokenImpl(token);
+        const { apiVerifyUrl, verificationUrl } = buildVerificationLinks(token);
+        const emailContent = buildVerificationEmail({
+          apiVerifyUrl,
+          expiresInMinutes: emailVerification.expiresInMinutes,
+          fullName: targetUser.full_name,
+          token,
+          verificationUrl,
+        });
+        const emailLogResult = await queueEmailLog(client, {
+          createdAt,
+          subject: emailContent.subject,
+          templateCode: ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+          toEmail: targetUser.email,
+          userId: targetUser.id,
+        });
+        const sendResult = await sendEmailImpl({
+          html: emailContent.html,
+          subject: emailContent.subject,
+          text: emailContent.text,
+          to: {
+            email: targetUser.email,
+            name: targetUser.full_name,
+          },
+        });
+        const sentAt = now();
+
+        await markEmailLogSent(client, {
+          emailLogId: emailLogResult.rows[0].id,
+          messageId: sendResult.messageId,
+          sentAt,
+        });
+
+        await insertUserLog(client, {
+          action: ADMIN_USER_RESEND_VERIFICATION_ACTION,
+          createdAt: sentAt,
+          entityId: normalizedUserId,
+          ipAddress,
+          metadata: buildLifecycleAuditMetadata({
+            actorUserId,
+            fromStatus: targetUser.status,
+            sessionsRevoked: false,
+            targetUserId: normalizedUserId,
+            toStatus: targetUser.status,
+            verificationTokenHash: tokenHash,
+          }),
+          targetUserId: normalizedUserId,
+          userAgent,
+        });
+
+        return {
+          email: targetUser.email,
+          request_status: 'resent',
+          status: targetUser.status,
+        };
+      });
+    } catch (error) {
+      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
+        throw createInternalError('Email verification service is not configured');
+      }
+
+      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
+        throw createInternalError('Failed to send verification email');
+      }
+
+      throw error;
+    }
+  };
+
   return {
+    changeUserStatus,
     createUser,
+    deleteUser,
     getUserById,
     getUserLogs,
     getUsers,
+    resendVerificationEmail,
     updateUser,
   };
 };
 
 module.exports = createAdminUserService();
 module.exports.ADMIN_ALLOWED_ROLE_CODES = ADMIN_ALLOWED_ROLE_CODES;
+module.exports.ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE =
+  ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE;
+module.exports.ADMIN_USER_CHANGE_STATUS_ACTION =
+  ADMIN_USER_CHANGE_STATUS_ACTION;
 module.exports.ADMIN_USER_CREATE_ACTION = ADMIN_USER_CREATE_ACTION;
+module.exports.ADMIN_USER_RESEND_VERIFICATION_ACTION =
+  ADMIN_USER_RESEND_VERIFICATION_ACTION;
+module.exports.ADMIN_USER_SOFT_DELETE_ACTION =
+  ADMIN_USER_SOFT_DELETE_ACTION;
 module.exports.ADMIN_USER_UPDATE_PROFILE_ACTION =
   ADMIN_USER_UPDATE_PROFILE_ACTION;
 module.exports.ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE =
@@ -1162,7 +1657,9 @@ module.exports.ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE =
 module.exports.createAdminUserService = createAdminUserService;
 module.exports.mapAdminUser = mapAdminUser;
 module.exports.normalizeCreateUserPayload = normalizeCreateUserPayload;
+module.exports.normalizeDeleteUserPayload = normalizeDeleteUserPayload;
 module.exports.normalizeListUsersQuery = normalizeListUsersQuery;
 module.exports.normalizePagination = normalizePagination;
+module.exports.normalizeStatusChangePayload = normalizeStatusChangePayload;
 module.exports.normalizeUpdateUserPayload = normalizeUpdateUserPayload;
 module.exports.normalizeUserId = normalizeUserId;
