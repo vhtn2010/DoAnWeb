@@ -20,8 +20,10 @@ const REPLY_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const BOOKING_ID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const SERVICE_ID = '11111111-1111-4111-8111-111111111111';
 
+const originalAssignAdminTicket = supportService.assignAdminTicket;
 const originalGetAdminTicketDetail = supportService.getAdminTicketDetail;
 const originalListAdminTickets = supportService.listAdminTickets;
+const originalUpdateAdminTicket = supportService.updateAdminTicket;
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -70,8 +72,10 @@ const request = (server, path, options = {}) =>
   });
 
 test.afterEach(() => {
+  supportService.assignAdminTicket = originalAssignAdminTicket;
   supportService.getAdminTicketDetail = originalGetAdminTicketDetail;
   supportService.listAdminTickets = originalListAdminTickets;
+  supportService.updateAdminTicket = originalUpdateAdminTicket;
 });
 
 test('supportService.listAdminTickets validates filters and applies staff assignment scope', async () => {
@@ -302,6 +306,275 @@ test('supportService.getAdminTicketDetail filters internal notes for staff witho
   assert.equal(adminResult.assigned_to.full_name, 'Support Staff');
 });
 
+test('supportService.updateAdminTicket validates permission, assignable user, and auto-assigns open tickets', async () => {
+  let updatePayload = null;
+  const service = createSupportService({
+    repository: {
+      getAssignableAdminUserById: async (userId) => {
+        assert.equal(userId, ASSIGNED_STAFF_ID);
+
+        return {
+          deleted_at: null,
+          id: userId,
+          role_code: 'staff',
+          status: 'active',
+        };
+      },
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'open',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:00:00.000Z',
+      }),
+      updateTicketForAdmin: async (payload) => {
+        updatePayload = payload;
+
+        return {
+          assigned_to: payload.updates.assigned_to,
+          closed_at: null,
+          id: TICKET_ID,
+          priority: payload.updates.priority,
+          status: payload.updates.status,
+          ticket_code: 'TK20260701AAAA0001',
+          updated_at: '2026-07-01T10:10:00.000Z',
+        };
+      },
+    },
+  });
+
+  const result = await service.updateAdminTicket({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['support.assign'],
+      },
+      userId: ADMIN_ID,
+    },
+    body: {
+      assigned_to: ASSIGNED_STAFF_ID,
+      priority: 'high',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(updatePayload.action, 'admin.support.ticket_update');
+  assert.equal(updatePayload.updates.assigned_to, ASSIGNED_STAFF_ID);
+  assert.equal(updatePayload.updates.priority, 'high');
+  assert.equal(updatePayload.updates.status, 'assigned');
+  assert.equal(result.status, 'assigned');
+  assert.equal(result.priority, 'high');
+});
+
+test('supportService.updateAdminTicket rejects empty body, forbidden status, and closed tickets', async () => {
+  const service = createSupportService({
+    repository: {
+      getAssignableAdminUserById: async () => null,
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        closed_at: '2026-07-01T10:10:00.000Z',
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'closed',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:10:00.000Z',
+      }),
+      updateTicketForAdmin: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => service.updateAdminTicket({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['support.assign'],
+        },
+        userId: ADMIN_ID,
+      },
+      body: {},
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.updateAdminTicket({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['support.assign'],
+        },
+        userId: ADMIN_ID,
+      },
+      body: {
+        status: 'closed',
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.updateAdminTicket({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['support.assign'],
+        },
+        userId: ADMIN_ID,
+      },
+      body: {
+        priority: 'high',
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('supportService.assignAdminTicket validates assign target and moves open ticket to assigned', async () => {
+  let updatePayload = null;
+  const service = createSupportService({
+    repository: {
+      getAssignableAdminUserById: async (userId) => {
+        assert.equal(userId, ASSIGNED_STAFF_ID);
+
+        return {
+          deleted_at: null,
+          id: userId,
+          role_code: 'staff',
+          status: 'active',
+        };
+      },
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'open',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:00:00.000Z',
+      }),
+      updateTicketForAdmin: async (payload) => {
+        updatePayload = payload;
+
+        return {
+          assigned_to: payload.updates.assigned_to,
+          closed_at: null,
+          id: TICKET_ID,
+          priority: 'normal',
+          status: payload.updates.status,
+          ticket_code: 'TK20260701AAAA0001',
+          updated_at: '2026-07-01T10:11:00.000Z',
+        };
+      },
+    },
+  });
+
+  const result = await service.assignAdminTicket({
+    auth: {
+      role: 'staff',
+      tokenPayload: {
+        permissions: ['support.assign'],
+      },
+      userId: STAFF_ID,
+    },
+    body: {
+      assigned_to: ASSIGNED_STAFF_ID,
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(updatePayload.action, 'admin.support.ticket_assign');
+  assert.equal(updatePayload.updates.assigned_to, ASSIGNED_STAFF_ID);
+  assert.equal(updatePayload.updates.status, 'assigned');
+  assert.equal(result.assigned_to, ASSIGNED_STAFF_ID);
+  assert.equal(result.status, 'assigned');
+});
+
+test('supportService.assignAdminTicket rejects invalid assign target and missing permission', async () => {
+  const invalidUserService = createSupportService({
+    repository: {
+      getAssignableAdminUserById: async () => ({
+        deleted_at: null,
+        id: ASSIGNED_STAFF_ID,
+        role_code: 'customer',
+        status: 'active',
+      }),
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'waiting_staff',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:00:00.000Z',
+      }),
+      updateTicketForAdmin: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => invalidUserService.assignAdminTicket({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['support.assign'],
+        },
+        userId: ADMIN_ID,
+      },
+      body: {
+        assigned_to: ASSIGNED_STAFF_ID,
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  const forbiddenService = createSupportService({
+    repository: {
+      getAssignableAdminUserById: async () => null,
+      getTicketByIdForAdmin: async () => null,
+      updateTicketForAdmin: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => forbiddenService.assignAdminTicket({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['support.read_all'],
+        },
+        userId: STAFF_ID,
+      },
+      body: {
+        assigned_to: ASSIGNED_STAFF_ID,
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+});
+
 test('GET /admin/support/tickets requires admin authentication', async () => {
   const server = app.listen(0);
 
@@ -469,6 +742,156 @@ test('GET /admin/support/tickets/{ticket_id} returns admin-safe detail and block
 
     assert.equal(forbiddenResponse.statusCode, 403);
     assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('PATCH /admin/support/tickets/{ticket_id} updates admin support ticket fields', async () => {
+  const server = app.listen(0);
+  supportService.updateAdminTicket = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.role, 'admin');
+    assert.equal(ticketId, TICKET_ID);
+    assert.equal(body.priority, 'high');
+    assert.equal(body.assigned_to, ASSIGNED_STAFF_ID);
+
+    return {
+      assigned_to: ASSIGNED_STAFF_ID,
+      closed_at: null,
+      id: TICKET_ID,
+      priority: 'high',
+      status: 'assigned',
+      ticket_code: 'TK20260701AAAA0001',
+      updated_at: '2026-07-01T10:15:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}`,
+      {
+        body: {
+          assigned_to: ASSIGNED_STAFF_ID,
+          priority: 'high',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.assign'],
+            roleCode: 'admin',
+            userId: ADMIN_ID,
+          })}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.priority, 'high');
+    assert.equal(response.body.data.status, 'assigned');
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /admin/support/tickets/{ticket_id}/assign assigns ticket for authorized admin role', async () => {
+  const server = app.listen(0);
+  supportService.assignAdminTicket = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.role, 'staff');
+    assert.equal(ticketId, TICKET_ID);
+    assert.equal(body.assigned_to, ASSIGNED_STAFF_ID);
+
+    return {
+      assigned_to: ASSIGNED_STAFF_ID,
+      closed_at: null,
+      id: TICKET_ID,
+      priority: 'normal',
+      status: 'assigned',
+      ticket_code: 'TK20260701AAAA0001',
+      updated_at: '2026-07-01T10:20:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/assign`,
+      {
+        body: {
+          assigned_to: ASSIGNED_STAFF_ID,
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.assign'],
+            roleCode: 'staff',
+            userId: STAFF_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.assigned_to, ASSIGNED_STAFF_ID);
+    assert.equal(response.body.data.status, 'assigned');
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('PATCH /admin/support/tickets/{ticket_id} and assign route block customer role', async () => {
+  const server = app.listen(0);
+
+  try {
+    const patchResponse = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}`,
+      {
+        body: {
+          priority: 'high',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.assign'],
+            roleCode: 'customer',
+            userId: '99999999-9999-4999-8999-999999999999',
+          })}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(patchResponse.statusCode, 403);
+    assert.equal(patchResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+
+    const assignResponse = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/assign`,
+      {
+        body: {
+          assigned_to: ASSIGNED_STAFF_ID,
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.assign'],
+            roleCode: 'customer',
+            userId: '99999999-9999-4999-8999-999999999999',
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(assignResponse.statusCode, 403);
+    assert.equal(assignResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

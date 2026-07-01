@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  assignAdminSupportTicket,
   closeMySupportTicket,
   createSupportTicket,
   getAdminSupportTicketDetail,
@@ -7,6 +8,7 @@ const {
   listAdminSupportTickets,
   listMySupportTickets,
   replyToSupportTicket,
+  updateAdminSupportTicket,
 } = require('../controllers/supportController');
 const { requireAdminAuth } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -98,6 +100,20 @@ router.get(
   requireAdminAuth,
   adminSupportTicketReadRateLimit,
   asyncHandler(getAdminSupportTicketDetail),
+);
+
+router.patch(
+  '/admin/support/tickets/:ticket_id',
+  requireAdminAuth,
+  adminSupportTicketReadRateLimit,
+  asyncHandler(updateAdminSupportTicket),
+);
+
+router.post(
+  '/admin/support/tickets/:ticket_id/assign',
+  requireAdminAuth,
+  adminSupportTicketReadRateLimit,
+  asyncHandler(assignAdminSupportTicket),
 );
 
 module.exports = router;

@@ -4,6 +4,103 @@ const createSupportRepository = ({
   queryImpl = query,
   withTransactionImpl = withTransaction,
 } = {}) => {
+  const getAssignableAdminUserById = async (userId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          u.id,
+          u.full_name,
+          u.email,
+          u.status,
+          u.deleted_at,
+          r.code AS role_code
+        FROM users u
+        JOIN roles r
+          ON r.id = u.role_id
+        WHERE u.id = $1
+        LIMIT 1
+      `,
+      [userId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const updateTicketForAdmin = async ({
+    action,
+    actorUserId,
+    metadata,
+    ticketId,
+    updates,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const assignments = [];
+      const params = [ticketId];
+      let index = 2;
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined) {
+          continue;
+        }
+
+        assignments.push(`${key} = $${index}`);
+        params.push(value);
+        index += 1;
+      }
+
+      assignments.push('updated_at = NOW()');
+
+      const ticketResult = await client.query(
+        `
+          UPDATE support_tickets
+          SET ${assignments.join(', ')}
+          WHERE id = $1
+          RETURNING
+            id,
+            ticket_code,
+            user_id,
+            booking_id,
+            service_id,
+            customer_name,
+            customer_email,
+            customer_phone,
+            subject,
+            status,
+            priority,
+            assigned_to,
+            created_at,
+            updated_at,
+            closed_at
+        `,
+        params,
+      );
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          action,
+          'support_ticket',
+          ticketId,
+          metadata || null,
+        ],
+      );
+
+      return ticketResult.rows[0] || null;
+    }, {
+      pool: getPool(),
+    });
+
   const listTicketsForAdmin = async ({
     assignedTo,
     limit,
@@ -595,6 +692,7 @@ const createSupportRepository = ({
     closeTicketByCustomer,
     createTicket,
     getBookingById,
+    getAssignableAdminUserById,
     getServiceById,
     getTicketByIdForAdmin,
     getTicketByIdAndUser,
@@ -602,6 +700,7 @@ const createSupportRepository = ({
     listRepliesByTicketId,
     listTicketsForAdmin,
     listTicketsByUser,
+    updateTicketForAdmin,
   };
 };
 
