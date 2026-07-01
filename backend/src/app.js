@@ -8,6 +8,7 @@ const asyncHandler = require('./middleware/asyncHandler');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
 const authRoutes = require('./routes/authRoutes');
+const adminServiceCatalogRoutes = require('./routes/adminServiceCatalogRoutes');
 const adminRoleRoutes = require('./routes/adminRoleRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
 const adminPermissionRoutes = require('./routes/adminPermissionRoutes');
@@ -40,6 +41,7 @@ if (!isTest) {
 
 app.use(apiPrefix, systemRoutes);
 app.use(apiPrefix, authRoutes);
+app.use(apiPrefix, adminServiceCatalogRoutes);
 app.use(apiPrefix, adminUserRoutes);
 app.use(apiPrefix, adminRoleRoutes);
 app.use(apiPrefix, adminPermissionRoutes);
