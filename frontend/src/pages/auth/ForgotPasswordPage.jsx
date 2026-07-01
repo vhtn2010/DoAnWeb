@@ -1,104 +1,100 @@
 import { Link } from 'react-router-dom'
-
-const styles = {
-  section: {
-    display: 'grid',
-    gap: '24px',
-  },
-  header: {
-    display: 'grid',
-    gap: '10px',
-  },
-  title: {
-    margin: 0,
-    fontSize: '2rem',
-    lineHeight: 1.15,
-    fontWeight: 900,
-    color: 'var(--color-text)',
-  },
-  description: {
-    margin: 0,
-    color: 'var(--color-text-muted)',
-    fontSize: '1rem',
-    lineHeight: 1.6,
-  },
-  fields: {
-    display: 'grid',
-    gap: '16px',
-  },
-  field: {
-    display: 'grid',
-    gap: '8px',
-  },
-  label: {
-    color: 'var(--color-text)',
-    fontWeight: 800,
-    fontSize: '0.92rem',
-  },
-  input: {
-    minHeight: 56,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 18px',
-    borderRadius: '18px',
-    border: '1px solid rgba(214, 40, 40, 0.12)',
-    background: 'var(--color-surface)',
-    color: 'var(--color-text-muted)',
-    boxShadow: 'var(--shadow-sm)',
-  },
-  button: {
-    minHeight: 56,
-    border: 'none',
-    borderRadius: '18px',
-    background: 'var(--color-brand-primary)',
-    color: 'var(--color-surface)',
-    fontWeight: 900,
-    fontSize: '1rem',
-    boxShadow: 'var(--shadow-md)',
-  },
-  footer: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-    color: 'var(--color-text-muted)',
-    fontWeight: 600,
-  },
-  link: {
-    color: 'var(--color-brand-primary)',
-    fontWeight: 800,
-  },
-}
+import './authTemplate.css'
 
 function ForgotPasswordPage() {
+  const handleSubmit = (event) => {
+    event.preventDefault()
+  }
+
   return (
-    <section style={styles.section}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Quên mật khẩu</h1>
-        <p style={styles.description}>
-          Placeholder UI cho luồng khôi phục mật khẩu. Chúng ta sẽ nối API sau.
-        </p>
-      </div>
-
-      <div style={styles.fields}>
-        <div style={styles.field}>
-          <span style={styles.label}>Địa chỉ Email</span>
-          <div style={styles.input}>email@netviet.travel</div>
+    <section className="auth-template-page">
+      <header className="auth-template-page__header">
+        <img
+          alt="Nét Việt Travel"
+          className="auth-template-page__logo"
+          src="/assets/template/auth/dangky/logo.png"
+        />
+        <div className="auth-template-page__copy">
+          <h1 className="auth-template-page__title">Quên mật khẩu</h1>
+          <p className="auth-template-page__description">
+            Nhập địa chỉ email đã đăng ký để xác nhận tài khoản và cập nhật mật khẩu
+            mới cho lần đăng nhập tiếp theo.
+          </p>
         </div>
+      </header>
 
-        <div style={styles.field}>
-          <span style={styles.label}>Mã xác nhận</span>
-          <div style={styles.input}>123456</div>
+      <form className="auth-template-form" onSubmit={handleSubmit}>
+        <label className="auth-template-form__field" htmlFor="forgot-password-email">
+          <span className="auth-template-form__label">Địa chỉ Email</span>
+          <input
+            autoComplete="email"
+            className="auth-template-form__input"
+            id="forgot-password-email"
+            name="email"
+            placeholder="email@netviet.travel"
+            type="email"
+          />
+        </label>
+
+        <label className="auth-template-form__field" htmlFor="forgot-password-code">
+          <span className="auth-template-form__label">Mã xác nhận</span>
+          <input
+            className="auth-template-form__input"
+            id="forgot-password-code"
+            name="verificationCode"
+            placeholder="Nhập mã xác nhận"
+            type="text"
+          />
+        </label>
+
+        <label className="auth-template-form__field" htmlFor="forgot-password-new-password">
+          <span className="auth-template-form__label">Mật khẩu mới</span>
+          <input
+            autoComplete="new-password"
+            className="auth-template-form__input"
+            id="forgot-password-new-password"
+            name="newPassword"
+            placeholder="Nhập mật khẩu mới"
+            type="password"
+          />
+        </label>
+
+        <label
+          className="auth-template-form__field"
+          htmlFor="forgot-password-confirm-password"
+        >
+          <span className="auth-template-form__label">Nhập lại mật khẩu mới</span>
+          <input
+            autoComplete="new-password"
+            className="auth-template-form__input"
+            id="forgot-password-confirm-password"
+            name="confirmPassword"
+            placeholder="Nhập lại mật khẩu mới"
+            type="password"
+          />
+        </label>
+
+        <div className="auth-template-form__actions">
+          <button className="auth-template-form__button" type="submit">
+            Hoàn tất
+          </button>
+          <Link
+            className="auth-template-form__button auth-template-form__button--secondary"
+            to="/login"
+          >
+            Hủy bỏ
+          </Link>
         </div>
+      </form>
 
-        <button style={styles.button} type="button">
-          Gửi yêu cầu đặt lại
-        </button>
-      </div>
-
-      <div style={styles.footer}>
+      <div className="auth-template-page__footer">
         <span>Đã nhớ mật khẩu?</span>
-        <Link style={styles.link} to="/login">
+        <Link className="auth-template-page__link" to="/login">
           Quay lại đăng nhập
+        </Link>
+        <span>hoặc</span>
+        <Link className="auth-template-page__link" to="/register">
+          Đăng ký mới
         </Link>
       </div>
     </section>

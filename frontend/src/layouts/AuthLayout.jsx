@@ -171,6 +171,20 @@ const styles = {
 function AuthLayout() {
   const location = useLocation()
   const meta = authMeta[location.pathname] ?? authMeta['/login']
+  const isTemplateVisualPage =
+    location.pathname === '/register' || location.pathname === '/forgot-password'
+
+  if (isTemplateVisualPage) {
+    return (
+      <div className="auth-template-shell">
+        <section className="auth-template-shell__panel">
+          <div className="auth-template-shell__card">
+            <Outlet />
+          </div>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div style={styles.page}>

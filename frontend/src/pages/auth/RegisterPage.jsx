@@ -1,109 +1,90 @@
 import { Link } from 'react-router-dom'
-
-const styles = {
-  section: {
-    display: 'grid',
-    gap: '24px',
-  },
-  header: {
-    display: 'grid',
-    gap: '10px',
-  },
-  title: {
-    margin: 0,
-    fontSize: '2rem',
-    lineHeight: 1.15,
-    fontWeight: 900,
-    color: 'var(--color-text)',
-  },
-  description: {
-    margin: 0,
-    color: 'var(--color-text-muted)',
-    fontSize: '1rem',
-    lineHeight: 1.6,
-  },
-  fields: {
-    display: 'grid',
-    gap: '16px',
-  },
-  field: {
-    display: 'grid',
-    gap: '8px',
-  },
-  label: {
-    color: 'var(--color-text)',
-    fontWeight: 800,
-    fontSize: '0.92rem',
-  },
-  input: {
-    minHeight: 56,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 18px',
-    borderRadius: '18px',
-    border: '1px solid rgba(214, 40, 40, 0.12)',
-    background: 'var(--color-surface)',
-    color: 'var(--color-text-muted)',
-    boxShadow: 'var(--shadow-sm)',
-  },
-  button: {
-    minHeight: 56,
-    border: 'none',
-    borderRadius: '18px',
-    background: 'var(--color-brand-primary)',
-    color: 'var(--color-surface)',
-    fontWeight: 900,
-    fontSize: '1rem',
-    boxShadow: 'var(--shadow-md)',
-  },
-  footer: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-    color: 'var(--color-text-muted)',
-    fontWeight: 600,
-  },
-  link: {
-    color: 'var(--color-brand-primary)',
-    fontWeight: 800,
-  },
-}
+import './authTemplate.css'
 
 function RegisterPage() {
+  const handleSubmit = (event) => {
+    event.preventDefault()
+  }
+
   return (
-    <section style={styles.section}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Tạo tài khoản</h1>
-        <p style={styles.description}>
-          Placeholder UI cho màn đăng ký. Các trường và validation thật sẽ được
-          bổ sung sau.
-        </p>
-      </div>
-
-      <div style={styles.fields}>
-        <div style={styles.field}>
-          <span style={styles.label}>Họ và tên</span>
-          <div style={styles.input}>Nguyễn Văn A</div>
+    <section className="auth-template-page">
+      <header className="auth-template-page__header">
+        <img
+          alt="Nét Việt Travel"
+          className="auth-template-page__logo"
+          src="/assets/template/auth/dangky/logo.png"
+        />
+        <div className="auth-template-page__copy">
+          <h1 className="auth-template-page__title">Đăng ký tài khoản</h1>
+          <p className="auth-template-page__description">
+            Quý khách vui lòng điền thông tin vào mẫu bên dưới để đăng ký thành viên.
+            Xin chân thành cảm ơn quý khách!
+          </p>
         </div>
+      </header>
 
-        <div style={styles.field}>
-          <span style={styles.label}>Địa chỉ Email</span>
-          <div style={styles.input}>email@netviet.travel</div>
-        </div>
+      <form className="auth-template-form" onSubmit={handleSubmit}>
+        <label className="auth-template-form__field" htmlFor="register-full-name">
+          <span className="auth-template-form__label">Họ và tên (*)</span>
+          <input
+            autoComplete="name"
+            className="auth-template-form__input"
+            id="register-full-name"
+            name="fullName"
+            placeholder="Nhập họ và tên"
+            type="text"
+          />
+        </label>
 
-        <div style={styles.field}>
-          <span style={styles.label}>Mật khẩu</span>
-          <div style={styles.input}>••••••••••••</div>
-        </div>
+        <label className="auth-template-form__field" htmlFor="register-email">
+          <span className="auth-template-form__label">Địa chỉ Email</span>
+          <input
+            autoComplete="email"
+            className="auth-template-form__input"
+            id="register-email"
+            name="email"
+            placeholder="email@netviet.travel"
+            type="email"
+          />
+        </label>
 
-        <button style={styles.button} type="button">
+        <label className="auth-template-form__field" htmlFor="register-password">
+          <span className="auth-template-form__label">Mật khẩu</span>
+          <input
+            autoComplete="new-password"
+            className="auth-template-form__input"
+            id="register-password"
+            name="password"
+            placeholder="Nhập mật khẩu"
+            type="password"
+          />
+        </label>
+
+        <label className="auth-template-form__field" htmlFor="register-password-confirm">
+          <span className="auth-template-form__label">Nhập lại mật khẩu</span>
+          <input
+            autoComplete="new-password"
+            className="auth-template-form__input"
+            id="register-password-confirm"
+            name="confirmPassword"
+            placeholder="Nhập lại mật khẩu"
+            type="password"
+          />
+        </label>
+
+        <label className="auth-template-form__agreement" htmlFor="register-agreement">
+          <input id="register-agreement" name="agreement" type="checkbox" />
+          <span>Tôi đồng ý với Điều khoản & Chính sách bảo mật của Nét Việt.</span>
+        </label>
+
+        <button className="auth-template-form__button" type="submit">
           Đăng ký tài khoản
         </button>
-      </div>
+      </form>
 
-      <div style={styles.footer}>
+      <div className="auth-template-page__footer">
         <span>Đã có tài khoản?</span>
-        <Link style={styles.link} to="/login">
+        <Link className="auth-template-page__link" to="/login">
           Đăng nhập
         </Link>
       </div>
