@@ -27,6 +27,21 @@ const createAdminUser = async (req, res) => {
   });
 };
 
+const changeAdminUserStatus = async (req, res) => {
+  const user = await adminUserService.changeUserStatus({
+    actorUserId: req.auth.userId,
+    ipAddress: req.ip,
+    payload: req.body,
+    userAgent: req.get('user-agent'),
+    userId: req.params.userId,
+  });
+
+  res.success({
+    data: user,
+    message: 'User status updated successfully',
+  });
+};
+
 const getAdminUserDetail = async (req, res) => {
   const user = await adminUserService.getUserById({
     userId: req.params.userId,
@@ -35,6 +50,21 @@ const getAdminUserDetail = async (req, res) => {
   res.success({
     data: user,
     message: 'User retrieved successfully',
+  });
+};
+
+const deleteAdminUser = async (req, res) => {
+  const result = await adminUserService.deleteUser({
+    actorUserId: req.auth.userId,
+    ipAddress: req.ip,
+    payload: req.body,
+    userAgent: req.get('user-agent'),
+    userId: req.params.userId,
+  });
+
+  res.success({
+    data: result,
+    message: 'User deleted successfully',
   });
 };
 
@@ -48,6 +78,20 @@ const getAdminUserLogs = async (req, res) => {
     data: result.data,
     message: 'User logs retrieved successfully',
     meta: result.meta,
+  });
+};
+
+const resendAdminUserVerificationEmail = async (req, res) => {
+  const result = await adminUserService.resendVerificationEmail({
+    actorUserId: req.auth.userId,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    userId: req.params.userId,
+  });
+
+  res.success({
+    data: result,
+    message: 'Verification email resent successfully',
   });
 };
 
@@ -67,9 +111,12 @@ const updateAdminUser = async (req, res) => {
 };
 
 module.exports = {
+  changeAdminUserStatus,
   createAdminUser,
+  deleteAdminUser,
   getAdminUserDetail,
   getAdminUserLogs,
   listAdminUsers,
+  resendAdminUserVerificationEmail,
   updateAdminUser,
 };

@@ -8,16 +8,21 @@ process.env.JWT_ACCESS_SECRET = 'test-access-secret';
 const app = require('../app');
 const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const { clearRateLimitStore } = require('../middleware/rateLimit');
 const authService = require('../services/authService');
 const adminUserService = require('../services/adminUserService');
 const { createAccessToken } = require('../utils/sessionToken');
 const AppError = require('../utils/AppError');
 
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
+const originalChangeUserStatus = adminUserService.changeUserStatus;
 const originalCreateUser = adminUserService.createUser;
+const originalDeleteUser = adminUserService.deleteUser;
 const originalGetUsers = adminUserService.getUsers;
 const originalGetUserById = adminUserService.getUserById;
 const originalGetUserLogs = adminUserService.getUserLogs;
+const originalResendVerificationEmail =
+  adminUserService.resendVerificationEmail;
 const originalUpdateUser = adminUserService.updateUser;
 
 const createAuthContext = ({
@@ -57,20 +62,28 @@ const request = (server, path, options = {}) =>
   });
 
 test.beforeEach(() => {
+  clearRateLimitStore('admin-user-resend-verification');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  adminUserService.changeUserStatus = originalChangeUserStatus;
   adminUserService.createUser = originalCreateUser;
+  adminUserService.deleteUser = originalDeleteUser;
   adminUserService.getUsers = originalGetUsers;
   adminUserService.getUserById = originalGetUserById;
   adminUserService.getUserLogs = originalGetUserLogs;
+  adminUserService.resendVerificationEmail = originalResendVerificationEmail;
   adminUserService.updateUser = originalUpdateUser;
 });
 
 test.afterEach(() => {
+  clearRateLimitStore('admin-user-resend-verification');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  adminUserService.changeUserStatus = originalChangeUserStatus;
   adminUserService.createUser = originalCreateUser;
+  adminUserService.deleteUser = originalDeleteUser;
   adminUserService.getUsers = originalGetUsers;
   adminUserService.getUserById = originalGetUserById;
   adminUserService.getUserLogs = originalGetUserLogs;
+  adminUserService.resendVerificationEmail = originalResendVerificationEmail;
   adminUserService.updateUser = originalUpdateUser;
 });
 
@@ -587,6 +600,187 @@ test('PATCH /api/admin/users/:userId surfaces validation errors', async () => {
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
     assert.equal(response.body.error.details[0].field, 'email');
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/users/:userId/status returns updated status result', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'admin-user-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () => createAuthContext();
+  adminUserService.changeUserStatus = async (context) => {
+    capturedContext = context;
+
+    return {
+      id: '11111111-1111-4111-8111-111111111111',
+      sessions_revoked: true,
+      status: 'locked',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/users/11111111-1111-4111-8111-111111111111/status`,
+      {
+        body: JSON.stringify({
+          reason: 'Repeated violations',
+          status: 'locked',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'admin-status-route-test',
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'User status updated successfully');
+    assert.equal(response.body.data.status, 'locked');
+    assert.equal(capturedContext.userId, '11111111-1111-4111-8111-111111111111');
+    assert.equal(capturedContext.userAgent, 'admin-status-route-test');
+  } finally {
+    server.close();
+  }
+});
+
+test('DELETE /api/admin/users/:userId returns soft delete result', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'system_admin',
+    userId: 'sys-admin-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'system_admin',
+      userId: 'sys-admin-1',
+    });
+  adminUserService.deleteUser = async (context) => {
+    capturedContext = context;
+
+    return {
+      deleted: true,
+      id: '11111111-1111-4111-8111-111111111111',
+      request_status: 'deleted',
+      status: 'deleted',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/users/11111111-1111-4111-8111-111111111111`,
+      {
+        body: JSON.stringify({
+          reason: 'Left the company',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'admin-delete-route-test',
+        },
+        method: 'DELETE',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'User deleted successfully');
+    assert.equal(response.body.data.status, 'deleted');
+    assert.equal(capturedContext.userId, '11111111-1111-4111-8111-111111111111');
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/admin/users/:userId/resend-verification-email returns resend result', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'admin-user-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () => createAuthContext();
+  adminUserService.resendVerificationEmail = async (context) => {
+    capturedContext = context;
+
+    return {
+      email: 'staff@example.com',
+      request_status: 'resent',
+      status: 'pending_verification',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/users/11111111-1111-4111-8111-111111111111/resend-verification-email`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'User-Agent': 'admin-resend-route-test',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Verification email resent successfully',
+    );
+    assert.equal(response.body.data.request_status, 'resent');
+    assert.equal(capturedContext.userId, '11111111-1111-4111-8111-111111111111');
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/admin/users/:userId/resend-verification-email returns 429 when rate limit is exceeded', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'admin-user-1',
+  });
+
+  authService.resolveAuthenticatedUser = async () => createAuthContext();
+  adminUserService.resendVerificationEmail = async () => ({
+    request_status: 'resent',
+    status: 'pending_verification',
+  });
+
+  try {
+    let lastResponse;
+
+    for (let index = 0; index < 6; index += 1) {
+      lastResponse = await request(
+        server,
+        `${apiPrefix}/admin/users/11111111-1111-4111-8111-111111111111/resend-verification-email`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          method: 'POST',
+        },
+      );
+    }
+
+    assert.equal(lastResponse.statusCode, 429);
+    assert.equal(lastResponse.body.success, false);
+    assert.equal(lastResponse.body.error.code, API_ERROR_CODES.RATE_LIMITED);
   } finally {
     server.close();
   }
