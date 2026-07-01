@@ -5,6 +5,7 @@ const {
   deleteCartItem,
   getCart,
   getCartSummary,
+  validateCart,
   updateCartItem,
 } = require('../controllers/cartController');
 const { authRequired } = require('../middleware/authSession');
@@ -25,6 +26,13 @@ router.get(
     allowedRoles: ['customer'],
   }),
   asyncHandler(getCartSummary),
+);
+router.post(
+  '/cart/validate',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  asyncHandler(validateCart),
 );
 router.post(
   '/cart/items',
