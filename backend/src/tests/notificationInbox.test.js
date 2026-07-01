@@ -22,6 +22,7 @@ const NOTIFICATION_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const BROADCAST_NOTIFICATION_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
+const originalGetUnreadNotificationCount = notificationService.getUnreadNotificationCount;
 const originalGetMyNotificationDetail = notificationService.getMyNotificationDetail;
 const originalListMyNotifications = notificationService.listMyNotifications;
 
@@ -64,6 +65,7 @@ const request = (server, path, options = {}) =>
 test.beforeEach(() => {
   clearRateLimitStore('notification-read');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
   notificationService.getMyNotificationDetail = originalGetMyNotificationDetail;
   notificationService.listMyNotifications = originalListMyNotifications;
 });
@@ -71,8 +73,44 @@ test.beforeEach(() => {
 test.afterEach(() => {
   clearRateLimitStore('notification-read');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
   notificationService.getMyNotificationDetail = originalGetMyNotificationDetail;
   notificationService.listMyNotifications = originalListMyNotifications;
+});
+
+test('notificationService.getUnreadNotificationCount counts only unread user-specific notifications', async () => {
+  const service = notificationService.createNotificationService({
+    repository: {
+      countUnreadNotificationsForUser: async (userId) => {
+        assert.equal(userId, USER_ID);
+        return 5;
+      },
+    },
+  });
+
+  const result = await service.getUnreadNotificationCount({
+    auth: {
+      role: 'customer',
+      userId: USER_ID,
+    },
+  });
+
+  assert.deepEqual(result, {
+    unread_count: 5,
+  });
+
+  await assert.rejects(
+    () => service.getUnreadNotificationCount({
+      auth: {
+        role: 'guest',
+        userId: USER_ID,
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
 });
 
 test('notificationService.listMyNotifications validates filters and includes broadcast notifications', async () => {
@@ -308,6 +346,46 @@ test('GET /api/notifications requires login', async () => {
 
     assert.equal(response.statusCode, 401);
     assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/notifications/unread-count returns unread count for authenticated users', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: USER_ID,
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: USER_ID,
+    });
+
+  notificationService.getUnreadNotificationCount = async ({ auth }) => {
+    assert.equal(auth.roleCode, 'customer');
+    assert.equal(auth.userId, USER_ID);
+
+    return {
+      unread_count: 7,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/notifications/unread-count`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.deepEqual(response.body.data, {
+      unread_count: 7,
+    });
   } finally {
     server.close();
   }

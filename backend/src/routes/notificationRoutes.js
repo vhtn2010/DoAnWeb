@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  getUnreadNotificationCount,
   getMyNotificationDetail,
   listMyNotifications,
 } = require('../controllers/notificationController');
@@ -24,6 +25,13 @@ router.get(
   authRequired({ allowedRoles }),
   notificationReadRateLimit,
   asyncHandler(listMyNotifications),
+);
+
+router.get(
+  '/notifications/unread-count',
+  authRequired({ allowedRoles }),
+  notificationReadRateLimit,
+  asyncHandler(getUnreadNotificationCount),
 );
 
 router.get(

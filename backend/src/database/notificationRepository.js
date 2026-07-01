@@ -3,6 +3,21 @@ const { query } = require('./client');
 const createNotificationRepository = ({
   queryImpl = query,
 } = {}) => {
+  const countUnreadNotificationsForUser = async (userId) => {
+    const result = await queryImpl(
+      `
+        SELECT COUNT(*)::int AS unread_count
+        FROM notifications n
+        WHERE
+          n.user_id = $1
+          AND n.read_at IS NULL
+      `,
+      [userId],
+    );
+
+    return result.rows[0]?.unread_count || 0;
+  };
+
   const listNotificationsForUser = async ({
     limit,
     offset,
@@ -89,6 +104,7 @@ const createNotificationRepository = ({
   };
 
   return {
+    countUnreadNotificationsForUser,
     getNotificationInboxDetail,
     listNotificationsForUser,
   };
