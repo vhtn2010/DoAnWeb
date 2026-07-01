@@ -13,6 +13,29 @@ const requestBookingCancellation = async (req, res) => {
   });
 };
 
+const getMyBookingInvoice = async (req, res) => {
+  const data = await bookingService.getMyBookingInvoice({
+    auth: req.auth,
+    bookingId: req.params.booking_id,
+  });
+
+  res.success({
+    data,
+    message: 'Booking invoice fetched successfully',
+  });
+};
+
+const downloadMyBookingSummary = async (req, res) => {
+  const result = await bookingService.downloadMyBookingSummary({
+    auth: req.auth,
+    bookingId: req.params.booking_id,
+  });
+
+  res.setHeader('Content-Type', result.contentType);
+  res.setHeader('Content-Disposition', result.contentDisposition);
+  res.status(200).send(result.buffer);
+};
+
 const getMyBookingDetail = async (req, res) => {
   const data = await bookingService.getMyBookingDetail({
     auth: req.auth,
@@ -78,6 +101,8 @@ const checkoutBooking = async (req, res) => {
 
 module.exports = {
   checkoutBooking,
+  downloadMyBookingSummary,
+  getMyBookingInvoice,
   getMyBookingDetail,
   getMyBookingItems,
   getMyBookingStatusHistory,
