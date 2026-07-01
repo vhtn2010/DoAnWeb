@@ -1,5 +1,6 @@
 const {
   API_ERROR_CODES,
+  BOOKING_STATUS_TRANSITIONS,
   BOOKING_STATUS_VALUES,
 } = require('../constants/domainConstraints');
 const {
@@ -38,6 +39,14 @@ const buildResourceNotFoundError = (message = 'Booking not found') =>
   new AppError(message, {
     code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
     statusCode: 404,
+  });
+
+const buildInvalidStateTransitionError = (
+  message = 'Booking state no longer allows this transition',
+) =>
+  new AppError(message, {
+    code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+    statusCode: 400,
   });
 
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
@@ -240,6 +249,25 @@ const ensureAdminBookingReadAccess = (auth) => {
   throw buildForbiddenError();
 };
 
+const ensureAdminBookingStatusAccess = (auth) => {
+  const role = auth?.role;
+
+  if (!['staff', 'admin', 'system_admin'].includes(role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(auth);
+
+  if (
+    permissionCodes.includes('booking.update_status') ||
+    permissionCodes.includes('booking.manage')
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
 const resolveScopeServiceIds = (auth) => {
   if (auth?.role !== 'staff') {
     return null;
@@ -380,6 +408,13 @@ const sanitizeStatusHistoryEntry = ({
   };
 };
 
+const sanitizeBookingStatusUpdateResult = (booking) => ({
+  booking_code: booking.booking_code,
+  id: booking.id,
+  status: booking.status,
+  updated_at: booking.updated_at,
+});
+
 const sanitizeBookingDetail = ({
   booking,
   items,
@@ -407,6 +442,55 @@ const sanitizeBookingDetail = ({
   user_id: booking.user_id,
   voucher_id: booking.voucher_id || null,
 });
+
+const parseRequiredBookingStatus = (value) => {
+  const parsed = parseOptionalBookingStatus(value);
+
+  if (!parsed) {
+    throw buildValidationError(
+      'status',
+      `status must be one of: ${BOOKING_STATUS_VALUES.join(', ')}`,
+    );
+  }
+
+  return parsed;
+};
+
+const parseRequiredReason = (value) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError('reason', 'reason is required');
+  }
+
+  const normalized = normalizeWhitespace(value);
+
+  if (!normalized) {
+    throw buildValidationError('reason', 'reason is required');
+  }
+
+  if (normalized.length > 1000) {
+    throw buildValidationError(
+      'reason',
+      'reason must be at most 1000 characters long',
+    );
+  }
+
+  if (DANGEROUS_TEXT_PATTERN.test(normalized)) {
+    throw buildValidationError(
+      'reason',
+      'reason contains unsupported characters',
+    );
+  }
+
+  return normalized;
+};
+
+const hasSuccessfulPaymentForOverride = (payments) =>
+  payments.some((payment) =>
+    ['success', 'reconciled'].includes(payment.status),
+  );
+
+const hasSuccessfulRefundForOverride = (refunds) =>
+  refunds.some((refund) => refund.status === 'success');
 
 const createAdminBookingService = ({
   repository = createAdminBookingRepository(),
@@ -515,10 +599,77 @@ const createAdminBookingService = ({
       }));
   };
 
+  const updateBookingStatus = async ({
+    auth,
+    body,
+    booking_id: bookingId,
+  } = {}) => {
+    ensureAdminBookingStatusAccess(auth);
+
+    const parsedBookingId = parseBookingId(bookingId);
+    const nextStatus = parseRequiredBookingStatus(body?.status);
+    const reason = parseRequiredReason(body?.reason);
+    const booking = await repository.getBookingById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingId: parsedBookingId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError();
+    }
+
+    const currentStatus = booking.status;
+
+    if (currentStatus === nextStatus) {
+      throw buildInvalidStateTransitionError(
+        'Booking is already in the requested status',
+      );
+    }
+
+    const allowedTransitions = BOOKING_STATUS_TRANSITIONS[currentStatus] || [];
+
+    if (!allowedTransitions.includes(nextStatus)) {
+      throw buildInvalidStateTransitionError();
+    }
+
+    if (nextStatus === 'paid' && auth?.role !== 'system_admin') {
+      const payments =
+        await repository.listBookingPaymentsByBookingId(parsedBookingId);
+
+      if (!hasSuccessfulPaymentForOverride(payments)) {
+        throw buildInvalidStateTransitionError(
+          'Booking cannot be marked as paid without a successful payment',
+        );
+      }
+    }
+
+    if (nextStatus === 'refunded' && auth?.role !== 'system_admin') {
+      const refunds =
+        await repository.listBookingRefundsByBookingId(parsedBookingId);
+
+      if (!hasSuccessfulRefundForOverride(refunds)) {
+        throw buildInvalidStateTransitionError(
+          'Booking cannot be marked as refunded without a successful refund',
+        );
+      }
+    }
+
+    const updatedBooking = await repository.updateBookingStatus({
+      actorUserId: auth?.userId || null,
+      bookingId: parsedBookingId,
+      fromStatus: currentStatus,
+      reason,
+      toStatus: nextStatus,
+    });
+
+    return sanitizeBookingStatusUpdateResult(updatedBooking);
+  };
+
   return {
     getBookingDetail,
     getBookingStatusHistory,
     listBookings,
+    updateBookingStatus,
   };
 };
 

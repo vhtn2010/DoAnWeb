@@ -1,6 +1,17 @@
-const { query } = require('./client');
+const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const AppError = require('../utils/AppError');
+const { query, withTransaction } = require('./client');
 
-const createAdminBookingRepository = ({ queryImpl = query } = {}) => {
+const createInvalidStateTransitionError = () =>
+  new AppError('Booking state no longer allows this transition', {
+    code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+    statusCode: 400,
+  });
+
+const createAdminBookingRepository = ({
+  queryImpl = query,
+  withTransactionImpl = withTransaction,
+} = {}) => {
   const buildScopedWhere = ({
     allowedServiceIds,
     bookingStatus,
@@ -305,6 +316,78 @@ const createAdminBookingRepository = ({ queryImpl = query } = {}) => {
     return result.rows;
   };
 
+  const updateBookingStatus = async ({
+    actorUserId,
+    bookingId,
+    fromStatus,
+    reason,
+    toStatus,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const bookingResult = await client.query(
+        `
+          UPDATE bookings
+          SET
+            status = $2,
+            updated_at = NOW()
+          WHERE id = $1
+            AND status = $3
+          RETURNING
+            id,
+            booking_code,
+            status,
+            updated_at
+        `,
+        [bookingId, toStatus, fromStatus],
+      );
+
+      if (bookingResult.rowCount !== 1) {
+        throw createInvalidStateTransitionError();
+      }
+
+      await client.query(
+        `
+          INSERT INTO booking_status_histories (
+            booking_id,
+            from_status,
+            to_status,
+            reason,
+            changed_by,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [bookingId, fromStatus, toStatus, reason, actorUserId],
+      );
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          'admin.booking.status_override',
+          'booking',
+          bookingId,
+          {
+            from_status: fromStatus,
+            reason,
+            to_status: toStatus,
+          },
+        ],
+      );
+
+      return bookingResult.rows[0];
+    });
+
   return {
     getBookingById,
     listBookingItemsByBookingId,
@@ -312,6 +395,7 @@ const createAdminBookingRepository = ({ queryImpl = query } = {}) => {
     listBookingRefundsByBookingId,
     listBookingStatusHistoriesByBookingId,
     listBookings,
+    updateBookingStatus,
   };
 };
 

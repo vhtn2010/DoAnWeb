@@ -19,6 +19,7 @@ const originalGetBookingDetail = adminBookingService.getBookingDetail;
 const originalGetBookingStatusHistory =
   adminBookingService.getBookingStatusHistory;
 const originalListBookings = adminBookingService.listBookings;
+const originalUpdateBookingStatus = adminBookingService.updateBookingStatus;
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -85,6 +86,7 @@ test.afterEach(() => {
   adminBookingService.getBookingDetail = originalGetBookingDetail;
   adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
   adminBookingService.listBookings = originalListBookings;
+  adminBookingService.updateBookingStatus = originalUpdateBookingStatus;
 });
 
 test('adminBookingService.listBookings validates filters and applies staff service scope', async () => {
@@ -437,6 +439,165 @@ test('adminBookingService.getBookingStatusHistory returns ascending admin-safe t
   ]);
 });
 
+test('adminBookingService.updateBookingStatus validates permission, transitions, and payment or refund guards', async () => {
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.PENDING_PAYMENT,
+      }),
+      listBookingPaymentsByBookingId: async () => [],
+      listBookingRefundsByBookingId: async () => [],
+      updateBookingStatus: async () => {
+        throw new Error('updateBookingStatus should not be called');
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.updateBookingStatus({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.read_all'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Manual confirm',
+        status: BOOKING_STATUS.PAID,
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.updateBookingStatus({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.update_status'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Manual mark as paid',
+        status: BOOKING_STATUS.PAID,
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('adminBookingService.updateBookingStatus updates booking status when transition and financial guards are satisfied', async () => {
+  let updatePayload = null;
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        booking_code: 'BK202607010001',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.PENDING_PAYMENT,
+      }),
+      listBookingPaymentsByBookingId: async (bookingId) => {
+        assert.equal(bookingId, BOOKING_ID);
+
+        return [
+          {
+            status: 'success',
+          },
+        ];
+      },
+      updateBookingStatus: async (payload) => {
+        updatePayload = payload;
+
+        return {
+          booking_code: 'BK202607010001',
+          id: BOOKING_ID,
+          status: BOOKING_STATUS.PAID,
+          updated_at: '2026-07-01T08:00:00.000Z',
+        };
+      },
+    },
+  });
+
+  const result = await service.updateBookingStatus({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['booking.update_status'],
+      },
+      userId: 'admin-1',
+    },
+    body: {
+      reason: 'Payment manually reconciled',
+      status: BOOKING_STATUS.PAID,
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.deepEqual(updatePayload, {
+    actorUserId: 'admin-1',
+    bookingId: BOOKING_ID,
+    fromStatus: BOOKING_STATUS.PENDING_PAYMENT,
+    reason: 'Payment manually reconciled',
+    toStatus: BOOKING_STATUS.PAID,
+  });
+  assert.deepEqual(result, {
+    booking_code: 'BK202607010001',
+    id: BOOKING_ID,
+    status: BOOKING_STATUS.PAID,
+    updated_at: '2026-07-01T08:00:00.000Z',
+  });
+});
+
+test('adminBookingService.updateBookingStatus allows system admin override for refunded without refund record', async () => {
+  let updated = false;
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.REFUND_PENDING,
+      }),
+      updateBookingStatus: async () => {
+        updated = true;
+
+        return {
+          booking_code: 'BK202607010002',
+          id: BOOKING_ID,
+          status: BOOKING_STATUS.REFUNDED,
+          updated_at: '2026-07-01T09:00:00.000Z',
+        };
+      },
+    },
+  });
+
+  const result = await service.updateBookingStatus({
+    auth: {
+      role: 'system_admin',
+      tokenPayload: {
+        permissions: ['booking.update_status'],
+      },
+      userId: 'sysadmin-1',
+    },
+    body: {
+      reason: 'Override after off-platform settlement confirmation',
+      status: BOOKING_STATUS.REFUNDED,
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.equal(updated, true);
+  assert.equal(result.status, BOOKING_STATUS.REFUNDED);
+});
+
 test('GET /api/admin/bookings requires a bearer token', async () => {
   const server = app.listen(0);
 
@@ -712,6 +873,141 @@ test('GET /api/admin/bookings/{booking_id}/status-history returns admin booking 
     ]);
   } finally {
     adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/bookings/{booking_id}/status updates booking status for authorized admin users', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.update_status'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+
+  adminBookingService.updateBookingStatus = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'admin',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['booking.update_status'],
+          role: 'admin',
+          sub: 'admin-1',
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Manual override after payment reconciliation',
+        status: 'paid',
+      },
+      booking_id: BOOKING_ID,
+    });
+
+    return {
+      booking_code: 'BK202607010001',
+      id: BOOKING_ID,
+      status: 'paid',
+      updated_at: '2026-07-01T10:00:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/status`,
+      {
+        body: {
+          reason: 'Manual override after payment reconciliation',
+          status: 'paid',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Admin booking status updated successfully',
+    );
+    assert.equal(response.body.data.id, BOOKING_ID);
+    assert.equal(response.body.data.status, 'paid');
+  } finally {
+    adminBookingService.updateBookingStatus = originalUpdateBookingStatus;
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/bookings/{booking_id}/status validates booking UUID and required permission', async () => {
+  const server = app.listen(0);
+  const tokenWithoutPermission = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.read_all'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+  const tokenWithPermission = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.update_status'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+
+  try {
+    const forbiddenResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/status`,
+      {
+        body: {
+          reason: 'Manual override',
+          status: 'paid',
+        },
+        headers: {
+          Authorization: `Bearer ${tokenWithoutPermission}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(
+      forbiddenResponse.body.error.code,
+      API_ERROR_CODES.FORBIDDEN,
+    );
+
+    const badUuidResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/not-a-uuid/status`,
+      {
+        body: {
+          reason: 'Manual override',
+          status: 'paid',
+        },
+        headers: {
+          Authorization: `Bearer ${tokenWithPermission}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(badUuidResponse.statusCode, 400);
+    assert.equal(
+      badUuidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+    assert.deepEqual(badUuidResponse.body.error.details, [
+      {
+        field: 'booking_id',
+        message: 'booking_id must be a valid UUID',
+      },
+    ]);
+  } finally {
     server.close();
   }
 });
