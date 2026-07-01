@@ -15,6 +15,7 @@ const adminUserRoutes = require('./routes/adminUserRoutes');
 const adminPermissionRoutes = require('./routes/adminPermissionRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
+const cartRoutes = require('./routes/cartRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const {
   isSupabaseConfigured,
@@ -51,6 +52,7 @@ app.use(apiPrefix, adminRoleRoutes);
 app.use(apiPrefix, adminPermissionRoutes);
 app.use(apiPrefix, profileRoutes);
 app.use(apiPrefix, lookupRoutes);
+app.use(apiPrefix, cartRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
   res.success({
