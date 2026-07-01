@@ -1,12 +1,15 @@
 const express = require('express');
 const {
   assignAdminSupportTicket,
+  closeAdminSupportTicket,
   closeMySupportTicket,
   createSupportTicket,
   getAdminSupportTicketDetail,
   getMySupportTicketDetail,
   listAdminSupportTickets,
   listMySupportTickets,
+  markAdminSupportTicketAsSpam,
+  reopenAdminSupportTicket,
   replyToAdminSupportTicket,
   replyToSupportTicket,
   updateAdminSupportTicket,
@@ -122,6 +125,27 @@ router.post(
   requireAdminAuth,
   adminSupportTicketReadRateLimit,
   asyncHandler(replyToAdminSupportTicket),
+);
+
+router.post(
+  '/admin/support/tickets/:ticket_id/close',
+  requireAdminAuth,
+  adminSupportTicketReadRateLimit,
+  asyncHandler(closeAdminSupportTicket),
+);
+
+router.post(
+  '/admin/support/tickets/:ticket_id/reopen',
+  requireAdminAuth,
+  adminSupportTicketReadRateLimit,
+  asyncHandler(reopenAdminSupportTicket),
+);
+
+router.post(
+  '/admin/support/tickets/:ticket_id/mark-spam',
+  requireAdminAuth,
+  adminSupportTicketReadRateLimit,
+  asyncHandler(markAdminSupportTicketAsSpam),
 );
 
 module.exports = router;

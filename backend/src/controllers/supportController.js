@@ -78,6 +78,45 @@ const replyToAdminSupportTicket = async (req, res) => {
   });
 };
 
+const closeAdminSupportTicket = async (req, res) => {
+  const data = await supportService.closeAdminTicket({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Admin support ticket closed successfully',
+  });
+};
+
+const reopenAdminSupportTicket = async (req, res) => {
+  const data = await supportService.reopenAdminTicket({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Admin support ticket reopened successfully',
+  });
+};
+
+const markAdminSupportTicketAsSpam = async (req, res) => {
+  const data = await supportService.markAdminTicketAsSpam({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Admin support ticket marked as spam successfully',
+  });
+};
+
 const listMySupportTickets = async (req, res) => {
   const data = await supportService.listMyTickets({
     auth: req.auth,
@@ -132,13 +171,16 @@ const closeMySupportTicket = async (req, res) => {
 
 module.exports = {
   assignAdminSupportTicket,
+  closeAdminSupportTicket,
   closeMySupportTicket,
   createSupportTicket,
+  markAdminSupportTicketAsSpam,
   updateAdminSupportTicket,
   getAdminSupportTicketDetail,
   getMySupportTicketDetail,
   listAdminSupportTickets,
   listMySupportTickets,
+  reopenAdminSupportTicket,
   replyToAdminSupportTicket,
   replyToSupportTicket,
 };
