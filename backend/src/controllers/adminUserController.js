@@ -42,6 +42,21 @@ const changeAdminUserStatus = async (req, res) => {
   });
 };
 
+const changeAdminUserRole = async (req, res) => {
+  const result = await adminUserService.changeUserRole({
+    actorUserId: req.auth.userId,
+    ipAddress: req.ip,
+    payload: req.body,
+    userAgent: req.get('user-agent'),
+    userId: req.params.userId,
+  });
+
+  res.success({
+    data: result,
+    message: 'User role updated successfully',
+  });
+};
+
 const getAdminUserDetail = async (req, res) => {
   const user = await adminUserService.getUserById({
     userId: req.params.userId,
@@ -111,6 +126,7 @@ const updateAdminUser = async (req, res) => {
 };
 
 module.exports = {
+  changeAdminUserRole,
   changeAdminUserStatus,
   createAdminUser,
   deleteAdminUser,

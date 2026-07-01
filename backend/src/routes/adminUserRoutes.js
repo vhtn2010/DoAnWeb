@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  changeAdminUserRole,
   changeAdminUserStatus,
   createAdminUser,
   deleteAdminUser,
@@ -36,6 +37,13 @@ router.get('/admin/users', asyncHandler(listAdminUsers));
 router.get('/admin/users/:userId/logs', asyncHandler(getAdminUserLogs));
 router.get('/admin/users/:userId', asyncHandler(getAdminUserDetail));
 router.patch('/admin/users/:userId', asyncHandler(updateAdminUser));
+router.patch(
+  '/admin/users/:userId/role',
+  authRequired({
+    allowedRoles: ['system_admin'],
+  }),
+  asyncHandler(changeAdminUserRole),
+);
 router.patch('/admin/users/:userId/status', asyncHandler(changeAdminUserStatus));
 router.delete('/admin/users/:userId', asyncHandler(deleteAdminUser));
 router.post(
