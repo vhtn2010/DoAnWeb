@@ -71,7 +71,8 @@ const createBookingRepository = ({
           unit_price,
           total_amount,
           status,
-          traveller_info
+          traveller_info,
+          service_snapshot
         FROM booking_items
         WHERE booking_id = $1
         ORDER BY start_at ASC NULLS LAST, id ASC
