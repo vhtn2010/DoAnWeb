@@ -12,6 +12,21 @@ const listAdminUsers = async (req, res) => {
   });
 };
 
+const createAdminUser = async (req, res) => {
+  const user = await adminUserService.createUser({
+    actorUserId: req.auth.userId,
+    ipAddress: req.ip,
+    payload: req.body,
+    userAgent: req.get('user-agent'),
+  });
+
+  res.success({
+    data: user,
+    message: 'User created successfully',
+    statusCode: 201,
+  });
+};
+
 const getAdminUserDetail = async (req, res) => {
   const user = await adminUserService.getUserById({
     userId: req.params.userId,
@@ -36,8 +51,25 @@ const getAdminUserLogs = async (req, res) => {
   });
 };
 
+const updateAdminUser = async (req, res) => {
+  const user = await adminUserService.updateUser({
+    actorUserId: req.auth.userId,
+    ipAddress: req.ip,
+    payload: req.body,
+    userAgent: req.get('user-agent'),
+    userId: req.params.userId,
+  });
+
+  res.success({
+    data: user,
+    message: 'User updated successfully',
+  });
+};
+
 module.exports = {
+  createAdminUser,
   getAdminUserDetail,
   getAdminUserLogs,
   listAdminUsers,
+  updateAdminUser,
 };

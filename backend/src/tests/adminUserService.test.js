@@ -3,9 +3,14 @@ const test = require('node:test');
 
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const {
+  ADMIN_USER_CREATE_ACTION,
+  ADMIN_USER_UPDATE_PROFILE_ACTION,
+  ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE,
   createAdminUserService,
   normalizeListUsersQuery,
+  normalizeCreateUserPayload,
   normalizePagination,
+  normalizeUpdateUserPayload,
   normalizeUserId,
 } = require('../services/adminUserService');
 
@@ -67,6 +72,62 @@ test('normalizeListUsersQuery validates status and role format', () => {
     (error) =>
       error.code === API_ERROR_CODES.VALIDATION_ERROR &&
       error.details?.some((detail) => detail.field === 'status'),
+  );
+});
+
+test('normalizeCreateUserPayload trims fields and validates body', () => {
+  assert.deepEqual(
+    normalizeCreateUserPayload({
+      email: '  STAFF@Example.com ',
+      full_name: '  Staff User  ',
+      password: 'Password123',
+      phone: ' 0909000000 ',
+      role_code: 'staff',
+    }),
+    {
+      email: 'staff@example.com',
+      fullName: 'Staff User',
+      password: 'Password123',
+      phone: '0909000000',
+      roleCode: 'staff',
+    },
+  );
+  assert.throws(
+    () =>
+      normalizeCreateUserPayload({
+        email: 'invalid',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'email'),
+  );
+});
+
+test('normalizeUpdateUserPayload validates allowed fields and cloudinary avatar_url', () => {
+  assert.deepEqual(
+    normalizeUpdateUserPayload({
+      avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+      full_name: 'Updated Name',
+      phone: '0909000000',
+    }),
+    {
+      avatarUrl: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+      changedFields: ['full_name', 'phone', 'avatar_url'],
+      fullName: 'Updated Name',
+      hasAvatarUrl: true,
+      hasFullName: true,
+      hasPhone: true,
+      phone: '0909000000',
+    },
+  );
+  assert.throws(
+    () =>
+      normalizeUpdateUserPayload({
+        email: 'forbidden@example.com',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'email'),
   );
 });
 
@@ -289,4 +350,429 @@ test('getUserLogs returns only target user logs with masked metadata and meta', 
     total: 3,
     total_pages: 2,
   });
+});
+
+test('createUser inserts pending verification internal user, queues email log, and writes admin audit log', async () => {
+  const fixedNow = new Date('2026-07-01T10:00:00.000Z');
+  const queries = [];
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+        if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                avatar_url: null,
+                created_at: fixedNow,
+                deleted_at: null,
+                email: 'admin@example.com',
+                email_verified_at: new Date('2026-06-30T00:00:00.000Z'),
+                full_name: 'Actor Admin',
+                id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                is_system_protected: false,
+                last_login_at: fixedNow,
+                phone: null,
+                role_code: 'admin',
+                role_id: 'role-admin-id',
+                role_level: 90,
+                role_name: 'Admin',
+                status: 'active',
+                updated_at: fixedNow,
+              },
+            ],
+          };
+        }
+
+        if (params[0] === 'cccccccc-cccc-4ccc-8ccc-cccccccccccc') {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                avatar_url: null,
+                created_at: fixedNow,
+                deleted_at: null,
+                email: 'staff@example.com',
+                email_verified_at: null,
+                full_name: 'Staff User',
+                id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+                is_system_protected: false,
+                last_login_at: null,
+                phone: '0909000000',
+                role_code: 'staff',
+                role_id: 'role-staff-id',
+                role_level: 10,
+                role_name: 'Staff',
+                status: 'pending_verification',
+                updated_at: fixedNow,
+              },
+            ],
+          };
+        }
+      }
+
+      if (sql.includes('SELECT') && sql.includes('FROM users u') && sql.includes('WHERE u.email = $1')) {
+        return {
+          rowCount: 0,
+          rows: [],
+        };
+      }
+
+      if (sql.includes('FROM roles') && sql.includes('WHERE code = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              code: 'staff',
+              id: 'role-staff-id',
+              level: 10,
+              name: 'Staff',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('INSERT INTO users')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('INSERT INTO email_logs')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'email-log-1',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('UPDATE email_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createAdminUserService({
+    bcryptHashImpl: async (plainTextPassword, saltRounds) => {
+      assert.equal(plainTextPassword, 'Password123');
+      assert.equal(saltRounds, 10);
+      return 'hashed-password';
+    },
+    createEmailVerificationTokenImpl: ({ email, userId }) => {
+      assert.equal(email, 'staff@example.com');
+      assert.equal(userId, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+      return 'verification-token';
+    },
+    hashEmailVerificationTokenImpl: (token) => {
+      assert.equal(token, 'verification-token');
+      return 'verification-token-hash';
+    },
+    now: () => fixedNow,
+    sendEmailImpl: async (payload) => {
+      assert.equal(payload.to.email, 'staff@example.com');
+      return {
+        messageId: 'sendgrid-message-1',
+      };
+    },
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const result = await service.createUser({
+    actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    ipAddress: '127.0.0.1',
+    payload: {
+      email: '  STAFF@example.com ',
+      full_name: ' Staff User ',
+      password: 'Password123',
+      phone: '0909000000',
+      role_code: 'staff',
+    },
+    userAgent: 'admin-user-create-service-test',
+  });
+
+  const insertUserQuery = queries.find((entry) => entry.sql.includes('INSERT INTO users'));
+  const emailLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO email_logs'));
+  const userLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
+  const userLogMetadata = JSON.parse(userLogQuery.params[6]);
+
+  assert.equal(userLogQuery.params[0], 'cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+  assert.equal(insertUserQuery.params[1], 'staff@example.com');
+  assert.equal(insertUserQuery.params[3], 'hashed-password');
+  assert.equal(insertUserQuery.params[5], 'pending_verification');
+  assert.equal(emailLogQuery.params[3], ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE);
+  assert.equal(userLogQuery.params[1], ADMIN_USER_CREATE_ACTION);
+  assert.deepEqual(userLogMetadata, {
+    actor_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    email: 'staff@example.com',
+    role_code: 'staff',
+    status: 'pending_verification',
+    target_user_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    verification_token_hash: 'verification-token-hash',
+  });
+  assert.equal(result.role.code, 'staff');
+  assert.equal(result.last_login_at, null);
+  assert.equal(result.email_verified_at, null);
+});
+
+test('createUser blocks admin from creating system_admin', async () => {
+  const service = createAdminUserService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql, params = []) => {
+          if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                  role_code: 'admin',
+                  role_id: 'role-admin-id',
+                  role_level: 90,
+                },
+              ],
+            };
+          }
+
+          if (sql.includes('WHERE u.email = $1')) {
+            return {
+              rowCount: 0,
+              rows: [],
+            };
+          }
+
+          if (sql.includes('FROM roles') && params[0] === 'system_admin') {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  code: 'system_admin',
+                  id: 'role-system-admin-id',
+                  level: 100,
+                  name: 'System Admin',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.createUser({
+        actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        payload: {
+          email: 'sysadmin@example.com',
+          full_name: 'System Admin',
+          password: 'Password123',
+          role_code: 'system_admin',
+        },
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('updateUser updates only basic fields and writes admin audit log', async () => {
+  const fixedNow = new Date('2026-07-01T12:00:00.000Z');
+  const queries = [];
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+        if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                avatar_url: null,
+                created_at: fixedNow,
+                deleted_at: null,
+                email: 'admin@example.com',
+                email_verified_at: fixedNow,
+                full_name: 'Actor Admin',
+                id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                is_system_protected: false,
+                last_login_at: fixedNow,
+                phone: null,
+                role_code: 'admin',
+                role_id: 'role-admin-id',
+                role_level: 90,
+                role_name: 'Admin',
+                status: 'active',
+                updated_at: fixedNow,
+              },
+            ],
+          };
+        }
+
+        if (params[0] === 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb') {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+                created_at: fixedNow,
+                deleted_at: null,
+                email: 'staff@example.com',
+                email_verified_at: null,
+                full_name: 'Updated Staff User',
+                id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                is_system_protected: false,
+                last_login_at: null,
+                phone: '0909123456',
+                role_code: 'staff',
+                role_id: 'role-staff-id',
+                role_level: 10,
+                role_name: 'Staff',
+                status: 'active',
+                updated_at: fixedNow,
+              },
+            ],
+          };
+        }
+      }
+
+      if (sql.includes('UPDATE users')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createAdminUserService({
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const result = await service.updateUser({
+    actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    ipAddress: '127.0.0.1',
+    payload: {
+      avatar_url: 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+      full_name: 'Updated Staff User',
+      phone: '0909123456',
+    },
+    userAgent: 'admin-user-update-service-test',
+    userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  });
+
+  const updateQuery = queries.find((entry) => entry.sql.includes('UPDATE users'));
+  const userLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
+  const userLogMetadata = JSON.parse(userLogQuery.params[6]);
+
+  assert.equal(userLogQuery.params[0], 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  assert.equal(updateQuery.params[0], 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  assert.equal(updateQuery.params[1], 'Updated Staff User');
+  assert.equal(updateQuery.params[2], '0909123456');
+  assert.equal(
+    updateQuery.params[3],
+    'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+  );
+  assert.equal(updateQuery.params[4], fixedNow);
+  assert.equal(userLogQuery.params[1], ADMIN_USER_UPDATE_PROFILE_ACTION);
+  assert.deepEqual(userLogMetadata, {
+    actor_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    changed_fields: ['full_name', 'phone', 'avatar_url'],
+    target_user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  });
+  assert.equal(result.full_name, 'Updated Staff User');
+});
+
+test('updateUser blocks admin from updating system_admin target', async () => {
+  const service = createAdminUserService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql, params = []) => {
+          if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+            if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+              return {
+                rowCount: 1,
+                rows: [
+                  {
+                    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    role_code: 'admin',
+                    role_id: 'role-admin-id',
+                    role_level: 90,
+                    deleted_at: null,
+                    status: 'active',
+                  },
+                ],
+              };
+            }
+
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                  role_code: 'system_admin',
+                  role_id: 'role-system-admin-id',
+                  role_level: 100,
+                  deleted_at: null,
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateUser({
+        actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        payload: {
+          full_name: 'Nope',
+        },
+        userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
 });
