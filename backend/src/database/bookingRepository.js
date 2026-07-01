@@ -131,6 +131,32 @@ const createBookingRepository = ({
     return result.rows;
   };
 
+  const listBookingStatusHistoriesByBookingId = async (bookingId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          bsh.id,
+          bsh.booking_id,
+          bsh.from_status,
+          bsh.to_status,
+          bsh.reason,
+          bsh.changed_by,
+          bsh.created_at,
+          r.code AS changed_by_role_code
+        FROM booking_status_histories bsh
+        LEFT JOIN users u
+          ON u.id = bsh.changed_by
+        LEFT JOIN roles r
+          ON r.id = u.role_id
+        WHERE bsh.booking_id = $1
+        ORDER BY bsh.created_at ASC, bsh.id ASC
+      `,
+      [bookingId],
+    );
+
+    return result.rows;
+  };
+
   const listBookingsByUser = async ({
     limit,
     offset,
@@ -686,6 +712,7 @@ const createBookingRepository = ({
     listBookingItemsByBookingId,
     listBookingPaymentsByBookingId,
     listBookingRefundsByBookingId,
+    listBookingStatusHistoriesByBookingId,
     listBookingsByUser,
     listCartItemsByCartId,
   };

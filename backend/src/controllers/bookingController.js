@@ -24,6 +24,18 @@ const getMyBookingItems = async (req, res) => {
   });
 };
 
+const getMyBookingStatusHistory = async (req, res) => {
+  const data = await bookingService.getMyBookingStatusHistory({
+    auth: req.auth,
+    bookingId: req.params.booking_id,
+  });
+
+  res.success({
+    data,
+    message: 'Booking status history fetched successfully',
+  });
+};
+
 const listMyBookings = async (req, res) => {
   const data = await bookingService.listMyBookings({
     auth: req.auth,
@@ -55,5 +67,6 @@ module.exports = {
   checkoutBooking,
   getMyBookingDetail,
   getMyBookingItems,
+  getMyBookingStatusHistory,
   listMyBookings,
 };

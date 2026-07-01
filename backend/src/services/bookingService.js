@@ -593,6 +593,45 @@ const sanitizeRefundSummary = (refund) => ({
   status: refund.status,
 });
 
+const resolveChangedByType = (history) => {
+  if (!history.changed_by) {
+    return 'system';
+  }
+
+  const roleCode = history.changed_by_role_code || null;
+
+  if (!roleCode) {
+    return 'unknown';
+  }
+
+  if (roleCode === 'customer') {
+    return 'customer';
+  }
+
+  if (roleCode === 'staff') {
+    return 'staff';
+  }
+
+  if (roleCode === 'admin') {
+    return 'admin';
+  }
+
+  if (roleCode === 'system_admin') {
+    return 'system_admin';
+  }
+
+  return 'unknown';
+};
+
+const sanitizeBookingStatusHistoryEntry = (history) => ({
+  changed_by_type: resolveChangedByType(history),
+  created_at: history.created_at,
+  from_status: history.from_status || null,
+  id: history.id,
+  reason: history.reason || null,
+  to_status: history.to_status,
+});
+
 const sanitizeBookingDetail = ({
   booking,
   items,
@@ -1120,10 +1159,33 @@ const createBookingService = ({
     return items.map(sanitizeBookingItemSnapshot);
   };
 
+  const getMyBookingStatusHistory = async ({
+    auth,
+    bookingId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedBookingId = parseUuid('booking_id', bookingId);
+    const booking = await repository.getBookingByIdAndUser({
+      bookingId: parsedBookingId,
+      userId: auth.userId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError('Booking not found');
+    }
+
+    const histories =
+      await repository.listBookingStatusHistoriesByBookingId(parsedBookingId);
+
+    return histories.map(sanitizeBookingStatusHistoryEntry);
+  };
+
   return {
     checkout,
     getMyBookingDetail,
     getMyBookingItems,
+    getMyBookingStatusHistory,
     listMyBookings,
   };
 };

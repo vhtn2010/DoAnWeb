@@ -21,6 +21,7 @@ const CUSTOMER_ID = '99999999-9999-4999-8999-999999999999';
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetMyBookingDetail = bookingService.getMyBookingDetail;
 const originalGetMyBookingItems = bookingService.getMyBookingItems;
+const originalGetMyBookingStatusHistory = bookingService.getMyBookingStatusHistory;
 const originalListMyBookings = bookingService.listMyBookings;
 
 const createAuthContext = ({
@@ -64,6 +65,7 @@ test.beforeEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   bookingService.getMyBookingDetail = originalGetMyBookingDetail;
   bookingService.getMyBookingItems = originalGetMyBookingItems;
+  bookingService.getMyBookingStatusHistory = originalGetMyBookingStatusHistory;
   bookingService.listMyBookings = originalListMyBookings;
 });
 
@@ -72,6 +74,7 @@ test.afterEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   bookingService.getMyBookingDetail = originalGetMyBookingDetail;
   bookingService.getMyBookingItems = originalGetMyBookingItems;
+  bookingService.getMyBookingStatusHistory = originalGetMyBookingStatusHistory;
   bookingService.listMyBookings = originalListMyBookings;
 });
 
@@ -385,6 +388,106 @@ test('bookingService.getMyBookingDetail returns 404 for missing booking and vali
   );
 });
 
+test('bookingService.getMyBookingStatusHistory returns ascending timeline with safe changed_by_type', async () => {
+  const service = bookingService.createBookingService({
+    repository: {
+      getBookingByIdAndUser: async ({
+        bookingId,
+        userId,
+      }) => {
+        assert.equal(bookingId, BOOKING_ID);
+        assert.equal(userId, CUSTOMER_ID);
+
+        return { id: BOOKING_ID };
+      },
+      listBookingStatusHistoriesByBookingId: async () => [
+        {
+          changed_by: null,
+          changed_by_role_code: null,
+          created_at: '2026-07-01T01:00:00.000Z',
+          from_status: null,
+          id: '11111111-1111-4111-8111-111111111111',
+          reason: null,
+          to_status: 'pending_payment',
+        },
+        {
+          changed_by: '22222222-2222-4222-8222-222222222222',
+          changed_by_role_code: 'admin',
+          created_at: '2026-07-01T02:00:00.000Z',
+          from_status: 'pending_payment',
+          id: '33333333-3333-4333-8333-333333333333',
+          reason: 'Payment verified',
+          to_status: 'paid',
+        },
+      ],
+    },
+  });
+
+  const result = await service.getMyBookingStatusHistory({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    bookingId: BOOKING_ID,
+  });
+
+  assert.equal(result.length, 2);
+  assert.deepEqual(result[0], {
+    changed_by_type: 'system',
+    created_at: '2026-07-01T01:00:00.000Z',
+    from_status: null,
+    id: '11111111-1111-4111-8111-111111111111',
+    reason: null,
+    to_status: 'pending_payment',
+  });
+  assert.deepEqual(result[1], {
+    changed_by_type: 'admin',
+    created_at: '2026-07-01T02:00:00.000Z',
+    from_status: 'pending_payment',
+    id: '33333333-3333-4333-8333-333333333333',
+    reason: 'Payment verified',
+    to_status: 'paid',
+  });
+});
+
+test('bookingService.getMyBookingStatusHistory validates UUID and returns 404 for missing booking', async () => {
+  const service = bookingService.createBookingService({
+    repository: {
+      getBookingByIdAndUser: async () => null,
+      listBookingStatusHistoriesByBookingId: async () => [],
+    },
+  });
+
+  await assert.rejects(
+    () => service.getMyBookingStatusHistory({
+      auth: {
+        role: 'customer',
+        userId: CUSTOMER_ID,
+      },
+      bookingId: 'bad-id',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getMyBookingStatusHistory({
+      auth: {
+        role: 'customer',
+        userId: CUSTOMER_ID,
+      },
+      bookingId: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      assert.equal(error.statusCode, 404);
+      return true;
+    },
+  );
+});
+
 test('GET /api/bookings requires customer authentication', async () => {
   const server = app.listen(0);
 
@@ -606,6 +709,115 @@ test('GET /api/bookings/{booking_id}/items validates UUID and requires customer 
     const forbiddenResponse = await request(
       server,
       `${apiPrefix}/bookings/${BOOKING_ID}/items`,
+      {
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            roleCode: 'admin',
+            userId: 'admin-1',
+          })}`,
+        },
+      },
+    );
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(
+      forbiddenResponse.body.error.code,
+      API_ERROR_CODES.FORBIDDEN,
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/bookings/{booking_id}/status-history returns booking timeline for customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: CUSTOMER_ID,
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext();
+  bookingService.getMyBookingStatusHistory = async ({ auth, bookingId }) => {
+    assert.equal(auth.userId, CUSTOMER_ID);
+    assert.equal(bookingId, BOOKING_ID);
+
+    return [
+      {
+        changed_by_type: 'system',
+        created_at: '2026-07-01T01:00:00.000Z',
+        from_status: null,
+        id: '11111111-1111-4111-8111-111111111111',
+        reason: null,
+        to_status: 'pending_payment',
+      },
+      {
+        changed_by_type: 'admin',
+        created_at: '2026-07-01T02:00:00.000Z',
+        from_status: 'pending_payment',
+        id: '33333333-3333-4333-8333-333333333333',
+        reason: 'Payment verified',
+        to_status: 'paid',
+      },
+    ];
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/bookings/${BOOKING_ID}/status-history`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.length, 2);
+    assert.equal(response.body.data[0].changed_by_type, 'system');
+    assert.equal(response.body.data[1].changed_by_type, 'admin');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/bookings/{booking_id}/status-history validates UUID and requires customer role', async () => {
+  const server = app.listen(0);
+
+  try {
+    authService.resolveAuthenticatedUser = async () =>
+      createAuthContext();
+
+    const badUuidResponse = await request(
+      server,
+      `${apiPrefix}/bookings/not-a-uuid/status-history`,
+      {
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            roleCode: 'customer',
+            userId: CUSTOMER_ID,
+          })}`,
+        },
+      },
+    );
+
+    assert.equal(badUuidResponse.statusCode, 400);
+    assert.equal(
+      badUuidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+
+    authService.resolveAuthenticatedUser = async () =>
+      createAuthContext({
+        roleCode: 'admin',
+        userId: 'admin-1',
+      });
+
+    const forbiddenResponse = await request(
+      server,
+      `${apiPrefix}/bookings/${BOOKING_ID}/status-history`,
       {
         headers: {
           Authorization: `Bearer ${createAccessToken({
