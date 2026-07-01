@@ -31,13 +31,19 @@ const UPDATE_ALLOWED_FIELDS = new Set([
   'quantity',
   'start_at',
 ]);
+const APPLY_VOUCHER_ALLOWED_FIELDS = new Set(['code']);
+const MERGE_ALLOWED_FIELDS = new Set(['guest_items']);
 const SUMMARY_ALLOWED_QUERY_FIELDS = new Set(['voucher_code']);
 const VALIDATE_ALLOWED_FIELDS = new Set(['voucher_code']);
 const ADD_SCOPE_LABEL = 'POST /cart/items';
 const UPDATE_SCOPE_LABEL = 'PATCH /cart/items/{cart_item_id}';
+const APPLY_VOUCHER_SCOPE_LABEL = 'POST /cart/apply-voucher';
+const REMOVE_VOUCHER_SCOPE_LABEL = 'DELETE /cart/voucher';
+const MERGE_SCOPE_LABEL = 'POST /cart/merge';
 const SUMMARY_SCOPE_LABEL = 'GET /cart/summary';
 const VALIDATE_SCOPE_LABEL = 'POST /cart/validate';
 const MAX_VOUCHER_CODE_LENGTH = 50;
+const MAX_GUEST_ITEMS = 50;
 
 const toIsoString = (value) => value?.toISOString?.() || value || null;
 
@@ -253,6 +259,12 @@ const createCartItemNotAvailableError = (
 const createCartEmptyError = (message = 'Cart is empty') =>
   new AppError(message, {
     code: API_ERROR_CODES.CART_EMPTY,
+    statusCode: 400,
+  });
+
+const createVoucherError = (code, message) =>
+  new AppError(message, {
+    code,
     statusCode: 400,
   });
 
@@ -638,6 +650,117 @@ const normalizeValidatePayload = (payload = {}) => {
   }
 
   throw createValidationError(details);
+};
+
+const normalizeApplyVoucherPayload = (payload = {}) => {
+  const body = ensureObjectPayload(payload);
+  const details = [];
+  const providedKeys = Object.keys(body);
+  const disallowedKeys = providedKeys.filter(
+    (key) => !APPLY_VOUCHER_ALLOWED_FIELDS.has(key),
+  );
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        scopeLabel: APPLY_VOUCHER_SCOPE_LABEL,
+      }),
+    );
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(body, 'code')) {
+    details.push({
+      field: 'code',
+      message: 'code is required',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  if (typeof body.code !== 'string') {
+    throw createValidationError([
+      {
+        field: 'code',
+        message: 'code must be a string',
+      },
+    ]);
+  }
+
+  const code = body.code.trim().toUpperCase();
+
+  if (!code) {
+    throw createValidationError([
+      {
+        field: 'code',
+        message: 'code is required',
+      },
+    ]);
+  }
+
+  if (code.length > MAX_VOUCHER_CODE_LENGTH) {
+    throw createValidationError([
+      {
+        field: 'code',
+        message: `code must not exceed ${MAX_VOUCHER_CODE_LENGTH} characters`,
+      },
+    ]);
+  }
+
+  return {
+    code,
+  };
+};
+
+const normalizeMergePayload = (payload = {}) => {
+  const body = ensureObjectPayload(payload);
+  const details = [];
+  const providedKeys = Object.keys(body);
+  const disallowedKeys = providedKeys.filter(
+    (key) => !MERGE_ALLOWED_FIELDS.has(key),
+  );
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        scopeLabel: MERGE_SCOPE_LABEL,
+      }),
+    );
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(body, 'guest_items')) {
+    details.push({
+      field: 'guest_items',
+      message: 'guest_items is required',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  if (!Array.isArray(body.guest_items)) {
+    throw createValidationError([
+      {
+        field: 'guest_items',
+        message: 'guest_items must be an array',
+      },
+    ]);
+  }
+
+  if (body.guest_items.length > MAX_GUEST_ITEMS) {
+    throw createValidationError([
+      {
+        field: 'guest_items',
+        message: `guest_items must not contain more than ${MAX_GUEST_ITEMS} items`,
+      },
+    ]);
+  }
+
+  return {
+    guestItems: body.guest_items,
+  };
 };
 
 const parseOptionalGuestCount = (field, value) => {
@@ -1209,6 +1332,9 @@ const buildVoucherValidationResult = (
   };
 };
 
+const getItemEffectiveTotalAmount = (item) =>
+  roundMoney(item.current_total_amount ?? item.total_amount ?? 0);
+
 const isWithinVoucherWindow = (currentTime, validFrom, validTo) => {
   if (validFrom && currentTime < new Date(validFrom)) {
     return false;
@@ -1340,11 +1466,11 @@ const evaluateVoucherForCartValidation = async (
   }
 
   const subtotalAmount = roundMoney(
-    items.reduce((total, item) => total + item.current_total_amount, 0),
+    items.reduce((total, item) => total + getItemEffectiveTotalAmount(item), 0),
   );
   const pricingItems = items.map((item) => ({
     service_type: item.service_type,
-    total_amount: item.current_total_amount,
+    total_amount: getItemEffectiveTotalAmount(item),
   }));
 
   if (subtotalAmount < Number(voucher.min_order_amount)) {
@@ -1377,6 +1503,17 @@ const evaluateVoucherForCartValidation = async (
     discountAmount,
     voucher,
   });
+};
+
+const assertVoucherCanBeApplied = (voucherResult) => {
+  if (!voucherResult.issue) {
+    return;
+  }
+
+  throw createVoucherError(
+    voucherResult.issue.code,
+    voucherResult.issue.message,
+  );
 };
 
 const createCartService = ({
@@ -1804,6 +1941,193 @@ const createCartService = ({
       };
     });
 
+  const applyCartVoucher = async ({
+    payload,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const queryExecutor = client.query.bind(client);
+      const {
+        code,
+      } = normalizeApplyVoucherPayload(payload);
+      const activeCart = await resolveActiveCart(queryExecutor, userId);
+
+      if (!activeCart || activeCart.status !== CART_STATUS.ACTIVE) {
+        throw createCartEmptyError();
+      }
+
+      const itemRows = await repository.listCartItems(queryExecutor, activeCart.id);
+      const items = itemRows.map(mapCartItem);
+
+      if (items.length === 0) {
+        throw createCartEmptyError();
+      }
+
+      const voucherResult = await evaluateVoucherForCartValidation(
+        queryExecutor,
+        items,
+        {
+          currentTime: now(),
+          repository,
+          userId,
+          voucherCode: code,
+        },
+      );
+
+      assertVoucherCanBeApplied(voucherResult);
+
+      const summary = buildPricingSummary(items, {
+        cartId: activeCart.id,
+        discountAmount: voucherResult.discountAmount,
+        voucher: voucherResult.voucher,
+      });
+
+      return {
+        cart_id: activeCart.id,
+        final_total_amount: summary.total_amount,
+        summary,
+        voucher: voucherResult.voucher,
+      };
+    });
+
+  const removeCartVoucher = async ({ userId }) =>
+    withTransactionImpl(async (client) => {
+      const queryExecutor = client.query.bind(client);
+      const activeCart = await resolveActiveCart(queryExecutor, userId);
+
+      if (!activeCart || activeCart.status !== CART_STATUS.ACTIVE) {
+        return {
+          cart_id: null,
+          removed: true,
+          summary: buildEmptyPricingSummary(),
+        };
+      }
+
+      const itemRows = await repository.listCartItems(queryExecutor, activeCart.id);
+      const items = itemRows.map(mapCartItem);
+      const summary =
+        items.length > 0
+          ? buildPricingSummary(items, {
+              cartId: activeCart.id,
+            })
+          : buildEmptyPricingSummary({
+              cartId: activeCart.id,
+            });
+
+      return {
+        cart_id: activeCart.id,
+        removed: true,
+        summary,
+      };
+    });
+
+  const mergeGuestCart = async ({
+    payload,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const queryExecutor = client.query.bind(client);
+      const {
+        guestItems,
+      } = normalizeMergePayload(payload);
+
+      if (guestItems.length === 0) {
+        const activeCart = await resolveActiveCart(queryExecutor, userId);
+
+        if (!activeCart || activeCart.status !== CART_STATUS.ACTIVE) {
+          return {
+            cart: null,
+            merged_item_count: 0,
+            summary: buildEmptySummary(),
+          };
+        }
+
+        const mappedCart = await loadMappedCart(queryExecutor, activeCart);
+
+        return {
+          cart: mappedCart,
+          merged_item_count: 0,
+          summary: mappedCart.summary,
+        };
+      }
+
+      const normalizedGuestItems = guestItems.map((item) => normalizeAddPayload(item));
+      const activeCart = await resolveActiveCart(queryExecutor, userId, {
+        createIfMissing: true,
+      });
+      const existingItems = await repository.listCartItemRecords(
+        queryExecutor,
+        activeCart.id,
+      );
+
+      for (const input of normalizedGuestItems) {
+        const service = await repository.getServiceById(queryExecutor, input.serviceId);
+
+        ensureServiceIsAvailableForCart(service, input.serviceType);
+
+        const duplicateItem = findDuplicateItem(existingItems, input);
+        const targetQuantity = duplicateItem
+          ? Number(duplicateItem.quantity) + input.quantity
+          : input.quantity;
+        const availability = await resolveAvailability(
+          queryExecutor,
+          repository,
+          service,
+          {
+            options: input.options,
+            quantity: targetQuantity,
+            referenceId: input.referenceId,
+            serviceType: input.serviceType,
+            startAt: input.startAt,
+          },
+        );
+
+        if (duplicateItem) {
+          await repository.updateCartItem(queryExecutor, {
+            cartItemId: duplicateItem.id,
+            endAt: input.endAt,
+            options: input.options,
+            quantity: targetQuantity,
+            startAt: input.startAt,
+            unitPriceSnapshot: availability.unitPrice,
+          });
+
+          duplicateItem.end_at = input.endAt;
+          duplicateItem.options = input.options;
+          duplicateItem.quantity = targetQuantity;
+          duplicateItem.start_at = input.startAt;
+          duplicateItem.unit_price_snapshot = availability.unitPrice;
+        } else {
+          const created = await repository.insertCartItem(queryExecutor, {
+            cartId: activeCart.id,
+            createdAt: now(),
+            endAt: input.endAt,
+            options: input.options,
+            quantity: input.quantity,
+            referenceId: input.referenceId,
+            serviceId: input.serviceId,
+            serviceType: input.serviceType,
+            startAt: input.startAt,
+            unitPriceSnapshot: availability.unitPrice,
+          });
+
+          existingItems.push(created);
+        }
+      }
+
+      const touchedCart = await repository.touchCart(queryExecutor, {
+        cartId: activeCart.id,
+        updatedAt: now(),
+      });
+      const mappedCart = await loadMappedCart(queryExecutor, touchedCart);
+
+      return {
+        cart: mappedCart,
+        merged_item_count: normalizedGuestItems.length,
+        summary: mappedCart.summary,
+      };
+    });
+
   const addCartItem = async ({ payload, userId }) =>
     withTransactionImpl(async (client) => {
       const queryExecutor = client.query.bind(client);
@@ -2016,10 +2340,13 @@ const createCartService = ({
 
   return {
     addCartItem,
+    applyCartVoucher,
     clearCartItems,
     deleteCartItem,
     getActiveCart,
     getCartSummary,
+    mergeGuestCart,
+    removeCartVoucher,
     validateCart,
     updateCartItem,
   };

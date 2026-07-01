@@ -1,10 +1,13 @@
 const express = require('express');
 const {
   addCartItem,
+  applyCartVoucher,
   clearCartItems,
   deleteCartItem,
   getCart,
   getCartSummary,
+  mergeGuestCart,
+  removeCartVoucher,
   validateCart,
   updateCartItem,
 } = require('../controllers/cartController');
@@ -33,6 +36,27 @@ router.post(
     allowedRoles: ['customer'],
   }),
   asyncHandler(validateCart),
+);
+router.post(
+  '/cart/apply-voucher',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  asyncHandler(applyCartVoucher),
+);
+router.delete(
+  '/cart/voucher',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  asyncHandler(removeCartVoucher),
+);
+router.post(
+  '/cart/merge',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  asyncHandler(mergeGuestCart),
 );
 router.post(
   '/cart/items',

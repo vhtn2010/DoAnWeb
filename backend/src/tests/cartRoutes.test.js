@@ -13,10 +13,13 @@ const cartService = require('../services/cartService');
 const { createAccessToken } = require('../utils/sessionToken');
 
 const originalAddCartItem = cartService.addCartItem;
+const originalApplyCartVoucher = cartService.applyCartVoucher;
 const originalClearCartItems = cartService.clearCartItems;
 const originalDeleteCartItem = cartService.deleteCartItem;
 const originalGetActiveCart = cartService.getActiveCart;
 const originalGetCartSummary = cartService.getCartSummary;
+const originalMergeGuestCart = cartService.mergeGuestCart;
+const originalRemoveCartVoucher = cartService.removeCartVoucher;
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalUpdateCartItem = cartService.updateCartItem;
 const originalValidateCart = cartService.validateCart;
@@ -64,10 +67,13 @@ const request = (server, path, options = {}) =>
 test.beforeEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   cartService.addCartItem = originalAddCartItem;
+  cartService.applyCartVoucher = originalApplyCartVoucher;
   cartService.clearCartItems = originalClearCartItems;
   cartService.deleteCartItem = originalDeleteCartItem;
   cartService.getActiveCart = originalGetActiveCart;
   cartService.getCartSummary = originalGetCartSummary;
+  cartService.mergeGuestCart = originalMergeGuestCart;
+  cartService.removeCartVoucher = originalRemoveCartVoucher;
   cartService.updateCartItem = originalUpdateCartItem;
   cartService.validateCart = originalValidateCart;
 });
@@ -75,10 +81,13 @@ test.beforeEach(() => {
 test.afterEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   cartService.addCartItem = originalAddCartItem;
+  cartService.applyCartVoucher = originalApplyCartVoucher;
   cartService.clearCartItems = originalClearCartItems;
   cartService.deleteCartItem = originalDeleteCartItem;
   cartService.getActiveCart = originalGetActiveCart;
   cartService.getCartSummary = originalGetCartSummary;
+  cartService.mergeGuestCart = originalMergeGuestCart;
+  cartService.removeCartVoucher = originalRemoveCartVoucher;
   cartService.updateCartItem = originalUpdateCartItem;
   cartService.validateCart = originalValidateCart;
 });
@@ -423,6 +432,208 @@ test('POST /api/cart/validate returns validation payload for authenticated custo
         voucher_code: 'save10',
       },
       userId: 'user-validate-3',
+    });
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/cart/apply-voucher returns applied voucher payload for authenticated customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-voucher-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-voucher-1',
+    });
+  cartService.applyCartVoucher = async (context) => {
+    capturedContext = context;
+
+    return {
+      cart_id: 'cart-voucher-1',
+      final_total_amount: 1800000,
+      summary: {
+        cart_id: 'cart-voucher-1',
+        currency: 'VND',
+        discount_amount: 200000,
+        item_count: 1,
+        quantity_total: 1,
+        subtotal_amount: 2000000,
+        total_amount: 1800000,
+        voucher: {
+          applied: true,
+          code: 'TOUR10',
+          discount_amount: 200000,
+        },
+      },
+      voucher: {
+        applied: true,
+        code: 'TOUR10',
+        discount_amount: 200000,
+      },
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/cart/apply-voucher`, {
+      body: JSON.stringify({
+        code: 'tour10',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Voucher applied successfully');
+    assert.equal(response.body.data.final_total_amount, 1800000);
+    assert.deepEqual(capturedContext, {
+      payload: {
+        code: 'tour10',
+      },
+      userId: 'user-voucher-1',
+    });
+  } finally {
+    server.close();
+  }
+});
+
+test('DELETE /api/cart/voucher returns idempotent remove payload', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-voucher-2',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-voucher-2',
+    });
+  cartService.removeCartVoucher = async (context) => {
+    capturedContext = context;
+
+    return {
+      cart_id: 'cart-voucher-2',
+      removed: true,
+      summary: {
+        cart_id: 'cart-voucher-2',
+        currency: 'VND',
+        discount_amount: 0,
+        item_count: 1,
+        quantity_total: 1,
+        subtotal_amount: 2000000,
+        total_amount: 2000000,
+        voucher: null,
+      },
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/cart/voucher`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'DELETE',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Voucher removed successfully');
+    assert.equal(response.body.data.removed, true);
+    assert.deepEqual(capturedContext, {
+      userId: 'user-voucher-2',
+    });
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/cart/merge returns merged cart payload for authenticated customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-merge-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-merge-1',
+    });
+  cartService.mergeGuestCart = async (context) => {
+    capturedContext = context;
+
+    return {
+      cart: {
+        id: 'cart-merge-1',
+        items: [
+          {
+            id: 'item-merge-1',
+          },
+        ],
+        summary: {
+          currency: 'VND',
+          item_count: 1,
+          quantity_total: 2,
+          subtotal_amount: 5980000,
+          total_amount: 5980000,
+        },
+      },
+      merged_item_count: 1,
+      summary: {
+        currency: 'VND',
+        item_count: 1,
+        quantity_total: 2,
+        subtotal_amount: 5980000,
+        total_amount: 5980000,
+      },
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/cart/merge`, {
+      body: JSON.stringify({
+        guest_items: [
+          {
+            quantity: 2,
+            service_id: '11111111-1111-4111-8111-111111111111',
+            service_type: 'tour',
+          },
+        ],
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Guest cart merged successfully');
+    assert.equal(response.body.data.merged_item_count, 1);
+    assert.deepEqual(capturedContext, {
+      payload: {
+        guest_items: [
+          {
+            quantity: 2,
+            service_id: '11111111-1111-4111-8111-111111111111',
+            service_type: 'tour',
+          },
+        ],
+      },
+      userId: 'user-merge-1',
     });
   } finally {
     server.close();

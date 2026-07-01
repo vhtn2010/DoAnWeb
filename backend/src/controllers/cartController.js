@@ -35,6 +35,41 @@ const validateCart = async (req, res) => {
   });
 };
 
+const applyCartVoucher = async (req, res) => {
+  const result = await cartService.applyCartVoucher({
+    payload: req.body,
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result,
+    message: 'Voucher applied successfully',
+  });
+};
+
+const removeCartVoucher = async (req, res) => {
+  const result = await cartService.removeCartVoucher({
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result,
+    message: 'Voucher removed successfully',
+  });
+};
+
+const mergeGuestCart = async (req, res) => {
+  const result = await cartService.mergeGuestCart({
+    payload: req.body,
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result,
+    message: 'Guest cart merged successfully',
+  });
+};
+
 const addCartItem = async (req, res) => {
   const result = await cartService.addCartItem({
     payload: req.body,
@@ -85,10 +120,13 @@ const clearCartItems = async (req, res) => {
 
 module.exports = {
   addCartItem,
+  applyCartVoucher,
   clearCartItems,
   deleteCartItem,
   getCart,
   getCartSummary,
+  mergeGuestCart,
+  removeCartVoucher,
   validateCart,
   updateCartItem,
 };
