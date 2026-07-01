@@ -12,9 +12,14 @@ const authService = require('../services/authService');
 const adminVoucherService = require('../services/adminVoucherService');
 const { createAccessToken } = require('../utils/sessionToken');
 
+const originalCreateVoucher = adminVoucherService.createVoucher;
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
+const originalChangeVoucherStatus = adminVoucherService.changeVoucherStatus;
+const originalDeleteVoucher = adminVoucherService.deleteVoucher;
+const originalDuplicateVoucher = adminVoucherService.duplicateVoucher;
 const originalGetVoucherById = adminVoucherService.getVoucherById;
 const originalGetVouchers = adminVoucherService.getVouchers;
+const originalUpdateVoucher = adminVoucherService.updateVoucher;
 
 const createAuthContext = ({
   roleCode = 'admin',
@@ -34,7 +39,21 @@ const createAuthContext = ({
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
     const { port } = server.address();
-    const req = http.request(`http://127.0.0.1:${port}${path}`, options, (res) => {
+    const body = typeof options.body === 'string' ? options.body : null;
+    const requestOptions = {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+      },
+    };
+
+    if (body && !requestOptions.headers['Content-Length']) {
+      requestOptions.headers['Content-Length'] = Buffer.byteLength(body);
+    }
+
+    delete requestOptions.body;
+
+    const req = http.request(`http://127.0.0.1:${port}${path}`, requestOptions, (res) => {
       let body = '';
 
       res.setEncoding('utf8');
@@ -50,19 +69,34 @@ const request = (server, path, options = {}) =>
     });
 
     req.on('error', reject);
+
+    if (body) {
+      req.write(body);
+    }
+
     req.end();
   });
 
 test.beforeEach(() => {
+  adminVoucherService.createVoucher = originalCreateVoucher;
+  adminVoucherService.changeVoucherStatus = originalChangeVoucherStatus;
+  adminVoucherService.deleteVoucher = originalDeleteVoucher;
+  adminVoucherService.duplicateVoucher = originalDuplicateVoucher;
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminVoucherService.getVoucherById = originalGetVoucherById;
   adminVoucherService.getVouchers = originalGetVouchers;
+  adminVoucherService.updateVoucher = originalUpdateVoucher;
 });
 
 test.afterEach(() => {
+  adminVoucherService.createVoucher = originalCreateVoucher;
+  adminVoucherService.changeVoucherStatus = originalChangeVoucherStatus;
+  adminVoucherService.deleteVoucher = originalDeleteVoucher;
+  adminVoucherService.duplicateVoucher = originalDuplicateVoucher;
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminVoucherService.getVoucherById = originalGetVoucherById;
   adminVoucherService.getVouchers = originalGetVouchers;
+  adminVoucherService.updateVoucher = originalUpdateVoucher;
 });
 
 test('GET /api/admin/vouchers requires access token', async () => {
@@ -196,6 +230,58 @@ test('GET /api/admin/vouchers returns voucher list with pagination meta', async 
   }
 });
 
+test('POST /api/admin/vouchers returns created voucher payload', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'staff-user-9',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'staff-user-9',
+    });
+  adminVoucherService.createVoucher = async (context) => {
+    capturedContext = context;
+
+    return {
+      code: 'SAVE30',
+      id: '99999999-9999-4999-8999-999999999999',
+      status: 'disabled',
+      used_count: 0,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/admin/vouchers`, {
+      body: JSON.stringify({
+        code: 'save30',
+        discount_type: 'percent',
+        discount_value: 30,
+        promotion_id: '33333333-3333-4333-8333-333333333333',
+        valid_from: '2026-07-01T00:00:00.000Z',
+        valid_to: '2026-07-31T23:59:59.000Z',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Voucher created successfully');
+    assert.equal(response.body.data.code, 'SAVE30');
+    assert.equal(capturedContext.actorUserId, 'staff-user-9');
+    assert.equal(capturedContext.payload.code, 'save30');
+  } finally {
+    server.close();
+  }
+});
+
 test('GET /api/admin/vouchers/:voucherId returns voucher detail', async () => {
   const server = app.listen(0);
   const accessToken = createAccessToken({
@@ -266,6 +352,255 @@ test('GET /api/admin/vouchers/:voucherId returns voucher detail', async () => {
       },
       voucherId: '44444444-4444-4444-8444-444444444444',
     });
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/vouchers/:voucherId returns updated voucher payload', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'admin-user-7',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'admin',
+      userId: 'admin-user-7',
+    });
+  adminVoucherService.updateVoucher = async (context) => {
+    capturedContext = context;
+
+    return {
+      code: 'SAVE15',
+      id: 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+      status: 'active',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/vouchers/aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1`,
+      {
+        body: JSON.stringify({
+          min_order_amount: 1500000,
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Voucher updated successfully');
+    assert.equal(response.body.data.code, 'SAVE15');
+    assert.equal(capturedContext.actorUserId, 'admin-user-7');
+    assert.equal(capturedContext.payload.min_order_amount, 1500000);
+    assert.equal(
+      capturedContext.voucherId,
+      'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/vouchers/:voucherId/status returns updated voucher payload', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'staff-user-2',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'staff-user-2',
+    });
+  adminVoucherService.changeVoucherStatus = async (context) => {
+    capturedContext = context;
+
+    return {
+      code: 'SAVE10',
+      id: '66666666-6666-4666-8666-666666666666',
+      status: 'disabled',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/vouchers/66666666-6666-4666-8666-666666666666/status`,
+      {
+        body: JSON.stringify({
+          status: 'disabled',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Voucher status updated successfully');
+    assert.equal(response.body.data.status, 'disabled');
+    assert.equal(capturedContext.actorUserId, 'staff-user-2');
+    assert.equal(capturedContext.payload.status, 'disabled');
+    assert.equal(capturedContext.voucherId, '66666666-6666-4666-8666-666666666666');
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/admin/vouchers/:voucherId/duplicate returns duplicated voucher payload', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'admin-user-8',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'admin',
+      userId: 'admin-user-8',
+    });
+  adminVoucherService.duplicateVoucher = async (context) => {
+    capturedContext = context;
+
+    return {
+      code: 'SAVE10COPY',
+      id: 'bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
+      status: 'disabled',
+      used_count: 0,
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/vouchers/bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1/duplicate`,
+      {
+        body: JSON.stringify({
+          new_code: 'save10copy',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Voucher duplicated successfully');
+    assert.equal(response.body.data.status, 'disabled');
+    assert.equal(capturedContext.actorUserId, 'admin-user-8');
+    assert.equal(capturedContext.payload.new_code, 'save10copy');
+    assert.equal(
+      capturedContext.voucherId,
+      'bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test('DELETE /api/admin/vouchers/:voucherId returns 403 for staff role', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'staff-user-3',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'staff-user-3',
+    });
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/vouchers/77777777-7777-4777-8777-777777777777`,
+      {
+        body: JSON.stringify({
+          reason: 'Disable campaign voucher',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'DELETE',
+      },
+    );
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('DELETE /api/admin/vouchers/:voucherId returns disabled voucher payload for admin', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: 'admin-user-3',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'admin',
+      userId: 'admin-user-3',
+    });
+  adminVoucherService.deleteVoucher = async (context) => {
+    capturedContext = context;
+
+    return {
+      code: 'SAVE10',
+      id: '88888888-8888-4888-8888-888888888888',
+      reason: 'Campaign ended early',
+      status: 'disabled',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/vouchers/88888888-8888-4888-8888-888888888888`,
+      {
+        body: JSON.stringify({
+          reason: 'Campaign ended early',
+        }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'DELETE',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Voucher deleted successfully');
+    assert.equal(response.body.data.status, 'disabled');
+    assert.equal(capturedContext.actorUserId, 'admin-user-3');
+    assert.equal(capturedContext.payload.reason, 'Campaign ended early');
+    assert.equal(capturedContext.voucherId, '88888888-8888-4888-8888-888888888888');
   } finally {
     server.close();
   }
