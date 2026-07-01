@@ -45,6 +45,13 @@ const ADMIN_ASSIGNABLE_ROLE_CODES = Object.freeze([
   'admin',
   'system_admin',
 ]);
+const ADMIN_SUPPORT_REPLY_ALLOWED_STATUSES = Object.freeze([
+  SUPPORT_TICKET_STATUS.OPEN,
+  SUPPORT_TICKET_STATUS.ASSIGNED,
+  SUPPORT_TICKET_STATUS.WAITING_CUSTOMER,
+  SUPPORT_TICKET_STATUS.WAITING_STAFF,
+  SUPPORT_TICKET_STATUS.RESOLVED,
+]);
 
 const buildAppError = ({
   code,
@@ -529,6 +536,14 @@ const sanitizeAdminTicketMutationResult = (ticket) => ({
   updated_at: ticket.updated_at,
 });
 
+const sanitizeAdminReplyMutationResult = ({
+  reply,
+  ticket,
+}) => ({
+  reply: sanitizeAdminTicketReply(reply),
+  ticket: sanitizeAdminTicketMutationResult(ticket),
+});
+
 const sanitizeCustomerReplyResult = ({
   reply,
   ticket,
@@ -709,6 +724,39 @@ const parseAdminAssignBody = (body = {}) => {
   };
 };
 
+const parseAdminReplyBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const allowedFields = new Set(['is_internal_note', 'message']);
+
+  for (const key of Object.keys(body)) {
+    if (!allowedFields.has(key)) {
+      throw buildValidationError(key, `${key} is not allowed in this endpoint`);
+    }
+  }
+
+  const message = parseRequiredMessage(body.message);
+  let isInternalNote = false;
+
+  if (Object.prototype.hasOwnProperty.call(body, 'is_internal_note')) {
+    if (typeof body.is_internal_note !== 'boolean') {
+      throw buildValidationError(
+        'is_internal_note',
+        'is_internal_note must be a boolean',
+      );
+    }
+
+    isInternalNote = body.is_internal_note;
+  }
+
+  return {
+    isInternalNote,
+    message,
+  };
+};
+
 const parseReplyBody = (body = {}) => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw buildValidationError('body', 'body must be an object');
@@ -871,6 +919,23 @@ const ensureAdminSupportAssignAccess = (auth) => {
   throw buildForbiddenError();
 };
 
+const ensureAdminSupportReplyAccess = (auth) => {
+  if (!ADMIN_SUPPORT_ALLOWED_ROLES.includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'support.reply',
+      'support.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
 const ensureTicketAllowsAdminMutation = (ticket) => {
   if (!ticket) {
     throw buildResourceNotFoundError('Support ticket not found');
@@ -903,6 +968,14 @@ const validateAssignableAdminUser = (user) => {
       'assigned_to must reference a staff, admin, or system_admin user',
     );
   }
+};
+
+const resolveAdminReplySenderType = (auth) => {
+  if (auth?.role === 'staff') {
+    return SENDER_TYPE.STAFF;
+  }
+
+  return SENDER_TYPE.ADMIN;
 };
 
 const createSupportService = ({
@@ -1303,6 +1376,50 @@ const createSupportService = ({
     return sanitizeAdminTicketMutationResult(updatedTicket);
   };
 
+  const replyToAdminTicket = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    ensureAdminSupportReplyAccess(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseAdminReplyBody(body || {});
+    const ticket = await repository.getTicketByIdForAdmin({
+      staffScopeUserId: resolveAdminSupportScope(auth),
+      ticketId: parsedTicketId,
+    });
+
+    ensureTicketAllowsAdminMutation(ticket);
+
+    if (!ADMIN_SUPPORT_REPLY_ALLOWED_STATUSES.includes(ticket.status)) {
+      throw buildInvalidStateTransitionError(
+        'This support ticket status does not allow admin replies',
+      );
+    }
+
+    const toStatus = parsedBody.isInternalNote
+      ? undefined
+      : SUPPORT_TICKET_STATUS.WAITING_CUSTOMER;
+    const result = await repository.createAdminReply({
+      action: 'admin.support.reply_create',
+      actorUserId: auth?.userId || null,
+      isInternalNote: parsedBody.isInternalNote,
+      message: parsedBody.message,
+      metadata: {
+        is_internal_note: parsedBody.isInternalNote,
+        previous_status: ticket.status,
+        reply_type: parsedBody.isInternalNote ? 'internal_note' : 'public_reply',
+        updated_status: toStatus || ticket.status,
+      },
+      senderType: resolveAdminReplySenderType(auth),
+      ticketId: parsedTicketId,
+      toStatus,
+    });
+
+    return sanitizeAdminReplyMutationResult(result);
+  };
+
   return {
     assignAdminTicket,
     closeMyTicket,
@@ -1311,6 +1428,7 @@ const createSupportService = ({
     getMyTicketDetail,
     listAdminTickets,
     listMyTickets,
+    replyToAdminTicket,
     replyToTicket,
     updateAdminTicket,
   };
