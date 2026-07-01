@@ -180,6 +180,129 @@ test('getPromotionById returns RESOURCE_NOT_FOUND when promotion does not exist'
   );
 });
 
+test('getPromotionVouchers returns vouchers that belong to the requested promotion', async () => {
+  const queries = [];
+  const service = createAdminPromotionService({
+    now: () => new Date('2026-07-10T09:00:00.000Z'),
+    queryImpl: async (sql, params) => {
+      queries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('FROM promotions p') && sql.includes('voucher_count')) {
+        return {
+          rows: [
+            createPromotionRow({
+              id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+              status: 'paused',
+              targetServiceType: 'tour',
+            }),
+          ],
+        };
+      }
+
+      if (sql.includes('COUNT(*)::integer AS total') && sql.includes('FROM vouchers v')) {
+        return {
+          rows: [
+            {
+              total: 2,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('FROM vouchers v') && sql.includes('ORDER BY v.created_at DESC')) {
+        return {
+          rows: [
+            {
+              code: 'SAVE10',
+              created_at: new Date('2026-07-01T09:00:00.000Z'),
+              discount_type: 'percent',
+              discount_value: '10.00',
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              max_discount_amount: '500000.00',
+              min_order_amount: '1000000.00',
+              promotion_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+              status: 'active',
+              usage_limit_per_user: 1,
+              usage_limit_total: 100,
+              used_count: 5,
+              valid_from: new Date('2026-07-01T00:00:00.000Z'),
+              valid_to: new Date('2026-07-31T23:59:59.000Z'),
+            },
+            {
+              code: 'SAVE20',
+              created_at: new Date('2026-06-25T09:00:00.000Z'),
+              discount_type: 'fixed_amount',
+              discount_value: '200000.00',
+              id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+              max_discount_amount: null,
+              min_order_amount: '1500000.00',
+              promotion_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+              status: 'expired',
+              usage_limit_per_user: 2,
+              usage_limit_total: 20,
+              used_count: 20,
+              valid_from: new Date('2026-06-01T00:00:00.000Z'),
+              valid_to: new Date('2026-07-05T00:00:00.000Z'),
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+
+  const result = await service.getPromotionVouchers({
+    actor: {
+      permissions: ['voucher.read_all'],
+    },
+    promotionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    query: {
+      limit: '2',
+      page: '1',
+    },
+  });
+
+  assert.deepEqual(result.meta, {
+    has_next: false,
+    limit: 2,
+    page: 1,
+    total: 2,
+    total_pages: 1,
+  });
+  assert.equal(result.promotion.status, 'paused');
+  assert.equal(result.vouchers.length, 2);
+  assert.equal(result.vouchers[0].promotion_id, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  assert.equal(result.vouchers[0].is_currently_usable, false);
+  assert.equal(result.vouchers[1].is_used_up, true);
+  assert.deepEqual(queries[1].params, ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
+});
+
+test('getPromotionVouchers returns RESOURCE_NOT_FOUND when parent promotion is missing', async () => {
+  const service = createAdminPromotionService({
+    queryImpl: async () => ({
+      rows: [],
+    }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.getPromotionVouchers({
+        actor: {
+          permissions: ['promotion.update'],
+        },
+        promotionId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        query: {},
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.RESOURCE_NOT_FOUND &&
+      error.statusCode === 404,
+  );
+});
+
 test('createPromotion inserts record and writes user log', async () => {
   const queries = [];
   const service = createAdminPromotionService({

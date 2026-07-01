@@ -20,6 +20,7 @@ const MAX_REASON_LENGTH = 500;
 const PROMOTION_CREATE_PERMISSION = 'promotion.create';
 const PROMOTION_UPDATE_PERMISSION = 'promotion.update';
 const PROMOTION_DELETE_PERMISSION = 'promotion.delete';
+const VOUCHER_READ_ALL_PERMISSION = 'voucher.read_all';
 const PROMOTION_READ_PERMISSIONS = Object.freeze([
   'promotion.read',
   PROMOTION_CREATE_PERMISSION,
@@ -626,6 +627,15 @@ const ensureActorCanReadPromotions = async (queryImpl, actor) => {
   ensureActorHasAnyPermission(permissions, PROMOTION_READ_PERMISSIONS);
 };
 
+const ensureActorCanReadPromotionVouchers = async (queryImpl, actor) => {
+  const permissions = await resolveActorPermissions(queryImpl, actor);
+
+  ensureActorHasAnyPermission(permissions, [
+    ...PROMOTION_READ_PERMISSIONS,
+    VOUCHER_READ_ALL_PERMISSION,
+  ]);
+};
+
 const mapPromotionListItem = (row) => ({
   created_at: toIsoString(row.created_at),
   created_by: row.created_by,
@@ -661,6 +671,65 @@ const mapPromotionDetail = (row) => ({
   valid_to: toIsoString(row.valid_to),
   voucher_count: row.voucher_count == null ? 0 : Number(row.voucher_count),
 });
+
+const computeVoucherAdminFlags = (voucher, promotion, currentTime) => {
+  const voucherValidFrom = voucher.valid_from ? new Date(voucher.valid_from) : null;
+  const voucherValidTo = voucher.valid_to ? new Date(voucher.valid_to) : null;
+  const promotionValidFrom = promotion.valid_from
+    ? new Date(promotion.valid_from)
+    : null;
+  const promotionValidTo = promotion.valid_to ? new Date(promotion.valid_to) : null;
+
+  return {
+    is_currently_usable:
+      voucher.status === 'active' &&
+      promotion.status === PROMOTION_STATUS.ACTIVE &&
+      (!voucherValidFrom || currentTime >= voucherValidFrom) &&
+      (!voucherValidTo || currentTime <= voucherValidTo) &&
+      (!promotionValidFrom || currentTime >= promotionValidFrom) &&
+      (!promotionValidTo || currentTime <= promotionValidTo),
+    is_expired: Boolean(voucherValidTo) && currentTime > voucherValidTo,
+    is_used_up:
+      voucher.usage_limit_total != null &&
+      Number(voucher.used_count) >= Number(voucher.usage_limit_total),
+  };
+};
+
+const mapPromotionVoucherListItem = (row, promotion, currentTime) => {
+  const flags = computeVoucherAdminFlags(row, promotion, currentTime);
+
+  return {
+    code: row.code,
+    created_at: toIsoString(row.created_at),
+    discount_type: row.discount_type,
+    discount_value: Number(row.discount_value),
+    id: row.id,
+    is_currently_usable: flags.is_currently_usable,
+    is_expired: flags.is_expired,
+    is_used_up: flags.is_used_up,
+    max_discount_amount:
+      row.max_discount_amount == null ? null : Number(row.max_discount_amount),
+    min_order_amount:
+      row.min_order_amount == null ? null : Number(row.min_order_amount),
+    promotion: {
+      id: promotion.id,
+      name: promotion.name,
+      status: promotion.status,
+      target_service_type: promotion.target_service_type,
+      valid_from: toIsoString(promotion.valid_from),
+      valid_to: toIsoString(promotion.valid_to),
+    },
+    promotion_id: row.promotion_id,
+    status: row.status,
+    usage_limit_per_user:
+      row.usage_limit_per_user == null ? null : Number(row.usage_limit_per_user),
+    usage_limit_total:
+      row.usage_limit_total == null ? null : Number(row.usage_limit_total),
+    used_count: row.used_count == null ? 0 : Number(row.used_count),
+    valid_from: toIsoString(row.valid_from),
+    valid_to: toIsoString(row.valid_to),
+  };
+};
 
 const loadPromotionById = async (
   queryExecutor,
@@ -755,6 +824,56 @@ const listPromotions = async (queryExecutor, filters) => {
       page: filters.page,
       total,
     }),
+  };
+};
+
+const listPromotionVouchers = async (
+  queryExecutor,
+  promotionId,
+  {
+    limit,
+    page,
+  },
+) => {
+  const countResult = await queryExecutor(
+    `
+      SELECT COUNT(*)::integer AS total
+      FROM vouchers v
+      WHERE v.promotion_id = $1
+    `,
+    [promotionId],
+  );
+  const total = countResult.rows[0]?.total || 0;
+  const offset = (page - 1) * limit;
+  const dataResult = await queryExecutor(
+    `
+      SELECT
+        v.id,
+        v.promotion_id,
+        v.code,
+        v.discount_type,
+        v.discount_value,
+        v.max_discount_amount,
+        v.min_order_amount,
+        v.usage_limit_total,
+        v.usage_limit_per_user,
+        v.used_count,
+        v.status,
+        v.valid_from,
+        v.valid_to,
+        v.created_at
+      FROM vouchers v
+      WHERE v.promotion_id = $1
+      ORDER BY v.created_at DESC, v.id DESC
+      LIMIT $2
+      OFFSET $3
+    `,
+    [promotionId, limit, offset],
+  );
+
+  return {
+    rows: dataResult.rows,
+    total,
   };
 };
 
@@ -986,6 +1105,47 @@ const createAdminPromotionService = ({
     }
 
     return mapPromotionDetail(promotion);
+  };
+
+  const getPromotionVouchers = async ({
+    actor,
+    promotionId,
+    query: rawQuery,
+  }) => {
+    await ensureActorCanReadPromotionVouchers(queryImpl, actor);
+
+    const normalizedPromotionId = parseUuid('promotion_id', promotionId);
+    const filters = normalizeListQuery(rawQuery);
+    const promotion = await loadPromotionById(queryImpl, normalizedPromotionId);
+
+    if (!promotion) {
+      throw buildNotFoundError();
+    }
+
+    const result = await listPromotionVouchers(queryImpl, normalizedPromotionId, {
+      limit: filters.limit,
+      page: filters.page,
+    });
+    const currentTime = now();
+
+    return {
+      meta: buildPaginationMeta({
+        limit: filters.limit,
+        page: filters.page,
+        total: result.total,
+      }),
+      promotion: {
+        id: promotion.id,
+        name: promotion.name,
+        status: promotion.status,
+        target_service_type: promotion.target_service_type,
+        valid_from: toIsoString(promotion.valid_from),
+        valid_to: toIsoString(promotion.valid_to),
+      },
+      vouchers: result.rows.map((row) =>
+        mapPromotionVoucherListItem(row, promotion, currentTime),
+      ),
+    };
   };
 
   const createPromotion = async ({
@@ -1293,6 +1453,7 @@ const createAdminPromotionService = ({
     createPromotion,
     deletePromotion,
     getPromotionById,
+    getPromotionVouchers,
     getPromotions,
     updatePromotion,
   };
