@@ -226,6 +226,11 @@ const sanitizeNotificationReadState = (row) => ({
   status: row.status,
 });
 
+const sanitizeNotificationDeleteResult = (notificationId) => ({
+  deleted: true,
+  id: notificationId,
+});
+
 const createNotificationService = ({
   repository = createNotificationRepository(),
 } = {}) => {
@@ -238,6 +243,38 @@ const createNotificationService = ({
     return {
       unread_count: Number(unreadCount || 0),
     };
+  };
+
+  const deleteMyNotification = async ({
+    auth,
+    notificationId,
+  } = {}) => {
+    const actor = ensureInboxAccess(auth);
+    const parsedNotificationId = parseUuid('notification_id', notificationId);
+    const notification = await repository.getNotificationById(parsedNotificationId);
+
+    if (!notification) {
+      throw buildResourceNotFoundError('Notification not found');
+    }
+
+    if (notification.user_id == null) {
+      throw buildForbiddenError('Broadcast notifications cannot be deleted');
+    }
+
+    if (notification.user_id !== actor.userId) {
+      throw buildForbiddenError();
+    }
+
+    const deletedNotification = await repository.deleteNotificationForUser({
+      notificationId: parsedNotificationId,
+      userId: actor.userId,
+    });
+
+    if (!deletedNotification) {
+      throw buildResourceNotFoundError('Notification not found');
+    }
+
+    return sanitizeNotificationDeleteResult(parsedNotificationId);
   };
 
   const markAllMyNotificationsRead = async ({
@@ -330,6 +367,7 @@ const createNotificationService = ({
   };
 
   return {
+    deleteMyNotification,
     getUnreadNotificationCount,
     getMyNotificationDetail,
     listMyNotifications,
