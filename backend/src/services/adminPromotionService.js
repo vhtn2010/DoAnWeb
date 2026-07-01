@@ -326,20 +326,8 @@ const validatePromotionWindow = ({ details, validFrom, validTo }) => {
 const validateCreateState = ({
   currentTime,
   details,
-  status,
   validTo,
 }) => {
-  if (!status) {
-    return;
-  }
-
-  if ([PROMOTION_STATUS.EXPIRED, PROMOTION_STATUS.CANCELLED].includes(status)) {
-    details.push({
-      field: 'status',
-      message: 'status cannot be expired or cancelled when creating a promotion',
-    });
-  }
-
   if (validTo && validTo <= currentTime) {
     details.push({
       field: 'valid_to',
@@ -1038,9 +1026,12 @@ const insertUserLog = async (
   );
 
 const assertPromotionCanBeUpdated = (promotion) => {
-  if (promotion.status === PROMOTION_STATUS.CANCELLED) {
+  if (
+    promotion.status === PROMOTION_STATUS.CANCELLED ||
+    promotion.status === PROMOTION_STATUS.EXPIRED
+  ) {
     throw buildInvalidTransitionError(
-      'Cancelled promotions cannot be updated',
+      'Expired or cancelled promotions cannot be updated',
     );
   }
 };
@@ -1158,6 +1149,16 @@ const createAdminPromotionService = ({
 
       const currentTime = now();
       const normalizedPayload = normalizeCreatePayload(payload, currentTime);
+
+      if (
+        normalizedPayload.status === PROMOTION_STATUS.EXPIRED ||
+        normalizedPayload.status === PROMOTION_STATUS.CANCELLED
+      ) {
+        throw buildInvalidTransitionError(
+          'Cannot create a promotion with terminal status',
+        );
+      }
+
       const createdPromotionRecord = await insertPromotion(
         queryExecutor,
         {
@@ -1274,6 +1275,15 @@ const createAdminPromotionService = ({
       }
 
       const currentTime = now();
+
+      if (
+        currentPromotion.status === PROMOTION_STATUS.ACTIVE &&
+        nextPromotion.valid_to <= currentTime
+      ) {
+        throw buildInvalidTransitionError(
+          'Active promotions cannot be updated to an expired time window',
+        );
+      }
 
       await updatePromotionRecord(
         queryExecutor,

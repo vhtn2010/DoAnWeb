@@ -503,8 +503,8 @@ test('createPromotion rejects expired or cancelled create status', async () => {
         },
       }),
     (error) =>
-      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
-      error.details?.some((detail) => detail.field === 'status'),
+      error.code === API_ERROR_CODES.INVALID_STATE_TRANSITION &&
+      error.statusCode === 400,
   );
 });
 
@@ -520,6 +520,47 @@ test('updatePromotion rejects cancelled promotion updates', async () => {
                 rows: [
                   createPromotionRow({
                     status: 'cancelled',
+                  }),
+                ],
+              };
+            }
+
+            throw new Error(`Unexpected SQL: ${sql}`);
+          },
+        }),
+      ),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updatePromotion({
+        actor: {
+          permissions: ['promotion.update'],
+        },
+        actorUserId: '11111111-1111-4111-8111-111111111111',
+        payload: {
+          name: 'Updated Sale',
+        },
+        promotionId: '22222222-2222-4222-8222-222222222222',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.INVALID_STATE_TRANSITION &&
+      error.statusCode === 400,
+  );
+});
+
+test('updatePromotion rejects expired promotion updates', async () => {
+  const service = createAdminPromotionService({
+    now: () => new Date('2026-07-01T09:00:00.000Z'),
+    withTransactionImpl: async (callback) =>
+      callback(
+        createTransactionStub({
+          queryImpl: async (sql) => {
+            if (sql.includes('FROM promotions p') && sql.includes('FOR UPDATE OF p')) {
+              return {
+                rows: [
+                  createPromotionRow({
+                    status: 'expired',
                   }),
                 ],
               };
@@ -602,6 +643,55 @@ test('updatePromotion rejects narrowing window when active vouchers fall outside
     (error) =>
       error.code === API_ERROR_CODES.VALIDATION_ERROR &&
       error.details?.some((detail) => detail.field === 'valid_from'),
+  );
+});
+
+test('updatePromotion rejects active promotion window that ends in the past', async () => {
+  const service = createAdminPromotionService({
+    now: () => new Date('2026-07-20T09:00:00.000Z'),
+    withTransactionImpl: async (callback) =>
+      callback(
+        createTransactionStub({
+          queryImpl: async (sql) => {
+            if (sql.includes('FROM promotions p') && sql.includes('FOR UPDATE OF p')) {
+              return {
+                rows: [
+                  createPromotionRow({
+                    status: 'active',
+                    validFrom: new Date('2026-07-01T00:00:00.000Z'),
+                    validTo: new Date('2026-08-01T00:00:00.000Z'),
+                  }),
+                ],
+              };
+            }
+
+            if (sql.includes('FROM vouchers') && sql.includes("status = 'active'")) {
+              return {
+                rows: [],
+              };
+            }
+
+            throw new Error(`Unexpected SQL: ${sql}`);
+          },
+        }),
+      ),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updatePromotion({
+        actor: {
+          permissions: ['promotion.update'],
+        },
+        actorUserId: '11111111-1111-4111-8111-111111111111',
+        payload: {
+          valid_to: '2026-07-15T00:00:00.000Z',
+        },
+        promotionId: '22222222-2222-4222-8222-222222222222',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.INVALID_STATE_TRANSITION &&
+      error.statusCode === 400,
   );
 });
 
