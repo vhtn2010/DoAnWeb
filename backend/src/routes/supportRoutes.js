@@ -1,8 +1,10 @@
 const express = require('express');
 const {
+  closeMySupportTicket,
   createSupportTicket,
   getMySupportTicketDetail,
   listMySupportTickets,
+  replyToSupportTicket,
 } = require('../controllers/supportController');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authOptional, authRequired } = require('../middleware/authSession');
@@ -31,6 +33,13 @@ const supportTicketReadRateLimit = createRateLimiter({
   storeKey: 'support-ticket-read',
   windowMs: 60 * 1000,
 });
+const supportTicketInteractionRateLimit = createRateLimiter({
+  keyGenerator: (req) => req.auth?.userId || req.ip || 'anonymous',
+  maxRequests: 30,
+  message: 'Too many support ticket actions. Please try again later.',
+  storeKey: 'support-ticket-interaction',
+  windowMs: 60 * 1000,
+});
 
 router.post(
   '/support/tickets',
@@ -51,6 +60,20 @@ router.get(
   authRequired({ allowedRoles: ['customer'] }),
   supportTicketReadRateLimit,
   asyncHandler(getMySupportTicketDetail),
+);
+
+router.post(
+  '/support/tickets/:ticket_id/replies',
+  authRequired({ allowedRoles: ['customer'] }),
+  supportTicketInteractionRateLimit,
+  asyncHandler(replyToSupportTicket),
+);
+
+router.post(
+  '/support/tickets/:ticket_id/close',
+  authRequired({ allowedRoles: ['customer'] }),
+  supportTicketInteractionRateLimit,
+  asyncHandler(closeMySupportTicket),
 );
 
 module.exports = router;

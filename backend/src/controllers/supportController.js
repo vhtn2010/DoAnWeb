@@ -38,8 +38,37 @@ const getMySupportTicketDetail = async (req, res) => {
   });
 };
 
+const replyToSupportTicket = async (req, res) => {
+  const data = await supportService.replyToTicket({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Support ticket reply created successfully',
+    statusCode: 201,
+  });
+};
+
+const closeMySupportTicket = async (req, res) => {
+  const data = await supportService.closeMyTicket({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Support ticket closed successfully',
+  });
+};
+
 module.exports = {
+  closeMySupportTicket,
   createSupportTicket,
   getMySupportTicketDetail,
   listMySupportTickets,
+  replyToSupportTicket,
 };

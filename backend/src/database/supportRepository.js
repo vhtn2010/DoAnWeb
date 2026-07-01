@@ -254,7 +254,153 @@ const createSupportRepository = ({
       pool: getPool(),
     });
 
+  const addCustomerReply = async ({
+    message,
+    senderId,
+    ticketId,
+    toStatus,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const replyResult = await client.query(
+        `
+          INSERT INTO support_replies (
+            ticket_id,
+            sender_id,
+            sender_type,
+            message,
+            is_internal_note,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+          RETURNING
+            id,
+            ticket_id,
+            sender_id,
+            sender_type,
+            message,
+            is_internal_note,
+            created_at
+        `,
+        [
+          ticketId,
+          senderId,
+          'customer',
+          message,
+          false,
+        ],
+      );
+
+      const ticketResult = await client.query(
+        `
+          UPDATE support_tickets
+          SET
+            status = $2,
+            updated_at = NOW()
+          WHERE id = $1
+          RETURNING
+            id,
+            ticket_code,
+            user_id,
+            booking_id,
+            service_id,
+            customer_name,
+            customer_email,
+            customer_phone,
+            subject,
+            status,
+            priority,
+            created_at,
+            updated_at,
+            closed_at
+        `,
+        [ticketId, toStatus],
+      );
+
+      return {
+        reply: replyResult.rows[0],
+        ticket: ticketResult.rows[0],
+      };
+    }, {
+      pool: getPool(),
+    });
+
+  const closeTicketByCustomer = async ({
+    reason,
+    ticketId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      let reply = null;
+
+      if (reason) {
+        const replyResult = await client.query(
+          `
+            INSERT INTO support_replies (
+              ticket_id,
+              sender_id,
+              sender_type,
+              message,
+              is_internal_note,
+              created_at
+            )
+            VALUES ($1, NULL, $2, $3, $4, NOW())
+            RETURNING
+              id,
+              ticket_id,
+              sender_id,
+              sender_type,
+              message,
+              is_internal_note,
+              created_at
+          `,
+          [
+            ticketId,
+            'customer',
+            reason,
+            false,
+          ],
+        );
+
+        reply = replyResult.rows[0];
+      }
+
+      const ticketResult = await client.query(
+        `
+          UPDATE support_tickets
+          SET
+            status = $2,
+            closed_at = NOW(),
+            updated_at = NOW()
+          WHERE id = $1
+          RETURNING
+            id,
+            ticket_code,
+            user_id,
+            booking_id,
+            service_id,
+            customer_name,
+            customer_email,
+            customer_phone,
+            subject,
+            status,
+            priority,
+            created_at,
+            updated_at,
+            closed_at
+        `,
+        [ticketId, 'closed'],
+      );
+
+      return {
+        reply,
+        ticket: ticketResult.rows[0],
+      };
+    }, {
+      pool: getPool(),
+    });
+
   return {
+    addCustomerReply,
+    closeTicketByCustomer,
     createTicket,
     getBookingById,
     getServiceById,

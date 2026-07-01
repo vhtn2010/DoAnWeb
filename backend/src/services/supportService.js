@@ -20,6 +20,13 @@ const MAX_MESSAGE_LENGTH = 5000;
 const MAX_LIST_LIMIT = 50;
 const MAX_TICKET_CODE_ATTEMPTS = 3;
 const DEFAULT_LIST_PAGE = 1;
+const CUSTOMER_REPLY_ALLOWED_STATUSES = Object.freeze([
+  SUPPORT_TICKET_STATUS.OPEN,
+  'assigned',
+  'waiting_customer',
+  'waiting_staff',
+  'resolved',
+]);
 
 const buildAppError = ({
   code,
@@ -58,6 +65,12 @@ const buildResourceNotFoundError = (message = 'Resource not found') =>
   new AppError(message, {
     code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
     statusCode: 404,
+  });
+
+const buildInvalidStateTransitionError = (message) =>
+  new AppError(message || 'The requested support ticket state transition is not allowed', {
+    code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+    statusCode: 400,
   });
 
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
@@ -216,6 +229,39 @@ const parseRequiredMessage = (value) => {
   return normalized;
 };
 
+const parseOptionalMessage = ({
+  field,
+  maxLength = 2000,
+  value,
+}) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    throw buildValidationError(field, `${field} must be a string`);
+  }
+
+  const normalized = value.replace(/\r\n/g, '\n').trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > maxLength) {
+    throw buildValidationError(
+      field,
+      `${field} must be less than or equal to ${maxLength} characters`,
+    );
+  }
+
+  if (MULTILINE_TEXT_PATTERN.test(normalized)) {
+    throw buildValidationError(field, `${field} contains unsupported characters`);
+  }
+
+  return normalized;
+};
+
 const parseOptionalEmail = (field, value) => {
   const email = parseOptionalInlineString({
     field,
@@ -357,6 +403,32 @@ const sanitizeTicketDetail = ({
   updated_at: ticket.updated_at,
 });
 
+const sanitizeCustomerReplyResult = ({
+  reply,
+  ticket,
+}) => ({
+  reply: sanitizeTicketReply(reply),
+  ticket: {
+    closed_at: ticket.closed_at,
+    id: ticket.id,
+    status: ticket.status,
+    ticket_code: ticket.ticket_code,
+    updated_at: ticket.updated_at,
+  },
+});
+
+const sanitizeCustomerCloseResult = ({
+  reasonReply,
+  ticket,
+}) => ({
+  close_reason_reply: reasonReply ? sanitizeTicketReply(reasonReply) : null,
+  closed_at: ticket.closed_at,
+  id: ticket.id,
+  status: ticket.status,
+  ticket_code: ticket.ticket_code,
+  updated_at: ticket.updated_at,
+});
+
 const isTicketCodeDuplicateError = (error) =>
   error?.code === '23505' &&
   (
@@ -419,6 +491,46 @@ const parseListQuery = (query = {}) => ({
   }),
   status: parseOptionalTicketStatus(query.status),
 });
+
+const parseReplyBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const allowedFields = new Set(['message']);
+
+  for (const key of Object.keys(body)) {
+    if (!allowedFields.has(key)) {
+      throw buildValidationError(key, `${key} is not allowed in this endpoint`);
+    }
+  }
+
+  return {
+    message: parseRequiredMessage(body.message),
+  };
+};
+
+const parseCloseBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const allowedFields = new Set(['reason']);
+
+  for (const key of Object.keys(body)) {
+    if (!allowedFields.has(key)) {
+      throw buildValidationError(key, `${key} is not allowed in this endpoint`);
+    }
+  }
+
+  return {
+    reason: parseOptionalMessage({
+      field: 'reason',
+      maxLength: 2000,
+      value: body.reason,
+    }),
+  };
+};
 
 const buildPaginationMeta = ({
   limit,
@@ -613,10 +725,88 @@ const createSupportService = ({
     });
   };
 
+  const replyToTicket = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseReplyBody(body || {});
+    const ticket = await repository.getTicketByIdAndUser({
+      ticketId: parsedTicketId,
+      userId: auth.userId,
+    });
+
+    if (!ticket) {
+      throw buildResourceNotFoundError('Support ticket not found');
+    }
+
+    if (!CUSTOMER_REPLY_ALLOWED_STATUSES.includes(ticket.status)) {
+      throw buildInvalidStateTransitionError(
+        'This support ticket status does not allow customer replies',
+      );
+    }
+
+    const result = await repository.addCustomerReply({
+      message: parsedBody.message,
+      senderId: auth.userId,
+      ticketId: parsedTicketId,
+      toStatus: 'waiting_staff',
+    });
+
+    return sanitizeCustomerReplyResult(result);
+  };
+
+  const closeMyTicket = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseCloseBody(body || {});
+    const ticket = await repository.getTicketByIdAndUser({
+      ticketId: parsedTicketId,
+      userId: auth.userId,
+    });
+
+    if (!ticket) {
+      throw buildResourceNotFoundError('Support ticket not found');
+    }
+
+    if (ticket.status === 'closed') {
+      return sanitizeCustomerCloseResult({
+        reasonReply: null,
+        ticket,
+      });
+    }
+
+    if (ticket.status === 'spam') {
+      throw buildInvalidStateTransitionError(
+        'This support ticket status does not allow customer close',
+      );
+    }
+
+    const result = await repository.closeTicketByCustomer({
+      reason: parsedBody.reason,
+      ticketId: parsedTicketId,
+    });
+
+    return sanitizeCustomerCloseResult({
+      reasonReply: result.reply,
+      ticket: result.ticket,
+    });
+  };
+
   return {
+    closeMyTicket,
     createTicket,
     getMyTicketDetail,
     listMyTickets,
+    replyToTicket,
   };
 };
 
