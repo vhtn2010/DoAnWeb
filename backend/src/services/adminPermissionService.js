@@ -333,9 +333,9 @@ const createAdminPermissionService = ({
         throw createNotFoundError('Role not found');
       }
 
-      if (role.code === SYSTEM_ADMIN_ROLE_CODE || role.is_system_role) {
+      if (role.code === SYSTEM_ADMIN_ROLE_CODE) {
         throw createForbiddenError(
-          'System admin or protected system roles cannot be updated in MVP',
+          'System admin role permissions cannot be updated in MVP',
         );
       }
 
