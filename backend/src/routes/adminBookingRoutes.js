@@ -7,6 +7,8 @@ const {
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,
+  updateAdminBookingItemStatus,
+  updateAdminBookingItemTravellerInfo,
   updateAdminBookingStatus,
 } = require('../controllers/adminBookingController');
 const {
@@ -76,6 +78,20 @@ router.post(
   requireAdminAuth,
   adminBookingRateLimit,
   asyncHandler(expireAdminBooking),
+);
+
+router.patch(
+  '/admin/booking-items/:booking_item_id/status',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(updateAdminBookingItemStatus),
+);
+
+router.patch(
+  '/admin/booking-items/:booking_item_id/traveller-info',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(updateAdminBookingItemTravellerInfo),
 );
 
 module.exports = router;

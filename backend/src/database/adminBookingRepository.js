@@ -328,6 +328,54 @@ const createAdminBookingRepository = ({
     return result.rows;
   };
 
+  const getBookingItemById = async ({
+    allowedServiceIds,
+    bookingItemId,
+  }) => {
+    const params = [bookingItemId];
+    let scopeSql = '';
+
+    if (Array.isArray(allowedServiceIds)) {
+      if (allowedServiceIds.length === 0) {
+        return null;
+      }
+
+      params.push(allowedServiceIds);
+      scopeSql = `AND bi.service_id = ANY($${params.length}::uuid[])`;
+    }
+
+    const result = await queryImpl(
+      `
+        SELECT
+          bi.id,
+          bi.booking_id,
+          bi.service_id,
+          bi.service_type,
+          bi.reference_id,
+          bi.title_snapshot,
+          bi.start_at,
+          bi.end_at,
+          bi.quantity,
+          bi.unit_price,
+          bi.total_amount,
+          bi.status,
+          bi.traveller_info,
+          b.status AS booking_status,
+          b.booking_code,
+          b.user_id
+        FROM booking_items bi
+        INNER JOIN bookings b
+          ON b.id = bi.booking_id
+        WHERE bi.id = $1
+          ${scopeSql}
+        LIMIT 1
+      `,
+      params,
+    );
+
+    return result.rows[0] || null;
+  };
+
   const listBookingPaymentsByBookingId = async (bookingId) => {
     const result = await queryImpl(
       `
@@ -484,17 +532,145 @@ const createAdminBookingRepository = ({
       toStatus: 'expired',
     });
 
+  const updateBookingItemStatus = async ({
+    actorUserId,
+    bookingItemId,
+    fromStatus,
+    reason,
+    toStatus,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const itemResult = await client.query(
+        `
+          UPDATE booking_items
+          SET status = $2
+          WHERE id = $1
+            AND status = $3
+          RETURNING
+            id,
+            booking_id,
+            service_id,
+            service_type,
+            reference_id,
+            title_snapshot,
+            start_at,
+            end_at,
+            quantity,
+            unit_price,
+            total_amount,
+            status,
+            traveller_info
+        `,
+        [bookingItemId, toStatus, fromStatus],
+      );
+
+      if (itemResult.rowCount !== 1) {
+        throw createInvalidStateTransitionError();
+      }
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          'admin.booking_item.status_update',
+          'booking_item',
+          bookingItemId,
+          {
+            from_status: fromStatus,
+            reason,
+            to_status: toStatus,
+          },
+        ],
+      );
+
+      return itemResult.rows[0];
+    });
+
+  const updateBookingItemTravellerInfo = async ({
+    actorUserId,
+    bookingItemId,
+    travellerInfo,
+    travellerInfoLogSummary,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const itemResult = await client.query(
+        `
+          UPDATE booking_items
+          SET traveller_info = $2
+          WHERE id = $1
+          RETURNING
+            id,
+            booking_id,
+            service_id,
+            service_type,
+            reference_id,
+            title_snapshot,
+            start_at,
+            end_at,
+            quantity,
+            unit_price,
+            total_amount,
+            status,
+            traveller_info
+        `,
+        [bookingItemId, travellerInfo],
+      );
+
+      if (itemResult.rowCount !== 1) {
+        throw new AppError('Booking item not found', {
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          statusCode: 404,
+        });
+      }
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          'admin.booking_item.traveller_info_update',
+          'booking_item',
+          bookingItemId,
+          travellerInfoLogSummary,
+        ],
+      );
+
+      return itemResult.rows[0];
+    });
+
   return {
     cancelBooking,
     completeBooking,
     confirmBooking,
     expireBooking,
     getBookingById,
+    getBookingItemById,
     listBookingItemsByBookingId,
     listBookingPaymentsByBookingId,
     listBookingRefundsByBookingId,
     listBookingStatusHistoriesByBookingId,
     listBookings,
+    updateBookingItemStatus,
+    updateBookingItemTravellerInfo,
     updateBookingStatus,
   };
 };

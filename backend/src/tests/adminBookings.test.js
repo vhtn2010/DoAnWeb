@@ -10,11 +10,13 @@ const app = require('../app');
 const { apiPrefix } = require('../config');
 const {
   API_ERROR_CODES,
+  BOOKING_ITEM_STATUS,
   BOOKING_STATUS,
 } = require('../constants/domainConstraints');
 const adminBookingService = require('../services/adminBookingService');
 
 const BOOKING_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const BOOKING_ITEM_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const originalCancelBooking = adminBookingService.cancelBooking;
 const originalGetBookingDetail = adminBookingService.getBookingDetail;
 const originalGetBookingStatusHistory =
@@ -23,6 +25,10 @@ const originalListBookings = adminBookingService.listBookings;
 const originalCompleteBooking = adminBookingService.completeBooking;
 const originalConfirmBooking = adminBookingService.confirmBooking;
 const originalExpireBooking = adminBookingService.expireBooking;
+const originalUpdateBookingItemStatus =
+  adminBookingService.updateBookingItemStatus;
+const originalUpdateBookingItemTravellerInfo =
+  adminBookingService.updateBookingItemTravellerInfo;
 const originalUpdateBookingStatus = adminBookingService.updateBookingStatus;
 
 const request = (server, path, options = {}) =>
@@ -94,6 +100,9 @@ test.afterEach(() => {
   adminBookingService.getBookingDetail = originalGetBookingDetail;
   adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
   adminBookingService.listBookings = originalListBookings;
+  adminBookingService.updateBookingItemStatus = originalUpdateBookingItemStatus;
+  adminBookingService.updateBookingItemTravellerInfo =
+    originalUpdateBookingItemTravellerInfo;
   adminBookingService.updateBookingStatus = originalUpdateBookingStatus;
 });
 
@@ -1779,6 +1788,518 @@ test('POST /api/admin/bookings/{booking_id}/expire returns expired booking and v
     );
   } finally {
     adminBookingService.expireBooking = originalExpireBooking;
+    server.close();
+  }
+});
+
+test('adminBookingService.updateBookingItemStatus validates reason and transition rules', async () => {
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingItemById: async () => ({
+        booking_id: BOOKING_ID,
+        id: BOOKING_ITEM_ID,
+        status: BOOKING_ITEM_STATUS.PENDING,
+      }),
+      updateBookingItemStatus: async () => {
+        throw new Error('updateBookingItemStatus should not be called');
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.updateBookingItemStatus({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.update_status'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        status: BOOKING_ITEM_STATUS.CANCELLED,
+      },
+      booking_item_id: BOOKING_ITEM_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'reason',
+          message: 'reason is required when status is cancelled or failed',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.updateBookingItemStatus({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.update_status'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Rollback',
+        status: BOOKING_ITEM_STATUS.COMPLETED,
+      },
+      booking_item_id: BOOKING_ITEM_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('adminBookingService.updateBookingItemStatus updates booking item status with staff scope', async () => {
+  let capturedPayload = null;
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingItemById: async ({
+        allowedServiceIds,
+        bookingItemId,
+      }) => {
+        assert.deepEqual(allowedServiceIds, ['service-1']);
+        assert.equal(bookingItemId, BOOKING_ITEM_ID);
+
+        return {
+          booking_id: BOOKING_ID,
+          id: BOOKING_ITEM_ID,
+          quantity: 2,
+          reference_id: null,
+          service_id: 'service-1',
+          service_type: 'tour',
+          start_at: '2026-07-10T00:00:00.000Z',
+          status: BOOKING_ITEM_STATUS.PENDING,
+          title_snapshot: 'Tour Da Nang',
+          total_amount: '1400000',
+          traveller_info: [{ full_name: 'Traveller 1' }],
+          unit_price: '700000',
+        };
+      },
+      updateBookingItemStatus: async (payload) => {
+        capturedPayload = payload;
+
+        return {
+          booking_id: BOOKING_ID,
+          end_at: '2026-07-11T00:00:00.000Z',
+          id: BOOKING_ITEM_ID,
+          quantity: 2,
+          reference_id: null,
+          service_id: 'service-1',
+          service_type: 'tour',
+          start_at: '2026-07-10T00:00:00.000Z',
+          status: BOOKING_ITEM_STATUS.CONFIRMED,
+          title_snapshot: 'Tour Da Nang',
+          total_amount: '1400000',
+          traveller_info: [{ full_name: 'Traveller 1' }],
+          unit_price: '700000',
+        };
+      },
+    },
+  });
+
+  const result = await service.updateBookingItemStatus({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: ['service-1'],
+      tokenPayload: {
+        permissions: ['booking.update_status'],
+      },
+      userId: 'staff-1',
+    },
+    body: {
+      status: BOOKING_ITEM_STATUS.CONFIRMED,
+    },
+    booking_item_id: BOOKING_ITEM_ID,
+  });
+
+  assert.deepEqual(capturedPayload, {
+    actorUserId: 'staff-1',
+    bookingItemId: BOOKING_ITEM_ID,
+    fromStatus: BOOKING_ITEM_STATUS.PENDING,
+    reason: null,
+    toStatus: BOOKING_ITEM_STATUS.CONFIRMED,
+  });
+  assert.deepEqual(result, {
+    booking_id: BOOKING_ID,
+    end_at: '2026-07-11T00:00:00.000Z',
+    id: BOOKING_ITEM_ID,
+    quantity: 2,
+    reference_id: null,
+    service_id: 'service-1',
+    service_type: 'tour',
+    start_at: '2026-07-10T00:00:00.000Z',
+    status: BOOKING_ITEM_STATUS.CONFIRMED,
+    title: 'Tour Da Nang',
+    total_amount: 1400000,
+    traveller_info: [{ full_name: 'Traveller 1' }],
+    unit_price: 700000,
+  });
+});
+
+test('adminBookingService.updateBookingItemTravellerInfo validates sensitive fields and booking state restrictions', async () => {
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingItemById: async () => ({
+        booking_id: BOOKING_ID,
+        booking_status: BOOKING_STATUS.COMPLETED,
+        id: BOOKING_ITEM_ID,
+        status: BOOKING_ITEM_STATUS.CONFIRMED,
+      }),
+      updateBookingItemTravellerInfo: async () => {
+        throw new Error('updateBookingItemTravellerInfo should not be called');
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.updateBookingItemTravellerInfo({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.update_item'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        traveller_info: {
+          card_number: '4111111111111111',
+        },
+      },
+      booking_item_id: BOOKING_ITEM_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.updateBookingItemTravellerInfo({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['booking.update_item'],
+        },
+        userId: 'staff-1',
+      },
+      body: {
+        traveller_info: [
+          {
+            full_name: 'Traveller Updated',
+          },
+        ],
+      },
+      booking_item_id: BOOKING_ITEM_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('adminBookingService.updateBookingItemTravellerInfo updates traveller info and sanitizes response', async () => {
+  let capturedPayload = null;
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingItemById: async () => ({
+        booking_id: BOOKING_ID,
+        booking_status: BOOKING_STATUS.PAID,
+        id: BOOKING_ITEM_ID,
+        quantity: 1,
+        reference_id: 'detail-1',
+        service_id: 'service-2',
+        service_type: 'flight',
+        start_at: '2026-07-12T08:00:00.000Z',
+        status: BOOKING_ITEM_STATUS.CONFIRMED,
+        title_snapshot: 'Flight SGN-HAN',
+        total_amount: '2500000',
+        traveller_info: [{ full_name: 'Old Name' }],
+        unit_price: '2500000',
+      }),
+      updateBookingItemTravellerInfo: async (payload) => {
+        capturedPayload = payload;
+
+        return {
+          booking_id: BOOKING_ID,
+          id: BOOKING_ITEM_ID,
+          quantity: 1,
+          reference_id: 'detail-1',
+          service_id: 'service-2',
+          service_type: 'flight',
+          start_at: '2026-07-12T08:00:00.000Z',
+          status: BOOKING_ITEM_STATUS.CONFIRMED,
+          title_snapshot: 'Flight SGN-HAN',
+          total_amount: '2500000',
+          traveller_info: [
+            {
+              full_name: 'New Name',
+              passport_number: 'B1234567',
+            },
+          ],
+          unit_price: '2500000',
+        };
+      },
+    },
+  });
+
+  const travellerInfo = [
+    {
+      full_name: 'New Name',
+      passport_number: 'B1234567',
+    },
+  ];
+  const result = await service.updateBookingItemTravellerInfo({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['booking.update_item'],
+      },
+      userId: 'admin-1',
+    },
+    body: {
+      traveller_info: travellerInfo,
+    },
+    booking_item_id: BOOKING_ITEM_ID,
+  });
+
+  assert.deepEqual(capturedPayload, {
+    actorUserId: 'admin-1',
+    bookingItemId: BOOKING_ITEM_ID,
+    travellerInfo,
+    travellerInfoLogSummary: {
+      payload_type: 'array',
+      top_level_keys: ['full_name', 'passport_number'],
+      traveller_count: 1,
+    },
+  });
+  assert.deepEqual(result, {
+    booking_id: BOOKING_ID,
+    end_at: undefined,
+    id: BOOKING_ITEM_ID,
+    quantity: 1,
+    reference_id: 'detail-1',
+    service_id: 'service-2',
+    service_type: 'flight',
+    start_at: '2026-07-12T08:00:00.000Z',
+    status: BOOKING_ITEM_STATUS.CONFIRMED,
+    title: 'Flight SGN-HAN',
+    total_amount: 2500000,
+    traveller_info: travellerInfo,
+    unit_price: 2500000,
+  });
+});
+
+test('PATCH /api/admin/booking-items/{booking_item_id}/status updates booking item status for authorized users', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.update_status'],
+    role: 'staff',
+    sub: 'staff-1',
+  });
+
+  adminBookingService.updateBookingItemStatus = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'staff',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['booking.update_status'],
+          role: 'staff',
+          sub: 'staff-1',
+        },
+        userId: 'staff-1',
+      },
+      body: {
+        reason: 'Supplier confirmed the seat',
+        status: 'confirmed',
+      },
+      booking_item_id: BOOKING_ITEM_ID,
+    });
+
+    return {
+      booking_id: BOOKING_ID,
+      id: BOOKING_ITEM_ID,
+      status: 'confirmed',
+      title: 'Flight SGN-HAN',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/booking-items/${BOOKING_ITEM_ID}/status`,
+      {
+        body: {
+          reason: 'Supplier confirmed the seat',
+          status: 'confirmed',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Admin booking item status updated successfully',
+    );
+    assert.equal(response.body.data.id, BOOKING_ITEM_ID);
+    assert.equal(response.body.data.status, 'confirmed');
+  } finally {
+    adminBookingService.updateBookingItemStatus = originalUpdateBookingItemStatus;
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/booking-items/{booking_item_id}/traveller-info updates traveller info for authorized users', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.update_item'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+
+  adminBookingService.updateBookingItemTravellerInfo = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'admin',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['booking.update_item'],
+          role: 'admin',
+          sub: 'admin-1',
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        traveller_info: [
+          {
+            full_name: 'New Traveller',
+          },
+        ],
+      },
+      booking_item_id: BOOKING_ITEM_ID,
+    });
+
+    return {
+      booking_id: BOOKING_ID,
+      id: BOOKING_ITEM_ID,
+      status: 'confirmed',
+      title: 'Flight SGN-HAN',
+      traveller_info: [
+        {
+          full_name: 'New Traveller',
+        },
+      ],
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/booking-items/${BOOKING_ITEM_ID}/traveller-info`,
+      {
+        body: {
+          traveller_info: [
+            {
+              full_name: 'New Traveller',
+            },
+          ],
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Admin booking item traveller info updated successfully',
+    );
+    assert.equal(response.body.data.id, BOOKING_ITEM_ID);
+    assert.equal(response.body.data.traveller_info.length, 1);
+  } finally {
+    adminBookingService.updateBookingItemTravellerInfo =
+      originalUpdateBookingItemTravellerInfo;
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/booking-items/{booking_item_id} routes validate permission and UUID', async () => {
+  const server = app.listen(0);
+  const tokenWithoutPermission = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.read_all'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+  const tokenWithPermission = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.update_status'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+
+  try {
+    const forbiddenResponse = await request(
+      server,
+      `${apiPrefix}/admin/booking-items/${BOOKING_ITEM_ID}/status`,
+      {
+        body: {
+          status: 'confirmed',
+        },
+        headers: {
+          Authorization: `Bearer ${tokenWithoutPermission}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+
+    const badUuidResponse = await request(
+      server,
+      `${apiPrefix}/admin/booking-items/not-a-uuid/traveller-info`,
+      {
+        body: {
+          traveller_info: [],
+        },
+        headers: {
+          Authorization: `Bearer ${tokenWithPermission}`,
+        },
+        method: 'PATCH',
+      },
+    );
+
+    assert.equal(badUuidResponse.statusCode, 400);
+    assert.equal(
+      badUuidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+    assert.deepEqual(badUuidResponse.body.error.details, [
+      {
+        field: 'booking_item_id',
+        message: 'booking_item_id must be a valid UUID',
+      },
+    ]);
+  } finally {
     server.close();
   }
 });

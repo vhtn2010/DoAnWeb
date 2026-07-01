@@ -102,6 +102,32 @@ const expireAdminBooking = async (req, res) => {
   });
 };
 
+const updateAdminBookingItemStatus = async (req, res) => {
+  const data = await adminBookingService.updateBookingItemStatus({
+    auth: req.auth,
+    body: req.body,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking item status updated successfully',
+  });
+};
+
+const updateAdminBookingItemTravellerInfo = async (req, res) => {
+  const data = await adminBookingService.updateBookingItemTravellerInfo({
+    auth: req.auth,
+    body: req.body,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking item traveller info updated successfully',
+  });
+};
+
 module.exports = {
   cancelAdminBooking,
   completeAdminBooking,
@@ -110,5 +136,7 @@ module.exports = {
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,
+  updateAdminBookingItemStatus,
+  updateAdminBookingItemTravellerInfo,
   updateAdminBookingStatus,
 };
