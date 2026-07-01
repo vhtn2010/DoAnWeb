@@ -440,6 +440,135 @@ const sanitizeBookingDetailItem = (item) => ({
   unit_price: roundMoney(item.unit_price),
 });
 
+const sanitizeSnapshotRoomType = (roomType) => {
+  if (!roomType || typeof roomType !== 'object' || Array.isArray(roomType)) {
+    return null;
+  }
+
+  return {
+    base_price:
+      roomType.base_price == null
+        ? null
+        : roundMoney(roomType.base_price),
+    bed_type: roomType.bed_type || null,
+    id: roomType.id || null,
+    max_adults:
+      roomType.max_adults == null
+        ? null
+        : Number(roomType.max_adults),
+    max_children:
+      roomType.max_children == null
+        ? null
+        : Number(roomType.max_children),
+    name: roomType.name || null,
+  };
+};
+
+const sanitizeSnapshotFlight = (flight) => {
+  if (!flight || typeof flight !== 'object' || Array.isArray(flight)) {
+    return null;
+  }
+
+  return {
+    airline_name: flight.airline_name || null,
+    arrival_airport: flight.arrival_airport || null,
+    arrival_at: flight.arrival_at || null,
+    cabin_class: flight.cabin_class || null,
+    departure_airport: flight.departure_airport || null,
+    departure_at: flight.departure_at || null,
+    fare_price:
+      flight.fare_price == null
+        ? null
+        : roundMoney(flight.fare_price),
+    flight_number: flight.flight_number || null,
+    id: flight.id || null,
+  };
+};
+
+const sanitizeSnapshotTrain = (train) => {
+  if (!train || typeof train !== 'object' || Array.isArray(train)) {
+    return null;
+  }
+
+  return {
+    arrival_at: train.arrival_at || null,
+    arrival_station: train.arrival_station || null,
+    departure_at: train.departure_at || null,
+    departure_station: train.departure_station || null,
+    fare_price:
+      train.fare_price == null
+        ? null
+        : roundMoney(train.fare_price),
+    id: train.id || null,
+    seat_class: train.seat_class || null,
+    train_number: train.train_number || null,
+  };
+};
+
+const sanitizeServiceSnapshot = (snapshot) => {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+    return null;
+  }
+
+  const sanitized = {
+    base_price:
+      snapshot.base_price == null
+        ? null
+        : roundMoney(snapshot.base_price),
+    cancellation_policy: snapshot.cancellation_policy || null,
+    currency: snapshot.currency || DEFAULT_CURRENCY,
+    description: snapshot.description || null,
+    id: snapshot.id || null,
+    location_text: snapshot.location_text || null,
+    public_price:
+      snapshot.public_price == null
+        ? null
+        : roundMoney(snapshot.public_price),
+    reference_id: snapshot.reference_id || null,
+    sale_price:
+      snapshot.sale_price == null
+        ? null
+        : roundMoney(snapshot.sale_price),
+    service_type: snapshot.service_type || null,
+    short_description: snapshot.short_description || null,
+    slug: snapshot.slug || null,
+    title: snapshot.title || null,
+  };
+
+  const roomType = sanitizeSnapshotRoomType(snapshot.room_type);
+  const flight = sanitizeSnapshotFlight(snapshot.flight);
+  const train = sanitizeSnapshotTrain(snapshot.train);
+
+  if (roomType) {
+    sanitized.room_type = roomType;
+  }
+
+  if (flight) {
+    sanitized.flight = flight;
+  }
+
+  if (train) {
+    sanitized.train = train;
+  }
+
+  return sanitized;
+};
+
+const sanitizeBookingItemSnapshot = (item) => ({
+  end_at: item.end_at,
+  id: item.id,
+  quantity: Number(item.quantity),
+  reference_id: item.reference_id,
+  service_snapshot: sanitizeServiceSnapshot(item.service_snapshot),
+  service_type: item.service_type,
+  start_at: item.start_at,
+  status: item.status,
+  title_snapshot: item.title_snapshot,
+  total_amount: roundMoney(item.total_amount),
+  traveller_info: item.traveller_info ?? null,
+  unit_price: roundMoney(item.unit_price),
+});
+
 const sanitizePaymentSummary = (payment) => ({
   amount: roundMoney(payment.amount),
   created_at: payment.created_at,
@@ -970,9 +1099,31 @@ const createBookingService = ({
     });
   };
 
+  const getMyBookingItems = async ({
+    auth,
+    bookingId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedBookingId = parseUuid('booking_id', bookingId);
+    const booking = await repository.getBookingByIdAndUser({
+      bookingId: parsedBookingId,
+      userId: auth.userId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError('Booking not found');
+    }
+
+    const items = await repository.listBookingItemsByBookingId(parsedBookingId);
+
+    return items.map(sanitizeBookingItemSnapshot);
+  };
+
   return {
     checkout,
     getMyBookingDetail,
+    getMyBookingItems,
     listMyBookings,
   };
 };

@@ -20,6 +20,7 @@ const BOOKING_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const CUSTOMER_ID = '99999999-9999-4999-8999-999999999999';
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetMyBookingDetail = bookingService.getMyBookingDetail;
+const originalGetMyBookingItems = bookingService.getMyBookingItems;
 const originalListMyBookings = bookingService.listMyBookings;
 
 const createAuthContext = ({
@@ -62,6 +63,7 @@ test.beforeEach(() => {
   clearRateLimitStore();
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   bookingService.getMyBookingDetail = originalGetMyBookingDetail;
+  bookingService.getMyBookingItems = originalGetMyBookingItems;
   bookingService.listMyBookings = originalListMyBookings;
 });
 
@@ -69,6 +71,7 @@ test.afterEach(() => {
   clearRateLimitStore();
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   bookingService.getMyBookingDetail = originalGetMyBookingDetail;
+  bookingService.getMyBookingItems = originalGetMyBookingItems;
   bookingService.listMyBookings = originalListMyBookings;
 });
 
@@ -273,6 +276,75 @@ test('bookingService.getMyBookingDetail returns sanitized detail for current cus
   assert.equal(result.payments[0].raw_response, undefined);
 });
 
+test('bookingService.getMyBookingItems returns snapshot-based items without internal fields', async () => {
+  const service = bookingService.createBookingService({
+    repository: {
+      getBookingByIdAndUser: async ({
+        bookingId,
+        userId,
+      }) => {
+        assert.equal(bookingId, BOOKING_ID);
+        assert.equal(userId, CUSTOMER_ID);
+
+        return {
+          id: BOOKING_ID,
+        };
+      },
+      listBookingItemsByBookingId: async () => [
+        {
+          end_at: '2026-07-11T00:00:00.000Z',
+          id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          quantity: 2,
+          reference_id: null,
+          service_snapshot: {
+            admin_note: 'internal',
+            base_price: '2000000',
+            cancellation_policy: 'Free cancellation',
+            currency: 'VND',
+            description: 'Tour description',
+            id: '11111111-1111-4111-8111-111111111111',
+            internal_cost: 123,
+            location_text: 'Da Nang',
+            provider_name: 'Hidden Provider',
+            public_price: '1800000',
+            reference_id: null,
+            sale_price: '1800000',
+            service_code: 'TOUR001',
+            service_type: 'tour',
+            short_description: 'Tour short',
+            slug: 'tour-da-nang',
+            title: 'Tour Da Nang',
+          },
+          service_type: 'tour',
+          start_at: '2026-07-10T00:00:00.000Z',
+          status: 'pending',
+          title_snapshot: 'Tour Da Nang',
+          total_amount: '3600000',
+          traveller_info: [{ full_name: 'Traveller 1' }],
+          unit_price: '1800000',
+        },
+      ],
+    },
+  });
+
+  const result = await service.getMyBookingItems({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    bookingId: BOOKING_ID,
+  });
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].title_snapshot, 'Tour Da Nang');
+  assert.equal(result[0].service_snapshot.title, 'Tour Da Nang');
+  assert.equal(result[0].service_snapshot.provider_name, undefined);
+  assert.equal(result[0].service_snapshot.service_code, undefined);
+  assert.equal(result[0].service_snapshot.admin_note, undefined);
+  assert.equal(result[0].service_snapshot.internal_cost, undefined);
+  assert.deepEqual(result[0].traveller_info, [{ full_name: 'Traveller 1' }]);
+});
+
 test('bookingService.getMyBookingDetail returns 404 for missing booking and validates UUID', async () => {
   const service = bookingService.createBookingService({
     repository: {
@@ -437,6 +509,118 @@ test('GET /api/bookings/{booking_id} returns customer booking detail', async () 
     assert.equal(response.body.success, true);
     assert.equal(response.body.data.id, BOOKING_ID);
     assert.equal(response.body.data.status, BOOKING_STATUS.PENDING_PAYMENT);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/bookings/{booking_id}/items returns snapshot item list for customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: CUSTOMER_ID,
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext();
+  bookingService.getMyBookingItems = async ({ auth, bookingId }) => {
+    assert.equal(auth.userId, CUSTOMER_ID);
+    assert.equal(bookingId, BOOKING_ID);
+
+    return [
+      {
+        end_at: '2026-07-11T00:00:00.000Z',
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        quantity: 2,
+        reference_id: null,
+        service_snapshot: {
+          currency: 'VND',
+          service_type: 'tour',
+          slug: 'tour-da-nang',
+          title: 'Tour Da Nang',
+        },
+        service_type: 'tour',
+        start_at: '2026-07-10T00:00:00.000Z',
+        status: 'pending',
+        title_snapshot: 'Tour Da Nang',
+        total_amount: 3600000,
+        traveller_info: [{ full_name: 'Traveller 1' }],
+        unit_price: 1800000,
+      },
+    ];
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/bookings/${BOOKING_ID}/items`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.length, 1);
+    assert.equal(response.body.data[0].title_snapshot, 'Tour Da Nang');
+    assert.equal(response.body.data[0].service_snapshot.title, 'Tour Da Nang');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/bookings/{booking_id}/items validates UUID and requires customer role', async () => {
+  const server = app.listen(0);
+
+  try {
+    authService.resolveAuthenticatedUser = async () =>
+      createAuthContext();
+
+    const badUuidResponse = await request(
+      server,
+      `${apiPrefix}/bookings/not-a-uuid/items`,
+      {
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            roleCode: 'customer',
+            userId: CUSTOMER_ID,
+          })}`,
+        },
+      },
+    );
+
+    assert.equal(badUuidResponse.statusCode, 400);
+    assert.equal(
+      badUuidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+
+    authService.resolveAuthenticatedUser = async () =>
+      createAuthContext({
+        roleCode: 'admin',
+        userId: 'admin-1',
+      });
+
+    const forbiddenResponse = await request(
+      server,
+      `${apiPrefix}/bookings/${BOOKING_ID}/items`,
+      {
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            roleCode: 'admin',
+            userId: 'admin-1',
+          })}`,
+        },
+      },
+    );
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(
+      forbiddenResponse.body.error.code,
+      API_ERROR_CODES.FORBIDDEN,
+    );
   } finally {
     server.close();
   }

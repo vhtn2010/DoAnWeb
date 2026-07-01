@@ -2,6 +2,7 @@ const express = require('express');
 const {
   checkoutBooking,
   getMyBookingDetail,
+  getMyBookingItems,
   listMyBookings,
 } = require('../controllers/bookingController');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -30,6 +31,13 @@ router.get(
   authRequired({ allowedRoles: ['customer'] }),
   customerBookingReadRateLimit,
   asyncHandler(getMyBookingDetail),
+);
+
+router.get(
+  '/bookings/:booking_id/items',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerBookingReadRateLimit,
+  asyncHandler(getMyBookingItems),
 );
 
 router.post(
