@@ -25,6 +25,9 @@ const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetUnreadNotificationCount = notificationService.getUnreadNotificationCount;
 const originalGetMyNotificationDetail = notificationService.getMyNotificationDetail;
 const originalListMyNotifications = notificationService.listMyNotifications;
+const originalMarkAllMyNotificationsRead = notificationService.markAllMyNotificationsRead;
+const originalMarkMyNotificationRead = notificationService.markMyNotificationRead;
+const originalMarkMyNotificationsBulkRead = notificationService.markMyNotificationsBulkRead;
 
 const createAuthContext = ({
   roleCode = 'customer',
@@ -43,7 +46,22 @@ const createAuthContext = ({
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
     const { port } = server.address();
-    const req = http.request(`http://127.0.0.1:${port}${path}`, options, (res) => {
+    const payload = options.body == null
+      ? null
+      : JSON.stringify(options.body);
+    const headers = {
+      ...(options.headers || {}),
+    };
+
+    if (payload) {
+      headers['Content-Length'] = Buffer.byteLength(payload);
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const req = http.request(`http://127.0.0.1:${port}${path}`, {
+      ...options,
+      headers,
+    }, (res) => {
       let body = '';
 
       res.setEncoding('utf8');
@@ -59,6 +77,11 @@ const request = (server, path, options = {}) =>
     });
 
     req.on('error', reject);
+
+    if (payload) {
+      req.write(payload);
+    }
+
     req.end();
   });
 
@@ -68,6 +91,9 @@ test.beforeEach(() => {
   notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
   notificationService.getMyNotificationDetail = originalGetMyNotificationDetail;
   notificationService.listMyNotifications = originalListMyNotifications;
+  notificationService.markAllMyNotificationsRead = originalMarkAllMyNotificationsRead;
+  notificationService.markMyNotificationRead = originalMarkMyNotificationRead;
+  notificationService.markMyNotificationsBulkRead = originalMarkMyNotificationsBulkRead;
 });
 
 test.afterEach(() => {
@@ -76,6 +102,9 @@ test.afterEach(() => {
   notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
   notificationService.getMyNotificationDetail = originalGetMyNotificationDetail;
   notificationService.listMyNotifications = originalListMyNotifications;
+  notificationService.markAllMyNotificationsRead = originalMarkAllMyNotificationsRead;
+  notificationService.markMyNotificationRead = originalMarkMyNotificationRead;
+  notificationService.markMyNotificationsBulkRead = originalMarkMyNotificationsBulkRead;
 });
 
 test('notificationService.getUnreadNotificationCount counts only unread user-specific notifications', async () => {
@@ -336,6 +365,149 @@ test('notificationService.getMyNotificationDetail returns owned or broadcast not
   );
 });
 
+test('notificationService mark read endpoints validate ownership, UUIDs, and bulk limits', async () => {
+  const service = notificationService.createNotificationService({
+    repository: {
+      markAllNotificationsReadForUser: async (userId) => {
+        assert.equal(userId, USER_ID);
+        return 4;
+      },
+      markNotificationReadForUser: async ({
+        notificationId,
+        userId,
+      }) => {
+        assert.equal(userId, USER_ID);
+
+        if (notificationId === NOTIFICATION_ID) {
+          return {
+            id: NOTIFICATION_ID,
+            read_at: '2026-07-01T12:00:00.000Z',
+            status: NOTIFICATION_STATUS.READ,
+          };
+        }
+
+        return null;
+      },
+      markNotificationsReadForUser: async ({
+        notificationIds,
+        userId,
+      }) => {
+        assert.equal(userId, USER_ID);
+        assert.deepEqual(notificationIds, [
+          NOTIFICATION_ID,
+          BROADCAST_NOTIFICATION_ID,
+        ]);
+
+        return {
+          notificationIds,
+          updatedCount: 2,
+        };
+      },
+    },
+  });
+
+  const singleResult = await service.markMyNotificationRead({
+    auth: {
+      role: 'customer',
+      userId: USER_ID,
+    },
+    notificationId: NOTIFICATION_ID,
+  });
+
+  assert.deepEqual(singleResult, {
+    id: NOTIFICATION_ID,
+    read_at: '2026-07-01T12:00:00.000Z',
+    status: NOTIFICATION_STATUS.READ,
+  });
+
+  const bulkResult = await service.markMyNotificationsBulkRead({
+    auth: {
+      role: 'staff',
+      userId: USER_ID,
+    },
+    notificationIds: [
+      NOTIFICATION_ID,
+      BROADCAST_NOTIFICATION_ID,
+      NOTIFICATION_ID,
+    ],
+  });
+
+  assert.deepEqual(bulkResult, {
+    notification_ids: [
+      NOTIFICATION_ID,
+      BROADCAST_NOTIFICATION_ID,
+    ],
+    updated_count: 2,
+  });
+
+  const readAllResult = await service.markAllMyNotificationsRead({
+    auth: {
+      role: 'admin',
+      userId: USER_ID,
+    },
+  });
+
+  assert.deepEqual(readAllResult, {
+    updated_count: 4,
+  });
+
+  await assert.rejects(
+    () => service.markMyNotificationRead({
+      auth: {
+        role: 'customer',
+        userId: USER_ID,
+      },
+      notificationId: 'invalid-uuid',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.markMyNotificationRead({
+      auth: {
+        role: 'customer',
+        userId: USER_ID,
+      },
+      notificationId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.markMyNotificationsBulkRead({
+      auth: {
+        role: 'customer',
+        userId: USER_ID,
+      },
+      notificationIds: [],
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.markMyNotificationsBulkRead({
+      auth: {
+        role: 'customer',
+        userId: USER_ID,
+      },
+      notificationIds: new Array(101).fill(NOTIFICATION_ID),
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+});
+
 test('GET /api/notifications requires login', async () => {
   const server = app.listen(0);
 
@@ -385,6 +557,143 @@ test('GET /api/notifications/unread-count returns unread count for authenticated
     assert.equal(response.body.success, true);
     assert.deepEqual(response.body.data, {
       unread_count: 7,
+    });
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/notifications/{notification_id}/read returns read state for owned notification', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: USER_ID,
+  });
+
+  authService.resolveAuthenticatedUser = async () => createAuthContext();
+
+  notificationService.markMyNotificationRead = async ({
+    auth,
+    notificationId,
+  }) => {
+    assert.equal(auth.roleCode, 'customer');
+    assert.equal(auth.userId, USER_ID);
+    assert.equal(notificationId, NOTIFICATION_ID);
+
+    return {
+      id: NOTIFICATION_ID,
+      read_at: '2026-07-01T12:15:00.000Z',
+      status: NOTIFICATION_STATUS.READ,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/notifications/${NOTIFICATION_ID}/read`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.status, NOTIFICATION_STATUS.READ);
+    assert.equal(response.body.data.id, NOTIFICATION_ID);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/notifications/bulk-read returns updated count for authenticated user', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: USER_ID,
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: USER_ID,
+    });
+
+  notificationService.markMyNotificationsBulkRead = async ({
+    auth,
+    notificationIds,
+  }) => {
+    assert.equal(auth.roleCode, 'staff');
+    assert.equal(auth.userId, USER_ID);
+    assert.deepEqual(notificationIds, [
+      NOTIFICATION_ID,
+      BROADCAST_NOTIFICATION_ID,
+    ]);
+
+    return {
+      notification_ids: notificationIds,
+      updated_count: 2,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/notifications/bulk-read`, {
+      body: {
+        notification_ids: [
+          NOTIFICATION_ID,
+          BROADCAST_NOTIFICATION_ID,
+        ],
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.updated_count, 2);
+    assert.deepEqual(response.body.data.notification_ids, [
+      NOTIFICATION_ID,
+      BROADCAST_NOTIFICATION_ID,
+    ]);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/notifications/read-all returns updated count for authenticated user', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'admin',
+    userId: USER_ID,
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'admin',
+      userId: USER_ID,
+    });
+
+  notificationService.markAllMyNotificationsRead = async ({ auth }) => {
+    assert.equal(auth.roleCode, 'admin');
+    assert.equal(auth.userId, USER_ID);
+
+    return {
+      updated_count: 9,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/notifications/read-all`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.deepEqual(response.body.data, {
+      updated_count: 9,
     });
   } finally {
     server.close();

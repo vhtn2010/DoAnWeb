@@ -9,6 +9,7 @@ const AppError = require('../utils/AppError');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+const MAX_BULK_READ_IDS = 100;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_ROLES = Object.freeze([
@@ -170,6 +171,27 @@ const parseInboxListQuery = (query = {}) => ({
   }),
 });
 
+const parseNotificationIds = (notificationIds) => {
+  if (!Array.isArray(notificationIds)) {
+    throw buildValidationError('notification_ids', 'notification_ids must be an array of UUIDs');
+  }
+
+  if (notificationIds.length === 0) {
+    throw buildValidationError('notification_ids', 'notification_ids must not be empty');
+  }
+
+  if (notificationIds.length > MAX_BULK_READ_IDS) {
+    throw buildValidationError(
+      'notification_ids',
+      `notification_ids must contain at most ${MAX_BULK_READ_IDS} items`,
+    );
+  }
+
+  const parsedIds = notificationIds.map((value) => parseUuid('notification_ids', value));
+
+  return [...new Set(parsedIds)];
+};
+
 const sanitizeNotificationSummary = (row) => ({
   body: row.body,
   created_at: row.created_at,
@@ -198,6 +220,12 @@ const sanitizeNotificationDetail = (row) => ({
   type: row.type,
 });
 
+const sanitizeNotificationReadState = (row) => ({
+  id: row.id,
+  read_at: row.read_at,
+  status: row.status,
+});
+
 const createNotificationService = ({
   repository = createNotificationRepository(),
 } = {}) => {
@@ -209,6 +237,52 @@ const createNotificationService = ({
 
     return {
       unread_count: Number(unreadCount || 0),
+    };
+  };
+
+  const markAllMyNotificationsRead = async ({
+    auth,
+  } = {}) => {
+    const actor = ensureInboxAccess(auth);
+    const updatedCount = await repository.markAllNotificationsReadForUser(actor.userId);
+
+    return {
+      updated_count: Number(updatedCount || 0),
+    };
+  };
+
+  const markMyNotificationRead = async ({
+    auth,
+    notificationId,
+  } = {}) => {
+    const actor = ensureInboxAccess(auth);
+    const parsedNotificationId = parseUuid('notification_id', notificationId);
+    const notification = await repository.markNotificationReadForUser({
+      notificationId: parsedNotificationId,
+      userId: actor.userId,
+    });
+
+    if (!notification) {
+      throw buildResourceNotFoundError('Notification not found');
+    }
+
+    return sanitizeNotificationReadState(notification);
+  };
+
+  const markMyNotificationsBulkRead = async ({
+    auth,
+    notificationIds,
+  } = {}) => {
+    const actor = ensureInboxAccess(auth);
+    const parsedNotificationIds = parseNotificationIds(notificationIds);
+    const result = await repository.markNotificationsReadForUser({
+      notificationIds: parsedNotificationIds,
+      userId: actor.userId,
+    });
+
+    return {
+      notification_ids: result.notificationIds,
+      updated_count: Number(result.updatedCount || 0),
     };
   };
 
@@ -259,6 +333,9 @@ const createNotificationService = ({
     getUnreadNotificationCount,
     getMyNotificationDetail,
     listMyNotifications,
+    markAllMyNotificationsRead,
+    markMyNotificationRead,
+    markMyNotificationsBulkRead,
   };
 };
 

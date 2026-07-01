@@ -3,6 +3,9 @@ const {
   getUnreadNotificationCount,
   getMyNotificationDetail,
   listMyNotifications,
+  markAllMyNotificationsRead,
+  markMyNotificationRead,
+  markMyNotificationsBulkRead,
 } = require('../controllers/notificationController');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authRequired } = require('../middleware/authSession');
@@ -32,6 +35,27 @@ router.get(
   authRequired({ allowedRoles }),
   notificationReadRateLimit,
   asyncHandler(getUnreadNotificationCount),
+);
+
+router.patch(
+  '/notifications/bulk-read',
+  authRequired({ allowedRoles }),
+  notificationReadRateLimit,
+  asyncHandler(markMyNotificationsBulkRead),
+);
+
+router.patch(
+  '/notifications/read-all',
+  authRequired({ allowedRoles }),
+  notificationReadRateLimit,
+  asyncHandler(markAllMyNotificationsRead),
+);
+
+router.patch(
+  '/notifications/:notification_id/read',
+  authRequired({ allowedRoles }),
+  notificationReadRateLimit,
+  asyncHandler(markMyNotificationRead),
 );
 
 router.get(
