@@ -601,7 +601,7 @@ const resolveChangedByType = (history) => {
   const roleCode = history.changed_by_role_code || null;
 
   if (!roleCode) {
-    return 'unknown';
+    return 'system';
   }
 
   if (roleCode === 'customer') {
@@ -617,10 +617,10 @@ const resolveChangedByType = (history) => {
   }
 
   if (roleCode === 'system_admin') {
-    return 'system_admin';
+    return 'admin';
   }
 
-  return 'unknown';
+  return 'system';
 };
 
 const sanitizeBookingStatusHistoryEntry = (history) => ({
