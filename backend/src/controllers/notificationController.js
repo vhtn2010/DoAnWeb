@@ -11,6 +11,41 @@ const getUnreadNotificationCount = async (req, res) => {
   });
 };
 
+const markAllMyNotificationsRead = async (req, res) => {
+  const data = await notificationService.markAllMyNotificationsRead({
+    auth: req.auth,
+  });
+
+  res.success({
+    data,
+    message: 'All notifications marked as read successfully',
+  });
+};
+
+const markMyNotificationRead = async (req, res) => {
+  const data = await notificationService.markMyNotificationRead({
+    auth: req.auth,
+    notificationId: req.params.notification_id,
+  });
+
+  res.success({
+    data,
+    message: 'Notification marked as read successfully',
+  });
+};
+
+const markMyNotificationsBulkRead = async (req, res) => {
+  const data = await notificationService.markMyNotificationsBulkRead({
+    auth: req.auth,
+    notificationIds: req.body.notification_ids,
+  });
+
+  res.success({
+    data,
+    message: 'Notifications marked as read successfully',
+  });
+};
+
 const listMyNotifications = async (req, res) => {
   const data = await notificationService.listMyNotifications({
     auth: req.auth,
@@ -40,4 +75,7 @@ module.exports = {
   getUnreadNotificationCount,
   getMyNotificationDetail,
   listMyNotifications,
+  markAllMyNotificationsRead,
+  markMyNotificationRead,
+  markMyNotificationsBulkRead,
 };

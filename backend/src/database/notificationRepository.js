@@ -3,6 +3,92 @@ const { query } = require('./client');
 const createNotificationRepository = ({
   queryImpl = query,
 } = {}) => {
+  const markAllNotificationsReadForUser = async (userId) => {
+    const result = await queryImpl(
+      `
+        WITH updated AS (
+          UPDATE notifications n
+          SET
+            status = 'read',
+            read_at = NOW()
+          WHERE
+            n.user_id = $1
+            AND n.read_at IS NULL
+          RETURNING n.id
+        )
+        SELECT COUNT(*)::int AS updated_count
+        FROM updated
+      `,
+      [userId],
+    );
+
+    return result.rows[0]?.updated_count || 0;
+  };
+
+  const markNotificationReadForUser = async ({
+    notificationId,
+    userId,
+  }) => {
+    const result = await queryImpl(
+      `
+        UPDATE notifications n
+        SET
+          status = 'read',
+          read_at = COALESCE(n.read_at, NOW())
+        WHERE
+          n.id = $1
+          AND n.user_id = $2
+        RETURNING
+          n.id,
+          n.status,
+          n.read_at
+      `,
+      [notificationId, userId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const markNotificationsReadForUser = async ({
+    notificationIds,
+    userId,
+  }) => {
+    const result = await queryImpl(
+      `
+        WITH owned AS (
+          SELECT n.id
+          FROM notifications n
+          WHERE
+            n.user_id = $1
+            AND n.id = ANY($2::uuid[])
+        ),
+        updated AS (
+          UPDATE notifications n
+          SET
+            status = 'read',
+            read_at = NOW()
+          WHERE
+            n.user_id = $1
+            AND n.id = ANY($2::uuid[])
+            AND n.read_at IS NULL
+          RETURNING n.id
+        )
+        SELECT
+          COALESCE((SELECT COUNT(*)::int FROM updated), 0) AS updated_count,
+          COALESCE(
+            (SELECT ARRAY_AGG(owned.id ORDER BY owned.id) FROM owned),
+            '{}'::uuid[]
+          ) AS notification_ids
+      `,
+      [userId, notificationIds],
+    );
+
+    return {
+      notificationIds: result.rows[0]?.notification_ids || [],
+      updatedCount: result.rows[0]?.updated_count || 0,
+    };
+  };
+
   const countUnreadNotificationsForUser = async (userId) => {
     const result = await queryImpl(
       `
@@ -107,6 +193,9 @@ const createNotificationRepository = ({
     countUnreadNotificationsForUser,
     getNotificationInboxDetail,
     listNotificationsForUser,
+    markAllNotificationsReadForUser,
+    markNotificationReadForUser,
+    markNotificationsReadForUser,
   };
 };
 
