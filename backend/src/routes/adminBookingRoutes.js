@@ -7,6 +7,7 @@ const {
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,
+  resendAdminBookingConfirmationEmail,
   updateAdminBookingItemStatus,
   updateAdminBookingItemTravellerInfo,
   updateAdminBookingStatus,
@@ -22,6 +23,14 @@ const adminBookingRateLimit = createRateLimiter({
   maxRequests: 120,
   storeKey: 'admin-booking-catalog',
   windowMs: 60 * 1000,
+});
+const adminBookingCommunicationRateLimit = createRateLimiter({
+  keyGenerator: (req) =>
+    `admin-booking-resend:${req.auth?.userId || 'anonymous'}:${req.params?.booking_id || 'unknown'}:${req.ip || 'anonymous'}`,
+  maxRequests: 3,
+  message: 'Too many booking confirmation email resend attempts. Please try again later.',
+  storeKey: 'admin-booking-resend-confirmation-email',
+  windowMs: 15 * 60 * 1000,
 });
 
 router.get(
@@ -78,6 +87,13 @@ router.post(
   requireAdminAuth,
   adminBookingRateLimit,
   asyncHandler(expireAdminBooking),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/resend-confirmation-email',
+  requireAdminAuth,
+  adminBookingCommunicationRateLimit,
+  asyncHandler(resendAdminBookingConfirmationEmail),
 );
 
 router.patch(
