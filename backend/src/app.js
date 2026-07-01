@@ -13,11 +13,13 @@ const adminServiceCatalogRoutes = require('./routes/adminServiceCatalogRoutes');
 const adminRoleRoutes = require('./routes/adminRoleRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
 const adminPermissionRoutes = require('./routes/adminPermissionRoutes');
+const adminPromotionRoutes = require('./routes/adminPromotionRoutes');
 const adminVoucherRoutes = require('./routes/adminVoucherRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const promotionRoutes = require('./routes/promotionRoutes');
 const voucherRoutes = require('./routes/voucherRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const {
@@ -53,11 +55,13 @@ app.use(apiPrefix, adminServiceCatalogRoutes);
 app.use(apiPrefix, adminUserRoutes);
 app.use(apiPrefix, adminRoleRoutes);
 app.use(apiPrefix, adminPermissionRoutes);
+app.use(apiPrefix, adminPromotionRoutes);
 app.use(apiPrefix, adminVoucherRoutes);
 app.use(apiPrefix, profileRoutes);
 app.use(apiPrefix, lookupRoutes);
 app.use(apiPrefix, bookingRoutes);
 app.use(apiPrefix, cartRoutes);
+app.use(apiPrefix, promotionRoutes);
 app.use(apiPrefix, voucherRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
