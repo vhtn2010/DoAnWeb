@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import PublicLayout from '../layouts/PublicLayout.jsx'
 import HomePage from '../pages/public/HomePage.jsx'
 import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
@@ -12,12 +13,14 @@ function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/services" element={<ServiceListPage />} />
+          <Route path="/services/:slug" element={<ServiceDetailPage />} />
+        </Route>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/services" element={<ServiceListPage />} />
-        <Route path="/services/:slug" element={<ServiceDetailPage />} />
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/services" element={<AdminServicesPage />} />
       </Routes>
