@@ -879,3 +879,324 @@ test('getCartSummary rejects invalid voucher_code query', async () => {
       error.details?.some((detail) => detail.field === 'voucher_code'),
   );
 });
+
+test('validateCart rejects empty cart with CART_EMPTY', async () => {
+  const service = createCartService({
+    repository: {
+      findActiveCartsByUser: async () => [],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  await assert.rejects(
+    () =>
+      service.validateCart({
+        payload: {},
+        userId: 'user-14',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.CART_EMPTY &&
+      error.statusCode === 400,
+  );
+});
+
+test('validateCart returns invalid result for inactive service, availability issues, and invalid voucher', async () => {
+  const service = createCartService({
+    now: () => new Date('2026-07-01T09:00:00.000Z'),
+    repository: {
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-validate-invalid',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getServiceById: async (queryExecutor, serviceId) => {
+        if (serviceId === 'service-hidden') {
+          return {
+            currency: 'VND',
+            deleted_at: null,
+            id: serviceId,
+            service_type: 'tour',
+            status: 'hidden',
+            title: 'Hidden Tour',
+          };
+        }
+
+        return {
+          base_price: '2990000.00',
+          currency: 'VND',
+          deleted_at: null,
+          id: serviceId,
+          sale_price: '2990000.00',
+          service_type: 'tour',
+          status: 'active',
+          title: 'Available Tour',
+        };
+      },
+      getTourDetail: async (queryExecutor, serviceId) => {
+        if (serviceId === 'service-tour-low-slots') {
+          return {
+            departure_schedule: [
+              {
+                available_slots: 2,
+                date: '2026-07-20',
+              },
+            ],
+          };
+        }
+
+        return {
+          departure_schedule: [
+            {
+              available_slots: 10,
+              date: '2026-07-20',
+            },
+          ],
+        };
+      },
+      getVoucherByCode: async () => ({
+        code: 'SAVE10',
+        discount_type: 'percent',
+        discount_value: '10.00',
+        id: 'voucher-invalid',
+        max_discount_amount: '500000.00',
+        min_order_amount: '1000000.00',
+        promotion_id: 'promotion-invalid',
+        promotion_status: 'active',
+        promotion_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        promotion_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+        target_service_type: null,
+        usage_limit_per_user: 1,
+        usage_limit_total: 10,
+        used_count: 0,
+        voucher_status: 'disabled',
+        voucher_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        voucher_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+      }),
+      listCartItemRecords: async () => [
+        {
+          cart_id: 'cart-validate-invalid',
+          created_at: new Date('2026-07-01T08:05:00.000Z'),
+          end_at: null,
+          id: 'item-hidden',
+          options: null,
+          quantity: 1,
+          reference_id: null,
+          service_id: 'service-hidden',
+          service_type: 'tour',
+          start_at: new Date('2026-07-20T07:00:00.000Z'),
+          unit_price_snapshot: '2990000.00',
+        },
+        {
+          cart_id: 'cart-validate-invalid',
+          created_at: new Date('2026-07-01T08:06:00.000Z'),
+          end_at: null,
+          id: 'item-low-slots',
+          options: null,
+          quantity: 3,
+          reference_id: null,
+          service_id: 'service-tour-low-slots',
+          service_type: 'tour',
+          start_at: new Date('2026-07-20T07:00:00.000Z'),
+          unit_price_snapshot: '2990000.00',
+        },
+      ],
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-hidden',
+          serviceId: 'service-hidden',
+          status: 'hidden',
+          unitPriceSnapshot: '2990000.00',
+        }),
+        createEnrichedCartItemRow({
+          id: 'item-low-slots',
+          quantity: 3,
+          serviceId: 'service-tour-low-slots',
+          unitPriceSnapshot: '2990000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.validateCart({
+    payload: {
+      voucher_code: 'save10',
+    },
+    userId: 'user-15',
+  });
+
+  assert.equal(result.valid, false);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.code),
+    [
+      'SERVICE_NOT_ACTIVE',
+      API_ERROR_CODES.CART_ITEM_NOT_AVAILABLE,
+      API_ERROR_CODES.VOUCHER_INVALID,
+    ],
+  );
+  assert.equal(result.summary.voucher.issue.code, API_ERROR_CODES.VOUCHER_INVALID);
+});
+
+test('validateCart reports PRICE_CHANGED without mutating snapshot totals', async () => {
+  const service = createCartService({
+    repository: {
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-validate-price',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getServiceById: async () => ({
+        base_price: '3290000.00',
+        currency: 'VND',
+        deleted_at: null,
+        id: 'service-price-change',
+        sale_price: '3200000.00',
+        service_type: 'tour',
+        status: 'active',
+        title: 'Price Changed Tour',
+      }),
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            available_slots: 10,
+            date: '2026-07-20',
+          },
+        ],
+      }),
+      listCartItemRecords: async () => [
+        {
+          cart_id: 'cart-validate-price',
+          created_at: new Date('2026-07-01T08:05:00.000Z'),
+          end_at: null,
+          id: 'item-price-change',
+          options: null,
+          quantity: 1,
+          reference_id: null,
+          service_id: 'service-price-change',
+          service_type: 'tour',
+          start_at: new Date('2026-07-20T07:00:00.000Z'),
+          unit_price_snapshot: '2990000.00',
+        },
+      ],
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-price-change',
+          salePrice: '3200000.00',
+          serviceId: 'service-price-change',
+          unitPriceSnapshot: '2990000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.validateCart({
+    payload: {},
+    userId: 'user-16',
+  });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.items[0].current_unit_price, 3200000);
+  assert.equal(result.items[0].unit_price_snapshot, 2990000);
+  assert.equal(result.items[0].issues[0].code, 'PRICE_CHANGED');
+  assert.equal(result.summary.snapshot_subtotal_amount, 2990000);
+  assert.equal(result.summary.subtotal_amount, 3200000);
+});
+
+test('validateCart returns valid true with current summary and applied voucher', async () => {
+  const service = createCartService({
+    now: () => new Date('2026-07-01T09:00:00.000Z'),
+    repository: {
+      countUserVoucherUsages: async () => 0,
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-validate-valid',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getServiceById: async () => ({
+        base_price: '2200000.00',
+        currency: 'VND',
+        deleted_at: null,
+        id: 'service-valid-tour',
+        sale_price: '2000000.00',
+        service_type: 'tour',
+        status: 'active',
+        title: 'Valid Tour',
+      }),
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            available_slots: 10,
+            date: '2026-07-20',
+          },
+        ],
+      }),
+      getVoucherByCode: async () => ({
+        code: 'TOUR10',
+        discount_type: 'percent',
+        discount_value: '10.00',
+        id: 'voucher-valid',
+        max_discount_amount: '500000.00',
+        min_order_amount: '1000000.00',
+        promotion_id: 'promotion-valid',
+        promotion_status: 'active',
+        promotion_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        promotion_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+        target_service_type: 'tour',
+        usage_limit_per_user: 1,
+        usage_limit_total: 100,
+        used_count: 0,
+        voucher_status: 'active',
+        voucher_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        voucher_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+      }),
+      listCartItemRecords: async () => [
+        {
+          cart_id: 'cart-validate-valid',
+          created_at: new Date('2026-07-01T08:05:00.000Z'),
+          end_at: null,
+          id: 'item-valid-tour',
+          options: null,
+          quantity: 1,
+          reference_id: null,
+          service_id: 'service-valid-tour',
+          service_type: 'tour',
+          start_at: new Date('2026-07-20T07:00:00.000Z'),
+          unit_price_snapshot: '2000000.00',
+        },
+      ],
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-valid-tour',
+          salePrice: '2000000.00',
+          serviceId: 'service-valid-tour',
+          unitPriceSnapshot: '2000000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.validateCart({
+    payload: {
+      voucher_code: 'tour10',
+    },
+    userId: 'user-17',
+  });
+
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.issues, []);
+  assert.equal(result.summary.subtotal_amount, 2000000);
+  assert.equal(result.summary.discount_amount, 200000);
+  assert.equal(result.summary.total_amount, 1800000);
+  assert.equal(result.summary.voucher.applied, true);
+});

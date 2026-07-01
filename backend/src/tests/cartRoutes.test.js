@@ -19,6 +19,7 @@ const originalGetActiveCart = cartService.getActiveCart;
 const originalGetCartSummary = cartService.getCartSummary;
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalUpdateCartItem = cartService.updateCartItem;
+const originalValidateCart = cartService.validateCart;
 
 const createAuthContext = ({
   roleCode = 'customer',
@@ -68,6 +69,7 @@ test.beforeEach(() => {
   cartService.getActiveCart = originalGetActiveCart;
   cartService.getCartSummary = originalGetCartSummary;
   cartService.updateCartItem = originalUpdateCartItem;
+  cartService.validateCart = originalValidateCart;
 });
 
 test.afterEach(() => {
@@ -78,6 +80,7 @@ test.afterEach(() => {
   cartService.getActiveCart = originalGetActiveCart;
   cartService.getCartSummary = originalGetCartSummary;
   cartService.updateCartItem = originalUpdateCartItem;
+  cartService.validateCart = originalValidateCart;
 });
 
 test('GET /api/cart requires access token', async () => {
@@ -290,6 +293,137 @@ test('GET /api/cart/summary returns pricing summary for authenticated customer',
     assert.equal(response.body.data.total_amount, 2800000);
     assert.equal(capturedContext.userId, 'user-summary-3');
     assert.equal(capturedContext.query.voucher_code, 'save10');
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/cart/validate requires access token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(server, `${apiPrefix}/cart/validate`, {
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/cart/validate returns 403 for non-customer role', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'user-validate-2',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'user-validate-2',
+    });
+
+  try {
+    const response = await request(server, `${apiPrefix}/cart/validate`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/cart/validate returns validation payload for authenticated customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-validate-3',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-validate-3',
+    });
+  cartService.validateCart = async (context) => {
+    capturedContext = context;
+
+    return {
+      cart_id: 'cart-validate-3',
+      issues: [
+        {
+          cart_item_id: 'item-validate-3',
+          code: 'PRICE_CHANGED',
+          message: 'Current price is different from the price saved in cart',
+          scope: 'item',
+          service_id: 'service-validate-3',
+          voucher_code: null,
+        },
+      ],
+      items: [
+        {
+          current_total_amount: 3200000,
+          current_unit_price: 3200000,
+          id: 'item-validate-3',
+          issues: [],
+          price_changed: true,
+          quantity: 1,
+          service_id: 'service-validate-3',
+          service_type: 'tour',
+          snapshot_total_amount: 2990000,
+          unit_price_snapshot: 2990000,
+          valid: false,
+        },
+      ],
+      summary: {
+        cart_id: 'cart-validate-3',
+        currency: 'VND',
+        discount_amount: 0,
+        item_count: 1,
+        quantity_total: 1,
+        snapshot_subtotal_amount: 2990000,
+        subtotal_amount: 3200000,
+        total_amount: 3200000,
+        voucher: null,
+      },
+      valid: false,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/cart/validate`, {
+      body: JSON.stringify({
+        voucher_code: 'save10',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Cart validated successfully');
+    assert.equal(response.body.data.valid, false);
+    assert.equal(response.body.data.summary.subtotal_amount, 3200000);
+    assert.deepEqual(capturedContext, {
+      payload: {
+        voucher_code: 'save10',
+      },
+      userId: 'user-validate-3',
+    });
   } finally {
     server.close();
   }

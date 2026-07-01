@@ -23,6 +23,18 @@ const getCartSummary = async (req, res) => {
   });
 };
 
+const validateCart = async (req, res) => {
+  const result = await cartService.validateCart({
+    payload: req.body,
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: result,
+    message: 'Cart validated successfully',
+  });
+};
+
 const addCartItem = async (req, res) => {
   const result = await cartService.addCartItem({
     payload: req.body,
@@ -77,5 +89,6 @@ module.exports = {
   deleteCartItem,
   getCart,
   getCartSummary,
+  validateCart,
   updateCartItem,
 };
