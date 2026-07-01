@@ -1200,3 +1200,312 @@ test('validateCart returns valid true with current summary and applied voucher',
   assert.equal(result.summary.total_amount, 1800000);
   assert.equal(result.summary.voucher.applied, true);
 });
+
+test('applyCartVoucher rejects empty cart with CART_EMPTY', async () => {
+  const service = createCartService({
+    repository: {
+      findActiveCartsByUser: async () => [],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  await assert.rejects(
+    () =>
+      service.applyCartVoucher({
+        payload: {
+          code: 'SAVE10',
+        },
+        userId: 'user-18',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.CART_EMPTY &&
+      error.statusCode === 400,
+  );
+});
+
+test('applyCartVoucher returns strict applied voucher summary for valid cart', async () => {
+  const service = createCartService({
+    now: () => new Date('2026-07-01T09:00:00.000Z'),
+    repository: {
+      countUserVoucherUsages: async () => 0,
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-apply-voucher',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getVoucherByCode: async () => ({
+        code: 'TOUR10',
+        discount_type: 'percent',
+        discount_value: '10.00',
+        id: 'voucher-apply',
+        max_discount_amount: '500000.00',
+        min_order_amount: '1000000.00',
+        promotion_id: 'promotion-apply',
+        promotion_status: 'active',
+        promotion_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        promotion_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+        target_service_type: 'tour',
+        usage_limit_per_user: 1,
+        usage_limit_total: 100,
+        used_count: 0,
+        voucher_status: 'active',
+        voucher_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        voucher_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+      }),
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-apply-voucher',
+          salePrice: '2000000.00',
+          serviceId: 'service-apply-voucher',
+          unitPriceSnapshot: '2000000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.applyCartVoucher({
+    payload: {
+      code: 'tour10',
+    },
+    userId: 'user-19',
+  });
+
+  assert.equal(result.cart_id, 'cart-apply-voucher');
+  assert.equal(result.final_total_amount, 1800000);
+  assert.equal(result.summary.discount_amount, 200000);
+  assert.equal(result.voucher.code, 'TOUR10');
+});
+
+test('applyCartVoucher rejects invalid voucher with strict VOUCHER_INVALID error', async () => {
+  const service = createCartService({
+    now: () => new Date('2026-07-01T09:00:00.000Z'),
+    repository: {
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-apply-invalid',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getVoucherByCode: async () => null,
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-apply-invalid',
+          serviceId: 'service-apply-invalid',
+          unitPriceSnapshot: '2000000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  await assert.rejects(
+    () =>
+      service.applyCartVoucher({
+        payload: {
+          code: 'missing',
+        },
+        userId: 'user-20',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VOUCHER_INVALID &&
+      error.statusCode === 400,
+  );
+});
+
+test('removeCartVoucher returns idempotent success when customer has no active cart', async () => {
+  const service = createCartService({
+    repository: {
+      findActiveCartsByUser: async () => [],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.removeCartVoucher({
+    userId: 'user-21',
+  });
+
+  assert.deepEqual(result, {
+    cart_id: null,
+    removed: true,
+    summary: {
+      cart_id: null,
+      currency: 'VND',
+      discount_amount: 0,
+      item_count: 0,
+      quantity_total: 0,
+      subtotal_amount: 0,
+      total_amount: 0,
+      voucher: null,
+    },
+  });
+});
+
+test('mergeGuestCart returns current cart unchanged when guest_items is empty', async () => {
+  const service = createCartService({
+    repository: {
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-merge-empty',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-merge-empty',
+          quantity: 1,
+          serviceId: 'service-merge-empty',
+          unitPriceSnapshot: '2990000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.mergeGuestCart({
+    payload: {
+      guest_items: [],
+    },
+    userId: 'user-22',
+  });
+
+  assert.equal(result.merged_item_count, 0);
+  assert.equal(result.cart.id, 'cart-merge-empty');
+  assert.equal(result.summary.subtotal_amount, 2990000);
+});
+
+test('mergeGuestCart merges duplicate guest item with server-side snapshot pricing', async () => {
+  const calls = [];
+  const serviceId = '33333333-3333-4333-8333-333333333333';
+  const service = createCartService({
+    now: () => new Date('2026-07-01T10:00:00.000Z'),
+    repository: {
+      createActiveCart: async () => {
+        throw new Error('createActiveCart should not be called');
+      },
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-merge-server-price',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getServiceById: async () => ({
+        base_price: '3500000.00',
+        currency: 'VND',
+        deleted_at: null,
+        id: serviceId,
+        metadata: null,
+        sale_price: '3000000.00',
+        service_type: 'tour',
+        status: 'active',
+      }),
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            available_slots: 6,
+            date: '2026-07-20',
+          },
+        ],
+      }),
+      listCartItemRecords: async () => [
+        {
+          cart_id: 'cart-merge-server-price',
+          created_at: new Date('2026-07-01T08:05:00.000Z'),
+          end_at: null,
+          id: 'item-existing-merge',
+          options: {
+            adults: 2,
+          },
+          quantity: 2,
+          reference_id: null,
+          service_id: serviceId,
+          service_type: 'tour',
+          start_at: new Date('2026-07-20T07:00:00.000Z'),
+          unit_price_snapshot: '2800000.00',
+        },
+      ],
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-existing-merge',
+          options: {
+            adults: 2,
+          },
+          quantity: 4,
+          serviceId,
+          unitPriceSnapshot: '3000000.00',
+        }),
+      ],
+      touchCart: async () => ({
+        created_at: new Date('2026-07-01T08:00:00.000Z'),
+        id: 'cart-merge-server-price',
+        status: 'active',
+        updated_at: new Date('2026-07-01T10:00:00.000Z'),
+      }),
+      updateCartItem: async (queryExecutor, payload) => {
+        calls.push(payload);
+        return {
+          id: payload.cartItemId,
+        };
+      },
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.mergeGuestCart({
+    payload: {
+      guest_items: [
+        {
+          options: {
+            adults: 2,
+          },
+          quantity: 2,
+          service_id: serviceId,
+          service_type: 'tour',
+          start_at: '2026-07-20T07:00:00.000Z',
+        },
+      ],
+    },
+    userId: 'user-23',
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].quantity, 4);
+  assert.equal(calls[0].unitPriceSnapshot, 3000000);
+  assert.equal(result.merged_item_count, 1);
+  assert.equal(result.summary.subtotal_amount, 12000000);
+});
+
+test('mergeGuestCart rejects unit_price_snapshot sent by frontend', async () => {
+  const service = createCartService({
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  await assert.rejects(
+    () =>
+      service.mergeGuestCart({
+        payload: {
+          guest_items: [
+            {
+              quantity: 1,
+              service_id: '11111111-1111-4111-8111-111111111111',
+              service_type: 'tour',
+              unit_price_snapshot: 1,
+            },
+          ],
+        },
+        userId: 'user-24',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'unit_price_snapshot'),
+  );
+});
