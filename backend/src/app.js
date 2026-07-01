@@ -14,6 +14,7 @@ const adminRoleRoutes = require('./routes/adminRoleRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
 const adminPermissionRoutes = require('./routes/adminPermissionRoutes');
 const adminVoucherRoutes = require('./routes/adminVoucherRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
 const cartRoutes = require('./routes/cartRoutes');
@@ -55,6 +56,7 @@ app.use(apiPrefix, adminPermissionRoutes);
 app.use(apiPrefix, adminVoucherRoutes);
 app.use(apiPrefix, profileRoutes);
 app.use(apiPrefix, lookupRoutes);
+app.use(apiPrefix, bookingRoutes);
 app.use(apiPrefix, cartRoutes);
 app.use(apiPrefix, voucherRoutes);
 
