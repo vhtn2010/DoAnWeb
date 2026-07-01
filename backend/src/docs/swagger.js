@@ -1,7 +1,14 @@
 const express = require('express');
-const swaggerUi = require('swagger-ui-express');
 const { apiPrefix, backendUrl, env } = require('../config');
 const backendPackage = require('../../package.json');
+
+let swaggerUi = null;
+
+try {
+  swaggerUi = require('swagger-ui-express');
+} catch (error) {
+  swaggerUi = null;
+}
 
 const SWAGGER_PUBLIC_PATH = '/swagger-ui';
 const SWAGGER_API_ALIAS_PATH = `${apiPrefix}/docs`;
@@ -481,13 +488,37 @@ const removeSwaggerCsp = (req, res, next) => {
   next();
 };
 
+const renderFallbackSwaggerHtml = () => `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Net Viet Travel Swagger UI</title>
+  </head>
+  <body>
+    <div id="swagger-ui">Swagger UI is unavailable because swagger-ui-express is not installed.</div>
+    <script src="./swagger-ui-bundle.js"></script>
+  </body>
+</html>`;
+
 const createSwaggerRouter = () => {
   const router = express.Router();
-  const swaggerUiHandler = swaggerUi.setup(null, swaggerUiOptions);
 
   router.get('/openapi.json', (req, res) => {
     res.json(buildOpenApiSpec(req.app));
   });
+
+  if (!swaggerUi) {
+    const fallbackHandler = (req, res) => {
+      res.type('html').send(renderFallbackSwaggerHtml());
+    };
+
+    router.get('/', fallbackHandler);
+    router.get('/index.html', fallbackHandler);
+
+    return router;
+  }
+
+  const swaggerUiHandler = swaggerUi.setup(null, swaggerUiOptions);
 
   router.get('/', swaggerUiHandler);
   router.get('/index.html', swaggerUiHandler);

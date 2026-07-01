@@ -9,6 +9,7 @@ const asyncHandler = require('./middleware/asyncHandler');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
 const authRoutes = require('./routes/authRoutes');
+const adminBookingRoutes = require('./routes/adminBookingRoutes');
 const adminServiceCatalogRoutes = require('./routes/adminServiceCatalogRoutes');
 const adminRoleRoutes = require('./routes/adminRoleRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
@@ -47,6 +48,7 @@ app.use(`${apiPrefix}/docs`, removeSwaggerCsp, createSwaggerRouter());
 
 app.use(apiPrefix, systemRoutes);
 app.use(apiPrefix, authRoutes);
+app.use(apiPrefix, adminBookingRoutes);
 app.use(apiPrefix, adminServiceCatalogRoutes);
 app.use(apiPrefix, adminUserRoutes);
 app.use(apiPrefix, adminRoleRoutes);
