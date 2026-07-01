@@ -22,6 +22,11 @@ npm run dev
 
 API mac dinh chay tai `http://localhost:3000`.
 
+Swagger UI co the xem tai `http://localhost:3000/swagger-ui/index.html`.
+Alias noi bo cung ton tai tai `http://localhost:3000/api/docs/index.html`.
+OpenAPI JSON co tai `http://localhost:3000/swagger-ui/openapi.json`.
+Spec duoc sinh tu dong tu cac route dang mount trong Express, nen khi them API moi vao app thi Swagger se tu cap nhat sau khi backend restart.
+
 Neu `SUPABASE_DB_URL` hoac `DATABASE_URL` duoc cau hinh, backend se tu dong:
 
 - kiem tra bang lich su migration
@@ -142,3 +147,5 @@ await sendTemplateEmail({
 
 - `GET /api/health`: kiem tra trang thai API
 - `GET /api/tours`: danh sach tour mau cho frontend tich hop
+- `GET /swagger-ui/index.html`: giao dien Swagger UI
+- `GET /swagger-ui/openapi.json`: OpenAPI specification

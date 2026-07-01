@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { apiPrefix, corsOrigin, isTest } = require('./config');
+const { createSwaggerRouter, removeSwaggerCsp } = require('./docs/swagger');
 const apiResponse = require('./middleware/apiResponse');
 const asyncHandler = require('./middleware/asyncHandler');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -38,6 +39,9 @@ app.use(express.json());
 if (!isTest) {
   app.use(morgan('dev'));
 }
+
+app.use('/swagger-ui', removeSwaggerCsp, createSwaggerRouter());
+app.use(`${apiPrefix}/docs`, removeSwaggerCsp, createSwaggerRouter());
 
 app.use(apiPrefix, systemRoutes);
 app.use(apiPrefix, authRoutes);
