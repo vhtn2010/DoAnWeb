@@ -106,13 +106,9 @@ const searchFieldOptions = [
     icon: 'destination',
     options: ['Hà Nội (HAN)', 'Đà Nẵng (DAD)', 'Nha Trang', 'Hội An', 'Đà Lạt'],
   },
-  {
-    key: 'date',
-    label: 'NGÀY ĐI - VỀ',
-    icon: 'calendar',
-    options: ['12 Th07 - 24 Th07', '15 Th07 - 20 Th07', '01 Th08 - 05 Th08'],
-  },
 ]
+
+const weekdayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN']
 
 const filterGroups = [
   {
@@ -138,6 +134,13 @@ const filterGroups = [
 ]
 
 const sortOptions = ['Giá rẻ nhất', 'Giá cao nhất', 'Mới nhất', 'Phổ biến nhất']
+
+const sortQueryMap = {
+  'Giá rẻ nhất': 'price_asc',
+  'Giá cao nhất': 'price_desc',
+  'Mới nhất': 'newest',
+  'Phổ biến nhất': 'popular',
+}
 
 const coreValues = [
   {
@@ -166,7 +169,8 @@ const coreValues = [
 const initialSearchState = {
   from: 'TP. Hồ Chí Minh (SGN)',
   to: 'Hà Nội (HAN)',
-  date: '12 Th07 - 24 Th07',
+  startDate: createDate(2026, 6, 1),
+  endDate: createDate(2026, 6, 2),
   sort: 'Giá rẻ nhất',
   filters: {
     airline: '',
@@ -178,6 +182,85 @@ const initialSearchState = {
 
 function formatCurrency(value) {
   return `${new Intl.NumberFormat('vi-VN').format(value)}đ`
+}
+
+function createDate(year, monthIndex, day) {
+  return new Date(year, monthIndex, day)
+}
+
+function addMonths(date, offset) {
+  return createDate(date.getFullYear(), date.getMonth() + offset, 1)
+}
+
+function compareDates(firstDate, secondDate) {
+  const first = createDate(
+    firstDate.getFullYear(),
+    firstDate.getMonth(),
+    firstDate.getDate()
+  ).getTime()
+  const second = createDate(
+    secondDate.getFullYear(),
+    secondDate.getMonth(),
+    secondDate.getDate()
+  ).getTime()
+
+  if (first === second) {
+    return 0
+  }
+
+  return first > second ? 1 : -1
+}
+
+function isSameDay(firstDate, secondDate) {
+  return compareDates(firstDate, secondDate) === 0
+}
+
+function formatDateDisplay(date) {
+  return `${String(date.getDate()).padStart(2, '0')} thg ${date.getMonth() + 1} ${date.getFullYear()}`
+}
+
+function formatDateRangeDisplay(startDate, endDate) {
+  return `${formatDateDisplay(startDate)} - ${formatDateDisplay(endDate)}`
+}
+
+function formatMonthLabel(date) {
+  return `tháng ${date.getMonth() + 1} năm ${date.getFullYear()}`
+}
+
+function formatQueryDate(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+function slugifyQueryValue(value) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+}
+
+function getMonthDays(monthDate) {
+  const firstDayOfMonth = createDate(monthDate.getFullYear(), monthDate.getMonth(), 1)
+  const startOffset = firstDayOfMonth.getDay() === 0 ? 6 : firstDayOfMonth.getDay() - 1
+  const gridStartDate = createDate(
+    firstDayOfMonth.getFullYear(),
+    firstDayOfMonth.getMonth(),
+    1 - startOffset
+  )
+
+  return Array.from({ length: 42 }, (_, index) =>
+    createDate(
+      gridStartDate.getFullYear(),
+      gridStartDate.getMonth(),
+      gridStartDate.getDate() + index
+    )
+  )
 }
 
 function ChevronIcon({ isOpen }) {
@@ -306,6 +389,21 @@ function CoreValueIcon({ type, tone }) {
   )
 }
 
+function MonthNavIcon({ direction }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 12 12">
+      <path
+        d={direction === 'left' ? 'M7.5 2.25 3.75 6l3.75 3.75' : 'M4.5 2.25 8.25 6 4.5 9.75'}
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
 function DestinationCard({ service }) {
   const modifierClass = {
     tall: 'home-destination-card--tall',
@@ -365,7 +463,12 @@ function HomePage() {
   const navigate = useNavigate()
   const searchCardRef = useRef(null)
   const [searchState, setSearchState] = useState(initialSearchState)
+  const [calendarSelection, setCalendarSelection] = useState({
+    startDate: initialSearchState.startDate,
+    endDate: initialSearchState.endDate,
+  })
   const [openMenu, setOpenMenu] = useState(null)
+  const [visibleMonth, setVisibleMonth] = useState(createDate(2026, 6, 1))
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -393,6 +496,56 @@ function HomePage() {
     setOpenMenu(null)
   }
 
+  function handleDateFieldToggle() {
+    if (openMenu === 'date') {
+      setOpenMenu(null)
+      return
+    }
+
+    setCalendarSelection({
+      startDate: searchState.startDate,
+      endDate: searchState.endDate,
+    })
+    setVisibleMonth(createDate(searchState.startDate.getFullYear(), searchState.startDate.getMonth(), 1))
+    setOpenMenu('date')
+  }
+
+  function handleDateSelect(date) {
+    const currentSelection = calendarSelection
+    let nextSelection
+
+    if (!currentSelection.startDate || currentSelection.endDate) {
+      nextSelection = {
+        startDate: date,
+        endDate: null,
+      }
+      setCalendarSelection(nextSelection)
+      return
+    }
+
+    if (compareDates(date, currentSelection.startDate) < 0) {
+      nextSelection = {
+        startDate: date,
+        endDate: null,
+      }
+      setCalendarSelection(nextSelection)
+      return
+    }
+
+    nextSelection = {
+      startDate: currentSelection.startDate,
+      endDate: date,
+    }
+
+    setCalendarSelection(nextSelection)
+    setSearchState((currentState) => ({
+      ...currentState,
+      startDate: nextSelection.startDate,
+      endDate: nextSelection.endDate,
+    }))
+    setOpenMenu(null)
+  }
+
   function handleFilterSelect(filterKey, value) {
     setSearchState((currentState) => ({
       ...currentState,
@@ -414,21 +567,30 @@ function HomePage() {
 
   function handleSearch() {
     const params = new URLSearchParams({
-      from: searchState.from,
-      to: searchState.to,
-      date: searchState.date,
-      sort: searchState.sort,
+      from: slugifyQueryValue(searchState.from),
+      to: slugifyQueryValue(searchState.to),
+      start: formatQueryDate(searchState.startDate),
+      end: formatQueryDate(searchState.endDate),
+      sort: sortQueryMap[searchState.sort] ?? slugifyQueryValue(searchState.sort),
     })
 
     Object.entries(searchState.filters).forEach(([key, value]) => {
       if (value) {
-        params.set(key, value)
+        params.set(key, slugifyQueryValue(value))
       }
     })
 
     setOpenMenu(null)
     navigate(`/services?${params.toString()}`)
   }
+
+  const displayedDateRange = formatDateRangeDisplay(searchState.startDate, searchState.endDate)
+  const calendarPreview = calendarSelection.endDate
+    ? formatDateRangeDisplay(calendarSelection.startDate, calendarSelection.endDate)
+    : calendarSelection.startDate
+      ? `${formatDateDisplay(calendarSelection.startDate)} - Chọn ngày về`
+      : displayedDateRange
+  const visibleMonths = [visibleMonth, addMonths(visibleMonth, 1)]
 
   return (
     <div className="home-page">
@@ -502,6 +664,136 @@ function HomePage() {
                 ) : null}
               </div>
             ))}
+
+            <div className="home-search-card__field-wrap home-search-card__field-wrap--date">
+              <button
+                aria-expanded={openMenu === 'date'}
+                aria-haspopup="dialog"
+                className={`home-search-card__field-button home-search-card__field-button--date ${
+                  openMenu === 'date' ? 'home-search-card__field-button--open' : ''
+                }`}
+                type="button"
+                onClick={handleDateFieldToggle}
+              >
+                <span className="home-search-card__field-icon">
+                  <SearchFieldIcon type="calendar" />
+                </span>
+                <span className="home-search-card__field-copy">
+                  <span className="home-search-card__label">NGÀY ĐI - VỀ</span>
+                  <span className="home-search-card__value home-search-card__value--date">
+                    {displayedDateRange}
+                  </span>
+                </span>
+                <ChevronIcon isOpen={openMenu === 'date'} />
+              </button>
+
+              {openMenu === 'date' ? (
+                <div
+                  aria-label="Ngày đi và ngày về"
+                  className="home-search-card__date-popover"
+                  role="dialog"
+                >
+                  <div className="home-search-card__calendar-header">
+                    <div className="home-search-card__calendar-heading">
+                      <h3 className="home-search-card__calendar-title">Ngày đi và ngày về</h3>
+                      <p className="home-search-card__calendar-preview">{calendarPreview}</p>
+                    </div>
+
+                    <div className="home-search-card__calendar-nav">
+                      <button
+                        aria-label="Tháng trước"
+                        className="home-search-card__calendar-nav-button"
+                        type="button"
+                        onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))}
+                      >
+                        <MonthNavIcon direction="left" />
+                      </button>
+                      <button
+                        aria-label="Tháng sau"
+                        className="home-search-card__calendar-nav-button"
+                        type="button"
+                        onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))}
+                      >
+                        <MonthNavIcon direction="right" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="home-search-card__calendar-panels">
+                    {visibleMonths.map((monthDate) => (
+                      <section className="home-search-card__calendar-month" key={monthDate.toISOString()}>
+                        <h4 className="home-search-card__calendar-month-label">
+                          {formatMonthLabel(monthDate)}
+                        </h4>
+
+                        <div className="home-search-card__calendar-weekdays">
+                          {weekdayLabels.map((weekdayLabel) => (
+                            <span
+                              className={`home-search-card__calendar-weekday ${
+                                weekdayLabel === 'CN'
+                                  ? 'home-search-card__calendar-weekday--sunday'
+                                  : ''
+                              }`}
+                              key={weekdayLabel}
+                            >
+                              {weekdayLabel}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="home-search-card__calendar-grid">
+                          {getMonthDays(monthDate).map((day) => {
+                            const isCurrentMonth = day.getMonth() === monthDate.getMonth()
+                            const isStartDate =
+                              calendarSelection.startDate &&
+                              isSameDay(day, calendarSelection.startDate)
+                            const isEndDate =
+                              calendarSelection.endDate &&
+                              isSameDay(day, calendarSelection.endDate)
+                            const isInSelectedRange =
+                              calendarSelection.startDate &&
+                              calendarSelection.endDate &&
+                              compareDates(day, calendarSelection.startDate) > 0 &&
+                              compareDates(day, calendarSelection.endDate) < 0
+
+                            return (
+                              <button
+                                className={`home-search-card__calendar-day ${
+                                  isCurrentMonth ? '' : 'home-search-card__calendar-day--outside'
+                                } ${
+                                  day.getDay() === 0 ? 'home-search-card__calendar-day--sunday' : ''
+                                } ${
+                                  isInSelectedRange
+                                    ? 'home-search-card__calendar-day--in-range'
+                                    : ''
+                                } ${
+                                  isStartDate
+                                    ? 'home-search-card__calendar-day--range-start'
+                                    : ''
+                                } ${
+                                  isEndDate ? 'home-search-card__calendar-day--range-end' : ''
+                                }`}
+                                key={day.toISOString()}
+                                type="button"
+                                onClick={() => handleDateSelect(day)}
+                              >
+                                {day.getDate()}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+
+                  <div className="home-search-card__calendar-footer">
+                    <span className="home-search-card__calendar-helper">
+                      Chọn ngày đi trước, sau đó chọn ngày về.
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
 
             <button
               aria-label="Tìm kiếm dịch vụ"
