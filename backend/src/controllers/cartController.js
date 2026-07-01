@@ -11,6 +11,18 @@ const getCart = async (req, res) => {
   });
 };
 
+const getCartSummary = async (req, res) => {
+  const summary = await cartService.getCartSummary({
+    query: req.query,
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: summary,
+    message: 'Cart summary retrieved successfully',
+  });
+};
+
 const addCartItem = async (req, res) => {
   const result = await cartService.addCartItem({
     payload: req.body,
@@ -64,5 +76,6 @@ module.exports = {
   clearCartItems,
   deleteCartItem,
   getCart,
+  getCartSummary,
   updateCartItem,
 };
