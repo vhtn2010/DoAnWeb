@@ -17,6 +17,7 @@ const originalCreatePromotion = adminPromotionService.createPromotion;
 const originalDeletePromotion = adminPromotionService.deletePromotion;
 const originalGetPromotionById = adminPromotionService.getPromotionById;
 const originalGetPromotions = adminPromotionService.getPromotions;
+const originalGetPromotionVouchers = adminPromotionService.getPromotionVouchers;
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalUpdatePromotion = adminPromotionService.updatePromotion;
 
@@ -82,6 +83,7 @@ test.beforeEach(() => {
   adminPromotionService.deletePromotion = originalDeletePromotion;
   adminPromotionService.getPromotionById = originalGetPromotionById;
   adminPromotionService.getPromotions = originalGetPromotions;
+  adminPromotionService.getPromotionVouchers = originalGetPromotionVouchers;
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminPromotionService.updatePromotion = originalUpdatePromotion;
 });
@@ -92,6 +94,7 @@ test.afterEach(() => {
   adminPromotionService.deletePromotion = originalDeletePromotion;
   adminPromotionService.getPromotionById = originalGetPromotionById;
   adminPromotionService.getPromotions = originalGetPromotions;
+  adminPromotionService.getPromotionVouchers = originalGetPromotionVouchers;
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminPromotionService.updatePromotion = originalUpdatePromotion;
 });
@@ -286,6 +289,75 @@ test('GET /api/admin/promotions/:promotionId returns promotion detail', async ()
     assert.equal(response.body.success, true);
     assert.equal(response.body.message, 'Promotion retrieved successfully');
     assert.equal(response.body.data.id, '44444444-4444-4444-8444-444444444444');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/admin/promotions/:promotionId/vouchers returns related vouchers with parent promotion info', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'staff-user-12',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'staff-user-12',
+    });
+  adminPromotionService.getPromotionVouchers = async (context) => {
+    capturedContext = context;
+
+    return {
+      meta: {
+        has_next: false,
+        limit: 20,
+        page: 1,
+        total: 1,
+        total_pages: 1,
+      },
+      promotion: {
+        id: '88888888-8888-4888-8888-888888888888',
+        name: 'Summer Sale',
+        status: 'paused',
+        target_service_type: 'tour',
+        valid_from: '2026-07-05T00:00:00.000Z',
+        valid_to: '2026-08-01T00:00:00.000Z',
+      },
+      vouchers: [
+        {
+          code: 'SAVE10',
+          id: '99999999-9999-4999-8999-999999999999',
+          is_currently_usable: false,
+          promotion_id: '88888888-8888-4888-8888-888888888888',
+          status: 'active',
+        },
+      ],
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/promotions/88888888-8888-4888-8888-888888888888/vouchers?page=1&limit=20`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        method: 'GET',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Promotion vouchers retrieved successfully');
+    assert.equal(response.body.data.promotion.status, 'paused');
+    assert.equal(response.body.data.vouchers[0].code, 'SAVE10');
+    assert.equal(capturedContext.promotionId, '88888888-8888-4888-8888-888888888888');
+    assert.equal(capturedContext.query.page, '1');
+    assert.equal(capturedContext.query.limit, '20');
   } finally {
     server.close();
   }

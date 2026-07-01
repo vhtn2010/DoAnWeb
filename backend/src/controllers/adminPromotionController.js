@@ -25,6 +25,23 @@ const getAdminPromotionDetail = async (req, res) => {
   });
 };
 
+const getAdminPromotionVouchers = async (req, res) => {
+  const result = await adminPromotionService.getPromotionVouchers({
+    actor: req.auth.user,
+    promotionId: req.params.promotionId,
+    query: req.query,
+  });
+
+  res.success({
+    data: {
+      promotion: result.promotion,
+      vouchers: result.vouchers,
+    },
+    message: 'Promotion vouchers retrieved successfully',
+    meta: result.meta,
+  });
+};
+
 const createAdminPromotion = async (req, res) => {
   const promotion = await adminPromotionService.createPromotion({
     actor: req.auth.user,
@@ -94,6 +111,7 @@ module.exports = {
   createAdminPromotion,
   deleteAdminPromotion,
   getAdminPromotionDetail,
+  getAdminPromotionVouchers,
   listAdminPromotions,
   updateAdminPromotion,
 };

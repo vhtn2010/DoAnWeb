@@ -7,6 +7,7 @@ const {
   createAdminPromotion,
   deleteAdminPromotion,
   getAdminPromotionDetail,
+  getAdminPromotionVouchers,
   listAdminPromotions,
   updateAdminPromotion,
 } = require('../controllers/adminPromotionController');
@@ -39,6 +40,10 @@ router.use(
 
 router.get('/admin/promotions', asyncHandler(listAdminPromotions));
 router.post('/admin/promotions', asyncHandler(createAdminPromotion));
+router.get(
+  '/admin/promotions/:promotionId/vouchers',
+  asyncHandler(getAdminPromotionVouchers),
+);
 router.get(
   '/admin/promotions/:promotionId',
   asyncHandler(getAdminPromotionDetail),
