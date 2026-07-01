@@ -2,6 +2,11 @@ const { CART_STATUS } = require('../constants/domainConstraints');
 const { query } = require('./client');
 
 const ROOM_BASED_CART_SERVICE_TYPES = Object.freeze(['hotel', 'room']);
+const VOUCHER_USAGE_EXCLUDED_BOOKING_STATUSES = Object.freeze([
+  'cancelled',
+  'failed',
+  'expired',
+]);
 
 const createCartRepository = ({ queryImpl = query } = {}) => {
   const findActiveCartsByUser = async (queryExecutor, userId) => {
@@ -225,6 +230,60 @@ const createCartRepository = ({ queryImpl = query } = {}) => {
     );
 
     return result.rows[0] || null;
+  };
+
+  const getVoucherByCode = async (queryExecutor, voucherCode) => {
+    const result = await queryExecutor(
+      `
+        SELECT
+          v.id,
+          v.promotion_id,
+          v.code,
+          v.discount_type,
+          v.discount_value,
+          v.max_discount_amount,
+          v.min_order_amount,
+          v.usage_limit_total,
+          v.usage_limit_per_user,
+          v.used_count,
+          v.status AS voucher_status,
+          v.valid_from AS voucher_valid_from,
+          v.valid_to AS voucher_valid_to,
+          p.status AS promotion_status,
+          p.valid_from AS promotion_valid_from,
+          p.valid_to AS promotion_valid_to,
+          p.target_service_type
+        FROM vouchers v
+        INNER JOIN promotions p ON p.id = v.promotion_id
+        WHERE UPPER(TRIM(v.code)) = $1
+        ORDER BY v.created_at DESC, v.id DESC
+        LIMIT 1
+      `,
+      [voucherCode],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const countUserVoucherUsages = async (
+    queryExecutor,
+    {
+      userId,
+      voucherId,
+    },
+  ) => {
+    const result = await queryExecutor(
+      `
+        SELECT COUNT(*)::int AS usage_count
+        FROM bookings
+        WHERE user_id = $1
+          AND voucher_id = $2
+          AND status::text <> ALL($3::text[])
+      `,
+      [userId, voucherId, VOUCHER_USAGE_EXCLUDED_BOOKING_STATUSES],
+    );
+
+    return result.rows[0]?.usage_count ?? 0;
   };
 
   const insertCartItem = async (
@@ -475,6 +534,7 @@ const createCartRepository = ({ queryImpl = query } = {}) => {
   };
 
   return {
+    countUserVoucherUsages,
     clearCartItems,
     createActiveCart,
     deleteCartItem,
@@ -486,6 +546,7 @@ const createCartRepository = ({ queryImpl = query } = {}) => {
     getServiceById,
     getTourDetail,
     getTrainDetailById,
+    getVoucherByCode,
     insertCartItem,
     listCartItemRecords,
     listCartItems,

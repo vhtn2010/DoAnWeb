@@ -1,9 +1,12 @@
 const {
   API_ERROR_CODES,
   CART_STATUS,
+  DISCOUNT_TYPE,
   DOMAIN_CONSTRAINTS,
+  PROMOTION_STATUS,
   SERVICE_TYPE,
   SERVICE_TYPE_VALUES,
+  VOUCHER_STATUS,
 } = require('../constants/domainConstraints');
 const { withTransaction } = require('../database/client');
 const { createCartRepository } = require('../database/cartRepository');
@@ -28,8 +31,11 @@ const UPDATE_ALLOWED_FIELDS = new Set([
   'quantity',
   'start_at',
 ]);
+const SUMMARY_ALLOWED_QUERY_FIELDS = new Set(['voucher_code']);
 const ADD_SCOPE_LABEL = 'POST /cart/items';
 const UPDATE_SCOPE_LABEL = 'PATCH /cart/items/{cart_item_id}';
+const SUMMARY_SCOPE_LABEL = 'GET /cart/summary';
+const MAX_VOUCHER_CODE_LENGTH = 50;
 
 const toIsoString = (value) => value?.toISOString?.() || value || null;
 
@@ -356,6 +362,8 @@ const normalizeOptions = (field, value) => {
   return value;
 };
 
+const roundMoney = (value) => Number(value.toFixed(2));
+
 const validateDateRange = ({ endAt, startAt }) => {
   if (startAt && endAt && endAt <= startAt) {
     throw createValidationError([
@@ -492,6 +500,71 @@ const normalizeUpdatePayload = (payload = {}) => {
     endAt,
     startAt,
   };
+};
+
+const normalizeSummaryQuery = (query = {}) => {
+  const queryObject = ensureObjectPayload(query);
+  const details = [];
+  const providedKeys = Object.keys(queryObject);
+  const disallowedKeys = providedKeys.filter(
+    (key) => !SUMMARY_ALLOWED_QUERY_FIELDS.has(key),
+  );
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        scopeLabel: SUMMARY_SCOPE_LABEL,
+      }),
+    );
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(queryObject, 'voucher_code')) {
+    if (details.length > 0) {
+      throw createValidationError(details);
+    }
+
+    return {
+      voucherCode: null,
+    };
+  }
+
+  const { voucher_code: voucherCode } = queryObject;
+
+  if (voucherCode == null || voucherCode === '') {
+    if (details.length > 0) {
+      throw createValidationError(details);
+    }
+
+    return {
+      voucherCode: null,
+    };
+  }
+
+  if (typeof voucherCode !== 'string') {
+    details.push({
+      field: 'voucher_code',
+      message: 'voucher_code must be a string',
+    });
+  } else {
+    const normalizedVoucherCode = voucherCode.trim().toUpperCase();
+
+    if (normalizedVoucherCode.length > MAX_VOUCHER_CODE_LENGTH) {
+      details.push({
+        field: 'voucher_code',
+        message: `voucher_code must not exceed ${MAX_VOUCHER_CODE_LENGTH} characters`,
+      });
+    }
+
+    if (details.length > 0) {
+      throw createValidationError(details);
+    }
+
+    return {
+      voucherCode: normalizedVoucherCode || null,
+    };
+  }
+
+  throw createValidationError(details);
 };
 
 const parseOptionalGuestCount = (field, value) => {
@@ -832,6 +905,143 @@ const buildEmptySummary = () => ({
   total_amount: 0,
 });
 
+const buildPricingSummary = (
+  items,
+  {
+    cartId = null,
+    discountAmount = 0,
+    voucher = null,
+  } = {},
+) => {
+  const baseSummary = buildSummaryFromItems(items);
+  const safeDiscount = roundMoney(
+    Math.min(
+      Math.max(discountAmount, 0),
+      baseSummary.subtotal_amount,
+    ),
+  );
+
+  return {
+    cart_id: cartId,
+    currency: baseSummary.currency,
+    discount_amount: safeDiscount,
+    item_count: baseSummary.item_count,
+    quantity_total: baseSummary.quantity_total,
+    subtotal_amount: baseSummary.subtotal_amount,
+    total_amount: roundMoney(
+      Math.max(baseSummary.subtotal_amount - safeDiscount, 0),
+    ),
+    voucher,
+  };
+};
+
+const buildEmptyPricingSummary = ({ cartId = null, voucher = null } = {}) => ({
+  cart_id: cartId,
+  currency: DOMAIN_CONSTRAINTS.defaultCurrency,
+  discount_amount: 0,
+  item_count: 0,
+  quantity_total: 0,
+  subtotal_amount: 0,
+  total_amount: 0,
+  voucher,
+});
+
+const buildVoucherIssue = (code, message) => ({
+  code,
+  message,
+});
+
+const buildVoucherResponse = (
+  voucherCode,
+  {
+    applied = false,
+    discountAmount = 0,
+    issue = null,
+    voucher = null,
+  } = {},
+) => {
+  if (!voucherCode) {
+    return null;
+  }
+
+  const normalizedCode = String(voucher?.code || voucherCode)
+    .trim()
+    .toUpperCase();
+
+  return {
+    applied,
+    code: normalizedCode,
+    discount_amount: roundMoney(Math.max(discountAmount, 0)),
+    discount_type: voucher?.discount_type || null,
+    discount_value:
+      voucher?.discount_value == null ? null : Number(voucher.discount_value),
+    issue,
+    max_discount_amount:
+      voucher?.max_discount_amount == null
+        ? null
+        : Number(voucher.max_discount_amount),
+    min_order_amount:
+      voucher?.min_order_amount == null ? null : Number(voucher.min_order_amount),
+    promotion_id: voucher?.promotion_id || null,
+    target_service_type: voucher?.target_service_type || null,
+  };
+};
+
+const isWithinVoucherWindow = (currentTime, validFrom, validTo) => {
+  if (validFrom && currentTime < new Date(validFrom)) {
+    return false;
+  }
+
+  if (validTo && currentTime > new Date(validTo)) {
+    return false;
+  }
+
+  return true;
+};
+
+const calculateEligibleSubtotal = (items, targetServiceType) => {
+  if (!targetServiceType) {
+    return items.reduce((total, item) => total + item.total_amount, 0);
+  }
+
+  return items.reduce((total, item) => {
+    if (item.service_type !== targetServiceType) {
+      return total;
+    }
+
+    return total + item.total_amount;
+  }, 0);
+};
+
+const calculateVoucherDiscount = (
+  voucher,
+  {
+    eligibleSubtotal,
+    subtotalAmount,
+  },
+) => {
+  let discountAmount = 0;
+
+  if (voucher.discount_type === DISCOUNT_TYPE.PERCENT) {
+    discountAmount =
+      (eligibleSubtotal * Number(voucher.discount_value)) /
+      DOMAIN_CONSTRAINTS.discountPercentMaxValue;
+  } else if (voucher.discount_type === DISCOUNT_TYPE.FIXED_AMOUNT) {
+    discountAmount = Number(voucher.discount_value);
+  }
+
+  if (voucher.max_discount_amount != null) {
+    discountAmount = Math.min(
+      discountAmount,
+      Number(voucher.max_discount_amount),
+    );
+  }
+
+  discountAmount = Math.min(discountAmount, eligibleSubtotal, subtotalAmount);
+
+  return roundMoney(Math.max(discountAmount, 0));
+};
+
 const createCartService = ({
   logger = console,
   now = () => new Date(),
@@ -888,6 +1098,205 @@ const createCartService = ({
       });
 
       return loadMappedCart(queryExecutor, activeCart);
+    });
+
+  const getCartSummary = async ({
+    query,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const queryExecutor = client.query.bind(client);
+      const {
+        voucherCode,
+      } = normalizeSummaryQuery(query);
+      const activeCart = await resolveActiveCart(queryExecutor, userId);
+
+      if (!activeCart || activeCart.status !== CART_STATUS.ACTIVE) {
+        return buildEmptyPricingSummary();
+      }
+
+      const itemRows = await repository.listCartItems(queryExecutor, activeCart.id);
+      const items = itemRows.map(mapCartItem);
+
+      if (items.length === 0) {
+        return buildEmptyPricingSummary({
+          cartId: activeCart.id,
+        });
+      }
+
+      if (!voucherCode) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+        });
+      }
+
+      const voucher = await repository.getVoucherByCode(queryExecutor, voucherCode);
+
+      if (!voucher) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'VOUCHER_NOT_FOUND',
+              'Voucher does not exist',
+            ),
+          }),
+        });
+      }
+
+      if (voucher.voucher_status !== VOUCHER_STATUS.ACTIVE) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'VOUCHER_INACTIVE',
+              'Voucher is not active',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      const currentTime = now();
+
+      if (
+        !isWithinVoucherWindow(
+          currentTime,
+          voucher.voucher_valid_from,
+          voucher.voucher_valid_to,
+        )
+      ) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'VOUCHER_EXPIRED',
+              'Voucher is outside the valid time window',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      if (voucher.promotion_status !== PROMOTION_STATUS.ACTIVE) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'PROMOTION_INACTIVE',
+              'Promotion is not active',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      if (
+        !isWithinVoucherWindow(
+          currentTime,
+          voucher.promotion_valid_from,
+          voucher.promotion_valid_to,
+        )
+      ) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'PROMOTION_EXPIRED',
+              'Promotion is outside the valid time window',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      const subtotalAmount = items.reduce(
+        (total, item) => total + item.total_amount,
+        0,
+      );
+
+      if (
+        voucher.usage_limit_total != null &&
+        Number(voucher.used_count) >= Number(voucher.usage_limit_total)
+      ) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'VOUCHER_USAGE_LIMIT_REACHED',
+              'Voucher has reached the total usage limit',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      const userUsageCount = await repository.countUserVoucherUsages(
+        queryExecutor,
+        {
+          userId,
+          voucherId: voucher.id,
+        },
+      );
+
+      if (userUsageCount >= Number(voucher.usage_limit_per_user)) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'VOUCHER_USER_LIMIT_REACHED',
+              'User has reached the voucher usage limit',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      if (subtotalAmount < Number(voucher.min_order_amount)) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'VOUCHER_MIN_ORDER_NOT_MET',
+              'Cart subtotal does not meet the minimum order amount',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      const eligibleSubtotal = calculateEligibleSubtotal(
+        items,
+        voucher.target_service_type,
+      );
+
+      if (eligibleSubtotal <= 0) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'VOUCHER_NOT_APPLICABLE',
+              'Voucher does not apply to the current cart items',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      const discountAmount = calculateVoucherDiscount(voucher, {
+        eligibleSubtotal,
+        subtotalAmount,
+      });
+
+      return buildPricingSummary(items, {
+        cartId: activeCart.id,
+        discountAmount,
+        voucher: buildVoucherResponse(voucherCode, {
+          applied: discountAmount > 0,
+          discountAmount,
+          voucher,
+        }),
+      });
     });
 
   const addCartItem = async ({ payload, userId }) =>
@@ -1105,6 +1514,7 @@ const createCartService = ({
     clearCartItems,
     deleteCartItem,
     getActiveCart,
+    getCartSummary,
     updateCartItem,
   };
 };

@@ -16,6 +16,7 @@ const originalAddCartItem = cartService.addCartItem;
 const originalClearCartItems = cartService.clearCartItems;
 const originalDeleteCartItem = cartService.deleteCartItem;
 const originalGetActiveCart = cartService.getActiveCart;
+const originalGetCartSummary = cartService.getCartSummary;
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalUpdateCartItem = cartService.updateCartItem;
 
@@ -65,6 +66,7 @@ test.beforeEach(() => {
   cartService.clearCartItems = originalClearCartItems;
   cartService.deleteCartItem = originalDeleteCartItem;
   cartService.getActiveCart = originalGetActiveCart;
+  cartService.getCartSummary = originalGetCartSummary;
   cartService.updateCartItem = originalUpdateCartItem;
 });
 
@@ -74,6 +76,7 @@ test.afterEach(() => {
   cartService.clearCartItems = originalClearCartItems;
   cartService.deleteCartItem = originalDeleteCartItem;
   cartService.getActiveCart = originalGetActiveCart;
+  cartService.getCartSummary = originalGetCartSummary;
   cartService.updateCartItem = originalUpdateCartItem;
 });
 
@@ -180,6 +183,113 @@ test('GET /api/cart returns active cart for authenticated customer', async () =>
     assert.deepEqual(capturedContext, {
       userId: 'user-3',
     });
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/cart/summary requires access token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(server, `${apiPrefix}/cart/summary`, {
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/cart/summary returns 403 for non-customer role', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'user-summary-2',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'user-summary-2',
+    });
+
+  try {
+    const response = await request(server, `${apiPrefix}/cart/summary`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/cart/summary returns pricing summary for authenticated customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-summary-3',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-summary-3',
+    });
+  cartService.getCartSummary = async (context) => {
+    capturedContext = context;
+
+    return {
+      cart_id: 'cart-summary-3',
+      currency: 'VND',
+      discount_amount: 200000,
+      item_count: 2,
+      quantity_total: 3,
+      subtotal_amount: 3000000,
+      total_amount: 2800000,
+      voucher: {
+        applied: true,
+        code: 'SAVE10',
+        discount_amount: 200000,
+        discount_type: 'percent',
+        discount_value: 10,
+        issue: null,
+        max_discount_amount: 500000,
+        min_order_amount: 1000000,
+        promotion_id: 'promotion-3',
+        target_service_type: 'tour',
+      },
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/cart/summary?voucher_code=save10`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        method: 'GET',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Cart summary retrieved successfully');
+    assert.equal(response.body.data.total_amount, 2800000);
+    assert.equal(capturedContext.userId, 'user-summary-3');
+    assert.equal(capturedContext.query.voucher_code, 'save10');
   } finally {
     server.close();
   }

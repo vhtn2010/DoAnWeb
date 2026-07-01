@@ -680,3 +680,202 @@ test('clearCartItems returns idempotent success when customer has no active cart
     },
   });
 });
+
+test('getCartSummary returns zero summary when customer has no active cart', async () => {
+  const service = createCartService({
+    repository: {
+      findActiveCartsByUser: async () => [],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.getCartSummary({
+    query: {},
+    userId: 'user-10',
+  });
+
+  assert.deepEqual(result, {
+    cart_id: null,
+    currency: 'VND',
+    discount_amount: 0,
+    item_count: 0,
+    quantity_total: 0,
+    subtotal_amount: 0,
+    total_amount: 0,
+    voucher: null,
+  });
+});
+
+test('getCartSummary applies percent voucher only to matching service type items', async () => {
+  const fixedNow = new Date('2026-07-01T09:00:00.000Z');
+  const service = createCartService({
+    now: () => fixedNow,
+    repository: {
+      countUserVoucherUsages: async () => 0,
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-summary-1',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getVoucherByCode: async () => ({
+        code: ' TOUR10 ',
+        discount_type: 'percent',
+        discount_value: '10.00',
+        id: 'voucher-1',
+        max_discount_amount: '500000.00',
+        min_order_amount: '1000000.00',
+        promotion_id: 'promotion-1',
+        promotion_status: 'active',
+        promotion_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        promotion_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+        target_service_type: 'tour',
+        usage_limit_per_user: 1,
+        usage_limit_total: 100,
+        used_count: 0,
+        voucher_status: 'active',
+        voucher_valid_from: new Date('2026-06-15T00:00:00.000Z'),
+        voucher_valid_to: new Date('2026-07-31T00:00:00.000Z'),
+      }),
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-tour',
+          quantity: 1,
+          serviceId: 'service-tour-summary',
+          serviceType: 'tour',
+          unitPriceSnapshot: '2000000.00',
+        }),
+        createEnrichedCartItemRow({
+          id: 'item-hotel',
+          quantity: 1,
+          referenceId: 'room-type-summary',
+          salePrice: '1000000.00',
+          serviceId: 'service-hotel-summary',
+          serviceType: 'hotel',
+          unitPriceSnapshot: '1000000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.getCartSummary({
+    query: {
+      voucher_code: ' tour10 ',
+    },
+    userId: 'user-11',
+  });
+
+  assert.deepEqual(result, {
+    cart_id: 'cart-summary-1',
+    currency: 'VND',
+    discount_amount: 200000,
+    item_count: 2,
+    quantity_total: 2,
+    subtotal_amount: 3000000,
+    total_amount: 2800000,
+    voucher: {
+      applied: true,
+      code: 'TOUR10',
+      discount_amount: 200000,
+      discount_type: 'percent',
+      discount_value: 10,
+      issue: null,
+      max_discount_amount: 500000,
+      min_order_amount: 1000000,
+      promotion_id: 'promotion-1',
+      target_service_type: 'tour',
+    },
+  });
+});
+
+test('getCartSummary returns voucher issue when voucher is expired', async () => {
+  const fixedNow = new Date('2026-07-15T09:00:00.000Z');
+  const service = createCartService({
+    now: () => fixedNow,
+    repository: {
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-summary-2',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getVoucherByCode: async () => ({
+        code: 'SAVE50',
+        discount_type: 'fixed_amount',
+        discount_value: '500000.00',
+        id: 'voucher-2',
+        max_discount_amount: null,
+        min_order_amount: '0.00',
+        promotion_id: 'promotion-2',
+        promotion_status: 'active',
+        promotion_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        promotion_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+        target_service_type: null,
+        usage_limit_per_user: 2,
+        usage_limit_total: 100,
+        used_count: 0,
+        voucher_status: 'active',
+        voucher_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+        voucher_valid_to: new Date('2026-07-10T00:00:00.000Z'),
+      }),
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-tour-expired',
+          quantity: 1,
+          serviceId: 'service-tour-expired',
+          unitPriceSnapshot: '1500000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.getCartSummary({
+    query: {
+      voucher_code: 'save50',
+    },
+    userId: 'user-12',
+  });
+
+  assert.equal(result.discount_amount, 0);
+  assert.equal(result.total_amount, 1500000);
+  assert.deepEqual(result.voucher, {
+    applied: false,
+    code: 'SAVE50',
+    discount_amount: 0,
+    discount_type: 'fixed_amount',
+    discount_value: 500000,
+    issue: {
+      code: 'VOUCHER_EXPIRED',
+      message: 'Voucher is outside the valid time window',
+    },
+    max_discount_amount: null,
+    min_order_amount: 0,
+    promotion_id: 'promotion-2',
+    target_service_type: null,
+  });
+});
+
+test('getCartSummary rejects invalid voucher_code query', async () => {
+  const service = createCartService({
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  await assert.rejects(
+    () =>
+      service.getCartSummary({
+        query: {
+          voucher_code: 'A'.repeat(51),
+        },
+        userId: 'user-13',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'voucher_code'),
+  );
+});
