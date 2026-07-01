@@ -24,6 +24,12 @@ const DEFAULT_LIST_LIMIT = 20;
 const DEFAULT_LIST_PAGE = 1;
 const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
 const MAX_LIST_LIMIT = 50;
+const CANCEL_REQUEST_ALLOWED_STATUSES = Object.freeze([
+  BOOKING_STATUS.PENDING_PAYMENT,
+  BOOKING_STATUS.PAYMENT_PROCESSING,
+  BOOKING_STATUS.PAID,
+  BOOKING_STATUS.CONFIRMED,
+]);
 
 const buildAppError = ({
   code,
@@ -70,6 +76,12 @@ const buildDuplicateError = (field, message) =>
     field,
     message,
     statusCode: 409,
+  });
+
+const buildInvalidStateTransitionError = (message) =>
+  new AppError(message || 'The requested booking state transition is not allowed', {
+    code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+    statusCode: 400,
   });
 
 const buildCartEmptyError = () =>
@@ -464,6 +476,20 @@ const sanitizeSnapshotRoomType = (roomType) => {
   };
 };
 
+const parseCancelRequestBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  return {
+    reason: parseRequiredString({
+      field: 'reason',
+      maxLength: 2000,
+      value: body.reason,
+    }),
+  };
+};
+
 const sanitizeSnapshotFlight = (flight) => {
   if (!flight || typeof flight !== 'object' || Array.isArray(flight)) {
     return null;
@@ -630,6 +656,13 @@ const sanitizeBookingStatusHistoryEntry = (history) => ({
   id: history.id,
   reason: history.reason || null,
   to_status: history.to_status,
+});
+
+const sanitizeCancelRequestResponse = (booking) => ({
+  booking_code: booking.booking_code,
+  id: booking.id,
+  status: booking.status,
+  updated_at: booking.updated_at || null,
 });
 
 const sanitizeBookingDetail = ({
@@ -1181,12 +1214,51 @@ const createBookingService = ({
     return histories.map(sanitizeBookingStatusHistoryEntry);
   };
 
+  const requestBookingCancellation = async ({
+    auth,
+    body,
+    bookingId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedBookingId = parseUuid('booking_id', bookingId);
+    const parsedBody = parseCancelRequestBody(body || {});
+    const booking = await repository.getBookingByIdAndUser({
+      bookingId: parsedBookingId,
+      userId: auth.userId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError('Booking not found');
+    }
+
+    if (booking.status === BOOKING_STATUS.CANCEL_REQUESTED) {
+      return sanitizeCancelRequestResponse(booking);
+    }
+
+    if (!CANCEL_REQUEST_ALLOWED_STATUSES.includes(booking.status)) {
+      throw buildInvalidStateTransitionError(
+        'This booking status does not allow a cancellation request',
+      );
+    }
+
+    const updatedBooking = await repository.requestBookingCancellation({
+      actorUserId: auth.userId,
+      bookingId: parsedBookingId,
+      fromStatus: booking.status,
+      reason: parsedBody.reason,
+    });
+
+    return sanitizeCancelRequestResponse(updatedBooking);
+  };
+
   return {
     checkout,
     getMyBookingDetail,
     getMyBookingItems,
     getMyBookingStatusHistory,
     listMyBookings,
+    requestBookingCancellation,
   };
 };
 
