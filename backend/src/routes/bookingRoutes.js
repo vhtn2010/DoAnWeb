@@ -3,6 +3,7 @@ const {
   checkoutBooking,
   getMyBookingDetail,
   getMyBookingItems,
+  getMyBookingStatusHistory,
   listMyBookings,
 } = require('../controllers/bookingController');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -38,6 +39,13 @@ router.get(
   authRequired({ allowedRoles: ['customer'] }),
   customerBookingReadRateLimit,
   asyncHandler(getMyBookingItems),
+);
+
+router.get(
+  '/bookings/:booking_id/status-history',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerBookingReadRateLimit,
+  asyncHandler(getMyBookingStatusHistory),
 );
 
 router.post(
