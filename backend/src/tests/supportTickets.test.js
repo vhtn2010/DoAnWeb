@@ -22,9 +22,11 @@ const TICKET_ID = '33333333-3333-4333-8333-333333333333';
 const REPLY_ID = '44444444-4444-4444-8444-444444444444';
 
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
+const originalCloseMyTicket = supportService.closeMyTicket;
 const originalCreateTicket = supportService.createTicket;
 const originalGetMyTicketDetail = supportService.getMyTicketDetail;
 const originalListMyTickets = supportService.listMyTickets;
+const originalReplyToTicket = supportService.replyToTicket;
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -74,10 +76,12 @@ const request = (server, path, options = {}) =>
   });
 
 test.afterEach(() => {
+  supportService.closeMyTicket = originalCloseMyTicket;
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   supportService.createTicket = originalCreateTicket;
   supportService.getMyTicketDetail = originalGetMyTicketDetail;
   supportService.listMyTickets = originalListMyTickets;
+  supportService.replyToTicket = originalReplyToTicket;
   createRateLimit.clearRateLimitStore();
 });
 
@@ -481,6 +485,196 @@ test('supportService.getMyTicketDetail returns 404 for missing ownership-scoped 
   );
 });
 
+test('supportService.replyToTicket creates a customer reply and moves the ticket to waiting_staff', async () => {
+  let addReplyPayload = null;
+  const service = createSupportService({
+    repository: {
+      addCustomerReply: async (payload) => {
+        addReplyPayload = payload;
+
+        return {
+          reply: {
+            created_at: '2026-07-01T10:00:00.000Z',
+            id: REPLY_ID,
+            is_internal_note: false,
+            message: payload.message,
+            sender_id: CUSTOMER_ID,
+            sender_type: 'customer',
+            ticket_id: TICKET_ID,
+          },
+          ticket: {
+            closed_at: null,
+            id: TICKET_ID,
+            status: 'waiting_staff',
+            ticket_code: 'TK20260701AAAA0001',
+            updated_at: '2026-07-01T10:00:00.000Z',
+          },
+        };
+      },
+      getTicketByIdAndUser: async () => ({
+        id: TICKET_ID,
+        status: 'resolved',
+        ticket_code: 'TK20260701AAAA0001',
+      }),
+    },
+  });
+
+  const result = await service.replyToTicket({
+    auth: {
+      roleCode: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    body: {
+      message: 'Can you help me one more time?',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(addReplyPayload.senderId, CUSTOMER_ID);
+  assert.equal(addReplyPayload.ticketId, TICKET_ID);
+  assert.equal(addReplyPayload.toStatus, 'waiting_staff');
+  assert.equal(result.ticket.status, 'waiting_staff');
+  assert.equal(result.reply.sender_type, 'customer');
+});
+
+test('supportService.replyToTicket rejects closed and spam tickets', async () => {
+  const service = createSupportService({
+    repository: {
+      addCustomerReply: async () => null,
+      getTicketByIdAndUser: async () => ({
+        id: TICKET_ID,
+        status: 'closed',
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => service.replyToTicket({
+      auth: {
+        roleCode: 'customer',
+        userId: CUSTOMER_ID,
+      },
+      body: {
+        message: 'Please reopen',
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      assert.equal(error.statusCode, 400);
+      return true;
+    },
+  );
+});
+
+test('supportService.closeMyTicket closes a customer-owned ticket and optionally stores the reason as reply', async () => {
+  let closePayload = null;
+  const service = createSupportService({
+    repository: {
+      closeTicketByCustomer: async (payload) => {
+        closePayload = payload;
+
+        return {
+          reply: {
+            created_at: '2026-07-01T10:05:00.000Z',
+            id: REPLY_ID,
+            is_internal_note: false,
+            message: payload.reason,
+            sender_type: 'customer',
+          },
+          ticket: {
+            closed_at: '2026-07-01T10:05:00.000Z',
+            id: TICKET_ID,
+            status: 'closed',
+            ticket_code: 'TK20260701AAAA0001',
+            updated_at: '2026-07-01T10:05:00.000Z',
+          },
+        };
+      },
+      getTicketByIdAndUser: async () => ({
+        closed_at: null,
+        id: TICKET_ID,
+        status: 'waiting_staff',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T09:25:00.000Z',
+      }),
+    },
+  });
+
+  const result = await service.closeMyTicket({
+    auth: {
+      roleCode: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    body: {
+      reason: 'Issue has been resolved.',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(closePayload.ticketId, TICKET_ID);
+  assert.equal(closePayload.reason, 'Issue has been resolved.');
+  assert.equal(result.status, 'closed');
+  assert.equal(result.close_reason_reply.message, 'Issue has been resolved.');
+  assert.equal(result.closed_at, '2026-07-01T10:05:00.000Z');
+});
+
+test('supportService.closeMyTicket returns idempotent success for an already closed ticket and rejects spam', async () => {
+  const idempotentService = createSupportService({
+    repository: {
+      closeTicketByCustomer: async () => null,
+      getTicketByIdAndUser: async () => ({
+        closed_at: '2026-07-01T10:05:00.000Z',
+        id: TICKET_ID,
+        status: 'closed',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:05:00.000Z',
+      }),
+    },
+  });
+
+  const idempotentResult = await idempotentService.closeMyTicket({
+    auth: {
+      roleCode: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    body: {},
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(idempotentResult.status, 'closed');
+  assert.equal(idempotentResult.close_reason_reply, null);
+
+  const invalidService = createSupportService({
+    repository: {
+      closeTicketByCustomer: async () => null,
+      getTicketByIdAndUser: async () => ({
+        closed_at: null,
+        id: TICKET_ID,
+        status: 'spam',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:05:00.000Z',
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => invalidService.closeMyTicket({
+      auth: {
+        roleCode: 'customer',
+        userId: CUSTOMER_ID,
+      },
+      body: {},
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      assert.equal(error.statusCode, 400);
+      return true;
+    },
+  );
+});
+
 test('POST /support/tickets allows guest submissions without a token', async () => {
   const server = app.listen(0);
   supportService.createTicket = async ({ auth, body }) => {
@@ -750,6 +944,147 @@ test('GET /support/tickets/{ticket_id} returns sanitized detail for the owner', 
     assert.equal(response.body.success, true);
     assert.equal(response.body.data.replies.length, 1);
     assert.equal(response.body.data.ticket_code, 'TK20260701AAAA0001');
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /support/tickets/{ticket_id}/replies requires customer authentication', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/support/tickets/${TICKET_ID}/replies`,
+      {
+        body: {
+          message: 'Please help',
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /support/tickets/{ticket_id}/replies returns 201 for valid customer reply', async () => {
+  const server = app.listen(0);
+  authService.resolveAuthenticatedUser = async () => ({
+    roleCode: 'customer',
+    tokenId: 'token-customer',
+    user: { id: CUSTOMER_ID, role_code: 'customer' },
+    userId: CUSTOMER_ID,
+  });
+  supportService.replyToTicket = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.userId, CUSTOMER_ID);
+    assert.equal(body.message, 'Please help');
+    assert.equal(ticketId, TICKET_ID);
+
+    return {
+      reply: {
+        created_at: '2026-07-01T10:00:00.000Z',
+        id: REPLY_ID,
+        message: 'Please help',
+        sender_type: 'customer',
+      },
+      ticket: {
+        closed_at: null,
+        id: TICKET_ID,
+        status: 'waiting_staff',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:00:00.000Z',
+      },
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/support/tickets/${TICKET_ID}/replies`,
+      {
+        body: {
+          message: 'Please help',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            roleCode: 'customer',
+            userId: CUSTOMER_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.ticket.status, 'waiting_staff');
+    assert.equal(response.body.data.reply.sender_type, 'customer');
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /support/tickets/{ticket_id}/close returns closed status for customer owner', async () => {
+  const server = app.listen(0);
+  authService.resolveAuthenticatedUser = async () => ({
+    roleCode: 'customer',
+    tokenId: 'token-customer',
+    user: { id: CUSTOMER_ID, role_code: 'customer' },
+    userId: CUSTOMER_ID,
+  });
+  supportService.closeMyTicket = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.userId, CUSTOMER_ID);
+    assert.equal(body.reason, 'Resolved now');
+    assert.equal(ticketId, TICKET_ID);
+
+    return {
+      close_reason_reply: {
+        created_at: '2026-07-01T10:05:00.000Z',
+        id: REPLY_ID,
+        message: 'Resolved now',
+        sender_type: 'customer',
+      },
+      closed_at: '2026-07-01T10:05:00.000Z',
+      id: TICKET_ID,
+      status: 'closed',
+      ticket_code: 'TK20260701AAAA0001',
+      updated_at: '2026-07-01T10:05:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/support/tickets/${TICKET_ID}/close`,
+      {
+        body: {
+          reason: 'Resolved now',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            roleCode: 'customer',
+            userId: CUSTOMER_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.status, 'closed');
+    assert.equal(response.body.data.closed_at, '2026-07-01T10:05:00.000Z');
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
