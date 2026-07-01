@@ -38,6 +38,32 @@ const getAdminSupportTicketDetail = async (req, res) => {
   });
 };
 
+const updateAdminSupportTicket = async (req, res) => {
+  const data = await supportService.updateAdminTicket({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Admin support ticket updated successfully',
+  });
+};
+
+const assignAdminSupportTicket = async (req, res) => {
+  const data = await supportService.assignAdminTicket({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Admin support ticket assigned successfully',
+  });
+};
+
 const listMySupportTickets = async (req, res) => {
   const data = await supportService.listMyTickets({
     auth: req.auth,
@@ -91,8 +117,10 @@ const closeMySupportTicket = async (req, res) => {
 };
 
 module.exports = {
+  assignAdminSupportTicket,
   closeMySupportTicket,
   createSupportTicket,
+  updateAdminSupportTicket,
   getAdminSupportTicketDetail,
   getMySupportTicketDetail,
   listAdminSupportTickets,

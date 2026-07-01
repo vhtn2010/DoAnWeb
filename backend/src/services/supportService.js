@@ -34,6 +34,17 @@ const ADMIN_SUPPORT_ALLOWED_ROLES = Object.freeze([
   'admin',
   'system_admin',
 ]);
+const ADMIN_SUPPORT_ASSIGN_ALLOWED_STATUSES = Object.freeze([
+  SUPPORT_TICKET_STATUS.ASSIGNED,
+  SUPPORT_TICKET_STATUS.WAITING_CUSTOMER,
+  SUPPORT_TICKET_STATUS.WAITING_STAFF,
+  SUPPORT_TICKET_STATUS.RESOLVED,
+]);
+const ADMIN_ASSIGNABLE_ROLE_CODES = Object.freeze([
+  'staff',
+  'admin',
+  'system_admin',
+]);
 
 const buildAppError = ({
   code,
@@ -508,6 +519,16 @@ const sanitizeAdminTicketDetail = ({
   updated_at: ticket.updated_at,
 });
 
+const sanitizeAdminTicketMutationResult = (ticket) => ({
+  assigned_to: ticket.assigned_to || null,
+  closed_at: ticket.closed_at,
+  id: ticket.id,
+  priority: ticket.priority,
+  status: ticket.status,
+  ticket_code: ticket.ticket_code,
+  updated_at: ticket.updated_at,
+});
+
 const sanitizeCustomerReplyResult = ({
   reply,
   ticket,
@@ -614,6 +635,79 @@ const parseAdminListQuery = (query = {}) => ({
   priority: parseOptionalTicketPriority(query.priority),
   status: parseOptionalTicketStatus(query.status),
 });
+
+const parseAdminUpdateBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const allowedFields = new Set(['assigned_to', 'priority', 'status']);
+
+  for (const key of Object.keys(body)) {
+    if (!allowedFields.has(key)) {
+      throw buildValidationError(key, `${key} is not allowed in this endpoint`);
+    }
+  }
+
+  const hasStatus = Object.prototype.hasOwnProperty.call(body, 'status');
+  const hasPriority = Object.prototype.hasOwnProperty.call(body, 'priority');
+  const hasAssignedTo = Object.prototype.hasOwnProperty.call(body, 'assigned_to');
+
+  if (!hasStatus && !hasPriority && !hasAssignedTo) {
+    throw buildValidationError(
+      'body',
+      'At least one of status, priority, assigned_to must be provided',
+    );
+  }
+
+  const status = hasStatus
+    ? parseOptionalTicketStatus(body.status)
+    : undefined;
+  const priority = hasPriority
+    ? parseOptionalTicketPriority(body.priority)
+    : undefined;
+  const assignedTo = hasAssignedTo
+    ? parseUuid('assigned_to', body.assigned_to)
+    : undefined;
+
+  if (hasStatus && !status) {
+    throw buildValidationError(
+      'status',
+      `status must be one of: ${ADMIN_SUPPORT_ASSIGN_ALLOWED_STATUSES.join(', ')}`,
+    );
+  }
+
+  if (status != null && !ADMIN_SUPPORT_ASSIGN_ALLOWED_STATUSES.includes(status)) {
+    throw buildValidationError(
+      'status',
+      `status must be one of: ${ADMIN_SUPPORT_ASSIGN_ALLOWED_STATUSES.join(', ')}`,
+    );
+  }
+
+  return {
+    assignedTo,
+    priority,
+    status,
+  };
+};
+
+const parseAdminAssignBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const allowedFields = new Set(['assigned_to']);
+
+  for (const key of Object.keys(body)) {
+    if (!allowedFields.has(key)) {
+      throw buildValidationError(key, `${key} is not allowed in this endpoint`);
+    }
+  }
+
+  return {
+    assignedTo: parseUuid('assigned_to', body.assigned_to),
+  };
+};
 
 const parseReplyBody = (body = {}) => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -758,6 +852,57 @@ const canReadInternalNotes = (auth) => {
     'support.read_internal_notes',
     'support.manage',
   ]);
+};
+
+const ensureAdminSupportAssignAccess = (auth) => {
+  if (!ADMIN_SUPPORT_ALLOWED_ROLES.includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'support.assign',
+      'support.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureTicketAllowsAdminMutation = (ticket) => {
+  if (!ticket) {
+    throw buildResourceNotFoundError('Support ticket not found');
+  }
+
+  if (
+    [SUPPORT_TICKET_STATUS.CLOSED, SUPPORT_TICKET_STATUS.SPAM].includes(ticket.status)
+  ) {
+    throw buildInvalidStateTransitionError(
+      'This support ticket status does not allow admin update',
+    );
+  }
+};
+
+const validateAssignableAdminUser = (user) => {
+  if (!user) {
+    throw buildResourceNotFoundError('Assigned user was not found');
+  }
+
+  if (user.status !== 'active' || user.deleted_at) {
+    throw buildValidationError(
+      'assigned_to',
+      'assigned_to must reference an active staff/admin user',
+    );
+  }
+
+  if (!ADMIN_ASSIGNABLE_ROLE_CODES.includes(user.role_code)) {
+    throw buildValidationError(
+      'assigned_to',
+      'assigned_to must reference a staff, admin, or system_admin user',
+    );
+  }
 };
 
 const createSupportService = ({
@@ -1056,7 +1201,110 @@ const createSupportService = ({
     });
   };
 
+  const updateAdminTicket = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    ensureAdminSupportAssignAccess(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseAdminUpdateBody(body || {});
+    const ticket = await repository.getTicketByIdForAdmin({
+      staffScopeUserId: resolveAdminSupportScope(auth),
+      ticketId: parsedTicketId,
+    });
+
+    ensureTicketAllowsAdminMutation(ticket);
+
+    if (parsedBody.assignedTo !== undefined && parsedBody.assignedTo !== null) {
+      const assignedUser = await repository.getAssignableAdminUserById(parsedBody.assignedTo);
+      validateAssignableAdminUser(assignedUser);
+    }
+
+    const nextStatus = parsedBody.status !== undefined
+      ? parsedBody.status
+      : (
+        parsedBody.assignedTo !== undefined &&
+        parsedBody.assignedTo !== null &&
+        ticket.status === SUPPORT_TICKET_STATUS.OPEN
+          ? SUPPORT_TICKET_STATUS.ASSIGNED
+          : undefined
+      );
+    const updates = {
+      assigned_to: parsedBody.assignedTo,
+      priority: parsedBody.priority,
+      status: nextStatus,
+    };
+    const updatedTicket = await repository.updateTicketForAdmin({
+      action: 'admin.support.ticket_update',
+      actorUserId: auth?.userId || null,
+      metadata: {
+        new_values: {
+          assigned_to: updates.assigned_to === undefined ? undefined : updates.assigned_to,
+          priority: updates.priority,
+          status: updates.status,
+        },
+        old_values: {
+          assigned_to: ticket.assigned_to || null,
+          priority: ticket.priority,
+          status: ticket.status,
+        },
+      },
+      ticketId: parsedTicketId,
+      updates,
+    });
+
+    return sanitizeAdminTicketMutationResult(updatedTicket);
+  };
+
+  const assignAdminTicket = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    ensureAdminSupportAssignAccess(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseAdminAssignBody(body || {});
+    const ticket = await repository.getTicketByIdForAdmin({
+      staffScopeUserId: resolveAdminSupportScope(auth),
+      ticketId: parsedTicketId,
+    });
+
+    ensureTicketAllowsAdminMutation(ticket);
+
+    const assignedUser = await repository.getAssignableAdminUserById(parsedBody.assignedTo);
+    validateAssignableAdminUser(assignedUser);
+
+    const nextStatus = ticket.status === SUPPORT_TICKET_STATUS.OPEN
+      ? SUPPORT_TICKET_STATUS.ASSIGNED
+      : ticket.status;
+    const updatedTicket = await repository.updateTicketForAdmin({
+      action: 'admin.support.ticket_assign',
+      actorUserId: auth?.userId || null,
+      metadata: {
+        new_values: {
+          assigned_to: parsedBody.assignedTo,
+          status: nextStatus,
+        },
+        old_values: {
+          assigned_to: ticket.assigned_to || null,
+          status: ticket.status,
+        },
+      },
+      ticketId: parsedTicketId,
+      updates: {
+        assigned_to: parsedBody.assignedTo,
+        status: nextStatus,
+      },
+    });
+
+    return sanitizeAdminTicketMutationResult(updatedTicket);
+  };
+
   return {
+    assignAdminTicket,
     closeMyTicket,
     createTicket,
     getAdminTicketDetail,
@@ -1064,6 +1312,7 @@ const createSupportService = ({
     listAdminTickets,
     listMyTickets,
     replyToTicket,
+    updateAdminTicket,
   };
 };
 
