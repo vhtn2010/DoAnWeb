@@ -21,6 +21,184 @@ const createBookingRepository = ({
   getPoolImpl = getPool,
   queryImpl = query,
 } = {}) => {
+  const getBookingByIdAndUser = async ({
+    bookingId,
+    userId,
+  }) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          b.id,
+          b.booking_code,
+          b.user_id,
+          b.status,
+          b.contact_name,
+          b.contact_email,
+          b.contact_phone,
+          b.subtotal_amount,
+          b.discount_amount,
+          b.total_amount,
+          b.currency,
+          b.voucher_id,
+          b.note,
+          b.expires_at,
+          b.created_at,
+          b.updated_at
+        FROM bookings b
+        WHERE b.id = $1
+          AND b.user_id = $2
+        LIMIT 1
+      `,
+      [bookingId, userId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const listBookingItemsByBookingId = async (bookingId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          booking_id,
+          service_id,
+          service_type,
+          reference_id,
+          title_snapshot,
+          start_at,
+          end_at,
+          quantity,
+          unit_price,
+          total_amount,
+          status,
+          traveller_info
+        FROM booking_items
+        WHERE booking_id = $1
+        ORDER BY start_at ASC NULLS LAST, id ASC
+      `,
+      [bookingId],
+    );
+
+    return result.rows;
+  };
+
+  const listBookingPaymentsByBookingId = async (bookingId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          booking_id,
+          payment_code,
+          provider,
+          payment_method,
+          status,
+          amount,
+          currency,
+          paid_at,
+          expired_at,
+          created_at
+        FROM payments
+        WHERE booking_id = $1
+        ORDER BY created_at DESC, id DESC
+      `,
+      [bookingId],
+    );
+
+    return result.rows;
+  };
+
+  const listBookingRefundsByBookingId = async (bookingId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          refund_code,
+          booking_id,
+          payment_id,
+          status,
+          amount,
+          reason,
+          processed_at,
+          created_at
+        FROM refunds
+        WHERE booking_id = $1
+        ORDER BY created_at DESC, id DESC
+      `,
+      [bookingId],
+    );
+
+    return result.rows;
+  };
+
+  const listBookingsByUser = async ({
+    limit,
+    offset,
+    status,
+    userId,
+  }) => {
+    const params = [userId];
+    let filterSql = 'WHERE b.user_id = $1';
+
+    if (status) {
+      params.push(status);
+      filterSql += ` AND b.status = $${params.length}`;
+    }
+
+    params.push(limit);
+    const limitIndex = params.length;
+    params.push(offset);
+    const offsetIndex = params.length;
+
+    const result = await queryImpl(
+      `
+        WITH filtered_bookings AS (
+          SELECT
+            b.id,
+            b.booking_code,
+            b.user_id,
+            b.status,
+            b.contact_name,
+            b.subtotal_amount,
+            b.discount_amount,
+            b.total_amount,
+            b.currency,
+            b.expires_at,
+            b.created_at,
+            COUNT(bi.id)::int AS item_count
+          FROM bookings b
+          LEFT JOIN booking_items bi
+            ON bi.booking_id = b.id
+          ${filterSql}
+          GROUP BY
+            b.id,
+            b.booking_code,
+            b.user_id,
+            b.status,
+            b.contact_name,
+            b.subtotal_amount,
+            b.discount_amount,
+            b.total_amount,
+            b.currency,
+            b.expires_at,
+            b.created_at
+        )
+        SELECT
+          fb.*,
+          COUNT(*) OVER()::int AS total_count
+        FROM filtered_bookings fb
+        ORDER BY fb.created_at DESC, fb.id DESC
+        LIMIT $${limitIndex}
+        OFFSET $${offsetIndex}
+      `,
+      params,
+    );
+
+    return {
+      rows: result.rows,
+      total: result.rows[0]?.total_count || 0,
+    };
+  };
+
   const getCartById = async (cartId) => {
     const result = await queryImpl(
       `
@@ -496,6 +674,7 @@ const createBookingRepository = ({
     countActiveBookingsByVoucherAndUser,
     createCheckout,
     findBookingByIdempotencyKey,
+    getBookingByIdAndUser,
     getCartById,
     getFlightDetailById,
     getPublicServiceById,
@@ -503,6 +682,10 @@ const createBookingRepository = ({
     getTourDetail,
     getTrainDetailById,
     getVoucherByCode,
+    listBookingItemsByBookingId,
+    listBookingPaymentsByBookingId,
+    listBookingRefundsByBookingId,
+    listBookingsByUser,
     listCartItemsByCartId,
   };
 };
