@@ -15,12 +15,14 @@ const {
 const adminBookingService = require('../services/adminBookingService');
 
 const BOOKING_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const originalCancelBooking = adminBookingService.cancelBooking;
 const originalGetBookingDetail = adminBookingService.getBookingDetail;
 const originalGetBookingStatusHistory =
   adminBookingService.getBookingStatusHistory;
 const originalListBookings = adminBookingService.listBookings;
 const originalCompleteBooking = adminBookingService.completeBooking;
 const originalConfirmBooking = adminBookingService.confirmBooking;
+const originalExpireBooking = adminBookingService.expireBooking;
 const originalUpdateBookingStatus = adminBookingService.updateBookingStatus;
 
 const request = (server, path, options = {}) =>
@@ -85,8 +87,10 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
 };
 
 test.afterEach(() => {
+  adminBookingService.cancelBooking = originalCancelBooking;
   adminBookingService.completeBooking = originalCompleteBooking;
   adminBookingService.confirmBooking = originalConfirmBooking;
+  adminBookingService.expireBooking = originalExpireBooking;
   adminBookingService.getBookingDetail = originalGetBookingDetail;
   adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
   adminBookingService.listBookings = originalListBookings;
@@ -817,6 +821,267 @@ test('adminBookingService.completeBooking only completes in_progress bookings an
   );
 });
 
+test('adminBookingService.cancelBooking cancels allowed states and returns idempotent success for cancelled bookings', async () => {
+  let cancelPayload = null;
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      cancelBooking: async (payload) => {
+        cancelPayload = payload;
+
+        return {
+          booking_code: 'BK202607010009',
+          id: BOOKING_ID,
+          status: BOOKING_STATUS.CANCELLED,
+          updated_at: '2026-07-01T14:00:00.000Z',
+        };
+      },
+      getBookingById: async () => ({
+        booking_code: 'BK202607010009',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.CANCEL_REQUESTED,
+        updated_at: '2026-07-01T13:45:00.000Z',
+      }),
+    },
+  });
+
+  const result = await service.cancelBooking({
+    auth: {
+      role: 'staff',
+      tokenPayload: {
+        permissions: ['booking.cancel'],
+      },
+      userId: 'staff-1',
+    },
+    body: {
+      reason: 'Supplier outage prevented fulfillment',
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.deepEqual(cancelPayload, {
+    actorUserId: 'staff-1',
+    bookingId: BOOKING_ID,
+    fromStatus: BOOKING_STATUS.CANCEL_REQUESTED,
+    reason: 'Supplier outage prevented fulfillment',
+  });
+  assert.equal(result.status, BOOKING_STATUS.CANCELLED);
+
+  const cancelledService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        booking_code: 'BK202607010010',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.CANCELLED,
+        updated_at: '2026-07-01T14:05:00.000Z',
+      }),
+    },
+  });
+
+  const cancelledResult = await cancelledService.cancelBooking({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['booking.cancel'],
+      },
+      userId: 'admin-1',
+    },
+    body: {
+      reason: 'Retry should be idempotent',
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.equal(cancelledResult.status, BOOKING_STATUS.CANCELLED);
+});
+
+test('adminBookingService.cancelBooking rejects missing permission and invalid states', async () => {
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.COMPLETED,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => service.cancelBooking({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.read_all'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Manual cancel',
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.cancelBooking({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.cancel'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Manual cancel',
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('adminBookingService.expireBooking only expires overdue pending_payment bookings and returns idempotent success for expired state', async () => {
+  let expirePayload = null;
+  const expiredAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      expireBooking: async (payload) => {
+        expirePayload = payload;
+
+        return {
+          booking_code: 'BK202607010011',
+          id: BOOKING_ID,
+          status: BOOKING_STATUS.EXPIRED,
+          updated_at: '2026-07-01T14:30:00.000Z',
+        };
+      },
+      getBookingById: async () => ({
+        booking_code: 'BK202607010011',
+        expires_at: expiredAt,
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.PENDING_PAYMENT,
+        updated_at: '2026-07-01T14:00:00.000Z',
+      }),
+    },
+  });
+
+  const result = await service.expireBooking({
+    auth: {
+      role: 'staff',
+      tokenPayload: {
+        permissions: ['booking.update_status'],
+      },
+      userId: 'staff-1',
+    },
+    body: {
+      reason: 'Payment hold window elapsed',
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.deepEqual(expirePayload, {
+    actorUserId: 'staff-1',
+    bookingId: BOOKING_ID,
+    reason: 'Payment hold window elapsed',
+  });
+  assert.equal(result.status, BOOKING_STATUS.EXPIRED);
+
+  const alreadyExpiredService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        booking_code: 'BK202607010012',
+        expires_at: expiredAt,
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.EXPIRED,
+        updated_at: '2026-07-01T14:35:00.000Z',
+      }),
+    },
+  });
+
+  const expiredResult = await alreadyExpiredService.expireBooking({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['booking.update_status'],
+      },
+      userId: 'admin-1',
+    },
+    body: {
+      reason: 'Retry should be idempotent',
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.equal(expiredResult.status, BOOKING_STATUS.EXPIRED);
+});
+
+test('adminBookingService.expireBooking rejects non-overdue or non-pending bookings', async () => {
+  const futureExpiryService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.PENDING_PAYMENT,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => futureExpiryService.expireBooking({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.update_status'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Expire too early',
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+
+  const paidService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        expires_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.PAID,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => paidService.expireBooking({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.update_status'],
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Wrong state',
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
 test('GET /api/admin/bookings requires a bearer token', async () => {
   const server = app.listen(0);
 
@@ -1372,6 +1637,148 @@ test('POST /api/admin/bookings/{booking_id}/complete returns completed booking a
     );
   } finally {
     adminBookingService.completeBooking = originalCompleteBooking;
+    server.close();
+  }
+});
+
+test('POST /api/admin/bookings/{booking_id}/cancel returns cancelled booking for authorized users', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.cancel'],
+    role: 'staff',
+    sub: 'staff-1',
+  });
+
+  adminBookingService.cancelBooking = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'staff',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['booking.cancel'],
+          role: 'staff',
+          sub: 'staff-1',
+        },
+        userId: 'staff-1',
+      },
+      body: {
+        reason: 'Vendor cannot deliver service',
+      },
+      booking_id: BOOKING_ID,
+    });
+
+    return {
+      booking_code: 'BK202607010013',
+      id: BOOKING_ID,
+      status: 'cancelled',
+      updated_at: '2026-07-01T15:00:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/cancel`,
+      {
+        body: {
+          reason: 'Vendor cannot deliver service',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Admin booking cancelled successfully');
+    assert.equal(response.body.data.status, 'cancelled');
+  } finally {
+    adminBookingService.cancelBooking = originalCancelBooking;
+    server.close();
+  }
+});
+
+test('POST /api/admin/bookings/{booking_id}/expire returns expired booking and validates required reason', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.update_status'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+
+  adminBookingService.expireBooking = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'admin',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['booking.update_status'],
+          role: 'admin',
+          sub: 'admin-1',
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Payment deadline elapsed',
+      },
+      booking_id: BOOKING_ID,
+    });
+
+    return {
+      booking_code: 'BK202607010014',
+      id: BOOKING_ID,
+      status: 'expired',
+      updated_at: '2026-07-01T15:30:00.000Z',
+    };
+  };
+
+  try {
+    const successResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/expire`,
+      {
+        body: {
+          reason: 'Payment deadline elapsed',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(successResponse.statusCode, 200);
+    assert.equal(successResponse.body.success, true);
+    assert.equal(successResponse.body.message, 'Admin booking expired successfully');
+    assert.equal(successResponse.body.data.status, 'expired');
+
+    adminBookingService.expireBooking = originalExpireBooking;
+
+    const missingReasonResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/expire`,
+      {
+        body: {},
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(missingReasonResponse.statusCode, 400);
+    assert.equal(
+      missingReasonResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+  } finally {
+    adminBookingService.expireBooking = originalExpireBooking;
     server.close();
   }
 });
