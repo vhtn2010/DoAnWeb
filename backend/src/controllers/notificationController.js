@@ -1,5 +1,16 @@
 const notificationService = require('../services/notificationService');
 
+const getUnreadNotificationCount = async (req, res) => {
+  const data = await notificationService.getUnreadNotificationCount({
+    auth: req.auth,
+  });
+
+  res.success({
+    data,
+    message: 'Unread notification count fetched successfully',
+  });
+};
+
 const listMyNotifications = async (req, res) => {
   const data = await notificationService.listMyNotifications({
     auth: req.auth,
@@ -26,6 +37,7 @@ const getMyNotificationDetail = async (req, res) => {
 };
 
 module.exports = {
+  getUnreadNotificationCount,
   getMyNotificationDetail,
   listMyNotifications,
 };

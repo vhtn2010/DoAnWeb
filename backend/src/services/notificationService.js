@@ -201,6 +201,17 @@ const sanitizeNotificationDetail = (row) => ({
 const createNotificationService = ({
   repository = createNotificationRepository(),
 } = {}) => {
+  const getUnreadNotificationCount = async ({
+    auth,
+  } = {}) => {
+    const actor = ensureInboxAccess(auth);
+    const unreadCount = await repository.countUnreadNotificationsForUser(actor.userId);
+
+    return {
+      unread_count: Number(unreadCount || 0),
+    };
+  };
+
   const listMyNotifications = async ({
     auth,
     query,
@@ -245,6 +256,7 @@ const createNotificationService = ({
   };
 
   return {
+    getUnreadNotificationCount,
     getMyNotificationDetail,
     listMyNotifications,
   };
