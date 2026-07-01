@@ -1,14 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 
 const authMeta = {
-  '/login': {
-    eyebrow: 'Đăng nhập',
-    title: 'Nét Việt',
-    subtitle: 'Hành trình diệu kỳ',
-    accent: 'Khám phá Việt Nam',
-    description:
-      'Cùng Nét Việt Travel chạm tới những vẻ đẹp tiềm ẩn và trải nghiệm văn hoá độc đáo khắp dải đất hình chữ S.',
-  },
   '/register': {
     eyebrow: 'Đăng ký',
     title: 'Nét Việt',
@@ -33,94 +25,6 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
     background: 'var(--color-background)',
-  },
-  visual: {
-    position: 'relative',
-    minHeight: '420px',
-    overflow: 'hidden',
-    background:
-      'linear-gradient(180deg, rgba(5,5,5,0.92) 0%, rgba(28,22,20,0.86) 100%)',
-    color: 'var(--color-surface)',
-  },
-  visualOverlay: {
-    position: 'absolute',
-    inset: 0,
-    background: `
-      radial-gradient(circle at 18% 22%, rgba(244,197,66,0.18), transparent 18%),
-      radial-gradient(circle at 82% 14%, rgba(214,40,40,0.3), transparent 16%),
-      radial-gradient(circle at 72% 78%, rgba(244,197,66,0.14), transparent 22%)
-    `,
-    opacity: 0.95,
-  },
-  accentBlockPrimary: {
-    position: 'absolute',
-    top: 48,
-    right: 48,
-    width: 42,
-    height: 40,
-    borderRadius: 14,
-    background: 'var(--color-accent)',
-  },
-  accentBlockSecondary: {
-    position: 'absolute',
-    left: 48,
-    bottom: 164,
-    width: 46,
-    height: 50,
-    borderRadius: 16,
-    background: 'var(--color-brand-primary)',
-  },
-  visualContent: {
-    position: 'relative',
-    zIndex: 1,
-    minHeight: '100%',
-    display: 'flex',
-    alignItems: 'flex-end',
-    padding: '48px',
-  },
-  visualStack: {
-    width: 'min(512px, 100%)',
-    display: 'grid',
-    gap: '10px',
-  },
-  visualBrand: {
-    width: 'min(240px, 56%)',
-    marginBottom: '32px',
-  },
-  eyebrow: {
-    margin: 0,
-    color: 'rgba(255,255,255,0.78)',
-    fontWeight: 800,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-  },
-  title: {
-    margin: 0,
-    fontSize: 'clamp(2.6rem, 7vw, 4rem)',
-    lineHeight: 1,
-    fontWeight: 900,
-    color: 'var(--color-surface)',
-  },
-  subtitle: {
-    margin: 0,
-    fontSize: 'clamp(2.1rem, 6vw, 3.25rem)',
-    lineHeight: 1.05,
-    fontWeight: 800,
-    color: 'var(--color-surface)',
-  },
-  accent: {
-    margin: 0,
-    fontFamily: '"Be Vietnam", var(--font-body)',
-    fontSize: 'clamp(2.4rem, 7vw, 4rem)',
-    lineHeight: 1.05,
-    color: 'var(--color-accent)',
-  },
-  description: {
-    margin: '10px 0 0',
-    maxWidth: 480,
-    fontSize: '1.05rem',
-    lineHeight: 1.7,
-    color: 'rgba(255,255,255,0.82)',
   },
   panel: {
     position: 'relative',
@@ -170,15 +74,59 @@ const styles = {
 
 function AuthLayout() {
   const location = useLocation()
-  const meta = authMeta[location.pathname] ?? authMeta['/login']
+  const isLoginPage = location.pathname === '/login'
   const isTemplateVisualPage =
     location.pathname === '/register' || location.pathname === '/forgot-password'
 
   if (isTemplateVisualPage) {
+    const meta = authMeta[location.pathname] ?? authMeta['/forgot-password']
+
     return (
       <div className="auth-template-shell">
         <section className="auth-template-shell__panel">
           <div className="auth-template-shell__card">
+            <Outlet context={{ meta }} />
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  if (isLoginPage) {
+    return (
+      <div className="auth-login-shell">
+        <section className="auth-login-visual">
+          <div aria-hidden="true" className="auth-login-visual__overlay" />
+          <div aria-hidden="true" className="auth-login-visual__accent auth-login-visual__accent--top" />
+          <div
+            aria-hidden="true"
+            className="auth-login-visual__accent auth-login-visual__accent--bottom"
+          />
+
+          <div className="auth-login-visual__content">
+            <div className="auth-login-visual__stack">
+              <h1 className="auth-login-visual__headline">
+                <span className="auth-login-visual__headline-line auth-login-visual__headline-line--hero">
+                  <span>Nét </span>
+                  <span className="auth-login-visual__headline-accent">Việt</span>
+                </span>
+                <span className="auth-login-visual__headline-line auth-login-visual__headline-line--subtitle">
+                  Hành trình diệu kỳ
+                </span>
+                <span className="auth-login-visual__headline-line auth-login-visual__headline-line--accent auth-login-visual__headline-accent">
+                  Khám phá Việt Nam
+                </span>
+              </h1>
+              <p className="auth-login-visual__description">
+                Cùng Nét Việt Travel chạm tới những vẻ đẹp tiềm ẩn và trải nghiệm văn hoá
+                độc đáo khắp dải đất hình chữ S.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="auth-login-panel">
+          <div className="auth-login-panel__card">
             <Outlet />
           </div>
         </section>
@@ -188,27 +136,6 @@ function AuthLayout() {
 
   return (
     <div style={styles.page}>
-      <section style={styles.visual}>
-        <div aria-hidden="true" style={styles.visualOverlay} />
-        <div aria-hidden="true" style={styles.accentBlockPrimary} />
-        <div aria-hidden="true" style={styles.accentBlockSecondary} />
-
-        <div style={styles.visualContent}>
-          <div style={styles.visualStack}>
-            <img
-              alt="Nét Việt Travel"
-              src="/assets/template/brand/logo.png"
-              style={styles.visualBrand}
-            />
-            <p style={styles.eyebrow}>{meta.eyebrow}</p>
-            <p style={styles.title}>{meta.title}</p>
-            <p style={styles.subtitle}>{meta.subtitle}</p>
-            <p style={styles.accent}>{meta.accent}</p>
-            <p style={styles.description}>{meta.description}</p>
-          </div>
-        </div>
-      </section>
-
       <section style={styles.panel}>
         <div style={styles.card}>
           <div style={styles.cardTop}>
