@@ -19,6 +19,8 @@ const originalGetBookingDetail = adminBookingService.getBookingDetail;
 const originalGetBookingStatusHistory =
   adminBookingService.getBookingStatusHistory;
 const originalListBookings = adminBookingService.listBookings;
+const originalCompleteBooking = adminBookingService.completeBooking;
+const originalConfirmBooking = adminBookingService.confirmBooking;
 const originalUpdateBookingStatus = adminBookingService.updateBookingStatus;
 
 const request = (server, path, options = {}) =>
@@ -83,6 +85,8 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
 };
 
 test.afterEach(() => {
+  adminBookingService.completeBooking = originalCompleteBooking;
+  adminBookingService.confirmBooking = originalConfirmBooking;
   adminBookingService.getBookingDetail = originalGetBookingDetail;
   adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
   adminBookingService.listBookings = originalListBookings;
@@ -598,6 +602,221 @@ test('adminBookingService.updateBookingStatus allows system admin override for r
   assert.equal(result.status, BOOKING_STATUS.REFUNDED);
 });
 
+test('adminBookingService.confirmBooking only confirms paid bookings with sufficient successful payments', async () => {
+  let confirmPayload = null;
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      confirmBooking: async (payload) => {
+        confirmPayload = payload;
+
+        return {
+          booking_code: 'BK202607010003',
+          id: BOOKING_ID,
+          status: BOOKING_STATUS.CONFIRMED,
+          updated_at: '2026-07-01T11:00:00.000Z',
+        };
+      },
+      getBookingById: async () => ({
+        booking_code: 'BK202607010003',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.PAID,
+        total_amount: '1500000',
+        updated_at: '2026-07-01T10:30:00.000Z',
+      }),
+      listBookingPaymentsByBookingId: async () => [
+        {
+          amount: '500000',
+          status: 'success',
+        },
+        {
+          amount: '1000000',
+          status: 'reconciled',
+        },
+      ],
+    },
+  });
+
+  const result = await service.confirmBooking({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: ['service-1'],
+      tokenPayload: {
+        permissions: ['booking.confirm'],
+      },
+      userId: 'staff-1',
+    },
+    body: {
+      reason: 'Ops confirmed fulfillment readiness',
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.deepEqual(confirmPayload, {
+    actorUserId: 'staff-1',
+    bookingId: BOOKING_ID,
+    reason: 'Ops confirmed fulfillment readiness',
+  });
+  assert.deepEqual(result, {
+    booking_code: 'BK202607010003',
+    id: BOOKING_ID,
+    status: BOOKING_STATUS.CONFIRMED,
+    updated_at: '2026-07-01T11:00:00.000Z',
+  });
+});
+
+test('adminBookingService.confirmBooking returns idempotent success for confirmed bookings and rejects invalid states', async () => {
+  const confirmedService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        booking_code: 'BK202607010004',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.CONFIRMED,
+        updated_at: '2026-07-01T11:30:00.000Z',
+      }),
+    },
+  });
+
+  const confirmedResult = await confirmedService.confirmBooking({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['booking.update_status'],
+      },
+      userId: 'admin-1',
+    },
+    body: {},
+    booking_id: BOOKING_ID,
+  });
+
+  assert.equal(confirmedResult.status, BOOKING_STATUS.CONFIRMED);
+
+  const unpaidService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.PENDING_PAYMENT,
+        total_amount: '1500000',
+      }),
+      listBookingPaymentsByBookingId: async () => [],
+    },
+  });
+
+  await assert.rejects(
+    () => unpaidService.confirmBooking({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.confirm'],
+        },
+        userId: 'admin-1',
+      },
+      body: {},
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('adminBookingService.completeBooking only completes in_progress bookings and supports idempotent completed state', async () => {
+  let completePayload = null;
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      completeBooking: async (payload) => {
+        completePayload = payload;
+
+        return {
+          booking_code: 'BK202607010005',
+          id: BOOKING_ID,
+          status: BOOKING_STATUS.COMPLETED,
+          updated_at: '2026-07-01T12:00:00.000Z',
+        };
+      },
+      getBookingById: async () => ({
+        booking_code: 'BK202607010005',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.IN_PROGRESS,
+        updated_at: '2026-07-01T11:45:00.000Z',
+      }),
+    },
+  });
+
+  const result = await service.completeBooking({
+    auth: {
+      role: 'staff',
+      tokenPayload: {
+        permissions: ['booking.complete'],
+      },
+      userId: 'staff-1',
+    },
+    body: {
+      reason: 'Service finished successfully',
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.deepEqual(completePayload, {
+    actorUserId: 'staff-1',
+    bookingId: BOOKING_ID,
+    reason: 'Service finished successfully',
+  });
+  assert.equal(result.status, BOOKING_STATUS.COMPLETED);
+
+  const completedService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        booking_code: 'BK202607010006',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.COMPLETED,
+        updated_at: '2026-07-01T12:15:00.000Z',
+      }),
+    },
+  });
+
+  const completedResult = await completedService.completeBooking({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['booking.update_status'],
+      },
+      userId: 'admin-1',
+    },
+    body: {},
+    booking_id: BOOKING_ID,
+  });
+
+  assert.equal(completedResult.status, BOOKING_STATUS.COMPLETED);
+
+  const invalidStateService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.CONFIRMED,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => invalidStateService.completeBooking({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.complete'],
+        },
+        userId: 'admin-1',
+      },
+      body: {},
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
 test('GET /api/admin/bookings requires a bearer token', async () => {
   const server = app.listen(0);
 
@@ -1008,6 +1227,151 @@ test('PATCH /api/admin/bookings/{booking_id}/status validates booking UUID and r
       },
     ]);
   } finally {
+    server.close();
+  }
+});
+
+test('POST /api/admin/bookings/{booking_id}/confirm returns confirmed booking for authorized admin users', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.confirm'],
+    role: 'staff',
+    sub: 'staff-1',
+  });
+
+  adminBookingService.confirmBooking = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'staff',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['booking.confirm'],
+          role: 'staff',
+          sub: 'staff-1',
+        },
+        userId: 'staff-1',
+      },
+      body: {
+        reason: 'Ready for fulfillment',
+      },
+      booking_id: BOOKING_ID,
+    });
+
+    return {
+      booking_code: 'BK202607010007',
+      id: BOOKING_ID,
+      status: 'confirmed',
+      updated_at: '2026-07-01T13:00:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/confirm`,
+      {
+        body: {
+          reason: 'Ready for fulfillment',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Admin booking confirmed successfully');
+    assert.equal(response.body.data.status, 'confirmed');
+  } finally {
+    adminBookingService.confirmBooking = originalConfirmBooking;
+    server.close();
+  }
+});
+
+test('POST /api/admin/bookings/{booking_id}/complete returns completed booking and validates UUID', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.complete'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+
+  adminBookingService.completeBooking = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'admin',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['booking.complete'],
+          role: 'admin',
+          sub: 'admin-1',
+        },
+        userId: 'admin-1',
+      },
+      body: {
+        reason: 'Service delivered fully',
+      },
+      booking_id: BOOKING_ID,
+    });
+
+    return {
+      booking_code: 'BK202607010008',
+      id: BOOKING_ID,
+      status: 'completed',
+      updated_at: '2026-07-01T13:30:00.000Z',
+    };
+  };
+
+  try {
+    const successResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/complete`,
+      {
+        body: {
+          reason: 'Service delivered fully',
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(successResponse.statusCode, 200);
+    assert.equal(successResponse.body.success, true);
+    assert.equal(
+      successResponse.body.message,
+      'Admin booking completed successfully',
+    );
+    assert.equal(successResponse.body.data.status, 'completed');
+
+    adminBookingService.completeBooking = originalCompleteBooking;
+
+    const badUuidResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/not-a-uuid/complete`,
+      {
+        body: {},
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(badUuidResponse.statusCode, 400);
+    assert.equal(
+      badUuidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+  } finally {
+    adminBookingService.completeBooking = originalCompleteBooking;
     server.close();
   }
 });
