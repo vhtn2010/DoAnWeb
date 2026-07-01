@@ -1,5 +1,17 @@
 const notificationService = require('../services/notificationService');
 
+const deleteMyNotification = async (req, res) => {
+  const data = await notificationService.deleteMyNotification({
+    auth: req.auth,
+    notificationId: req.params.notification_id,
+  });
+
+  res.success({
+    data,
+    message: 'Notification deleted successfully',
+  });
+};
+
 const getUnreadNotificationCount = async (req, res) => {
   const data = await notificationService.getUnreadNotificationCount({
     auth: req.auth,
@@ -72,6 +84,7 @@ const getMyNotificationDetail = async (req, res) => {
 };
 
 module.exports = {
+  deleteMyNotification,
   getUnreadNotificationCount,
   getMyNotificationDetail,
   listMyNotifications,

@@ -22,6 +22,7 @@ const NOTIFICATION_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const BROADCAST_NOTIFICATION_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
+const originalDeleteMyNotification = notificationService.deleteMyNotification;
 const originalGetUnreadNotificationCount = notificationService.getUnreadNotificationCount;
 const originalGetMyNotificationDetail = notificationService.getMyNotificationDetail;
 const originalListMyNotifications = notificationService.listMyNotifications;
@@ -88,6 +89,7 @@ const request = (server, path, options = {}) =>
 test.beforeEach(() => {
   clearRateLimitStore('notification-read');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  notificationService.deleteMyNotification = originalDeleteMyNotification;
   notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
   notificationService.getMyNotificationDetail = originalGetMyNotificationDetail;
   notificationService.listMyNotifications = originalListMyNotifications;
@@ -99,6 +101,7 @@ test.beforeEach(() => {
 test.afterEach(() => {
   clearRateLimitStore('notification-read');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  notificationService.deleteMyNotification = originalDeleteMyNotification;
   notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
   notificationService.getMyNotificationDetail = originalGetMyNotificationDetail;
   notificationService.listMyNotifications = originalListMyNotifications;
@@ -508,6 +511,109 @@ test('notificationService mark read endpoints validate ownership, UUIDs, and bul
   );
 });
 
+test('notificationService.deleteMyNotification deletes only owned user-specific notifications', async () => {
+  const service = notificationService.createNotificationService({
+    repository: {
+      deleteNotificationForUser: async ({
+        notificationId,
+        userId,
+      }) => {
+        assert.equal(notificationId, NOTIFICATION_ID);
+        assert.equal(userId, USER_ID);
+
+        return {
+          id: NOTIFICATION_ID,
+        };
+      },
+      getNotificationById: async (notificationId) => {
+        if (notificationId === NOTIFICATION_ID) {
+          return {
+            id: NOTIFICATION_ID,
+            read_at: null,
+            status: NOTIFICATION_STATUS.SENT,
+            user_id: USER_ID,
+          };
+        }
+
+        if (notificationId === BROADCAST_NOTIFICATION_ID) {
+          return {
+            id: BROADCAST_NOTIFICATION_ID,
+            read_at: null,
+            status: NOTIFICATION_STATUS.DELIVERED,
+            user_id: null,
+          };
+        }
+
+        if (notificationId === 'dddddddd-dddd-4ddd-8ddd-dddddddddddd') {
+          return {
+            id: notificationId,
+            read_at: null,
+            status: NOTIFICATION_STATUS.SENT,
+            user_id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          };
+        }
+
+        return null;
+      },
+    },
+  });
+
+  const result = await service.deleteMyNotification({
+    auth: {
+      role: 'customer',
+      userId: USER_ID,
+    },
+    notificationId: NOTIFICATION_ID,
+  });
+
+  assert.deepEqual(result, {
+    deleted: true,
+    id: NOTIFICATION_ID,
+  });
+
+  await assert.rejects(
+    () => service.deleteMyNotification({
+      auth: {
+        role: 'customer',
+        userId: USER_ID,
+      },
+      notificationId: BROADCAST_NOTIFICATION_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.deleteMyNotification({
+      auth: {
+        role: 'customer',
+        userId: USER_ID,
+      },
+      notificationId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.deleteMyNotification({
+      auth: {
+        role: 'customer',
+        userId: USER_ID,
+      },
+      notificationId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      return true;
+    },
+  );
+});
+
 test('GET /api/notifications requires login', async () => {
   const server = app.listen(0);
 
@@ -694,6 +800,52 @@ test('PATCH /api/notifications/read-all returns updated count for authenticated 
     assert.equal(response.body.success, true);
     assert.deepEqual(response.body.data, {
       updated_count: 9,
+    });
+  } finally {
+    server.close();
+  }
+});
+
+test('DELETE /api/notifications/{notification_id} deletes owned user-specific notification', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'system_admin',
+    userId: USER_ID,
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'system_admin',
+      userId: USER_ID,
+    });
+
+  notificationService.deleteMyNotification = async ({
+    auth,
+    notificationId,
+  }) => {
+    assert.equal(auth.roleCode, 'system_admin');
+    assert.equal(auth.userId, USER_ID);
+    assert.equal(notificationId, NOTIFICATION_ID);
+
+    return {
+      deleted: true,
+      id: NOTIFICATION_ID,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/notifications/${NOTIFICATION_ID}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'DELETE',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.deepEqual(response.body.data, {
+      deleted: true,
+      id: NOTIFICATION_ID,
     });
   } finally {
     server.close();

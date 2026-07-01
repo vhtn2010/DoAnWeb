@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  deleteMyNotification,
   getUnreadNotificationCount,
   getMyNotificationDetail,
   listMyNotifications,
@@ -56,6 +57,13 @@ router.patch(
   authRequired({ allowedRoles }),
   notificationReadRateLimit,
   asyncHandler(markMyNotificationRead),
+);
+
+router.delete(
+  '/notifications/:notification_id',
+  authRequired({ allowedRoles }),
+  notificationReadRateLimit,
+  asyncHandler(deleteMyNotification),
 );
 
 router.get(

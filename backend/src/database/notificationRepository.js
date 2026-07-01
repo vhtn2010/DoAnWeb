@@ -104,6 +104,42 @@ const createNotificationRepository = ({
     return result.rows[0]?.unread_count || 0;
   };
 
+  const deleteNotificationForUser = async ({
+    notificationId,
+    userId,
+  }) => {
+    const result = await queryImpl(
+      `
+        DELETE FROM notifications n
+        WHERE
+          n.id = $1
+          AND n.user_id = $2
+        RETURNING n.id
+      `,
+      [notificationId, userId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getNotificationById = async (notificationId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          n.id,
+          n.user_id,
+          n.status,
+          n.read_at
+        FROM notifications n
+        WHERE n.id = $1
+        LIMIT 1
+      `,
+      [notificationId],
+    );
+
+    return result.rows[0] || null;
+  };
+
   const listNotificationsForUser = async ({
     limit,
     offset,
@@ -191,6 +227,8 @@ const createNotificationRepository = ({
 
   return {
     countUnreadNotificationsForUser,
+    deleteNotificationForUser,
+    getNotificationById,
     getNotificationInboxDetail,
     listNotificationsForUser,
     markAllNotificationsReadForUser,
