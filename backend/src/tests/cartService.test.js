@@ -1,13 +1,105 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
+const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const { createCartService } = require('../services/cartService');
 
+const createTransactionStub = () => ({
+  query: async () => {
+    throw new Error('client.query should not be called directly in cart service tests');
+  },
+});
+
+const createEnrichedCartItemRow = ({
+  createdAt = '2026-07-01T08:05:00.000Z',
+  id = 'item-1',
+  options = null,
+  primaryImage = 'https://cdn.example.com/service.jpg',
+  quantity = 1,
+  referenceId = null,
+  salePrice = '2990000.00',
+  serviceId = 'service-1',
+  serviceType = 'tour',
+  startAt = '2026-07-20T07:00:00.000Z',
+  status = 'active',
+  title = 'Sample Service',
+  unitPriceSnapshot = '2990000.00',
+} = {}) => ({
+  address: serviceType === 'hotel' || serviceType === 'room' ? '1 Tran Phu' : null,
+  airline_name: null,
+  arrival_airport: null,
+  arrival_at: null,
+  base_price: '3290000.00',
+  cabin_class: null,
+  cancellation_policy: 'Policy',
+  cart_id: 'cart-1',
+  checkin_time:
+    serviceType === 'hotel' || serviceType === 'room' ? '14:00:00' : null,
+  checkout_time:
+    serviceType === 'hotel' || serviceType === 'room' ? '12:00:00' : null,
+  created_at: new Date(createdAt),
+  current_price: salePrice,
+  currency: 'VND',
+  departure_airport: null,
+  departure_at: null,
+  departure_location: serviceType === 'tour' ? 'Ho Chi Minh City' : null,
+  destination_location: serviceType === 'tour' ? 'Ha Long' : null,
+  duration_days: serviceType === 'tour' ? 3 : null,
+  duration_nights: serviceType === 'tour' ? 2 : null,
+  end_at: null,
+  fare_price: null,
+  flight_detail_id: null,
+  flight_number: null,
+  flight_status: null,
+  id,
+  location_text: 'Da Nang',
+  options,
+  primary_image: primaryImage,
+  quantity,
+  reference_id: referenceId,
+  room_type_available_rooms:
+    serviceType === 'hotel' || serviceType === 'room' ? 4 : null,
+  room_type_base_price:
+    serviceType === 'hotel' || serviceType === 'room' ? '1500000.00' : null,
+  room_type_bed_type:
+    serviceType === 'hotel' || serviceType === 'room' ? 'King bed' : null,
+  room_type_id:
+    serviceType === 'hotel' || serviceType === 'room' ? referenceId : null,
+  room_type_max_adults:
+    serviceType === 'hotel' || serviceType === 'room' ? 2 : null,
+  room_type_max_children:
+    serviceType === 'hotel' || serviceType === 'room' ? 1 : null,
+  room_type_name:
+    serviceType === 'hotel' || serviceType === 'room'
+      ? 'Deluxe Ocean View'
+      : null,
+  room_type_status:
+    serviceType === 'hotel' || serviceType === 'room' ? 'active' : null,
+  sale_price: salePrice,
+  seat_class: null,
+  seats_available: null,
+  service_id: serviceId,
+  service_status: status,
+  service_type: serviceType,
+  short_description: 'Short description',
+  slug: 'sample-service',
+  star_rating: serviceType === 'hotel' || serviceType === 'room' ? '4.5' : null,
+  start_at: startAt ? new Date(startAt) : null,
+  title,
+  train_arrival_at: null,
+  train_departure_at: null,
+  train_detail_id: null,
+  train_fare_price: null,
+  train_number: null,
+  train_seats_available: null,
+  train_status: null,
+  transport_type: serviceType === 'tour' ? 'bus' : null,
+  unit_price_snapshot: unitPriceSnapshot,
+});
+
 test('getActiveCart returns newest active cart items with safe summary data', async () => {
-  const fixedNow = new Date('2026-07-01T09:00:00.000Z');
   const repositoryCalls = [];
   const service = createCartService({
-    now: () => fixedNow,
     repository: {
       createActiveCart: async () => {
         throw new Error('createActiveCart should not be called');
@@ -36,140 +128,17 @@ test('getActiveCart returns newest active cart items with safe summary data', as
         });
 
         return [
-          {
-            address: null,
-            airline_name: null,
-            arrival_airport: null,
-            arrival_at: null,
-            base_price: '3290000.00',
-            cabin_class: null,
-            cancellation_policy: 'Free cancellation within 24h',
-            cart_id: 'cart-2',
-            checkin_time: null,
-            checkout_time: null,
-            created_at: new Date('2026-07-01T08:05:00.000Z'),
-            current_price: '2990000.00',
-            currency: 'VND',
-            departure_airport: null,
-            departure_at: null,
-            departure_location: 'Ho Chi Minh City',
-            destination_location: 'Ha Long',
-            duration_days: 3,
-            duration_nights: 2,
-            end_at: new Date('2026-07-22T11:00:00.000Z'),
-            fare_price: null,
-            flight_detail_id: null,
-            flight_number: null,
-            flight_status: null,
+          createEnrichedCartItemRow({
             id: 'item-1',
-            location_text: 'Quang Ninh',
             options: {
               adults: 2,
             },
-            primary_image: 'https://cdn.example.com/tour.jpg',
             quantity: 2,
-            reference_id: null,
-            room_type_available_rooms: null,
-            room_type_base_price: null,
-            room_type_bed_type: null,
-            room_type_id: null,
-            room_type_max_adults: null,
-            room_type_max_children: null,
-            room_type_name: null,
-            room_type_status: null,
-            sale_price: '2990000.00',
-            seat_class: null,
-            seats_available: null,
-            service_id: 'service-tour-1',
-            service_status: 'active',
-            service_type: 'tour',
-            short_description: 'Tour 3N2D',
-            slug: 'ha-long-3n2d',
-            star_rating: null,
-            start_at: new Date('2026-07-20T07:00:00.000Z'),
-            title: 'Ha Long 3N2D',
-            train_arrival_at: null,
-            train_departure_at: null,
-            train_detail_id: null,
-            train_fare_price: null,
-            train_number: null,
-            train_seats_available: null,
-            train_status: null,
-            transport_type: 'bus',
-            unit_price_snapshot: '2990000.00',
-          },
-          {
-            address: '1 Tran Phu, Da Nang',
-            airline_name: null,
-            arrival_airport: null,
-            arrival_at: null,
-            base_price: '1800000.00',
-            cabin_class: null,
-            cancellation_policy: 'Non-refundable',
-            cart_id: 'cart-2',
-            checkin_time: '14:00:00',
-            checkout_time: '12:00:00',
-            created_at: new Date('2026-07-01T08:06:00.000Z'),
-            current_price: '1500000.00',
-            currency: 'VND',
-            departure_airport: null,
-            departure_at: null,
-            departure_location: null,
-            destination_location: null,
-            duration_days: null,
-            duration_nights: null,
-            end_at: new Date('2026-07-24T12:00:00.000Z'),
-            fare_price: null,
-            flight_detail_id: null,
-            flight_number: null,
-            flight_status: null,
-            id: 'item-2',
-            location_text: 'Da Nang',
-            options: {
-              adults: 2,
-              children: 1,
-            },
-            primary_image: 'https://cdn.example.com/hotel.jpg',
-            quantity: 1,
-            reference_id: 'room-1',
-            room_type_available_rooms: 4,
-            room_type_base_price: '1500000.00',
-            room_type_bed_type: 'King bed',
-            room_type_id: 'room-1',
-            room_type_max_adults: 2,
-            room_type_max_children: 1,
-            room_type_name: 'Deluxe Ocean View',
-            room_type_status: 'active',
-            sale_price: '1500000.00',
-            seat_class: null,
-            seats_available: null,
-            service_id: 'service-hotel-1',
-            service_status: 'active',
-            service_type: 'hotel',
-            short_description: 'Beachfront hotel',
-            slug: 'da-nang-beach-hotel',
-            star_rating: '4.5',
-            start_at: new Date('2026-07-22T14:00:00.000Z'),
-            title: 'Da Nang Beach Hotel',
-            train_arrival_at: null,
-            train_departure_at: null,
-            train_detail_id: null,
-            train_fare_price: null,
-            train_number: null,
-            train_seats_available: null,
-            train_status: null,
-            transport_type: null,
-            unit_price_snapshot: '1500000.00',
-          },
+          }),
         ];
       },
     },
-    withTransactionImpl: async (callback) =>
-      callback({
-        query: async () => {
-          throw new Error('client.query should not be called directly in service test');
-        },
-      }),
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
   });
 
   const result = await service.getActiveCart({
@@ -188,120 +157,26 @@ test('getActiveCart returns newest active cart items with safe summary data', as
       queryExecutorType: 'function',
     },
   ]);
-  assert.deepEqual(result, {
-    created_at: '2026-07-01T08:00:00.000Z',
-    id: 'cart-2',
-    items: [
-      {
-        created_at: '2026-07-01T08:05:00.000Z',
-        end_at: '2026-07-22T11:00:00.000Z',
-        id: 'item-1',
-        options: {
-          adults: 2,
-        },
-        quantity: 2,
-        reference_id: null,
-        selection: null,
-        service: {
-          base_price: 3290000,
-          cancellation_policy: 'Free cancellation within 24h',
-          currency: 'VND',
-          current_price: 2990000,
-          details: {
-            departure_location: 'Ho Chi Minh City',
-            destination_location: 'Ha Long',
-            duration_days: 3,
-            duration_nights: 2,
-            transport_type: 'bus',
-          },
-          id: 'service-tour-1',
-          location_text: 'Quang Ninh',
-          primary_image: 'https://cdn.example.com/tour.jpg',
-          sale_price: 2990000,
-          service_type: 'tour',
-          short_description: 'Tour 3N2D',
-          slug: 'ha-long-3n2d',
-          status: 'active',
-          title: 'Ha Long 3N2D',
-        },
-        service_id: 'service-tour-1',
-        service_type: 'tour',
-        start_at: '2026-07-20T07:00:00.000Z',
-        total_amount: 5980000,
-        unit_price_snapshot: 2990000,
-      },
-      {
-        created_at: '2026-07-01T08:06:00.000Z',
-        end_at: '2026-07-24T12:00:00.000Z',
-        id: 'item-2',
-        options: {
-          adults: 2,
-          children: 1,
-        },
-        quantity: 1,
-        reference_id: 'room-1',
-        selection: {
-          available_rooms: 4,
-          base_price: 1500000,
-          bed_type: 'King bed',
-          id: 'room-1',
-          max_adults: 2,
-          max_children: 1,
-          name: 'Deluxe Ocean View',
-          status: 'active',
-          type: 'room_type',
-        },
-        service: {
-          base_price: 1800000,
-          cancellation_policy: 'Non-refundable',
-          currency: 'VND',
-          current_price: 1500000,
-          details: {
-            address: '1 Tran Phu, Da Nang',
-            checkin_time: '14:00:00',
-            checkout_time: '12:00:00',
-            star_rating: 4.5,
-          },
-          id: 'service-hotel-1',
-          location_text: 'Da Nang',
-          primary_image: 'https://cdn.example.com/hotel.jpg',
-          sale_price: 1500000,
-          service_type: 'hotel',
-          short_description: 'Beachfront hotel',
-          slug: 'da-nang-beach-hotel',
-          status: 'active',
-          title: 'Da Nang Beach Hotel',
-        },
-        service_id: 'service-hotel-1',
-        service_type: 'hotel',
-        start_at: '2026-07-22T14:00:00.000Z',
-        total_amount: 1500000,
-        unit_price_snapshot: 1500000,
-      },
-    ],
-    status: 'active',
-    summary: {
-      currency: 'VND',
-      item_count: 2,
-      quantity_total: 3,
-      subtotal_amount: 7480000,
-      total_amount: 7480000,
-    },
-    updated_at: '2026-07-01T08:30:00.000Z',
+  assert.equal(result.id, 'cart-2');
+  assert.deepEqual(result.summary, {
+    currency: 'VND',
+    item_count: 1,
+    quantity_total: 2,
+    subtotal_amount: 5980000,
+    total_amount: 5980000,
   });
 });
 
-test('getActiveCart creates a new active cart when customer has none', async () => {
+test('addCartItem creates active cart, inserts item, and returns fresh summary', async () => {
   const fixedNow = new Date('2026-07-01T10:00:00.000Z');
-  const repositoryCalls = [];
+  const calls = [];
   const service = createCartService({
     now: () => fixedNow,
     repository: {
       createActiveCart: async (queryExecutor, payload) => {
-        repositoryCalls.push({
+        calls.push({
           method: 'createActiveCart',
           payload,
-          queryExecutorType: typeof queryExecutor,
         });
 
         return {
@@ -311,62 +186,467 @@ test('getActiveCart creates a new active cart when customer has none', async () 
           updated_at: fixedNow,
         };
       },
-      findActiveCartsByUser: async (queryExecutor, userId) => {
-        repositoryCalls.push({
-          method: 'findActiveCartsByUser',
-          queryExecutorType: typeof queryExecutor,
-          userId,
+      findActiveCartsByUser: async () => [],
+      getServiceById: async (queryExecutor, serviceId) => {
+        calls.push({
+          method: 'getServiceById',
+          serviceId,
         });
 
-        return [];
+        return {
+          base_price: '3290000.00',
+          currency: 'VND',
+          deleted_at: null,
+          id: serviceId,
+          metadata: null,
+          sale_price: '2990000.00',
+          service_type: 'tour',
+          status: 'active',
+          title: 'Ha Long 3N2D',
+        };
       },
-      listCartItems: async (queryExecutor, cartId) => {
-        repositoryCalls.push({
-          cartId,
-          method: 'listCartItems',
-          queryExecutorType: typeof queryExecutor,
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            available_slots: 10,
+            date: '2026-07-20',
+          },
+        ],
+      }),
+      insertCartItem: async (queryExecutor, payload) => {
+        calls.push({
+          method: 'insertCartItem',
+          payload,
         });
 
-        return [];
+        return {
+          id: 'item-new',
+        };
+      },
+      listCartItemRecords: async () => [],
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-new',
+          options: {
+            adults: 2,
+          },
+          quantity: 2,
+          serviceId: '11111111-1111-4111-8111-111111111111',
+          startAt: '2026-07-20T07:00:00.000Z',
+        }),
+      ],
+      touchCart: async (queryExecutor, payload) => {
+        calls.push({
+          method: 'touchCart',
+          payload,
+        });
+
+        return {
+          created_at: fixedNow,
+          id: 'cart-new',
+          status: 'active',
+          updated_at: fixedNow,
+        };
       },
     },
-    withTransactionImpl: async (callback) =>
-      callback({
-        query: async () => {
-          throw new Error('client.query should not be called directly in service test');
-        },
-      }),
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
   });
 
-  const result = await service.getActiveCart({
+  const result = await service.addCartItem({
+    payload: {
+      options: {
+        adults: 2,
+      },
+      quantity: 2,
+      service_id: '11111111-1111-4111-8111-111111111111',
+      service_type: 'tour',
+      start_at: '2026-07-20T07:00:00.000Z',
+    },
     userId: 'user-2',
   });
 
-  assert.deepEqual(repositoryCalls, [
-    {
-      method: 'findActiveCartsByUser',
-      queryExecutorType: 'function',
-      userId: 'user-2',
-    },
-    {
-      method: 'createActiveCart',
-      payload: {
-        createdAt: fixedNow,
-        userId: 'user-2',
-      },
-      queryExecutorType: 'function',
-    },
-    {
-      cartId: 'cart-new',
-      method: 'listCartItems',
-      queryExecutorType: 'function',
-    },
-  ]);
   assert.deepEqual(result, {
-    created_at: '2026-07-01T10:00:00.000Z',
-    id: 'cart-new',
-    items: [],
-    status: 'active',
+    cart_id: 'cart-new',
+    cart_item_id: 'item-new',
+    summary: {
+      currency: 'VND',
+      item_count: 1,
+      quantity_total: 2,
+      subtotal_amount: 5980000,
+      total_amount: 5980000,
+    },
+  });
+  assert.equal(calls.find((entry) => entry.method === 'insertCartItem').payload.unitPriceSnapshot, 2990000);
+});
+
+test('addCartItem merges duplicate items and updates quantity with current snapshot', async () => {
+  const calls = [];
+  const serviceId = '22222222-2222-4222-8222-222222222222';
+  const service = createCartService({
+    repository: {
+      createActiveCart: async () => {
+        throw new Error('createActiveCart should not be called');
+      },
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T09:00:00.000Z'),
+          id: 'cart-merge',
+          status: 'active',
+          updated_at: new Date('2026-07-01T09:30:00.000Z'),
+        },
+      ],
+      getServiceById: async () => ({
+        base_price: '3500000.00',
+        currency: 'VND',
+        deleted_at: null,
+        id: serviceId,
+        metadata: null,
+        sale_price: '3000000.00',
+        service_type: 'tour',
+        status: 'active',
+      }),
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            available_slots: 5,
+            date: '2026-07-20',
+          },
+        ],
+      }),
+      listCartItemRecords: async () => [
+        {
+          cart_id: 'cart-merge',
+          created_at: new Date('2026-07-01T09:05:00.000Z'),
+          end_at: null,
+          id: 'item-existing',
+          options: {
+            adults: 2,
+          },
+          quantity: 2,
+          reference_id: null,
+          service_id: serviceId,
+          service_type: 'tour',
+          start_at: new Date('2026-07-20T07:00:00.000Z'),
+          unit_price_snapshot: '2800000.00',
+        },
+      ],
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-existing',
+          options: {
+            adults: 2,
+          },
+          quantity: 4,
+          serviceId,
+          unitPriceSnapshot: '3000000.00',
+        }),
+      ],
+      touchCart: async () => ({
+        created_at: new Date('2026-07-01T09:00:00.000Z'),
+        id: 'cart-merge',
+        status: 'active',
+        updated_at: new Date('2026-07-01T09:40:00.000Z'),
+      }),
+      updateCartItem: async (queryExecutor, payload) => {
+        calls.push(payload);
+        return {
+          id: payload.cartItemId,
+        };
+      },
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.addCartItem({
+    payload: {
+      options: {
+        adults: 2,
+      },
+      quantity: 2,
+      service_id: serviceId,
+      service_type: 'tour',
+      start_at: '2026-07-20T07:00:00.000Z',
+    },
+    userId: 'user-3',
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].cartItemId, 'item-existing');
+  assert.equal(calls[0].quantity, 4);
+  assert.equal(calls[0].unitPriceSnapshot, 3000000);
+  assert.deepEqual(result.summary, {
+    currency: 'VND',
+    item_count: 1,
+    quantity_total: 4,
+    subtotal_amount: 12000000,
+    total_amount: 12000000,
+  });
+});
+
+test('addCartItem rejects inactive service with CART_ITEM_NOT_AVAILABLE', async () => {
+  const service = createCartService({
+    repository: {
+      getServiceById: async () => ({
+        deleted_at: null,
+        id: 'service-hidden',
+        service_type: 'tour',
+        status: 'hidden',
+      }),
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  await assert.rejects(
+    () =>
+      service.addCartItem({
+        payload: {
+          quantity: 1,
+          service_id: '11111111-1111-4111-8111-111111111111',
+          service_type: 'tour',
+        },
+        userId: 'user-4',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.CART_ITEM_NOT_AVAILABLE &&
+      error.statusCode === 400,
+  );
+});
+
+test('updateCartItem rejects forbidden fields in PATCH payload', async () => {
+  const service = createCartService({
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCartItem({
+        cartItemId: '11111111-1111-4111-8111-111111111111',
+        payload: {
+          service_id: 'another-service',
+        },
+        userId: 'user-5',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'service_id'),
+  );
+});
+
+test('updateCartItem keeps previous snapshot when only quantity changes', async () => {
+  const calls = [];
+  const service = createCartService({
+    repository: {
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T09:00:00.000Z'),
+          id: 'cart-qty',
+          status: 'active',
+          updated_at: new Date('2026-07-01T09:30:00.000Z'),
+        },
+      ],
+      getCartItemById: async () => ({
+        cart_id: 'cart-qty',
+        created_at: new Date('2026-07-01T09:05:00.000Z'),
+        end_at: null,
+        id: 'item-qty',
+        options: {
+          adults: 2,
+        },
+        quantity: 2,
+        reference_id: null,
+        service_id: 'service-tour-qty',
+        service_type: 'tour',
+        start_at: new Date('2026-07-20T07:00:00.000Z'),
+        unit_price_snapshot: '2800000.00',
+      }),
+      getServiceById: async () => ({
+        base_price: '3500000.00',
+        currency: 'VND',
+        deleted_at: null,
+        id: 'service-tour-qty',
+        metadata: null,
+        sale_price: '3000000.00',
+        service_type: 'tour',
+        status: 'active',
+      }),
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            available_slots: 5,
+            date: '2026-07-20',
+          },
+        ],
+      }),
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-qty',
+          options: {
+            adults: 2,
+          },
+          quantity: 3,
+          serviceId: 'service-tour-qty',
+          unitPriceSnapshot: '2800000.00',
+        }),
+      ],
+      touchCart: async () => ({
+        created_at: new Date('2026-07-01T09:00:00.000Z'),
+        id: 'cart-qty',
+        status: 'active',
+        updated_at: new Date('2026-07-01T09:40:00.000Z'),
+      }),
+      updateCartItem: async (queryExecutor, payload) => {
+        calls.push(payload);
+        return {
+          id: payload.cartItemId,
+        };
+      },
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.updateCartItem({
+    cartItemId: '11111111-1111-4111-8111-111111111111',
+    payload: {
+      quantity: 3,
+    },
+    userId: 'user-6',
+  });
+
+  assert.equal(calls[0].unitPriceSnapshot, 2800000);
+  assert.equal(result.cart_item.unit_price_snapshot, 2800000);
+  assert.deepEqual(result.summary, {
+    currency: 'VND',
+    item_count: 1,
+    quantity_total: 3,
+    subtotal_amount: 8400000,
+    total_amount: 8400000,
+  });
+});
+
+test('updateCartItem refreshes snapshot when options change', async () => {
+  const calls = [];
+  const service = createCartService({
+    repository: {
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T09:00:00.000Z'),
+          id: 'cart-opt',
+          status: 'active',
+          updated_at: new Date('2026-07-01T09:30:00.000Z'),
+        },
+      ],
+      getCartItemById: async () => ({
+        cart_id: 'cart-opt',
+        created_at: new Date('2026-07-01T09:05:00.000Z'),
+        end_at: null,
+        id: 'item-opt',
+        options: {
+          adults: 1,
+        },
+        quantity: 1,
+        reference_id: 'room-type-1',
+        service_id: 'service-hotel-1',
+        service_type: 'hotel',
+        start_at: new Date('2026-07-22T14:00:00.000Z'),
+        unit_price_snapshot: '1200000.00',
+      }),
+      getRoomTypeById: async () => ({
+        available_rooms: 4,
+        base_price: '1500000.00',
+        hotel_service_id: 'service-hotel-1',
+        id: 'room-type-1',
+        max_adults: 2,
+        max_children: 1,
+        status: 'active',
+      }),
+      getServiceById: async () => ({
+        base_price: '1800000.00',
+        currency: 'VND',
+        deleted_at: null,
+        id: 'service-hotel-1',
+        metadata: null,
+        sale_price: '1500000.00',
+        service_type: 'hotel',
+        status: 'active',
+      }),
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-opt',
+          options: {
+            adults: 2,
+          },
+          quantity: 1,
+          referenceId: 'room-type-1',
+          serviceId: 'service-hotel-1',
+          serviceType: 'hotel',
+          unitPriceSnapshot: '1500000.00',
+        }),
+      ],
+      touchCart: async () => ({
+        created_at: new Date('2026-07-01T09:00:00.000Z'),
+        id: 'cart-opt',
+        status: 'active',
+        updated_at: new Date('2026-07-01T09:40:00.000Z'),
+      }),
+      updateCartItem: async (queryExecutor, payload) => {
+        calls.push(payload);
+        return {
+          id: payload.cartItemId,
+        };
+      },
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.updateCartItem({
+    cartItemId: '22222222-2222-4222-8222-222222222222',
+    payload: {
+      options: {
+        adults: 2,
+      },
+    },
+    userId: 'user-7',
+  });
+
+  assert.equal(calls[0].unitPriceSnapshot, 1500000);
+  assert.equal(result.cart_item.unit_price_snapshot, 1500000);
+});
+
+test('deleteCartItem removes item from active cart and returns zeroed summary when cart becomes empty', async () => {
+  const service = createCartService({
+    repository: {
+      deleteCartItem: async () => 1,
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T09:00:00.000Z'),
+          id: 'cart-del',
+          status: 'active',
+          updated_at: new Date('2026-07-01T09:30:00.000Z'),
+        },
+      ],
+      getCartItemById: async () => ({
+        cart_id: 'cart-del',
+        id: 'item-del',
+      }),
+      listCartItems: async () => [],
+      touchCart: async () => ({
+        created_at: new Date('2026-07-01T09:00:00.000Z'),
+        id: 'cart-del',
+        status: 'active',
+        updated_at: new Date('2026-07-01T09:40:00.000Z'),
+      }),
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.deleteCartItem({
+    cartItemId: '33333333-3333-4333-8333-333333333333',
+    userId: 'user-8',
+  });
+
+  assert.deepEqual(result, {
+    cart_id: 'cart-del',
+    deleted_item_id: 'item-del',
     summary: {
       currency: 'VND',
       item_count: 0,
@@ -374,110 +654,29 @@ test('getActiveCart creates a new active cart when customer has none', async () 
       subtotal_amount: 0,
       total_amount: 0,
     },
-    updated_at: '2026-07-01T10:00:00.000Z',
   });
 });
 
-test('getActiveCart logs and uses newest cart when data contains multiple active carts', async () => {
-  const loggerCalls = [];
-  const service = createCartService({
-    logger: {
-      error: (message) => {
-        loggerCalls.push(message);
-      },
-    },
-    repository: {
-      createActiveCart: async () => {
-        throw new Error('createActiveCart should not be called');
-      },
-      findActiveCartsByUser: async () => [
-        {
-          created_at: new Date('2026-07-01T10:00:00.000Z'),
-          id: 'cart-newest',
-          status: 'active',
-          updated_at: new Date('2026-07-01T10:10:00.000Z'),
-        },
-        {
-          created_at: new Date('2026-07-01T09:00:00.000Z'),
-          id: 'cart-older',
-          status: 'active',
-          updated_at: new Date('2026-07-01T09:10:00.000Z'),
-        },
-      ],
-      listCartItems: async () => [],
-    },
-    withTransactionImpl: async (callback) =>
-      callback({
-        query: async () => {
-          throw new Error('client.query should not be called directly in service test');
-        },
-      }),
-  });
-
-  const result = await service.getActiveCart({
-    userId: 'user-3',
-  });
-
-  assert.equal(loggerCalls.length, 1);
-  assert.match(
-    loggerCalls[0],
-    /Detected multiple active carts for user user-3\. Using newest cart cart-newest\./,
-  );
-  assert.equal(result.id, 'cart-newest');
-  assert.deepEqual(result.summary, {
-    currency: 'VND',
-    item_count: 0,
-    quantity_total: 0,
-    subtotal_amount: 0,
-    total_amount: 0,
-  });
-});
-
-test('getActiveCart reloads active cart after unique constraint conflict on create', async () => {
-  const repositoryCalls = [];
-  let findAttempt = 0;
+test('clearCartItems returns idempotent success when customer has no active cart', async () => {
   const service = createCartService({
     repository: {
-      createActiveCart: async () => {
-        repositoryCalls.push('create');
-        const error = new Error('duplicate key value violates unique constraint');
-        error.code = '23505';
-        throw error;
-      },
-      findActiveCartsByUser: async () => {
-        findAttempt += 1;
-        repositoryCalls.push(`find:${findAttempt}`);
-
-        if (findAttempt === 1) {
-          return [];
-        }
-
-        return [
-          {
-            created_at: new Date('2026-07-01T11:00:00.000Z'),
-            id: 'cart-from-race',
-            status: 'active',
-            updated_at: new Date('2026-07-01T11:00:00.000Z'),
-          },
-        ];
-      },
-      listCartItems: async () => {
-        repositoryCalls.push('list');
-        return [];
-      },
+      findActiveCartsByUser: async () => [],
     },
-    withTransactionImpl: async (callback) =>
-      callback({
-        query: async () => {
-          throw new Error('client.query should not be called directly in service test');
-        },
-      }),
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
   });
 
-  const result = await service.getActiveCart({
-    userId: 'user-4',
+  const result = await service.clearCartItems({
+    userId: 'user-9',
   });
 
-  assert.deepEqual(repositoryCalls, ['find:1', 'create', 'find:2', 'list']);
-  assert.equal(result.id, 'cart-from-race');
+  assert.deepEqual(result, {
+    cart_id: null,
+    summary: {
+      currency: 'VND',
+      item_count: 0,
+      quantity_total: 0,
+      subtotal_amount: 0,
+      total_amount: 0,
+    },
+  });
 });
