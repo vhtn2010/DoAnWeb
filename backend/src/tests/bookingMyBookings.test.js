@@ -450,6 +450,33 @@ test('bookingService.getMyBookingStatusHistory returns ascending timeline with s
   });
 });
 
+test('bookingService.getMyBookingStatusHistory returns an empty array when booking has no history rows', async () => {
+  const service = bookingService.createBookingService({
+    repository: {
+      getBookingByIdAndUser: async ({
+        bookingId,
+        userId,
+      }) => {
+        assert.equal(bookingId, BOOKING_ID);
+        assert.equal(userId, CUSTOMER_ID);
+
+        return { id: BOOKING_ID };
+      },
+      listBookingStatusHistoriesByBookingId: async () => [],
+    },
+  });
+
+  const result = await service.getMyBookingStatusHistory({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    bookingId: BOOKING_ID,
+  });
+
+  assert.deepEqual(result, []);
+});
+
 test('bookingService.getMyBookingStatusHistory validates UUID and returns 404 for missing booking', async () => {
   const service = bookingService.createBookingService({
     repository: {
