@@ -1,9 +1,10 @@
 const crypto = require('node:crypto');
 const {
   API_ERROR_CODES,
-  SUPPORT_TICKET_STATUS_VALUES,
   SUPPORT_TICKET_PRIORITY,
+  SUPPORT_TICKET_PRIORITY_VALUES,
   SUPPORT_TICKET_STATUS,
+  SUPPORT_TICKET_STATUS_VALUES,
   SENDER_TYPE,
 } = require('../constants/domainConstraints');
 const { createSupportRepository } = require('../database/supportRepository');
@@ -18,6 +19,7 @@ const MULTILINE_TEXT_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F<>]
 const DEFAULT_LIST_LIMIT = 20;
 const MAX_MESSAGE_LENGTH = 5000;
 const MAX_LIST_LIMIT = 50;
+const MAX_ADMIN_LIST_LIMIT = 100;
 const MAX_TICKET_CODE_ATTEMPTS = 3;
 const DEFAULT_LIST_PAGE = 1;
 const CUSTOMER_REPLY_ALLOWED_STATUSES = Object.freeze([
@@ -26,6 +28,11 @@ const CUSTOMER_REPLY_ALLOWED_STATUSES = Object.freeze([
   'waiting_customer',
   'waiting_staff',
   'resolved',
+]);
+const ADMIN_SUPPORT_ALLOWED_ROLES = Object.freeze([
+  'staff',
+  'admin',
+  'system_admin',
 ]);
 
 const buildAppError = ({
@@ -103,6 +110,28 @@ const parseOptionalTicketStatus = (value) => {
     throw buildValidationError(
       'status',
       `status must be one of: ${SUPPORT_TICKET_STATUS_VALUES.join(', ')}`,
+    );
+  }
+
+  return value;
+};
+
+const parseOptionalTicketPriority = (value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (Array.isArray(value) || typeof value !== 'string') {
+    throw buildValidationError(
+      'priority',
+      `priority must be one of: ${SUPPORT_TICKET_PRIORITY_VALUES.join(', ')}`,
+    );
+  }
+
+  if (!SUPPORT_TICKET_PRIORITY_VALUES.includes(value)) {
+    throw buildValidationError(
+      'priority',
+      `priority must be one of: ${SUPPORT_TICKET_PRIORITY_VALUES.join(', ')}`,
     );
   }
 
@@ -363,10 +392,36 @@ const sanitizeServiceSummary = (ticket) => {
   };
 };
 
-const sanitizeTicketSummary = (ticket) => ({
+const sanitizeCustomerTicketSummary = (ticket) => ({
   booking: sanitizeBookingSummary(ticket),
   closed_at: ticket.closed_at,
   created_at: ticket.created_at,
+  id: ticket.id,
+  priority: ticket.priority,
+  service: sanitizeServiceSummary(ticket),
+  status: ticket.status,
+  subject: ticket.subject,
+  ticket_code: ticket.ticket_code,
+  updated_at: ticket.updated_at,
+});
+
+const sanitizeAdminTicketSummary = (ticket) => ({
+  assigned_to: ticket.assigned_to
+    ? {
+        full_name: ticket.assigned_user_full_name || null,
+        id: ticket.assigned_to,
+        role_code: ticket.assigned_user_role_code || null,
+      }
+    : null,
+  booking: sanitizeBookingSummary(ticket),
+  closed_at: ticket.closed_at,
+  created_at: ticket.created_at,
+  customer: {
+    email: ticket.customer_email || ticket.customer_user_email || null,
+    full_name: ticket.customer_name || ticket.customer_user_full_name || null,
+    id: ticket.user_id || null,
+    phone: ticket.customer_phone || ticket.customer_user_phone || null,
+  },
   id: ticket.id,
   priority: ticket.priority,
   service: sanitizeServiceSummary(ticket),
@@ -383,6 +438,26 @@ const sanitizeTicketReply = (reply) => ({
   sender_type: reply.sender_type,
 });
 
+const sanitizeAdminTicketReply = (reply) => ({
+  created_at: reply.created_at,
+  id: reply.id,
+  is_internal_note: Boolean(reply.is_internal_note),
+  message: reply.message,
+  sender: reply.sender_id
+    ? {
+        full_name: reply.sender_full_name || null,
+        id: reply.sender_id,
+        role_code: reply.sender_role_code || null,
+        type: reply.sender_type,
+      }
+    : {
+        full_name: null,
+        id: null,
+        role_code: null,
+        type: reply.sender_type || SENDER_TYPE.SYSTEM,
+      },
+});
+
 const sanitizeTicketDetail = ({
   replies,
   ticket,
@@ -396,6 +471,36 @@ const sanitizeTicketDetail = ({
   id: ticket.id,
   priority: ticket.priority,
   replies: replies.map(sanitizeTicketReply),
+  service: sanitizeServiceSummary(ticket),
+  status: ticket.status,
+  subject: ticket.subject,
+  ticket_code: ticket.ticket_code,
+  updated_at: ticket.updated_at,
+});
+
+const sanitizeAdminTicketDetail = ({
+  replies,
+  ticket,
+}) => ({
+  assigned_to: ticket.assigned_to
+    ? {
+        full_name: ticket.assigned_user_full_name || null,
+        id: ticket.assigned_to,
+        role_code: ticket.assigned_user_role_code || null,
+      }
+    : null,
+  booking: sanitizeBookingSummary(ticket),
+  closed_at: ticket.closed_at,
+  created_at: ticket.created_at,
+  customer: {
+    email: ticket.customer_email || ticket.customer_user_email || null,
+    full_name: ticket.customer_name || ticket.customer_user_full_name || null,
+    id: ticket.user_id || null,
+    phone: ticket.customer_phone || ticket.customer_user_phone || null,
+  },
+  id: ticket.id,
+  priority: ticket.priority,
+  replies: replies.map(sanitizeAdminTicketReply),
   service: sanitizeServiceSummary(ticket),
   status: ticket.status,
   subject: ticket.subject,
@@ -492,6 +597,24 @@ const parseListQuery = (query = {}) => ({
   status: parseOptionalTicketStatus(query.status),
 });
 
+const parseAdminListQuery = (query = {}) => ({
+  assignedTo: parseUuid('assigned_to', query.assigned_to),
+  limit: parsePositiveInteger({
+    defaultValue: DEFAULT_LIST_LIMIT,
+    field: 'limit',
+    max: MAX_ADMIN_LIST_LIMIT,
+    value: query.limit,
+  }),
+  page: parsePositiveInteger({
+    defaultValue: DEFAULT_LIST_PAGE,
+    field: 'page',
+    max: Number.MAX_SAFE_INTEGER,
+    value: query.page,
+  }),
+  priority: parseOptionalTicketPriority(query.priority),
+  status: parseOptionalTicketStatus(query.status),
+});
+
 const parseReplyBody = (body = {}) => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw buildValidationError('body', 'body must be an object');
@@ -557,6 +680,84 @@ const validateCustomerAuth = (auth) => {
   if (actorRole !== 'customer' || !auth?.userId) {
     throw buildForbiddenError();
   }
+};
+
+const normalizePermissionCodes = (auth) => {
+  const rawPermissions =
+    auth?.tokenPayload?.permission_codes ||
+    auth?.tokenPayload?.permissionCodes ||
+    auth?.tokenPayload?.permissions ||
+    [];
+
+  if (!Array.isArray(rawPermissions)) {
+    return [];
+  }
+
+  return rawPermissions
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return entry.trim();
+      }
+
+      if (entry && typeof entry === 'object' && typeof entry.code === 'string') {
+        return entry.code.trim();
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+};
+
+const hasAnyPermission = (auth, acceptedPermissions) => {
+  const permissionCodes = normalizePermissionCodes(auth);
+
+  return acceptedPermissions.some((permissionCode) =>
+    permissionCodes.includes(permissionCode),
+  );
+};
+
+const ensureAdminSupportReadAccess = (auth) => {
+  if (!ADMIN_SUPPORT_ALLOWED_ROLES.includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(auth);
+
+  if (permissionCodes.length === 0) {
+    return;
+  }
+
+  if (
+    permissionCodes.includes('support.read_all') ||
+    permissionCodes.includes('support.manage')
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const resolveAdminSupportScope = (auth) => {
+  if (auth?.role !== 'staff') {
+    return null;
+  }
+
+  return auth?.userId || null;
+};
+
+const canReadInternalNotes = (auth) => {
+  if (auth?.role === 'admin' || auth?.role === 'system_admin') {
+    return true;
+  }
+
+  if (auth?.role !== 'staff') {
+    return false;
+  }
+
+  return hasAnyPermission(auth, [
+    'support.read_internal_notes',
+    'support.manage',
+  ]);
 };
 
 const createSupportService = ({
@@ -691,7 +892,7 @@ const createSupportService = ({
     });
 
     return {
-      items: result.rows.map(sanitizeTicketSummary),
+      items: result.rows.map(sanitizeCustomerTicketSummary),
       meta: buildPaginationMeta({
         limit: parsedQuery.limit,
         page: parsedQuery.page,
@@ -801,10 +1002,66 @@ const createSupportService = ({
     });
   };
 
+  const listAdminTickets = async ({
+    auth,
+    query,
+  } = {}) => {
+    ensureAdminSupportReadAccess(auth);
+
+    const parsedQuery = parseAdminListQuery(query || {});
+    const offset = (parsedQuery.page - 1) * parsedQuery.limit;
+    const result = await repository.listTicketsForAdmin({
+      assignedTo: parsedQuery.assignedTo,
+      limit: parsedQuery.limit,
+      offset,
+      priority: parsedQuery.priority,
+      staffScopeUserId: resolveAdminSupportScope(auth),
+      status: parsedQuery.status,
+    });
+
+    return {
+      items: result.rows.map(sanitizeAdminTicketSummary),
+      meta: buildPaginationMeta({
+        limit: parsedQuery.limit,
+        page: parsedQuery.page,
+        total: result.total,
+      }),
+    };
+  };
+
+  const getAdminTicketDetail = async ({
+    auth,
+    ticketId,
+  } = {}) => {
+    ensureAdminSupportReadAccess(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const ticket = await repository.getTicketByIdForAdmin({
+      staffScopeUserId: resolveAdminSupportScope(auth),
+      ticketId: parsedTicketId,
+    });
+
+    if (!ticket) {
+      throw buildResourceNotFoundError('Support ticket not found');
+    }
+
+    const replies = await repository.listRepliesByTicketIdForAdmin(parsedTicketId);
+    const visibleReplies = canReadInternalNotes(auth)
+      ? replies
+      : replies.filter((reply) => !reply.is_internal_note);
+
+    return sanitizeAdminTicketDetail({
+      replies: visibleReplies,
+      ticket,
+    });
+  };
+
   return {
     closeMyTicket,
     createTicket,
+    getAdminTicketDetail,
     getMyTicketDetail,
+    listAdminTickets,
     listMyTickets,
     replyToTicket,
   };

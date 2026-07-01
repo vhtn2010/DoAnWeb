@@ -4,6 +4,171 @@ const createSupportRepository = ({
   queryImpl = query,
   withTransactionImpl = withTransaction,
 } = {}) => {
+  const listTicketsForAdmin = async ({
+    assignedTo,
+    limit,
+    offset,
+    priority,
+    staffScopeUserId,
+    status,
+  }) => {
+    const params = [];
+    const filters = [];
+
+    if (staffScopeUserId) {
+      params.push(staffScopeUserId);
+      filters.push(`(st.assigned_to = $${params.length} OR st.assigned_to IS NULL)`);
+    }
+
+    if (status) {
+      params.push(status);
+      filters.push(`st.status = $${params.length}`);
+    }
+
+    if (priority) {
+      params.push(priority);
+      filters.push(`st.priority = $${params.length}`);
+    }
+
+    if (assignedTo) {
+      params.push(assignedTo);
+      filters.push(`st.assigned_to = $${params.length}`);
+    }
+
+    const whereSql = filters.length > 0
+      ? `WHERE ${filters.join(' AND ')}`
+      : '';
+
+    params.push(limit);
+    const limitIndex = params.length;
+    params.push(offset);
+    const offsetIndex = params.length;
+
+    const result = await queryImpl(
+      `
+        SELECT
+          st.id,
+          st.ticket_code,
+          st.user_id,
+          st.booking_id,
+          st.service_id,
+          st.customer_name,
+          st.customer_email,
+          st.customer_phone,
+          st.subject,
+          st.status,
+          st.priority,
+          st.assigned_to,
+          st.created_at,
+          st.updated_at,
+          st.closed_at,
+          b.booking_code,
+          b.status AS booking_status,
+          s.title AS service_title,
+          s.slug AS service_slug,
+          s.service_type,
+          cu.full_name AS customer_user_full_name,
+          cu.email AS customer_user_email,
+          cu.phone AS customer_user_phone,
+          au.full_name AS assigned_user_full_name,
+          ar.code AS assigned_user_role_code,
+          COUNT(*) OVER()::int AS total_count
+        FROM support_tickets st
+        LEFT JOIN bookings b
+          ON b.id = st.booking_id
+        LEFT JOIN services s
+          ON s.id = st.service_id
+        LEFT JOIN users cu
+          ON cu.id = st.user_id
+        LEFT JOIN users au
+          ON au.id = st.assigned_to
+        LEFT JOIN roles ar
+          ON ar.id = au.role_id
+        ${whereSql}
+        ORDER BY
+          CASE st.priority
+            WHEN 'urgent' THEN 1
+            WHEN 'high' THEN 2
+            WHEN 'normal' THEN 3
+            WHEN 'low' THEN 4
+            ELSE 5
+          END ASC,
+          st.updated_at DESC,
+          st.created_at DESC,
+          st.id DESC
+        LIMIT $${limitIndex}
+        OFFSET $${offsetIndex}
+      `,
+      params,
+    );
+
+    return {
+      rows: result.rows,
+      total: result.rows[0]?.total_count || 0,
+    };
+  };
+
+  const getTicketByIdForAdmin = async ({
+    staffScopeUserId,
+    ticketId,
+  }) => {
+    const params = [ticketId];
+    let scopeSql = '';
+
+    if (staffScopeUserId) {
+      params.push(staffScopeUserId);
+      scopeSql = `AND (st.assigned_to = $${params.length} OR st.assigned_to IS NULL)`;
+    }
+
+    const result = await queryImpl(
+      `
+        SELECT
+          st.id,
+          st.ticket_code,
+          st.user_id,
+          st.booking_id,
+          st.service_id,
+          st.customer_name,
+          st.customer_email,
+          st.customer_phone,
+          st.subject,
+          st.status,
+          st.priority,
+          st.assigned_to,
+          st.created_at,
+          st.updated_at,
+          st.closed_at,
+          b.booking_code,
+          b.status AS booking_status,
+          s.title AS service_title,
+          s.slug AS service_slug,
+          s.service_type,
+          cu.full_name AS customer_user_full_name,
+          cu.email AS customer_user_email,
+          cu.phone AS customer_user_phone,
+          au.full_name AS assigned_user_full_name,
+          ar.code AS assigned_user_role_code
+        FROM support_tickets st
+        LEFT JOIN bookings b
+          ON b.id = st.booking_id
+        LEFT JOIN services s
+          ON s.id = st.service_id
+        LEFT JOIN users cu
+          ON cu.id = st.user_id
+        LEFT JOIN users au
+          ON au.id = st.assigned_to
+        LEFT JOIN roles ar
+          ON ar.id = au.role_id
+        WHERE st.id = $1
+          ${scopeSql}
+        LIMIT 1
+      `,
+      params,
+    );
+
+    return result.rows[0] || null;
+  };
+
   const getTicketByIdAndUser = async ({
     ticketId,
     userId,
@@ -59,6 +224,33 @@ const createSupportRepository = ({
         FROM support_replies
         WHERE ticket_id = $1
         ORDER BY created_at ASC, id ASC
+      `,
+      [ticketId],
+    );
+
+    return result.rows;
+  };
+
+  const listRepliesByTicketIdForAdmin = async (ticketId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          sr.id,
+          sr.ticket_id,
+          sr.sender_id,
+          sr.sender_type,
+          sr.message,
+          sr.is_internal_note,
+          sr.created_at,
+          su.full_name AS sender_full_name,
+          sr2.code AS sender_role_code
+        FROM support_replies sr
+        LEFT JOIN users su
+          ON su.id = sr.sender_id
+        LEFT JOIN roles sr2
+          ON sr2.id = su.role_id
+        WHERE sr.ticket_id = $1
+        ORDER BY sr.created_at ASC, sr.id ASC
       `,
       [ticketId],
     );
@@ -404,8 +596,11 @@ const createSupportRepository = ({
     createTicket,
     getBookingById,
     getServiceById,
+    getTicketByIdForAdmin,
     getTicketByIdAndUser,
+    listRepliesByTicketIdForAdmin,
     listRepliesByTicketId,
+    listTicketsForAdmin,
     listTicketsByUser,
   };
 };

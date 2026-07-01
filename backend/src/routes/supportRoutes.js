@@ -2,10 +2,13 @@ const express = require('express');
 const {
   closeMySupportTicket,
   createSupportTicket,
+  getAdminSupportTicketDetail,
   getMySupportTicketDetail,
+  listAdminSupportTickets,
   listMySupportTickets,
   replyToSupportTicket,
 } = require('../controllers/supportController');
+const { requireAdminAuth } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authOptional, authRequired } = require('../middleware/authSession');
 const { createRateLimiter } = require('../middleware/rateLimit');
@@ -38,6 +41,13 @@ const supportTicketInteractionRateLimit = createRateLimiter({
   maxRequests: 30,
   message: 'Too many support ticket actions. Please try again later.',
   storeKey: 'support-ticket-interaction',
+  windowMs: 60 * 1000,
+});
+const adminSupportTicketReadRateLimit = createRateLimiter({
+  keyGenerator: (req) => req.auth?.userId || req.ip || 'anonymous',
+  maxRequests: 120,
+  message: 'Too many admin support ticket requests. Please try again later.',
+  storeKey: 'admin-support-ticket-read',
   windowMs: 60 * 1000,
 });
 
@@ -74,6 +84,20 @@ router.post(
   authRequired({ allowedRoles: ['customer'] }),
   supportTicketInteractionRateLimit,
   asyncHandler(closeMySupportTicket),
+);
+
+router.get(
+  '/admin/support/tickets',
+  requireAdminAuth,
+  adminSupportTicketReadRateLimit,
+  asyncHandler(listAdminSupportTickets),
+);
+
+router.get(
+  '/admin/support/tickets/:ticket_id',
+  requireAdminAuth,
+  adminSupportTicketReadRateLimit,
+  asyncHandler(getAdminSupportTicketDetail),
 );
 
 module.exports = router;

@@ -13,6 +13,31 @@ const createSupportTicket = async (req, res) => {
   });
 };
 
+const listAdminSupportTickets = async (req, res) => {
+  const data = await supportService.listAdminTickets({
+    auth: req.auth,
+    query: req.query,
+  });
+
+  res.success({
+    data: data.items,
+    message: 'Admin support tickets fetched successfully',
+    meta: data.meta,
+  });
+};
+
+const getAdminSupportTicketDetail = async (req, res) => {
+  const data = await supportService.getAdminTicketDetail({
+    auth: req.auth,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Admin support ticket fetched successfully',
+  });
+};
+
 const listMySupportTickets = async (req, res) => {
   const data = await supportService.listMyTickets({
     auth: req.auth,
@@ -68,7 +93,9 @@ const closeMySupportTicket = async (req, res) => {
 module.exports = {
   closeMySupportTicket,
   createSupportTicket,
+  getAdminSupportTicketDetail,
   getMySupportTicketDetail,
+  listAdminSupportTickets,
   listMySupportTickets,
   replyToSupportTicket,
 };
