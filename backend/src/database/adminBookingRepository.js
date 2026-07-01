@@ -12,6 +12,93 @@ const createAdminBookingRepository = ({
   queryImpl = query,
   withTransactionImpl = withTransaction,
 } = {}) => {
+  const transitionBookingStatusWithItems = async ({
+    actorUserId,
+    bookingId,
+    fromStatus,
+    itemStatusFrom = [],
+    itemStatusTo,
+    logAction,
+    reason,
+    toStatus,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const bookingResult = await client.query(
+        `
+          UPDATE bookings
+          SET
+            status = $2,
+            updated_at = NOW()
+          WHERE id = $1
+            AND status = $3
+          RETURNING
+            id,
+            booking_code,
+            status,
+            updated_at
+        `,
+        [bookingId, toStatus, fromStatus],
+      );
+
+      if (bookingResult.rowCount !== 1) {
+        throw createInvalidStateTransitionError();
+      }
+
+      if (itemStatusTo && itemStatusFrom.length > 0) {
+        await client.query(
+          `
+            UPDATE booking_items
+            SET status = $2
+            WHERE booking_id = $1
+              AND status = ANY($3::text[])
+          `,
+          [bookingId, itemStatusTo, itemStatusFrom],
+        );
+      }
+
+      await client.query(
+        `
+          INSERT INTO booking_status_histories (
+            booking_id,
+            from_status,
+            to_status,
+            reason,
+            changed_by,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [bookingId, fromStatus, toStatus, reason, actorUserId],
+      );
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          logAction,
+          'booking',
+          bookingId,
+          {
+            from_status: fromStatus,
+            reason,
+            to_status: toStatus,
+          },
+        ],
+      );
+
+      return bookingResult.rows[0];
+    });
+
   const buildScopedWhere = ({
     allowedServiceIds,
     bookingStatus,
@@ -323,72 +410,50 @@ const createAdminBookingRepository = ({
     reason,
     toStatus,
   }) =>
-    withTransactionImpl(async (client) => {
-      const bookingResult = await client.query(
-        `
-          UPDATE bookings
-          SET
-            status = $2,
-            updated_at = NOW()
-          WHERE id = $1
-            AND status = $3
-          RETURNING
-            id,
-            booking_code,
-            status,
-            updated_at
-        `,
-        [bookingId, toStatus, fromStatus],
-      );
+    transitionBookingStatusWithItems({
+      actorUserId,
+      bookingId,
+      fromStatus,
+      logAction: 'admin.booking.status_override',
+      reason,
+      toStatus,
+    });
 
-      if (bookingResult.rowCount !== 1) {
-        throw createInvalidStateTransitionError();
-      }
+  const confirmBooking = async ({
+    actorUserId,
+    bookingId,
+    reason,
+  }) =>
+    transitionBookingStatusWithItems({
+      actorUserId,
+      bookingId,
+      fromStatus: 'paid',
+      itemStatusFrom: ['pending'],
+      itemStatusTo: 'confirmed',
+      logAction: 'admin.booking.confirm',
+      reason,
+      toStatus: 'confirmed',
+    });
 
-      await client.query(
-        `
-          INSERT INTO booking_status_histories (
-            booking_id,
-            from_status,
-            to_status,
-            reason,
-            changed_by,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `,
-        [bookingId, fromStatus, toStatus, reason, actorUserId],
-      );
-
-      await client.query(
-        `
-          INSERT INTO user_logs (
-            user_id,
-            action,
-            entity_name,
-            entity_id,
-            metadata,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `,
-        [
-          actorUserId,
-          'admin.booking.status_override',
-          'booking',
-          bookingId,
-          {
-            from_status: fromStatus,
-            reason,
-            to_status: toStatus,
-          },
-        ],
-      );
-
-      return bookingResult.rows[0];
+  const completeBooking = async ({
+    actorUserId,
+    bookingId,
+    reason,
+  }) =>
+    transitionBookingStatusWithItems({
+      actorUserId,
+      bookingId,
+      fromStatus: 'in_progress',
+      itemStatusFrom: ['pending', 'confirmed'],
+      itemStatusTo: 'completed',
+      logAction: 'admin.booking.complete',
+      reason,
+      toStatus: 'completed',
     });
 
   return {
+    completeBooking,
+    confirmBooking,
     getBookingById,
     listBookingItemsByBookingId,
     listBookingPaymentsByBookingId,

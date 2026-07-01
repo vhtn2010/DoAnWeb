@@ -50,7 +50,35 @@ const updateAdminBookingStatus = async (req, res) => {
   });
 };
 
+const confirmAdminBooking = async (req, res) => {
+  const data = await adminBookingService.confirmBooking({
+    auth: req.auth,
+    body: req.body,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking confirmed successfully',
+  });
+};
+
+const completeAdminBooking = async (req, res) => {
+  const data = await adminBookingService.completeBooking({
+    auth: req.auth,
+    body: req.body,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking completed successfully',
+  });
+};
+
 module.exports = {
+  completeAdminBooking,
+  confirmAdminBooking,
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,

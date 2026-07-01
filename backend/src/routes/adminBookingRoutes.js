@@ -1,5 +1,7 @@
 const express = require('express');
 const {
+  completeAdminBooking,
+  confirmAdminBooking,
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,
@@ -44,6 +46,20 @@ router.patch(
   requireAdminAuth,
   adminBookingRateLimit,
   asyncHandler(updateAdminBookingStatus),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/confirm',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(confirmAdminBooking),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/complete',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(completeAdminBooking),
 );
 
 module.exports = router;

@@ -200,6 +200,14 @@ const buildPaginationMeta = ({
   };
 };
 
+const hasAnyPermission = (auth, acceptedPermissions) => {
+  const permissionCodes = normalizePermissionCodes(auth);
+
+  return acceptedPermissions.some((permissionCode) =>
+    permissionCodes.includes(permissionCode),
+  );
+};
+
 const normalizePermissionCodes = (auth) => {
   const rawPermissions =
     auth?.tokenPayload?.permission_codes ||
@@ -261,6 +269,46 @@ const ensureAdminBookingStatusAccess = (auth) => {
   if (
     permissionCodes.includes('booking.update_status') ||
     permissionCodes.includes('booking.manage')
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureAdminBookingConfirmAccess = (auth) => {
+  const role = auth?.role;
+
+  if (!['staff', 'admin', 'system_admin'].includes(role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'booking.confirm',
+      'booking.update_status',
+      'booking.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureAdminBookingCompleteAccess = (auth) => {
+  const role = auth?.role;
+
+  if (!['staff', 'admin', 'system_admin'].includes(role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'booking.complete',
+      'booking.update_status',
+      'booking.manage',
+    ])
   ) {
     return;
   }
@@ -484,6 +532,38 @@ const parseRequiredReason = (value) => {
   return normalized;
 };
 
+const parseOptionalReason = (value) => {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    throw buildValidationError('reason', 'reason must be a string');
+  }
+
+  const normalized = normalizeWhitespace(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > 1000) {
+    throw buildValidationError(
+      'reason',
+      'reason must be at most 1000 characters long',
+    );
+  }
+
+  if (DANGEROUS_TEXT_PATTERN.test(normalized)) {
+    throw buildValidationError(
+      'reason',
+      'reason contains unsupported characters',
+    );
+  }
+
+  return normalized;
+};
+
 const hasSuccessfulPaymentForOverride = (payments) =>
   payments.some((payment) =>
     ['success', 'reconciled'].includes(payment.status),
@@ -491,6 +571,21 @@ const hasSuccessfulPaymentForOverride = (payments) =>
 
 const hasSuccessfulRefundForOverride = (refunds) =>
   refunds.some((refund) => refund.status === 'success');
+
+const hasSufficientSuccessfulPaymentForConfirmation = ({
+  booking,
+  payments,
+}) => {
+  const successfulTotal = payments.reduce((sum, payment) => {
+    if (!['success', 'reconciled'].includes(payment.status)) {
+      return sum;
+    }
+
+    return sum + roundMoney(payment.amount);
+  }, 0);
+
+  return successfulTotal >= roundMoney(booking.total_amount);
+};
 
 const createAdminBookingService = ({
   repository = createAdminBookingRepository(),
@@ -665,7 +760,102 @@ const createAdminBookingService = ({
     return sanitizeBookingStatusUpdateResult(updatedBooking);
   };
 
+  const confirmBooking = async ({
+    auth,
+    body,
+    booking_id: bookingId,
+  } = {}) => {
+    ensureAdminBookingConfirmAccess(auth);
+
+    const parsedBookingId = parseBookingId(bookingId);
+    const reason = parseOptionalReason(body?.reason);
+    const booking = await repository.getBookingById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingId: parsedBookingId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (booking.status === 'confirmed') {
+      return sanitizeBookingStatusUpdateResult({
+        booking_code: booking.booking_code,
+        id: booking.id,
+        status: booking.status,
+        updated_at: booking.updated_at,
+      });
+    }
+
+    if (booking.status !== 'paid') {
+      throw buildInvalidStateTransitionError(
+        'Only paid bookings can be confirmed',
+      );
+    }
+
+    const payments =
+      await repository.listBookingPaymentsByBookingId(parsedBookingId);
+
+    if (!hasSufficientSuccessfulPaymentForConfirmation({ booking, payments })) {
+      throw buildInvalidStateTransitionError(
+        'Booking cannot be confirmed without sufficient successful payment',
+      );
+    }
+
+    const updatedBooking = await repository.confirmBooking({
+      actorUserId: auth?.userId || null,
+      bookingId: parsedBookingId,
+      reason,
+    });
+
+    return sanitizeBookingStatusUpdateResult(updatedBooking);
+  };
+
+  const completeBooking = async ({
+    auth,
+    body,
+    booking_id: bookingId,
+  } = {}) => {
+    ensureAdminBookingCompleteAccess(auth);
+
+    const parsedBookingId = parseBookingId(bookingId);
+    const reason = parseOptionalReason(body?.reason);
+    const booking = await repository.getBookingById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingId: parsedBookingId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (booking.status === 'completed') {
+      return sanitizeBookingStatusUpdateResult({
+        booking_code: booking.booking_code,
+        id: booking.id,
+        status: booking.status,
+        updated_at: booking.updated_at,
+      });
+    }
+
+    if (booking.status !== 'in_progress') {
+      throw buildInvalidStateTransitionError(
+        'Only in_progress bookings can be completed',
+      );
+    }
+
+    const updatedBooking = await repository.completeBooking({
+      actorUserId: auth?.userId || null,
+      bookingId: parsedBookingId,
+      reason,
+    });
+
+    return sanitizeBookingStatusUpdateResult(updatedBooking);
+  };
+
   return {
+    completeBooking,
+    confirmBooking,
     getBookingDetail,
     getBookingStatusHistory,
     listBookings,
