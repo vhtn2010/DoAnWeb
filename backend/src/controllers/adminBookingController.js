@@ -128,6 +128,18 @@ const updateAdminBookingItemTravellerInfo = async (req, res) => {
   });
 };
 
+const resendAdminBookingConfirmationEmail = async (req, res) => {
+  const data = await adminBookingService.resendBookingConfirmationEmail({
+    auth: req.auth,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking confirmation email resent successfully',
+  });
+};
+
 module.exports = {
   cancelAdminBooking,
   completeAdminBooking,
@@ -136,6 +148,7 @@ module.exports = {
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,
+  resendAdminBookingConfirmationEmail,
   updateAdminBookingItemStatus,
   updateAdminBookingItemTravellerInfo,
   updateAdminBookingStatus,

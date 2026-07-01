@@ -1,4 +1,8 @@
-const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const {
+  API_ERROR_CODES,
+  DOMAIN_CONSTRAINTS,
+  EMAIL_STATUS,
+} = require('../constants/domainConstraints');
 const AppError = require('../utils/AppError');
 const { query, withTransaction } = require('./client');
 
@@ -657,10 +661,166 @@ const createAdminBookingRepository = ({
       return itemResult.rows[0];
     });
 
+  const createBookingConfirmationResendEmailLog = async ({
+    actorUserId,
+    bookingId,
+    bookingStatus,
+    createdAt,
+    subject,
+    templateCode,
+    toEmail,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const emailLogResult = await client.query(
+        `
+          INSERT INTO email_logs (
+            user_id,
+            booking_id,
+            to_email,
+            subject,
+            template_code,
+            status,
+            provider,
+            provider_message_id,
+            error_message,
+            sent_at,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, NULL, $8)
+          RETURNING
+            id,
+            booking_id,
+            to_email,
+            template_code,
+            status,
+            provider,
+            sent_at
+        `,
+        [
+          userId,
+          bookingId,
+          toEmail,
+          subject,
+          templateCode,
+          EMAIL_STATUS.QUEUED,
+          DOMAIN_CONSTRAINTS.emailProvider,
+          createdAt,
+        ],
+      );
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          'admin.booking.resend_confirmation_email',
+          'booking',
+          bookingId,
+          {
+            booking_status: bookingStatus,
+            email_log_id: emailLogResult.rows[0].id,
+            template_code: templateCode,
+            to_email: toEmail,
+          },
+        ],
+      );
+
+      return emailLogResult.rows[0];
+    });
+
+  const markBookingEmailLogSent = async ({
+    emailLogId,
+    messageId,
+    sentAt,
+  }) => {
+    const result = await queryImpl(
+      `
+        UPDATE email_logs
+        SET
+          status = $2,
+          provider_message_id = $3,
+          error_message = NULL,
+          sent_at = $4
+        WHERE id = $1
+        RETURNING
+          id,
+          booking_id,
+          to_email,
+          template_code,
+          status,
+          provider,
+          sent_at
+      `,
+      [
+        emailLogId,
+        EMAIL_STATUS.SENT,
+        messageId || null,
+        sentAt,
+      ],
+    );
+
+    if (result.rowCount !== 1) {
+      throw new AppError('Email log not found', {
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        statusCode: 404,
+      });
+    }
+
+    return result.rows[0];
+  };
+
+  const markBookingEmailLogFailed = async ({
+    emailLogId,
+    errorMessage,
+  }) => {
+    const result = await queryImpl(
+      `
+        UPDATE email_logs
+        SET
+          status = $2,
+          error_message = $3
+        WHERE id = $1
+        RETURNING
+          id,
+          booking_id,
+          to_email,
+          template_code,
+          status,
+          provider,
+          sent_at
+      `,
+      [
+        emailLogId,
+        EMAIL_STATUS.FAILED,
+        errorMessage || 'Unknown email provider error',
+      ],
+    );
+
+    if (result.rowCount !== 1) {
+      throw new AppError('Email log not found', {
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        statusCode: 404,
+      });
+    }
+
+    return result.rows[0];
+  };
+
   return {
     cancelBooking,
     completeBooking,
     confirmBooking,
+    createBookingConfirmationResendEmailLog,
     expireBooking,
     getBookingById,
     getBookingItemById,
@@ -669,6 +829,8 @@ const createAdminBookingRepository = ({
     listBookingRefundsByBookingId,
     listBookingStatusHistoriesByBookingId,
     listBookings,
+    markBookingEmailLogFailed,
+    markBookingEmailLogSent,
     updateBookingItemStatus,
     updateBookingItemTravellerInfo,
     updateBookingStatus,

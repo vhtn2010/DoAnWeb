@@ -3,10 +3,13 @@ const {
   BOOKING_ITEM_STATUS_VALUES,
   BOOKING_STATUS_TRANSITIONS,
   BOOKING_STATUS_VALUES,
+  DOMAIN_CONSTRAINTS,
+  EMAIL_STATUS,
 } = require('../constants/domainConstraints');
 const {
   createAdminBookingRepository,
 } = require('../database/adminBookingRepository');
+const { sendEmail } = require('./sendgridService');
 const AppError = require('../utils/AppError');
 
 const DEFAULT_CURRENCY = 'VND';
@@ -15,8 +18,17 @@ const DEFAULT_LIST_PAGE = 1;
 const MAX_LIST_LIMIT = 100;
 const MAX_QUERY_LENGTH = 100;
 const DANGEROUS_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
+const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const BOOKING_CONFIRMATION_RESEND_TEMPLATE_CODE =
+  'BOOKING_CONFIRMATION_RESEND';
+const BOOKING_CONFIRMATION_RESEND_ALLOWED_STATUSES = new Set([
+  'paid',
+  'confirmed',
+  'in_progress',
+  'completed',
+]);
 
 const buildValidationError = (field, message) =>
   new AppError('Validation failed', {
@@ -416,6 +428,26 @@ const ensureAdminBookingItemTravellerAccess = (auth) => {
   throw buildForbiddenError();
 };
 
+const ensureAdminBookingCommunicationAccess = (auth) => {
+  const role = auth?.role;
+
+  if (!['staff', 'admin', 'system_admin'].includes(role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'email.send',
+      'booking.update_status',
+      'booking.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
 const resolveScopeServiceIds = (auth) => {
   if (auth?.role !== 'staff') {
     return null;
@@ -579,6 +611,16 @@ const sanitizeBookingItemMutationResult = (item) => ({
   unit_price: roundMoney(item.unit_price),
 });
 
+const sanitizeBookingEmailResult = (emailLog) => ({
+  booking_id: emailLog.booking_id,
+  email_log_id: emailLog.id,
+  provider: emailLog.provider || DOMAIN_CONSTRAINTS.emailProvider,
+  sent_at: emailLog.sent_at || null,
+  status: emailLog.status,
+  template_code: emailLog.template_code,
+  to_email: emailLog.to_email,
+});
+
 const sanitizeBookingDetail = ({
   booking,
   items,
@@ -685,6 +727,26 @@ const parseOptionalReason = (value) => {
     throw buildValidationError(
       'reason',
       'reason contains unsupported characters',
+    );
+  }
+
+  return normalized;
+};
+
+const parseContactEmail = (value) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError(
+      'contact_email',
+      'booking contact_email must be a valid email address',
+    );
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (!normalized || !EMAIL_ADDRESS_REGEX.test(normalized)) {
+    throw buildValidationError(
+      'contact_email',
+      'booking contact_email must be a valid email address',
     );
   }
 
@@ -815,8 +877,67 @@ const validateBookingItemStatusTransition = ({
   return 'update';
 };
 
+const buildBookingConfirmationResendEmail = ({
+  booking,
+  items,
+}) => {
+  const contactName = booking.contact_name || 'Quy khach';
+  const itemLinesText = items.length === 0
+    ? '- Khong co dich vu dinh kem'
+    : items.map((item, index) => {
+      const schedule = [
+        item.start_at ? `bat dau: ${item.start_at}` : null,
+        item.end_at ? `ket thuc: ${item.end_at}` : null,
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+      return `${index + 1}. ${item.title_snapshot} (${item.service_type}) - SL ${item.quantity}${schedule ? ` - ${schedule}` : ''}`;
+    }).join('\n');
+  const itemLinesHtml = items.length === 0
+    ? '<li>Khong co dich vu dinh kem</li>'
+    : items.map((item) => {
+      const schedule = [
+        item.start_at ? `Bat dau: ${item.start_at}` : null,
+        item.end_at ? `Ket thuc: ${item.end_at}` : null,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      return `<li><strong>${item.title_snapshot}</strong> (${item.service_type}) - SL ${item.quantity}${schedule ? ` - ${schedule}` : ''}</li>`;
+    }).join('');
+
+  return {
+    html: [
+      `<p>Xin chao ${contactName},</p>`,
+      `<p>Chung toi gui lai email xac nhan booking <strong>${booking.booking_code}</strong>.</p>`,
+      `<p>Trang thai booking hien tai: <strong>${booking.status}</strong></p>`,
+      '<p>Danh sach dich vu:</p>',
+      `<ul>${itemLinesHtml}</ul>`,
+      `<p>Tam tinh: ${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}</p>`,
+      `<p>Giam gia: ${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}</p>`,
+      `<p>Tong thanh toan: <strong>${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}</strong></p>`,
+      '<p>Neu can ho tro them, vui long lien he bo phan CSKH.</p>',
+    ].join(''),
+    subject: `Booking ${booking.booking_code} - Gui lai email xac nhan`,
+    text: [
+      `Xin chao ${contactName},`,
+      `Chung toi gui lai email xac nhan booking ${booking.booking_code}.`,
+      `Trang thai booking: ${booking.status}`,
+      'Danh sach dich vu:',
+      itemLinesText,
+      `Tam tinh: ${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      `Giam gia: ${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      `Tong thanh toan: ${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      'Neu can ho tro them, vui long lien he bo phan CSKH.',
+    ].join('\n'),
+  };
+};
+
 const createAdminBookingService = ({
   repository = createAdminBookingRepository(),
+  now = () => new Date(),
+  sendEmailImpl = sendEmail,
 } = {}) => {
   const listBookings = async ({
     auth,
@@ -1255,6 +1376,80 @@ const createAdminBookingService = ({
     return sanitizeBookingItemMutationResult(updatedItem);
   };
 
+  const resendBookingConfirmationEmail = async ({
+    auth,
+    booking_id: bookingId,
+  } = {}) => {
+    ensureAdminBookingCommunicationAccess(auth);
+
+    const parsedBookingId = parseBookingId(bookingId);
+    const booking = await repository.getBookingById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingId: parsedBookingId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError();
+    }
+
+    const contactEmail = parseContactEmail(booking.contact_email);
+
+    if (
+      !BOOKING_CONFIRMATION_RESEND_ALLOWED_STATUSES.has(booking.status)
+    ) {
+      throw buildInvalidStateTransitionError(
+        'Booking is not in a state that allows confirmation email resend',
+      );
+    }
+
+    const items = await repository.listBookingItemsByBookingId(parsedBookingId);
+    const emailContent = buildBookingConfirmationResendEmail({
+      booking,
+      items,
+    });
+    const queuedAt = now();
+    const queuedEmailLog = await repository.createBookingConfirmationResendEmailLog({
+      actorUserId: auth?.userId || null,
+      bookingId: parsedBookingId,
+      bookingStatus: booking.status,
+      createdAt: queuedAt,
+      subject: emailContent.subject,
+      templateCode: BOOKING_CONFIRMATION_RESEND_TEMPLATE_CODE,
+      toEmail: contactEmail,
+      userId: booking.user_id || null,
+    });
+
+    try {
+      const sendResult = await sendEmailImpl({
+        html: emailContent.html,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        to: {
+          email: contactEmail,
+          name: booking.contact_name || undefined,
+        },
+      });
+      const sentAt = now();
+      const sentEmailLog = await repository.markBookingEmailLogSent({
+        emailLogId: queuedEmailLog.id,
+        messageId: sendResult.messageId,
+        sentAt,
+      });
+
+      return sanitizeBookingEmailResult(sentEmailLog);
+    } catch (error) {
+      await repository.markBookingEmailLogFailed({
+        emailLogId: queuedEmailLog.id,
+        errorMessage: error?.message || 'Unknown email provider error',
+      });
+
+      throw new AppError('Failed to resend booking confirmation email', {
+        code: API_ERROR_CODES.INTERNAL_ERROR,
+        statusCode: 500,
+      });
+    }
+  };
+
   return {
     cancelBooking,
     completeBooking,
@@ -1263,6 +1458,7 @@ const createAdminBookingService = ({
     getBookingDetail,
     getBookingStatusHistory,
     listBookings,
+    resendBookingConfirmationEmail,
     updateBookingItemStatus,
     updateBookingItemTravellerInfo,
     updateBookingStatus,
@@ -1270,5 +1466,6 @@ const createAdminBookingService = ({
 };
 
 module.exports = Object.assign(createAdminBookingService(), {
+  BOOKING_CONFIRMATION_RESEND_TEMPLATE_CODE,
   createAdminBookingService,
 });

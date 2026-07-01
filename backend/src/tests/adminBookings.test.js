@@ -25,6 +25,8 @@ const originalListBookings = adminBookingService.listBookings;
 const originalCompleteBooking = adminBookingService.completeBooking;
 const originalConfirmBooking = adminBookingService.confirmBooking;
 const originalExpireBooking = adminBookingService.expireBooking;
+const originalResendBookingConfirmationEmail =
+  adminBookingService.resendBookingConfirmationEmail;
 const originalUpdateBookingItemStatus =
   adminBookingService.updateBookingItemStatus;
 const originalUpdateBookingItemTravellerInfo =
@@ -100,6 +102,8 @@ test.afterEach(() => {
   adminBookingService.getBookingDetail = originalGetBookingDetail;
   adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
   adminBookingService.listBookings = originalListBookings;
+  adminBookingService.resendBookingConfirmationEmail =
+    originalResendBookingConfirmationEmail;
   adminBookingService.updateBookingItemStatus = originalUpdateBookingItemStatus;
   adminBookingService.updateBookingItemTravellerInfo =
     originalUpdateBookingItemTravellerInfo;
@@ -1788,6 +1792,378 @@ test('POST /api/admin/bookings/{booking_id}/expire returns expired booking and v
     );
   } finally {
     adminBookingService.expireBooking = originalExpireBooking;
+    server.close();
+  }
+});
+
+test('adminBookingService.resendBookingConfirmationEmail sends a confirmation email from booking snapshot data', async () => {
+  const fixedNow = new Date('2026-07-01T16:00:00.000Z');
+  let queuedPayload = null;
+  let sentPayload = null;
+  let emailPayload = null;
+  const service = adminBookingService.createAdminBookingService({
+    now: () => fixedNow,
+    repository: {
+      createBookingConfirmationResendEmailLog: async (payload) => {
+        queuedPayload = payload;
+
+        return {
+          booking_id: BOOKING_ID,
+          id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          provider: 'sendgrid',
+          sent_at: null,
+          status: 'queued',
+          template_code: 'BOOKING_CONFIRMATION_RESEND',
+          to_email: 'customer@example.com',
+        };
+      },
+      getBookingById: async ({
+        allowedServiceIds,
+        bookingId,
+      }) => {
+        assert.deepEqual(allowedServiceIds, ['service-1']);
+        assert.equal(bookingId, BOOKING_ID);
+
+        return {
+          booking_code: 'BK202607010015',
+          contact_email: 'Customer@Example.com ',
+          contact_name: 'Nguyen Van A',
+          currency: 'VND',
+          discount_amount: '100000',
+          id: BOOKING_ID,
+          status: BOOKING_STATUS.CONFIRMED,
+          subtotal_amount: '1500000',
+          total_amount: '1400000',
+          user_id: 'user-1',
+        };
+      },
+      listBookingItemsByBookingId: async (bookingId) => {
+        assert.equal(bookingId, BOOKING_ID);
+
+        return [
+          {
+            end_at: '2026-07-11T00:00:00.000Z',
+            quantity: 2,
+            service_type: 'tour',
+            start_at: '2026-07-10T00:00:00.000Z',
+            title_snapshot: 'Tour Da Nang',
+          },
+        ];
+      },
+      markBookingEmailLogFailed: async () => {
+        throw new Error('markBookingEmailLogFailed should not be called');
+      },
+      markBookingEmailLogSent: async (payload) => {
+        sentPayload = payload;
+
+        return {
+          booking_id: BOOKING_ID,
+          id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          provider: 'sendgrid',
+          sent_at: fixedNow.toISOString(),
+          status: 'sent',
+          template_code: 'BOOKING_CONFIRMATION_RESEND',
+          to_email: 'customer@example.com',
+        };
+      },
+    },
+    sendEmailImpl: async (payload) => {
+      emailPayload = payload;
+
+      return {
+        messageId: 'sendgrid-message-1',
+      };
+    },
+  });
+
+  const result = await service.resendBookingConfirmationEmail({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: ['service-1'],
+      tokenPayload: {
+        permissions: ['email.send'],
+      },
+      userId: 'staff-1',
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.deepEqual(queuedPayload, {
+    actorUserId: 'staff-1',
+    bookingId: BOOKING_ID,
+    bookingStatus: BOOKING_STATUS.CONFIRMED,
+    createdAt: fixedNow,
+    subject: 'Booking BK202607010015 - Gui lai email xac nhan',
+    templateCode: 'BOOKING_CONFIRMATION_RESEND',
+    toEmail: 'customer@example.com',
+    userId: 'user-1',
+  });
+  assert.equal(emailPayload.to.email, 'customer@example.com');
+  assert.equal(emailPayload.to.name, 'Nguyen Van A');
+  assert.match(emailPayload.subject, /BK202607010015/);
+  assert.match(emailPayload.text, /Tour Da Nang/);
+  assert.match(emailPayload.html, /Tong thanh toan/);
+  assert.deepEqual(sentPayload, {
+    emailLogId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    messageId: 'sendgrid-message-1',
+    sentAt: fixedNow,
+  });
+  assert.deepEqual(result, {
+    booking_id: BOOKING_ID,
+    email_log_id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    provider: 'sendgrid',
+    sent_at: fixedNow.toISOString(),
+    status: 'sent',
+    template_code: 'BOOKING_CONFIRMATION_RESEND',
+    to_email: 'customer@example.com',
+  });
+});
+
+test('adminBookingService.resendBookingConfirmationEmail validates permission, contact email, and booking status', async () => {
+  const invalidEmailService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        booking_code: 'BK202607010016',
+        contact_email: 'not-an-email',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.CONFIRMED,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => invalidEmailService.resendBookingConfirmationEmail({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['email.send'],
+        },
+        userId: 'admin-1',
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'contact_email',
+          message: 'booking contact_email must be a valid email address',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  const invalidStateService = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async () => ({
+        booking_code: 'BK202607010017',
+        contact_email: 'customer@example.com',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.CANCELLED,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => invalidStateService.resendBookingConfirmationEmail({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.update_status'],
+        },
+        userId: 'admin-1',
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('adminBookingService.resendBookingConfirmationEmail marks failed email logs when provider send fails', async () => {
+  let failedPayload = null;
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      createBookingConfirmationResendEmailLog: async () => ({
+        booking_id: BOOKING_ID,
+        id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+        provider: 'sendgrid',
+        sent_at: null,
+        status: 'queued',
+        template_code: 'BOOKING_CONFIRMATION_RESEND',
+        to_email: 'customer@example.com',
+      }),
+      getBookingById: async () => ({
+        booking_code: 'BK202607010018',
+        contact_email: 'customer@example.com',
+        contact_name: 'Nguyen Van B',
+        currency: 'VND',
+        discount_amount: '0',
+        id: BOOKING_ID,
+        status: BOOKING_STATUS.PAID,
+        subtotal_amount: '500000',
+        total_amount: '500000',
+        user_id: 'user-2',
+      }),
+      listBookingItemsByBookingId: async () => [],
+      markBookingEmailLogFailed: async (payload) => {
+        failedPayload = payload;
+
+        return {
+          id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+        };
+      },
+      markBookingEmailLogSent: async () => {
+        throw new Error('markBookingEmailLogSent should not be called');
+      },
+    },
+    sendEmailImpl: async () => {
+      throw new Error('sendgrid unavailable');
+    },
+  });
+
+  await assert.rejects(
+    () => service.resendBookingConfirmationEmail({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['email.send'],
+        },
+        userId: 'admin-1',
+      },
+      booking_id: BOOKING_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INTERNAL_ERROR);
+      return true;
+    },
+  );
+
+  assert.deepEqual(failedPayload, {
+    emailLogId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    errorMessage: 'sendgrid unavailable',
+  });
+});
+
+test('POST /api/admin/bookings/{booking_id}/resend-confirmation-email returns resend email result for authorized users', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['email.send'],
+    role: 'staff',
+    sub: 'staff-1',
+  });
+
+  adminBookingService.resendBookingConfirmationEmail = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'staff',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['email.send'],
+          role: 'staff',
+          sub: 'staff-1',
+        },
+        userId: 'staff-1',
+      },
+      booking_id: BOOKING_ID,
+    });
+
+    return {
+      booking_id: BOOKING_ID,
+      email_log_id: '99999999-9999-4999-8999-999999999999',
+      provider: 'sendgrid',
+      sent_at: '2026-07-01T16:15:00.000Z',
+      status: 'sent',
+      template_code: 'BOOKING_CONFIRMATION_RESEND',
+      to_email: 'customer@example.com',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/resend-confirmation-email`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Admin booking confirmation email resent successfully',
+    );
+    assert.equal(response.body.data.booking_id, BOOKING_ID);
+    assert.equal(response.body.data.status, 'sent');
+  } finally {
+    adminBookingService.resendBookingConfirmationEmail =
+      originalResendBookingConfirmationEmail;
+    server.close();
+  }
+});
+
+test('POST /api/admin/bookings/{booking_id}/resend-confirmation-email validates permission and booking UUID', async () => {
+  const server = app.listen(0);
+  const tokenWithoutPermission = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.read_all'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+  const tokenWithPermission = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['email.send'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+
+  try {
+    const forbiddenResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/resend-confirmation-email`,
+      {
+        headers: {
+          Authorization: `Bearer ${tokenWithoutPermission}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+
+    const badUuidResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/not-a-uuid/resend-confirmation-email`,
+      {
+        headers: {
+          Authorization: `Bearer ${tokenWithPermission}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(badUuidResponse.statusCode, 400);
+    assert.equal(
+      badUuidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+    assert.deepEqual(badUuidResponse.body.error.details, [
+      {
+        field: 'booking_id',
+        message: 'booking_id must be a valid UUID',
+      },
+    ]);
+  } finally {
     server.close();
   }
 });
