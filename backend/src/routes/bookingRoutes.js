@@ -1,6 +1,8 @@
 const express = require('express');
 const {
   checkoutBooking,
+  downloadMyBookingSummary,
+  getMyBookingInvoice,
   getMyBookingDetail,
   getMyBookingItems,
   getMyBookingStatusHistory,
@@ -47,6 +49,20 @@ router.get(
   authRequired({ allowedRoles: ['customer'] }),
   customerBookingReadRateLimit,
   asyncHandler(getMyBookingStatusHistory),
+);
+
+router.get(
+  '/bookings/:booking_id/invoice',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerBookingReadRateLimit,
+  asyncHandler(getMyBookingInvoice),
+);
+
+router.get(
+  '/bookings/:booking_id/download-summary',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerBookingReadRateLimit,
+  asyncHandler(downloadMyBookingSummary),
 );
 
 router.post(

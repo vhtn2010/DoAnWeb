@@ -392,6 +392,98 @@ const buildBookingCode = (now = new Date()) => {
 const buildExpiresAt = (now = new Date()) =>
   new Date(now.getTime() + DEFAULT_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
 
+const buildSafeFilename = (value, fallback) => {
+  const normalized = String(value || fallback || 'document')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || fallback || 'document';
+};
+
+const formatMoney = (value, currency = DEFAULT_CURRENCY) =>
+  `${roundMoney(value)} ${currency || DEFAULT_CURRENCY}`;
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return 'N/A';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toISOString();
+};
+
+const isReceiptPaymentStatus = (status) =>
+  status === 'success' ||
+  status === 'reconciled' ||
+  status === 'partially_refunded' ||
+  status === 'refunded';
+
+const toPdfText = (value) =>
+  String(value == null ? '' : value)
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)')
+    .replace(/[^\x20-\x7E]/g, '?');
+
+const buildSimplePdfBuffer = (lines) => {
+  const safeLines = Array.isArray(lines) && lines.length > 0
+    ? lines
+    : ['Booking Summary'];
+  const textOperations = [];
+  let remainingLinesOnPage = 45;
+
+  textOperations.push('BT');
+  textOperations.push('/F1 12 Tf');
+  textOperations.push('50 790 Td');
+
+  for (const line of safeLines) {
+    if (remainingLinesOnPage <= 0) {
+      break;
+    }
+
+    textOperations.push(`(${toPdfText(line)}) Tj`);
+    textOperations.push('0 -16 Td');
+    remainingLinesOnPage -= 1;
+  }
+
+  textOperations.push('ET');
+
+  const contentStream = `${textOperations.join('\n')}\n`;
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj\n',
+    `4 0 obj\n<< /Length ${Buffer.byteLength(contentStream, 'utf8')} >>\nstream\n${contentStream}endstream\nendobj\n`,
+    '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(pdf, 'utf8'));
+    pdf += object;
+  }
+
+  const xrefStart = Buffer.byteLength(pdf, 'utf8');
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+
+  for (let index = 1; index < offsets.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+  }
+
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+  return Buffer.from(pdf, 'utf8');
+};
+
 const sanitizeResponseItem = (item) => ({
   end_at: item.end_at,
   id: item.id,
@@ -619,6 +711,49 @@ const sanitizeRefundSummary = (refund) => ({
   status: refund.status,
 });
 
+const sanitizeInvoiceItem = (item) => ({
+  end_at: item.end_at,
+  quantity: Number(item.quantity),
+  service_type: item.service_type,
+  start_at: item.start_at,
+  status: item.status,
+  title: item.title_snapshot,
+  total_amount: roundMoney(item.total_amount),
+  unit_price: roundMoney(item.unit_price),
+});
+
+const sanitizeInvoiceResponse = ({
+  booking,
+  items,
+  payments,
+  refunds,
+}) => {
+  const sanitizedPayments = payments.map(sanitizePaymentSummary);
+  const documentType = sanitizedPayments.some((payment) => isReceiptPaymentStatus(payment.status))
+    ? 'receipt'
+    : 'proforma';
+
+  return {
+    booking_code: booking.booking_code,
+    booking_id: booking.id,
+    contact_email: booking.contact_email,
+    contact_name: booking.contact_name,
+    contact_phone: booking.contact_phone,
+    created_at: booking.created_at,
+    currency: booking.currency || DEFAULT_CURRENCY,
+    discount_amount: roundMoney(booking.discount_amount),
+    document_type: documentType,
+    expires_at: booking.expires_at,
+    items: items.map(sanitizeInvoiceItem),
+    payments: sanitizedPayments,
+    refunds: refunds.map(sanitizeRefundSummary),
+    status: booking.status,
+    subtotal_amount: roundMoney(booking.subtotal_amount),
+    total_amount: roundMoney(booking.total_amount),
+    updated_at: booking.updated_at,
+  };
+};
+
 const resolveChangedByType = (history) => {
   if (!history.changed_by) {
     return 'system';
@@ -664,6 +799,76 @@ const sanitizeCancelRequestResponse = (booking) => ({
   status: booking.status,
   updated_at: booking.updated_at || null,
 });
+
+const buildBookingSummaryPdfLines = ({
+  booking,
+  items,
+  payments,
+  refunds,
+}) => {
+  const lines = [
+    'Net Viet Travel Booking Summary',
+    '',
+    `Booking Code: ${booking.booking_code}`,
+    `Booking ID: ${booking.id}`,
+    `Status: ${booking.status}`,
+    `Created At: ${formatDateTime(booking.created_at)}`,
+    `Updated At: ${formatDateTime(booking.updated_at)}`,
+    '',
+    `Customer: ${booking.contact_name}`,
+    `Email: ${booking.contact_email}`,
+    `Phone: ${booking.contact_phone || 'N/A'}`,
+    '',
+    `Subtotal: ${formatMoney(booking.subtotal_amount, booking.currency)}`,
+    `Discount: ${formatMoney(booking.discount_amount, booking.currency)}`,
+    `Total: ${formatMoney(booking.total_amount, booking.currency)}`,
+    '',
+    'Booking Items:',
+  ];
+
+  if (items.length === 0) {
+    lines.push('- No items');
+  } else {
+    for (const item of items) {
+      lines.push(`- ${item.title_snapshot} [${item.service_type}] x${Number(item.quantity)}`);
+      lines.push(`  Unit: ${formatMoney(item.unit_price, booking.currency)}`);
+      lines.push(`  Total: ${formatMoney(item.total_amount, booking.currency)}`);
+      lines.push(`  Start: ${formatDateTime(item.start_at)}`);
+      lines.push(`  End: ${formatDateTime(item.end_at)}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Payments:');
+
+  if (payments.length === 0) {
+    lines.push('- No payment records');
+  } else {
+    for (const payment of payments) {
+      lines.push(`- ${payment.payment_code || payment.id}: ${payment.status}`);
+      lines.push(`  Amount: ${formatMoney(payment.amount, payment.currency)}`);
+      lines.push(`  Method: ${payment.payment_method || 'N/A'}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Refunds:');
+
+  if (refunds.length === 0) {
+    lines.push('- No refund records');
+  } else {
+    for (const refund of refunds) {
+      lines.push(`- ${refund.refund_code || refund.id}: ${refund.status}`);
+      lines.push(`  Amount: ${formatMoney(refund.amount, booking.currency)}`);
+      lines.push(`  Reason: ${refund.reason || 'N/A'}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Generated from booking snapshot. Customer-safe export only.');
+
+  return lines;
+};
 
 const sanitizeBookingDetail = ({
   booking,
@@ -1214,6 +1419,73 @@ const createBookingService = ({
     return histories.map(sanitizeBookingStatusHistoryEntry);
   };
 
+  const getMyBookingInvoice = async ({
+    auth,
+    bookingId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedBookingId = parseUuid('booking_id', bookingId);
+    const booking = await repository.getBookingByIdAndUser({
+      bookingId: parsedBookingId,
+      userId: auth.userId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError('Booking not found');
+    }
+
+    const [items, payments, refunds] = await Promise.all([
+      repository.listBookingItemsByBookingId(parsedBookingId),
+      repository.listBookingPaymentsByBookingId(parsedBookingId),
+      repository.listBookingRefundsByBookingId(parsedBookingId),
+    ]);
+
+    return sanitizeInvoiceResponse({
+      booking,
+      items,
+      payments,
+      refunds,
+    });
+  };
+
+  const downloadMyBookingSummary = async ({
+    auth,
+    bookingId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedBookingId = parseUuid('booking_id', bookingId);
+    const booking = await repository.getBookingByIdAndUser({
+      bookingId: parsedBookingId,
+      userId: auth.userId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError('Booking not found');
+    }
+
+    const [items, payments, refunds] = await Promise.all([
+      repository.listBookingItemsByBookingId(parsedBookingId),
+      repository.listBookingPaymentsByBookingId(parsedBookingId),
+      repository.listBookingRefundsByBookingId(parsedBookingId),
+    ]);
+    const filename = `${buildSafeFilename(booking.booking_code, 'booking-summary')}.pdf`;
+    const lines = buildBookingSummaryPdfLines({
+      booking,
+      items,
+      payments: payments.map(sanitizePaymentSummary),
+      refunds: refunds.map(sanitizeRefundSummary),
+    });
+
+    return {
+      buffer: buildSimplePdfBuffer(lines),
+      contentDisposition: `attachment; filename="${filename}"`,
+      contentType: 'application/pdf',
+      filename,
+    };
+  };
+
   const requestBookingCancellation = async ({
     auth,
     body,
@@ -1254,6 +1526,8 @@ const createBookingService = ({
 
   return {
     checkout,
+    downloadMyBookingSummary,
+    getMyBookingInvoice,
     getMyBookingDetail,
     getMyBookingItems,
     getMyBookingStatusHistory,
