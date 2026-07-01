@@ -5,6 +5,7 @@ const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const {
   ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
   ADMIN_USER_CHANGE_STATUS_ACTION,
+  ADMIN_USER_CHANGE_ROLE_ACTION,
   ADMIN_USER_CREATE_ACTION,
   ADMIN_USER_RESEND_VERIFICATION_ACTION,
   ADMIN_USER_SOFT_DELETE_ACTION,
@@ -15,6 +16,7 @@ const {
   normalizeCreateUserPayload,
   normalizeDeleteUserPayload,
   normalizePagination,
+  normalizeRoleAssignPayload,
   normalizeStatusChangePayload,
   normalizeUpdateUserPayload,
   normalizeUserId,
@@ -173,6 +175,23 @@ test('normalizeDeleteUserPayload requires reason', () => {
     (error) =>
       error.code === API_ERROR_CODES.VALIDATION_ERROR &&
       error.details?.some((detail) => detail.field === 'reason'),
+  );
+});
+
+test('normalizeRoleAssignPayload requires role_code', () => {
+  assert.deepEqual(
+    normalizeRoleAssignPayload({
+      role_code: 'admin',
+    }),
+    {
+      roleCode: 'admin',
+    },
+  );
+  assert.throws(
+    () => normalizeRoleAssignPayload({}),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some((detail) => detail.field === 'role_code'),
   );
 });
 
@@ -1248,6 +1267,256 @@ test('resendVerificationEmail rejects non-pending target status', async () => {
     () =>
       service.resendVerificationEmail({
         actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('changeUserRole updates role_id, returns permissions, and writes audit log', async () => {
+  const fixedNow = new Date('2026-07-01T16:00:00.000Z');
+  const queries = [];
+  let targetReadCount = 0;
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({ params, sql });
+
+      if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+        if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                role_code: 'system_admin',
+                role_id: 'role-system-admin-id',
+                role_level: 100,
+                deleted_at: null,
+                status: 'active',
+              },
+            ],
+          };
+        }
+
+        targetReadCount += 1;
+
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              avatar_url: null,
+              created_at: fixedNow,
+              deleted_at: null,
+              email: 'staff@example.com',
+              email_verified_at: null,
+              full_name: 'Admin User',
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              is_system_protected: false,
+              last_login_at: null,
+              phone: null,
+              role_code: targetReadCount > 1 ? 'admin' : 'staff',
+              role_id: targetReadCount > 1 ? 'role-admin-id' : 'role-staff-id',
+              role_level: targetReadCount > 1 ? 90 : 10,
+              role_name: targetReadCount > 1 ? 'Admin' : 'Staff',
+              status: 'active',
+              updated_at: fixedNow,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('FROM roles') && sql.includes('WHERE code = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              code: 'admin',
+              id: 'role-admin-id',
+              level: 90,
+              name: 'Admin',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('UPDATE users')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      if (sql.includes('FROM role_permissions rp')) {
+        return {
+          rowCount: 2,
+          rows: [
+            { code: 'booking.manage' },
+            { code: 'user.read_all' },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createAdminUserService({
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const result = await service.changeUserRole({
+    actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    ipAddress: '127.0.0.1',
+    payload: {
+      role_code: 'admin',
+    },
+    userAgent: 'admin-role-service-test',
+    userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  });
+
+  const updateQuery = queries.find((entry) => entry.sql.includes('UPDATE users'));
+  const userLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
+  const userLogMetadata = JSON.parse(userLogQuery.params[6]);
+
+  assert.equal(updateQuery.params[1], 'role-admin-id');
+  assert.equal(userLogQuery.params[1], ADMIN_USER_CHANGE_ROLE_ACTION);
+  assert.deepEqual(userLogMetadata, {
+    actor_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    from_role: 'staff',
+    sessions_revoked: true,
+    target_user_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    to_role: 'admin',
+  });
+  assert.deepEqual(result.permissions, [
+    'booking.manage',
+    'user.read_all',
+  ]);
+  assert.equal(result.role.code, 'admin');
+});
+
+test('changeUserRole rejects self role downgrade', async () => {
+  const service = createAdminUserService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql, params = []) => {
+          if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: params[0],
+                  role_code: 'system_admin',
+                  role_id: 'role-system-admin-id',
+                  role_level: 100,
+                  deleted_at: null,
+                  is_system_protected: false,
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          if (sql.includes('FROM roles') && sql.includes('WHERE code = $1')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  code: 'admin',
+                  id: 'role-admin-id',
+                  level: 90,
+                  name: 'Admin',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.changeUserRole({
+        actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        payload: {
+          role_code: 'admin',
+        },
+        userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('changeUserRole rejects assigning system_admin role in MVP', async () => {
+  const service = createAdminUserService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql, params = []) => {
+          if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+            if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+              return {
+                rowCount: 1,
+                rows: [
+                  {
+                    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    role_code: 'system_admin',
+                    role_id: 'role-system-admin-id',
+                    role_level: 100,
+                    deleted_at: null,
+                    status: 'active',
+                  },
+                ],
+              };
+            }
+
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                  role_code: 'staff',
+                  role_id: 'role-staff-id',
+                  role_level: 10,
+                  deleted_at: null,
+                  is_system_protected: false,
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          if (sql.includes('FROM roles') && sql.includes('WHERE code = $1')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  code: 'system_admin',
+                  id: 'role-system-admin-id',
+                  level: 100,
+                  name: 'System Admin',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.changeUserRole({
+        actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        payload: {
+          role_code: 'system_admin',
+        },
         userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       }),
     (error) =>

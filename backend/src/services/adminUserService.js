@@ -24,6 +24,7 @@ const { sendEmail } = require('./sendgridService');
 const ADMIN_ALLOWED_ROLE_CODES = new Set(['admin', 'system_admin']);
 const ADMIN_USER_CREATE_ACTION = 'admin.user.create';
 const ADMIN_USER_CHANGE_STATUS_ACTION = 'admin.user.change_status';
+const ADMIN_USER_CHANGE_ROLE_ACTION = 'admin.user.change_role';
 const ADMIN_USER_SOFT_DELETE_ACTION = 'admin.user.soft_delete';
 const ADMIN_USER_RESEND_VERIFICATION_ACTION =
   'admin.user.resend_verification';
@@ -97,6 +98,19 @@ const FORBIDDEN_DELETE_FIELDS = [
   'phone',
   'role_code',
   'role_id',
+];
+const FORBIDDEN_ROLE_FIELDS = [
+  'deleted_at',
+  'email',
+  'email_verified_at',
+  'full_name',
+  'is_system_protected',
+  'last_login_at',
+  'password',
+  'password_hash',
+  'phone',
+  'status',
+  'updated_at',
 ];
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -632,6 +646,48 @@ const normalizeDeleteUserPayload = (payload = {}) => {
   };
 };
 
+const normalizeRoleAssignPayload = (payload = {}) => {
+  const normalizedPayload =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload
+      : {};
+  const details = [];
+  const providedKeys = Object.keys(normalizedPayload);
+  const allowedFields = new Set(['role_code']);
+  const disallowedKeys = providedKeys.filter((key) => !allowedFields.has(key));
+
+  if (disallowedKeys.length > 0) {
+    details.push(
+      ...buildDisallowedFieldDetails(disallowedKeys, {
+        explicitlyForbiddenFields: FORBIDDEN_ROLE_FIELDS,
+        scopeLabel: 'PATCH /admin/users/{user_id}/role',
+      }),
+    );
+  }
+
+  const roleCode = trimToNull(normalizedPayload.role_code);
+
+  if (!roleCode) {
+    details.push({
+      field: 'role_code',
+      message: 'role_code is required',
+    });
+  } else if (!/^[a-z_]+$/.test(roleCode)) {
+    details.push({
+      field: 'role_code',
+      message: 'role_code must be a valid lowercase snake_case role code',
+    });
+  }
+
+  if (details.length > 0) {
+    throw createValidationError(details);
+  }
+
+  return {
+    roleCode,
+  };
+};
+
 const buildVerificationLinks = (token) => {
   const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
   const normalizedBackendUrl = backendUrl.replace(/\/$/, '');
@@ -720,6 +776,21 @@ const loadActorById = async (queryExecutor, actorUserId) => {
   }
 
   return actor;
+};
+
+const loadPermissionsByRoleId = async (queryExecutor, roleId) => {
+  const result = await queryExecutor(
+    `
+      SELECT p.code
+      FROM role_permissions rp
+      JOIN permissions p ON p.id = rp.permission_id
+      WHERE rp.role_id = $1
+      ORDER BY p.code ASC
+    `,
+    [roleId],
+  );
+
+  return result.rows.map((row) => row.code);
 };
 
 const insertUserLog = async (
@@ -895,6 +966,40 @@ const ensureActorCanManageTargetLifecycle = (actor, targetUser) => {
         'Admin can only manage lifecycle for users with a lower role level',
       );
     }
+  }
+};
+
+const ensureActorCanChangeRole = (actor, targetUser, targetRole) => {
+  if (actor.role_code !== SYSTEM_ADMIN_ROLE_CODE) {
+    throw createForbiddenError(
+      'Only system admin can change a user primary role',
+    );
+  }
+
+  if (targetUser.deleted_at != null || targetUser.status === USER_STATUS.DELETED) {
+    throw createForbiddenError('Deleted users cannot change role');
+  }
+
+  if (targetUser.is_system_protected) {
+    throw createForbiddenError('System protected users cannot change role');
+  }
+
+  if (actor.id === targetUser.id) {
+    throw createForbiddenError(
+      'System admin cannot change their own primary role through this API',
+    );
+  }
+
+  if (targetRole.code === SYSTEM_ADMIN_ROLE_CODE) {
+    throw createForbiddenError(
+      'system_admin role cannot be assigned through this API',
+    );
+  }
+
+  if (targetRole.code === CUSTOMER_ROLE_CODE) {
+    throw createForbiddenError(
+      'customer role cannot be assigned through this API',
+    );
   }
 };
 
@@ -1627,8 +1732,104 @@ const createAdminUserService = ({
     }
   };
 
+  const changeUserRole = async ({
+    actorUserId,
+    ipAddress,
+    payload,
+    userAgent,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const normalizedUserId = normalizeUserId(userId);
+      const actor = await loadActorById(client.query.bind(client), actorUserId);
+      const input = normalizeRoleAssignPayload(payload);
+      const targetUser = await loadUserById(
+        client.query.bind(client),
+        normalizedUserId,
+        {
+          forUpdate: true,
+        },
+      );
+
+      if (!targetUser) {
+        throw createNotFoundError();
+      }
+
+      const targetRole = await loadRoleByCode(
+        client.query.bind(client),
+        input.roleCode,
+      );
+
+      if (!targetRole) {
+        throw new AppError('Role not found', {
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          statusCode: 404,
+        });
+      }
+
+      ensureActorCanChangeRole(actor, targetUser, targetRole);
+
+      if (targetUser.role_code === targetRole.code) {
+        throw createValidationError([
+          {
+            field: 'role_code',
+            message: 'role_code must be different from the current role',
+          },
+        ]);
+      }
+
+      const updatedAt = now();
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            role_id = $2,
+            updated_at = $3
+          WHERE id = $1
+        `,
+        [
+          normalizedUserId,
+          targetRole.id,
+          updatedAt,
+        ],
+      );
+
+      await insertUserLog(client, {
+        action: ADMIN_USER_CHANGE_ROLE_ACTION,
+        createdAt: updatedAt,
+        entityId: normalizedUserId,
+        ipAddress,
+        metadata: {
+          actor_user_id: actorUserId,
+          from_role: targetUser.role_code,
+          sessions_revoked: true,
+          target_user_id: normalizedUserId,
+          to_role: targetRole.code,
+        },
+        targetUserId: normalizedUserId,
+        userAgent,
+      });
+
+      const updatedUser = await loadUserById(
+        client.query.bind(client),
+        normalizedUserId,
+      );
+      const permissions = await loadPermissionsByRoleId(
+        client.query.bind(client),
+        updatedUser.role_id,
+      );
+
+      return {
+        ...mapAdminUser(updatedUser),
+        permissions,
+        sessions_revoked: true,
+      };
+    });
+
   return {
     changeUserStatus,
+    changeUserRole,
     createUser,
     deleteUser,
     getUserById,
@@ -1645,6 +1846,8 @@ module.exports.ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE =
   ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE;
 module.exports.ADMIN_USER_CHANGE_STATUS_ACTION =
   ADMIN_USER_CHANGE_STATUS_ACTION;
+module.exports.ADMIN_USER_CHANGE_ROLE_ACTION =
+  ADMIN_USER_CHANGE_ROLE_ACTION;
 module.exports.ADMIN_USER_CREATE_ACTION = ADMIN_USER_CREATE_ACTION;
 module.exports.ADMIN_USER_RESEND_VERIFICATION_ACTION =
   ADMIN_USER_RESEND_VERIFICATION_ACTION;
@@ -1660,6 +1863,7 @@ module.exports.normalizeCreateUserPayload = normalizeCreateUserPayload;
 module.exports.normalizeDeleteUserPayload = normalizeDeleteUserPayload;
 module.exports.normalizeListUsersQuery = normalizeListUsersQuery;
 module.exports.normalizePagination = normalizePagination;
+module.exports.normalizeRoleAssignPayload = normalizeRoleAssignPayload;
 module.exports.normalizeStatusChangePayload = normalizeStatusChangePayload;
 module.exports.normalizeUpdateUserPayload = normalizeUpdateUserPayload;
 module.exports.normalizeUserId = normalizeUserId;
