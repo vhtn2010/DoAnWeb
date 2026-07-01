@@ -23,6 +23,8 @@ const REPLY_ID = '44444444-4444-4444-8444-444444444444';
 
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalCreateTicket = supportService.createTicket;
+const originalGetMyTicketDetail = supportService.getMyTicketDetail;
+const originalListMyTickets = supportService.listMyTickets;
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -74,6 +76,8 @@ const request = (server, path, options = {}) =>
 test.afterEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   supportService.createTicket = originalCreateTicket;
+  supportService.getMyTicketDetail = originalGetMyTicketDetail;
+  supportService.listMyTickets = originalListMyTickets;
   createRateLimit.clearRateLimitStore();
 });
 
@@ -284,6 +288,199 @@ test('supportService.createTicket requires guest contact information', async () 
   );
 });
 
+test('supportService.listMyTickets returns paginated customer ticket summaries', async () => {
+  const service = createSupportService({
+    repository: {
+      listRepliesByTicketId: async () => [],
+      listTicketsByUser: async ({
+        limit,
+        offset,
+        status,
+        userId,
+      }) => {
+        assert.equal(limit, 20);
+        assert.equal(offset, 0);
+        assert.equal(status, 'open');
+        assert.equal(userId, CUSTOMER_ID);
+
+        return {
+          rows: [
+            {
+              booking_code: 'BK202607010001',
+              booking_id: BOOKING_ID,
+              booking_status: 'pending_payment',
+              closed_at: null,
+              created_at: '2026-07-01T09:20:00.000Z',
+              id: TICKET_ID,
+              priority: 'normal',
+              service_id: SERVICE_ID,
+              service_slug: 'tour-da-nang',
+              service_title: 'Tour Da Nang',
+              service_type: 'tour',
+              status: 'open',
+              subject: 'Need support',
+              ticket_code: 'TK20260701AAAA0001',
+              updated_at: '2026-07-01T09:25:00.000Z',
+            },
+          ],
+          total: 1,
+        };
+      },
+    },
+  });
+
+  const result = await service.listMyTickets({
+    auth: {
+      roleCode: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    query: {
+      status: 'open',
+    },
+  });
+
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].ticket_code, 'TK20260701AAAA0001');
+  assert.equal(result.items[0].booking.booking_code, 'BK202607010001');
+  assert.equal(result.items[0].service.slug, 'tour-da-nang');
+  assert.deepEqual(result.meta, {
+    has_next: false,
+    limit: 20,
+    page: 1,
+    total: 1,
+    total_pages: 1,
+  });
+});
+
+test('supportService.listMyTickets rejects invalid status and pagination', async () => {
+  const service = createSupportService({
+    repository: {
+      listTicketsByUser: async () => ({
+        rows: [],
+        total: 0,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => service.listMyTickets({
+      auth: {
+        roleCode: 'customer',
+        userId: CUSTOMER_ID,
+      },
+      query: {
+        limit: '51',
+        status: 'bad-status',
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.equal(error.statusCode, 400);
+      return true;
+    },
+  );
+});
+
+test('supportService.getMyTicketDetail returns customer-safe detail without internal replies', async () => {
+  const service = createSupportService({
+    repository: {
+      getTicketByIdAndUser: async ({
+        ticketId,
+        userId,
+      }) => {
+        assert.equal(ticketId, TICKET_ID);
+        assert.equal(userId, CUSTOMER_ID);
+
+        return {
+          booking_code: 'BK202607010001',
+          booking_id: BOOKING_ID,
+          booking_status: 'pending_payment',
+          closed_at: null,
+          created_at: '2026-07-01T09:20:00.000Z',
+          customer_email: 'customer@example.com',
+          customer_name: 'Nguyen Van A',
+          customer_phone: '+84901234567',
+          id: TICKET_ID,
+          priority: 'normal',
+          service_id: SERVICE_ID,
+          service_slug: 'tour-da-nang',
+          service_title: 'Tour Da Nang',
+          service_type: 'tour',
+          status: 'waiting_staff',
+          subject: 'Need support',
+          ticket_code: 'TK20260701AAAA0001',
+          updated_at: '2026-07-01T09:25:00.000Z',
+        };
+      },
+      listRepliesByTicketId: async (ticketId) => {
+        assert.equal(ticketId, TICKET_ID);
+
+        return [
+          {
+            created_at: '2026-07-01T09:20:00.000Z',
+            id: REPLY_ID,
+            is_internal_note: false,
+            message: 'Need support',
+            sender_type: 'customer',
+          },
+          {
+            created_at: '2026-07-01T09:21:00.000Z',
+            id: '55555555-5555-4555-8555-555555555555',
+            is_internal_note: true,
+            message: 'Internal note',
+            sender_type: 'staff',
+          },
+          {
+            created_at: '2026-07-01T09:22:00.000Z',
+            id: '66666666-6666-4666-8666-666666666666',
+            is_internal_note: false,
+            message: 'We are checking this for you.',
+            sender_type: 'staff',
+          },
+        ];
+      },
+    },
+  });
+
+  const result = await service.getMyTicketDetail({
+    auth: {
+      roleCode: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(result.replies.length, 2);
+  assert.equal(result.replies[0].message, 'Need support');
+  assert.equal(result.replies[1].message, 'We are checking this for you.');
+  assert.equal(result.service.title, 'Tour Da Nang');
+  assert.equal(result.booking.booking_code, 'BK202607010001');
+});
+
+test('supportService.getMyTicketDetail returns 404 for missing ownership-scoped ticket', async () => {
+  const service = createSupportService({
+    repository: {
+      getTicketByIdAndUser: async () => null,
+      listRepliesByTicketId: async () => [],
+    },
+  });
+
+  await assert.rejects(
+    () => service.getMyTicketDetail({
+      auth: {
+        roleCode: 'customer',
+        userId: CUSTOMER_ID,
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      assert.equal(error.statusCode, 404);
+      return true;
+    },
+  );
+});
+
 test('POST /support/tickets allows guest submissions without a token', async () => {
   const server = app.listen(0);
   supportService.createTicket = async ({ auth, body }) => {
@@ -409,6 +606,150 @@ test('POST /support/tickets applies a public rate limit to repeated submissions'
     assert.equal(lastResponse.statusCode, 429);
     assert.equal(lastResponse.body.success, false);
     assert.equal(lastResponse.body.error.code, API_ERROR_CODES.RATE_LIMITED);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('GET /support/tickets requires customer authentication', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/support/tickets`,
+      {
+        method: 'GET',
+      },
+    );
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('GET /support/tickets returns paginated customer tickets', async () => {
+  const server = app.listen(0);
+  authService.resolveAuthenticatedUser = async () => ({
+    roleCode: 'customer',
+    tokenId: 'token-customer',
+    user: { id: CUSTOMER_ID, role_code: 'customer' },
+    userId: CUSTOMER_ID,
+  });
+  supportService.listMyTickets = async ({ auth, query }) => {
+    assert.equal(auth.userId, CUSTOMER_ID);
+    assert.equal(query.status, 'open');
+
+    return {
+      items: [
+        {
+          closed_at: null,
+          created_at: '2026-07-01T09:20:00.000Z',
+          id: TICKET_ID,
+          priority: 'normal',
+          status: 'open',
+          subject: 'Need support',
+          ticket_code: 'TK20260701AAAA0001',
+          updated_at: '2026-07-01T09:25:00.000Z',
+        },
+      ],
+      meta: {
+        has_next: false,
+        limit: 20,
+        page: 1,
+        total: 1,
+        total_pages: 1,
+      },
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/support/tickets?status=open`,
+      {
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            roleCode: 'customer',
+            userId: CUSTOMER_ID,
+          })}`,
+        },
+        method: 'GET',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.length, 1);
+    assert.equal(response.body.meta.total, 1);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('GET /support/tickets/{ticket_id} returns sanitized detail for the owner', async () => {
+  const server = app.listen(0);
+  authService.resolveAuthenticatedUser = async () => ({
+    roleCode: 'customer',
+    tokenId: 'token-customer',
+    user: { id: CUSTOMER_ID, role_code: 'customer' },
+    userId: CUSTOMER_ID,
+  });
+  supportService.getMyTicketDetail = async ({ auth, ticketId }) => {
+    assert.equal(auth.userId, CUSTOMER_ID);
+    assert.equal(ticketId, TICKET_ID);
+
+    return {
+      closed_at: null,
+      created_at: '2026-07-01T09:20:00.000Z',
+      customer_email: 'customer@example.com',
+      customer_name: 'Nguyen Van A',
+      customer_phone: '+84901234567',
+      id: TICKET_ID,
+      priority: 'normal',
+      replies: [
+        {
+          created_at: '2026-07-01T09:20:00.000Z',
+          id: REPLY_ID,
+          message: 'Need support',
+          sender_type: 'customer',
+        },
+      ],
+      status: 'open',
+      subject: 'Need support',
+      ticket_code: 'TK20260701AAAA0001',
+      updated_at: '2026-07-01T09:25:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/support/tickets/${TICKET_ID}`,
+      {
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            roleCode: 'customer',
+            userId: CUSTOMER_ID,
+          })}`,
+        },
+        method: 'GET',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.replies.length, 1);
+    assert.equal(response.body.data.ticket_code, 'TK20260701AAAA0001');
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

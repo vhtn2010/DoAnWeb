@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const {
   API_ERROR_CODES,
+  SUPPORT_TICKET_STATUS_VALUES,
   SUPPORT_TICKET_PRIORITY,
   SUPPORT_TICKET_STATUS,
   SENDER_TYPE,
@@ -14,8 +15,11 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INLINE_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
 const MULTILINE_TEXT_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F<>]/;
+const DEFAULT_LIST_LIMIT = 20;
 const MAX_MESSAGE_LENGTH = 5000;
+const MAX_LIST_LIMIT = 50;
 const MAX_TICKET_CODE_ATTEMPTS = 3;
+const DEFAULT_LIST_PAGE = 1;
 
 const buildAppError = ({
   code,
@@ -68,6 +72,61 @@ const parseUuid = (field, value) => {
   }
 
   return value.trim();
+};
+
+const parseOptionalTicketStatus = (value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (Array.isArray(value) || typeof value !== 'string') {
+    throw buildValidationError(
+      'status',
+      `status must be one of: ${SUPPORT_TICKET_STATUS_VALUES.join(', ')}`,
+    );
+  }
+
+  if (!SUPPORT_TICKET_STATUS_VALUES.includes(value)) {
+    throw buildValidationError(
+      'status',
+      `status must be one of: ${SUPPORT_TICKET_STATUS_VALUES.join(', ')}`,
+    );
+  }
+
+  return value;
+};
+
+const parsePositiveInteger = ({
+  defaultValue,
+  field,
+  max,
+  value,
+}) => {
+  if (value == null || value === '') {
+    return defaultValue;
+  }
+
+  if (Array.isArray(value) || !/^\d+$/.test(String(value))) {
+    throw buildValidationError(field, `${field} must be a positive integer`);
+  }
+
+  const parsed = Number.parseInt(String(value), 10);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw buildValidationError(
+      field,
+      `${field} must be greater than or equal to 1`,
+    );
+  }
+
+  if (parsed > max) {
+    throw buildValidationError(
+      field,
+      `${field} must be less than or equal to ${max}`,
+    );
+  }
+
+  return parsed;
 };
 
 const parseRequiredInlineString = ({
@@ -233,6 +292,71 @@ const sanitizeTicketResponse = ({
   user_id: ticket.user_id,
 });
 
+const sanitizeBookingSummary = (ticket) => {
+  if (!ticket.booking_id) {
+    return null;
+  }
+
+  return {
+    booking_code: ticket.booking_code || null,
+    id: ticket.booking_id,
+    status: ticket.booking_status || null,
+  };
+};
+
+const sanitizeServiceSummary = (ticket) => {
+  if (!ticket.service_id) {
+    return null;
+  }
+
+  return {
+    id: ticket.service_id,
+    service_type: ticket.service_type || null,
+    slug: ticket.service_slug || null,
+    title: ticket.service_title || null,
+  };
+};
+
+const sanitizeTicketSummary = (ticket) => ({
+  booking: sanitizeBookingSummary(ticket),
+  closed_at: ticket.closed_at,
+  created_at: ticket.created_at,
+  id: ticket.id,
+  priority: ticket.priority,
+  service: sanitizeServiceSummary(ticket),
+  status: ticket.status,
+  subject: ticket.subject,
+  ticket_code: ticket.ticket_code,
+  updated_at: ticket.updated_at,
+});
+
+const sanitizeTicketReply = (reply) => ({
+  created_at: reply.created_at,
+  id: reply.id,
+  message: reply.message,
+  sender_type: reply.sender_type,
+});
+
+const sanitizeTicketDetail = ({
+  replies,
+  ticket,
+}) => ({
+  booking: sanitizeBookingSummary(ticket),
+  closed_at: ticket.closed_at,
+  created_at: ticket.created_at,
+  customer_email: ticket.customer_email,
+  customer_name: ticket.customer_name,
+  customer_phone: ticket.customer_phone,
+  id: ticket.id,
+  priority: ticket.priority,
+  replies: replies.map(sanitizeTicketReply),
+  service: sanitizeServiceSummary(ticket),
+  status: ticket.status,
+  subject: ticket.subject,
+  ticket_code: ticket.ticket_code,
+  updated_at: ticket.updated_at,
+});
+
 const isTicketCodeDuplicateError = (error) =>
   error?.code === '23505' &&
   (
@@ -278,6 +402,49 @@ const parseCreateTicketBody = (body = {}) => {
       value: body.subject,
     }),
   };
+};
+
+const parseListQuery = (query = {}) => ({
+  limit: parsePositiveInteger({
+    defaultValue: DEFAULT_LIST_LIMIT,
+    field: 'limit',
+    max: MAX_LIST_LIMIT,
+    value: query.limit,
+  }),
+  page: parsePositiveInteger({
+    defaultValue: DEFAULT_LIST_PAGE,
+    field: 'page',
+    max: Number.MAX_SAFE_INTEGER,
+    value: query.page,
+  }),
+  status: parseOptionalTicketStatus(query.status),
+});
+
+const buildPaginationMeta = ({
+  limit,
+  page,
+  total,
+}) => {
+  const normalizedTotal = Number(total || 0);
+  const totalPages = normalizedTotal === 0
+    ? 0
+    : Math.ceil(normalizedTotal / limit);
+
+  return {
+    has_next: page < totalPages,
+    limit,
+    page,
+    total: normalizedTotal,
+    total_pages: totalPages,
+  };
+};
+
+const validateCustomerAuth = (auth) => {
+  const actorRole = auth?.roleCode || auth?.role;
+
+  if (actorRole !== 'customer' || !auth?.userId) {
+    throw buildForbiddenError();
+  }
 };
 
 const createSupportService = ({
@@ -396,8 +563,60 @@ const createSupportService = ({
     return sanitizeTicketResponse(created);
   };
 
+  const listMyTickets = async ({
+    auth,
+    query,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedQuery = parseListQuery(query || {});
+    const offset = (parsedQuery.page - 1) * parsedQuery.limit;
+    const result = await repository.listTicketsByUser({
+      limit: parsedQuery.limit,
+      offset,
+      status: parsedQuery.status,
+      userId: auth.userId,
+    });
+
+    return {
+      items: result.rows.map(sanitizeTicketSummary),
+      meta: buildPaginationMeta({
+        limit: parsedQuery.limit,
+        page: parsedQuery.page,
+        total: result.total,
+      }),
+    };
+  };
+
+  const getMyTicketDetail = async ({
+    auth,
+    ticketId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const ticket = await repository.getTicketByIdAndUser({
+      ticketId: parsedTicketId,
+      userId: auth.userId,
+    });
+
+    if (!ticket) {
+      throw buildResourceNotFoundError('Support ticket not found');
+    }
+
+    const replies = await repository.listRepliesByTicketId(parsedTicketId);
+    const publicReplies = replies.filter((reply) => !reply.is_internal_note);
+
+    return sanitizeTicketDetail({
+      replies: publicReplies,
+      ticket,
+    });
+  };
+
   return {
     createTicket,
+    getMyTicketDetail,
+    listMyTickets,
   };
 };
 

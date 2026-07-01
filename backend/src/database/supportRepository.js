@@ -4,6 +4,126 @@ const createSupportRepository = ({
   queryImpl = query,
   withTransactionImpl = withTransaction,
 } = {}) => {
+  const getTicketByIdAndUser = async ({
+    ticketId,
+    userId,
+  }) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          st.id,
+          st.ticket_code,
+          st.user_id,
+          st.booking_id,
+          st.service_id,
+          st.customer_name,
+          st.customer_email,
+          st.customer_phone,
+          st.subject,
+          st.status,
+          st.priority,
+          st.created_at,
+          st.updated_at,
+          st.closed_at,
+          b.booking_code,
+          b.status AS booking_status,
+          s.title AS service_title,
+          s.slug AS service_slug,
+          s.service_type
+        FROM support_tickets st
+        LEFT JOIN bookings b
+          ON b.id = st.booking_id
+        LEFT JOIN services s
+          ON s.id = st.service_id
+        WHERE st.id = $1
+          AND st.user_id = $2
+        LIMIT 1
+      `,
+      [ticketId, userId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const listRepliesByTicketId = async (ticketId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          ticket_id,
+          sender_id,
+          sender_type,
+          message,
+          is_internal_note,
+          created_at
+        FROM support_replies
+        WHERE ticket_id = $1
+        ORDER BY created_at ASC, id ASC
+      `,
+      [ticketId],
+    );
+
+    return result.rows;
+  };
+
+  const listTicketsByUser = async ({
+    limit,
+    offset,
+    status,
+    userId,
+  }) => {
+    const params = [userId];
+    let filterSql = 'WHERE st.user_id = $1';
+
+    if (status) {
+      params.push(status);
+      filterSql += ` AND st.status = $${params.length}`;
+    }
+
+    params.push(limit);
+    const limitIndex = params.length;
+    params.push(offset);
+    const offsetIndex = params.length;
+
+    const result = await queryImpl(
+      `
+        SELECT
+          st.id,
+          st.ticket_code,
+          st.user_id,
+          st.booking_id,
+          st.service_id,
+          st.subject,
+          st.status,
+          st.priority,
+          st.created_at,
+          st.updated_at,
+          st.closed_at,
+          b.booking_code,
+          b.status AS booking_status,
+          s.title AS service_title,
+          s.slug AS service_slug,
+          s.service_type,
+          COUNT(*) OVER()::int AS total_count
+        FROM support_tickets st
+        LEFT JOIN bookings b
+          ON b.id = st.booking_id
+        LEFT JOIN services s
+          ON s.id = st.service_id
+        ${filterSql}
+        ORDER BY st.updated_at DESC, st.created_at DESC, st.id DESC
+        LIMIT $${limitIndex}
+        OFFSET $${offsetIndex}
+      `,
+      params,
+    );
+
+    return {
+      rows: result.rows,
+      total: result.rows[0]?.total_count || 0,
+    };
+  };
+
   const getBookingById = async (bookingId) => {
     const result = await queryImpl(
       `
@@ -138,6 +258,9 @@ const createSupportRepository = ({
     createTicket,
     getBookingById,
     getServiceById,
+    getTicketByIdAndUser,
+    listRepliesByTicketId,
+    listTicketsByUser,
   };
 };
 
