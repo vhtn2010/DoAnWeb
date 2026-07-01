@@ -16,6 +16,8 @@ const adminBookingService = require('../services/adminBookingService');
 
 const BOOKING_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const originalGetBookingDetail = adminBookingService.getBookingDetail;
+const originalGetBookingStatusHistory =
+  adminBookingService.getBookingStatusHistory;
 const originalListBookings = adminBookingService.listBookings;
 
 const request = (server, path, options = {}) =>
@@ -81,6 +83,7 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
 
 test.afterEach(() => {
   adminBookingService.getBookingDetail = originalGetBookingDetail;
+  adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
   adminBookingService.listBookings = originalListBookings;
 });
 
@@ -327,6 +330,113 @@ test('adminBookingService.getBookingDetail returns sanitized admin-safe booking 
   assert.equal(result.refunds[0].raw_response, undefined);
 });
 
+test('adminBookingService.getBookingStatusHistory returns ascending admin-safe timeline and limits staff identity fields', async () => {
+  const service = adminBookingService.createAdminBookingService({
+    repository: {
+      getBookingById: async ({ bookingId }) => {
+        assert.equal(bookingId, BOOKING_ID);
+
+        return {
+          id: BOOKING_ID,
+        };
+      },
+      listBookingStatusHistoriesByBookingId: async (bookingId) => {
+        assert.equal(bookingId, BOOKING_ID);
+
+        return [
+          {
+            changed_by: null,
+            changed_by_full_name: null,
+            changed_by_role_code: null,
+            created_at: '2026-07-01T01:00:00.000Z',
+            from_status: null,
+            id: '11111111-1111-4111-8111-111111111111',
+            reason: null,
+            to_status: 'pending_payment',
+          },
+          {
+            changed_by: '22222222-2222-4222-8222-222222222222',
+            changed_by_full_name: 'Tran Admin',
+            changed_by_role_code: 'admin',
+            created_at: '2026-07-01T02:00:00.000Z',
+            from_status: 'pending_payment',
+            id: '33333333-3333-4333-8333-333333333333',
+            reason: 'Payment verified',
+            to_status: 'paid',
+          },
+        ];
+      },
+    },
+  });
+
+  const adminResult = await service.getBookingStatusHistory({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['booking.read_all'],
+      },
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.deepEqual(adminResult, [
+    {
+      changed_by: 'system',
+      created_at: '2026-07-01T01:00:00.000Z',
+      from_status: null,
+      id: '11111111-1111-4111-8111-111111111111',
+      reason: null,
+      to_status: 'pending_payment',
+    },
+    {
+      changed_by: {
+        full_name: 'Tran Admin',
+        id: '22222222-2222-4222-8222-222222222222',
+        role_code: 'admin',
+        type: 'admin',
+      },
+      created_at: '2026-07-01T02:00:00.000Z',
+      from_status: 'pending_payment',
+      id: '33333333-3333-4333-8333-333333333333',
+      reason: 'Payment verified',
+      to_status: 'paid',
+    },
+  ]);
+
+  const staffResult = await service.getBookingStatusHistory({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: ['service-1'],
+      tokenPayload: {
+        permissions: ['booking.read_all'],
+      },
+    },
+    booking_id: BOOKING_ID,
+  });
+
+  assert.deepEqual(staffResult, [
+    {
+      changed_by: 'system',
+      created_at: '2026-07-01T01:00:00.000Z',
+      from_status: null,
+      id: '11111111-1111-4111-8111-111111111111',
+      reason: null,
+      to_status: 'pending_payment',
+    },
+    {
+      changed_by: {
+        id: '22222222-2222-4222-8222-222222222222',
+        type: 'admin',
+      },
+      created_at: '2026-07-01T02:00:00.000Z',
+      from_status: 'pending_payment',
+      id: '33333333-3333-4333-8333-333333333333',
+      reason: 'Payment verified',
+      to_status: 'paid',
+    },
+  ]);
+});
+
 test('GET /api/admin/bookings requires a bearer token', async () => {
   const server = app.listen(0);
 
@@ -517,6 +627,91 @@ test('GET /api/admin/bookings/{booking_id} validates UUID and returns admin book
     ]);
   } finally {
     adminBookingService.getBookingDetail = originalGetBookingDetail;
+    server.close();
+  }
+});
+
+test('GET /api/admin/bookings/{booking_id}/status-history returns admin booking timeline and validates bad UUID', async () => {
+  const server = app.listen(0);
+  const token = createAccessToken({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['booking.read_all'],
+    role: 'admin',
+    sub: 'admin-1',
+  });
+
+  adminBookingService.getBookingStatusHistory = async (payload) => {
+    assert.deepEqual(payload, {
+      auth: {
+        role: 'admin',
+        serviceScopeIds: null,
+        tokenPayload: {
+          exp: payload.auth.tokenPayload.exp,
+          permissions: ['booking.read_all'],
+          role: 'admin',
+          sub: 'admin-1',
+        },
+        userId: 'admin-1',
+      },
+      booking_id: BOOKING_ID,
+    });
+
+    return [
+      {
+        changed_by: 'system',
+        created_at: '2026-07-01T01:00:00.000Z',
+        from_status: null,
+        id: '11111111-1111-4111-8111-111111111111',
+        reason: null,
+        to_status: 'pending_payment',
+      },
+    ];
+  };
+
+  try {
+    const successResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/${BOOKING_ID}/status-history`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    assert.equal(successResponse.statusCode, 200);
+    assert.equal(
+      successResponse.body.message,
+      'Admin booking status history retrieved successfully',
+    );
+    assert.equal(successResponse.body.data.length, 1);
+    assert.equal(successResponse.body.data[0].changed_by, 'system');
+
+    adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
+
+    const badUuidResponse = await request(
+      server,
+      `${apiPrefix}/admin/bookings/not-a-uuid/status-history`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    assert.equal(badUuidResponse.statusCode, 400);
+    assert.equal(
+      badUuidResponse.body.error.code,
+      API_ERROR_CODES.VALIDATION_ERROR,
+    );
+    assert.deepEqual(badUuidResponse.body.error.details, [
+      {
+        field: 'booking_id',
+        message: 'booking_id must be a valid UUID',
+      },
+    ]);
+  } finally {
+    adminBookingService.getBookingStatusHistory = originalGetBookingStatusHistory;
     server.close();
   }
 });

@@ -314,6 +314,72 @@ const sanitizeRefundSummary = (refund) => ({
   status: refund.status,
 });
 
+const mapChangedByType = (roleCode) => {
+  if (!roleCode) {
+    return 'system';
+  }
+
+  if (roleCode === 'system_admin' || roleCode === 'admin') {
+    return 'admin';
+  }
+
+  if (roleCode === 'staff') {
+    return 'staff';
+  }
+
+  if (roleCode === 'customer') {
+    return 'customer';
+  }
+
+  return 'system';
+};
+
+const sanitizeStatusHistoryEntry = ({
+  auth,
+  entry,
+}) => {
+  if (!entry.changed_by) {
+    return {
+      changed_by: 'system',
+      created_at: entry.created_at,
+      from_status: entry.from_status,
+      id: entry.id,
+      reason: entry.reason,
+      to_status: entry.to_status,
+    };
+  }
+
+  const changedByType = mapChangedByType(entry.changed_by_role_code);
+
+  if (auth?.role === 'staff') {
+    return {
+      changed_by: {
+        id: entry.changed_by,
+        type: changedByType,
+      },
+      created_at: entry.created_at,
+      from_status: entry.from_status,
+      id: entry.id,
+      reason: entry.reason,
+      to_status: entry.to_status,
+    };
+  }
+
+  return {
+    changed_by: {
+      full_name: entry.changed_by_full_name || null,
+      id: entry.changed_by,
+      role_code: entry.changed_by_role_code || null,
+      type: changedByType,
+    },
+    created_at: entry.created_at,
+    from_status: entry.from_status,
+    id: entry.id,
+    reason: entry.reason,
+    to_status: entry.to_status,
+  };
+};
+
 const sanitizeBookingDetail = ({
   booking,
   items,
@@ -423,8 +489,35 @@ const createAdminBookingService = ({
     });
   };
 
+  const getBookingStatusHistory = async ({
+    auth,
+    booking_id: bookingId,
+  } = {}) => {
+    ensureAdminBookingReadAccess(auth);
+
+    const parsedBookingId = parseBookingId(bookingId);
+    const booking = await repository.getBookingById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingId: parsedBookingId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError();
+    }
+
+    const histories =
+      await repository.listBookingStatusHistoriesByBookingId(parsedBookingId);
+
+    return histories.map((entry) =>
+      sanitizeStatusHistoryEntry({
+        auth,
+        entry,
+      }));
+  };
+
   return {
     getBookingDetail,
+    getBookingStatusHistory,
     listBookings,
   };
 };

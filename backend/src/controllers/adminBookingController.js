@@ -25,7 +25,20 @@ const getAdminBookingDetail = async (req, res) => {
   });
 };
 
+const getAdminBookingStatusHistory = async (req, res) => {
+  const data = await adminBookingService.getBookingStatusHistory({
+    auth: req.auth,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking status history retrieved successfully',
+  });
+};
+
 module.exports = {
   getAdminBookingDetail,
+  getAdminBookingStatusHistory,
   listAdminBookings,
 };
