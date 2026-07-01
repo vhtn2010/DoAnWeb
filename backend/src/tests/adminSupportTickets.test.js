@@ -21,8 +21,11 @@ const BOOKING_ID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const SERVICE_ID = '11111111-1111-4111-8111-111111111111';
 
 const originalAssignAdminTicket = supportService.assignAdminTicket;
+const originalCloseAdminTicket = supportService.closeAdminTicket;
 const originalGetAdminTicketDetail = supportService.getAdminTicketDetail;
 const originalListAdminTickets = supportService.listAdminTickets;
+const originalMarkAdminTicketAsSpam = supportService.markAdminTicketAsSpam;
+const originalReopenAdminTicket = supportService.reopenAdminTicket;
 const originalReplyToAdminTicket = supportService.replyToAdminTicket;
 const originalUpdateAdminTicket = supportService.updateAdminTicket;
 
@@ -74,8 +77,11 @@ const request = (server, path, options = {}) =>
 
 test.afterEach(() => {
   supportService.assignAdminTicket = originalAssignAdminTicket;
+  supportService.closeAdminTicket = originalCloseAdminTicket;
   supportService.getAdminTicketDetail = originalGetAdminTicketDetail;
   supportService.listAdminTickets = originalListAdminTickets;
+  supportService.markAdminTicketAsSpam = originalMarkAdminTicketAsSpam;
+  supportService.reopenAdminTicket = originalReopenAdminTicket;
   supportService.replyToAdminTicket = originalReplyToAdminTicket;
   supportService.updateAdminTicket = originalUpdateAdminTicket;
 });
@@ -730,6 +736,283 @@ test('supportService.replyToAdminTicket creates internal note without changing s
   );
 });
 
+test('supportService.closeAdminTicket closes an allowed ticket and supports idempotent closed state', async () => {
+  let updatePayload = null;
+  const service = createSupportService({
+    repository: {
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: ASSIGNED_STAFF_ID,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'waiting_staff',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:20:00.000Z',
+      }),
+      updateTicketForAdmin: async (payload) => {
+        updatePayload = payload;
+
+        return {
+          assigned_to: ASSIGNED_STAFF_ID,
+          closed_at: '2026-07-01T10:35:00.000Z',
+          id: TICKET_ID,
+          priority: 'normal',
+          status: 'closed',
+          ticket_code: 'TK20260701AAAA0001',
+          updated_at: '2026-07-01T10:35:00.000Z',
+        };
+      },
+    },
+  });
+
+  const result = await service.closeAdminTicket({
+    auth: {
+      role: 'staff',
+      tokenPayload: {
+        permissions: ['support.close'],
+      },
+      userId: STAFF_ID,
+    },
+    body: {
+      reason: 'Issue resolved by support team.',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(updatePayload.action, 'admin.support.ticket_close');
+  assert.equal(updatePayload.updates.status, 'closed');
+  assert.ok(updatePayload.updates.closed_at);
+  assert.equal(result.status, 'closed');
+  assert.ok(result.closed_at);
+
+  const idempotentService = createSupportService({
+    repository: {
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: ASSIGNED_STAFF_ID,
+        closed_at: '2026-07-01T10:35:00.000Z',
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'closed',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:35:00.000Z',
+      }),
+      updateTicketForAdmin: async () => {
+        throw new Error('updateTicketForAdmin should not be called for closed ticket');
+      },
+    },
+  });
+
+  const idempotentResult = await idempotentService.closeAdminTicket({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['support.close'],
+      },
+      userId: ADMIN_ID,
+    },
+    body: {
+      reason: 'Already closed.',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(idempotentResult.status, 'closed');
+});
+
+test('supportService.reopenAdminTicket reopens closed or resolved tickets and rejects invalid states', async () => {
+  let updatePayload = null;
+  const service = createSupportService({
+    repository: {
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: ASSIGNED_STAFF_ID,
+        closed_at: '2026-07-01T10:35:00.000Z',
+        id: TICKET_ID,
+        priority: 'high',
+        status: 'closed',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:35:00.000Z',
+      }),
+      updateTicketForAdmin: async (payload) => {
+        updatePayload = payload;
+
+        return {
+          assigned_to: ASSIGNED_STAFF_ID,
+          closed_at: null,
+          id: TICKET_ID,
+          priority: 'high',
+          status: 'open',
+          ticket_code: 'TK20260701AAAA0001',
+          updated_at: '2026-07-01T10:40:00.000Z',
+        };
+      },
+    },
+  });
+
+  const result = await service.reopenAdminTicket({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['support.close'],
+      },
+      userId: ADMIN_ID,
+    },
+    body: {
+      reason: 'Customer needs further assistance.',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(updatePayload.action, 'admin.support.ticket_reopen');
+  assert.equal(updatePayload.updates.status, 'open');
+  assert.equal(updatePayload.updates.closed_at, null);
+  assert.equal(result.status, 'open');
+  assert.equal(result.closed_at, null);
+
+  const invalidStateService = createSupportService({
+    repository: {
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'normal',
+        status: 'open',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:20:00.000Z',
+      }),
+      updateTicketForAdmin: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => invalidStateService.reopenAdminTicket({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['support.close'],
+        },
+        userId: ADMIN_ID,
+      },
+      body: {
+        reason: 'Need reopen.',
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('supportService.markAdminTicketAsSpam requires manage permission and supports idempotent spam state', async () => {
+  let updatePayload = null;
+  const service = createSupportService({
+    repository: {
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        closed_at: null,
+        id: TICKET_ID,
+        priority: 'urgent',
+        status: 'open',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:20:00.000Z',
+      }),
+      updateTicketForAdmin: async (payload) => {
+        updatePayload = payload;
+
+        return {
+          assigned_to: null,
+          closed_at: '2026-07-01T10:45:00.000Z',
+          id: TICKET_ID,
+          priority: 'urgent',
+          status: 'spam',
+          ticket_code: 'TK20260701AAAA0001',
+          updated_at: '2026-07-01T10:45:00.000Z',
+        };
+      },
+    },
+  });
+
+  const result = await service.markAdminTicketAsSpam({
+    auth: {
+      role: 'system_admin',
+      tokenPayload: {
+        permissions: ['support.manage'],
+      },
+      userId: ADMIN_ID,
+    },
+    body: {
+      reason: 'Detected as spam content.',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(updatePayload.action, 'admin.support.ticket_mark_spam');
+  assert.equal(updatePayload.updates.status, 'spam');
+  assert.ok(updatePayload.updates.closed_at);
+  assert.equal(result.status, 'spam');
+
+  const idempotentService = createSupportService({
+    repository: {
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        closed_at: '2026-07-01T10:45:00.000Z',
+        id: TICKET_ID,
+        priority: 'urgent',
+        status: 'spam',
+        ticket_code: 'TK20260701AAAA0001',
+        updated_at: '2026-07-01T10:45:00.000Z',
+      }),
+      updateTicketForAdmin: async () => {
+        throw new Error('updateTicketForAdmin should not be called for spam ticket');
+      },
+    },
+  });
+
+  const idempotentResult = await idempotentService.markAdminTicketAsSpam({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['support.manage'],
+      },
+      userId: ADMIN_ID,
+    },
+    body: {
+      reason: 'Already spam.',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(idempotentResult.status, 'spam');
+
+  const forbiddenService = createSupportService({
+    repository: {
+      getTicketByIdForAdmin: async () => null,
+      updateTicketForAdmin: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => forbiddenService.markAdminTicketAsSpam({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['support.close'],
+        },
+        userId: STAFF_ID,
+      },
+      body: {
+        reason: 'Spam.',
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+});
+
 test('GET /admin/support/tickets requires admin authentication', async () => {
   const server = app.listen(0);
 
@@ -1142,6 +1425,170 @@ test('POST /admin/support/tickets/{ticket_id}/replies blocks customer role', asy
 
     assert.equal(response.statusCode, 403);
     assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /admin/support/tickets/{ticket_id}/close returns closed ticket result', async () => {
+  const server = app.listen(0);
+  supportService.closeAdminTicket = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.role, 'staff');
+    assert.equal(ticketId, TICKET_ID);
+    assert.equal(body.reason, 'Resolved and closing ticket.');
+
+    return {
+      assigned_to: ASSIGNED_STAFF_ID,
+      closed_at: '2026-07-01T10:40:00.000Z',
+      id: TICKET_ID,
+      priority: 'normal',
+      status: 'closed',
+      ticket_code: 'TK20260701AAAA0001',
+      updated_at: '2026-07-01T10:40:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/close`,
+      {
+        body: {
+          reason: 'Resolved and closing ticket.',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.close'],
+            roleCode: 'staff',
+            userId: STAFF_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.status, 'closed');
+    assert.ok(response.body.data.closed_at);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /admin/support/tickets/{ticket_id}/reopen returns reopened ticket result', async () => {
+  const server = app.listen(0);
+  supportService.reopenAdminTicket = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.role, 'admin');
+    assert.equal(ticketId, TICKET_ID);
+    assert.equal(body.reason, 'Customer replied again.');
+
+    return {
+      assigned_to: ASSIGNED_STAFF_ID,
+      closed_at: null,
+      id: TICKET_ID,
+      priority: 'high',
+      status: 'open',
+      ticket_code: 'TK20260701AAAA0001',
+      updated_at: '2026-07-01T10:42:00.000Z',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/reopen`,
+      {
+        body: {
+          reason: 'Customer replied again.',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.close'],
+            roleCode: 'admin',
+            userId: ADMIN_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.status, 'open');
+    assert.equal(response.body.data.closed_at, null);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /admin/support/tickets/{ticket_id}/mark-spam returns spam result and blocks customer role', async () => {
+  const server = app.listen(0);
+  supportService.markAdminTicketAsSpam = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.role, 'system_admin');
+    assert.equal(ticketId, TICKET_ID);
+    assert.equal(body.reason, 'Spam campaign detected.');
+
+    return {
+      assigned_to: null,
+      closed_at: '2026-07-01T10:44:00.000Z',
+      id: TICKET_ID,
+      priority: 'urgent',
+      status: 'spam',
+      ticket_code: 'TK20260701AAAA0001',
+      updated_at: '2026-07-01T10:44:00.000Z',
+    };
+  };
+
+  try {
+    const okResponse = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/mark-spam`,
+      {
+        body: {
+          reason: 'Spam campaign detected.',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.manage'],
+            roleCode: 'system_admin',
+            userId: ADMIN_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(okResponse.statusCode, 200);
+    assert.equal(okResponse.body.success, true);
+    assert.equal(okResponse.body.data.status, 'spam');
+
+    const forbiddenResponse = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/mark-spam`,
+      {
+        body: {
+          reason: 'Spam campaign detected.',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.manage'],
+            roleCode: 'customer',
+            userId: '99999999-9999-4999-8999-999999999999',
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

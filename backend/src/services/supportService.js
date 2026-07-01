@@ -52,6 +52,17 @@ const ADMIN_SUPPORT_REPLY_ALLOWED_STATUSES = Object.freeze([
   SUPPORT_TICKET_STATUS.WAITING_STAFF,
   SUPPORT_TICKET_STATUS.RESOLVED,
 ]);
+const ADMIN_SUPPORT_CLOSE_ALLOWED_STATUSES = Object.freeze([
+  SUPPORT_TICKET_STATUS.OPEN,
+  SUPPORT_TICKET_STATUS.ASSIGNED,
+  SUPPORT_TICKET_STATUS.WAITING_CUSTOMER,
+  SUPPORT_TICKET_STATUS.WAITING_STAFF,
+  SUPPORT_TICKET_STATUS.RESOLVED,
+]);
+const ADMIN_SUPPORT_REOPEN_ALLOWED_STATUSES = Object.freeze([
+  SUPPORT_TICKET_STATUS.CLOSED,
+  SUPPORT_TICKET_STATUS.RESOLVED,
+]);
 
 const buildAppError = ({
   code,
@@ -797,6 +808,32 @@ const parseCloseBody = (body = {}) => {
   };
 };
 
+const parseAdminResolutionBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const allowedFields = new Set(['reason']);
+
+  for (const key of Object.keys(body)) {
+    if (!allowedFields.has(key)) {
+      throw buildValidationError(key, `${key} is not allowed in this endpoint`);
+    }
+  }
+
+  const reason = parseOptionalMessage({
+    field: 'reason',
+    maxLength: 2000,
+    value: body.reason,
+  });
+
+  if (!reason) {
+    throw buildValidationError('reason', 'reason is required');
+  }
+
+  return { reason };
+};
+
 const buildPaginationMeta = ({
   limit,
   page,
@@ -928,6 +965,40 @@ const ensureAdminSupportReplyAccess = (auth) => {
     hasAnyPermission(auth, [
       'support.reply',
       'support.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureAdminSupportCloseAccess = (auth) => {
+  if (!ADMIN_SUPPORT_ALLOWED_ROLES.includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'support.close',
+      'support.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureAdminSupportManageAccess = (auth) => {
+  if (!ADMIN_SUPPORT_ALLOWED_ROLES.includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'support.manage',
+      'support.mark_spam',
     ])
   ) {
     return;
@@ -1420,14 +1491,175 @@ const createSupportService = ({
     return sanitizeAdminReplyMutationResult(result);
   };
 
+  const closeAdminTicket = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    ensureAdminSupportCloseAccess(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseAdminResolutionBody(body || {});
+    const ticket = await repository.getTicketByIdForAdmin({
+      staffScopeUserId: resolveAdminSupportScope(auth),
+      ticketId: parsedTicketId,
+    });
+
+    if (!ticket) {
+      throw buildResourceNotFoundError('Support ticket not found');
+    }
+
+    if (ticket.status === SUPPORT_TICKET_STATUS.SPAM) {
+      throw buildInvalidStateTransitionError(
+        'This support ticket status does not allow admin close',
+      );
+    }
+
+    if (ticket.status === SUPPORT_TICKET_STATUS.CLOSED) {
+      return sanitizeAdminTicketMutationResult(ticket);
+    }
+
+    if (!ADMIN_SUPPORT_CLOSE_ALLOWED_STATUSES.includes(ticket.status)) {
+      throw buildInvalidStateTransitionError(
+        'This support ticket status does not allow admin close',
+      );
+    }
+
+    const updatedTicket = await repository.updateTicketForAdmin({
+      action: 'admin.support.ticket_close',
+      actorUserId: auth?.userId || null,
+      metadata: {
+        new_values: {
+          closed_at: 'NOW()',
+          status: SUPPORT_TICKET_STATUS.CLOSED,
+        },
+        old_values: {
+          closed_at: ticket.closed_at || null,
+          status: ticket.status,
+        },
+        reason: parsedBody.reason,
+      },
+      ticketId: parsedTicketId,
+      updates: {
+        closed_at: new Date().toISOString(),
+        status: SUPPORT_TICKET_STATUS.CLOSED,
+      },
+    });
+
+    return sanitizeAdminTicketMutationResult(updatedTicket);
+  };
+
+  const reopenAdminTicket = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    ensureAdminSupportCloseAccess(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseAdminResolutionBody(body || {});
+    const ticket = await repository.getTicketByIdForAdmin({
+      staffScopeUserId: resolveAdminSupportScope(auth),
+      ticketId: parsedTicketId,
+    });
+
+    if (!ticket) {
+      throw buildResourceNotFoundError('Support ticket not found');
+    }
+
+    if (ticket.status === SUPPORT_TICKET_STATUS.SPAM) {
+      throw buildInvalidStateTransitionError(
+        'This support ticket status does not allow admin reopen',
+      );
+    }
+
+    if (!ADMIN_SUPPORT_REOPEN_ALLOWED_STATUSES.includes(ticket.status)) {
+      throw buildInvalidStateTransitionError(
+        'This support ticket status does not allow admin reopen',
+      );
+    }
+
+    const updatedTicket = await repository.updateTicketForAdmin({
+      action: 'admin.support.ticket_reopen',
+      actorUserId: auth?.userId || null,
+      metadata: {
+        new_values: {
+          closed_at: null,
+          status: SUPPORT_TICKET_STATUS.OPEN,
+        },
+        old_values: {
+          closed_at: ticket.closed_at || null,
+          status: ticket.status,
+        },
+        reason: parsedBody.reason,
+      },
+      ticketId: parsedTicketId,
+      updates: {
+        closed_at: null,
+        status: SUPPORT_TICKET_STATUS.OPEN,
+      },
+    });
+
+    return sanitizeAdminTicketMutationResult(updatedTicket);
+  };
+
+  const markAdminTicketAsSpam = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    ensureAdminSupportManageAccess(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseAdminResolutionBody(body || {});
+    const ticket = await repository.getTicketByIdForAdmin({
+      staffScopeUserId: resolveAdminSupportScope(auth),
+      ticketId: parsedTicketId,
+    });
+
+    if (!ticket) {
+      throw buildResourceNotFoundError('Support ticket not found');
+    }
+
+    if (ticket.status === SUPPORT_TICKET_STATUS.SPAM) {
+      return sanitizeAdminTicketMutationResult(ticket);
+    }
+
+    const updatedTicket = await repository.updateTicketForAdmin({
+      action: 'admin.support.ticket_mark_spam',
+      actorUserId: auth?.userId || null,
+      metadata: {
+        new_values: {
+          closed_at: 'NOW()',
+          status: SUPPORT_TICKET_STATUS.SPAM,
+        },
+        old_values: {
+          closed_at: ticket.closed_at || null,
+          status: ticket.status,
+        },
+        reason: parsedBody.reason,
+      },
+      ticketId: parsedTicketId,
+      updates: {
+        closed_at: new Date().toISOString(),
+        status: SUPPORT_TICKET_STATUS.SPAM,
+      },
+    });
+
+    return sanitizeAdminTicketMutationResult(updatedTicket);
+  };
+
   return {
     assignAdminTicket,
+    closeAdminTicket,
     closeMyTicket,
     createTicket,
     getAdminTicketDetail,
     getMyTicketDetail,
     listAdminTickets,
     listMyTickets,
+    markAdminTicketAsSpam,
+    reopenAdminTicket,
     replyToAdminTicket,
     replyToTicket,
     updateAdminTicket,
