@@ -13,6 +13,19 @@ const requestBookingCancellation = async (req, res) => {
   });
 };
 
+const updateMyBookingContact = async (req, res) => {
+  const data = await bookingService.updateMyBookingContact({
+    auth: req.auth,
+    body: req.body,
+    bookingId: req.params.booking_id,
+  });
+
+  res.success({
+    data,
+    message: 'Booking contact updated successfully',
+  });
+};
+
 const getMyBookingInvoice = async (req, res) => {
   const data = await bookingService.getMyBookingInvoice({
     auth: req.auth,
@@ -108,4 +121,5 @@ module.exports = {
   getMyBookingStatusHistory,
   listMyBookings,
   requestBookingCancellation,
+  updateMyBookingContact,
 };

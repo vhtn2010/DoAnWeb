@@ -768,6 +768,96 @@ const createBookingRepository = ({
     }
   };
 
+  const updateBookingContact = async ({
+    actorUserId,
+    bookingId,
+    updates,
+  }) => {
+    const pool = getPoolImpl();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const assignments = [];
+      const values = [bookingId];
+      const metadata = {};
+
+      if (Object.prototype.hasOwnProperty.call(updates, 'contact_name')) {
+        values.push(updates.contact_name);
+        assignments.push(`contact_name = $${values.length}`);
+        metadata.contact_name = updates.contact_name;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updates, 'contact_phone')) {
+        values.push(updates.contact_phone);
+        assignments.push(`contact_phone = $${values.length}`);
+        metadata.contact_phone = updates.contact_phone;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updates, 'note')) {
+        values.push(updates.note);
+        assignments.push(`note = $${values.length}`);
+        metadata.note = updates.note;
+      }
+
+      assignments.push('updated_at = NOW()');
+
+      const updateSql = `
+        UPDATE bookings
+        SET
+          ${assignments.join(',\n          ')}
+        WHERE id = $1
+        RETURNING
+          id,
+          booking_code,
+          status,
+          contact_name,
+          contact_phone,
+          note,
+          updated_at
+      `;
+      const updatedBookingResult = await client.query(updateSql, values);
+
+      if (updatedBookingResult.rowCount !== 1) {
+        throw new AppError('Booking not found', {
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          statusCode: 404,
+        });
+      }
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          'customer.booking.contact_update',
+          'booking',
+          bookingId,
+          metadata,
+        ],
+      );
+
+      await client.query('COMMIT');
+
+      return updatedBookingResult.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+
   return {
     countActiveBookingsByVoucherAndUser,
     createCheckout,
@@ -787,6 +877,7 @@ const createBookingRepository = ({
     listBookingsByUser,
     listCartItemsByCartId,
     requestBookingCancellation,
+    updateBookingContact,
   };
 };
 

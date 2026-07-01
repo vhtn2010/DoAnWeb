@@ -30,6 +30,10 @@ const CANCEL_REQUEST_ALLOWED_STATUSES = Object.freeze([
   BOOKING_STATUS.PAID,
   BOOKING_STATUS.CONFIRMED,
 ]);
+const CONTACT_UPDATE_ALLOWED_STATUSES = Object.freeze([
+  BOOKING_STATUS.PENDING_PAYMENT,
+  BOOKING_STATUS.PAYMENT_PROCESSING,
+]);
 
 const buildAppError = ({
   code,
@@ -582,6 +586,62 @@ const parseCancelRequestBody = (body = {}) => {
   };
 };
 
+const parseContactUpdateBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const allowedFields = new Set(['contact_name', 'contact_phone', 'note']);
+  const providedKeys = Object.keys(body);
+
+  if (providedKeys.length === 0) {
+    throw buildValidationError(
+      'body',
+      'At least one of contact_name, contact_phone, or note must be provided',
+    );
+  }
+
+  for (const key of providedKeys) {
+    if (!allowedFields.has(key)) {
+      throw buildValidationError(
+        key,
+        `${key} is not allowed in this endpoint`,
+      );
+    }
+  }
+
+  const updates = {};
+
+  if (Object.prototype.hasOwnProperty.call(body, 'contact_name')) {
+    updates.contact_name = parseRequiredString({
+      field: 'contact_name',
+      maxLength: 150,
+      value: body.contact_name,
+    });
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, 'contact_phone')) {
+    updates.contact_phone = parseContactPhone(body.contact_phone);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, 'note')) {
+    updates.note = parseOptionalString({
+      field: 'note',
+      maxLength: 1000,
+      value: body.note,
+    });
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw buildValidationError(
+      'body',
+      'At least one of contact_name, contact_phone, or note must be provided',
+    );
+  }
+
+  return updates;
+};
+
 const sanitizeSnapshotFlight = (flight) => {
   if (!flight || typeof flight !== 'object' || Array.isArray(flight)) {
     return null;
@@ -796,6 +856,16 @@ const sanitizeBookingStatusHistoryEntry = (history) => ({
 const sanitizeCancelRequestResponse = (booking) => ({
   booking_code: booking.booking_code,
   id: booking.id,
+  status: booking.status,
+  updated_at: booking.updated_at || null,
+});
+
+const sanitizeBookingContactResponse = (booking) => ({
+  booking_code: booking.booking_code,
+  contact_name: booking.contact_name,
+  contact_phone: booking.contact_phone,
+  id: booking.id,
+  note: booking.note,
   status: booking.status,
   updated_at: booking.updated_at || null,
 });
@@ -1524,6 +1594,39 @@ const createBookingService = ({
     return sanitizeCancelRequestResponse(updatedBooking);
   };
 
+  const updateMyBookingContact = async ({
+    auth,
+    body,
+    bookingId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedBookingId = parseUuid('booking_id', bookingId);
+    const updates = parseContactUpdateBody(body || {});
+    const booking = await repository.getBookingByIdAndUser({
+      bookingId: parsedBookingId,
+      userId: auth.userId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError('Booking not found');
+    }
+
+    if (!CONTACT_UPDATE_ALLOWED_STATUSES.includes(booking.status)) {
+      throw buildInvalidStateTransitionError(
+        'This booking status does not allow contact updates',
+      );
+    }
+
+    const updatedBooking = await repository.updateBookingContact({
+      actorUserId: auth.userId,
+      bookingId: parsedBookingId,
+      updates,
+    });
+
+    return sanitizeBookingContactResponse(updatedBooking);
+  };
+
   return {
     checkout,
     downloadMyBookingSummary,
@@ -1533,6 +1636,7 @@ const createBookingService = ({
     getMyBookingStatusHistory,
     listMyBookings,
     requestBookingCancellation,
+    updateMyBookingContact,
   };
 };
 
