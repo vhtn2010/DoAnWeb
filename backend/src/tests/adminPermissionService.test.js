@@ -373,3 +373,113 @@ test('replaceRolePermissions rejects protected system_admin role', async () => {
       error.statusCode === 403,
   );
 });
+
+test('replaceRolePermissions allows updating non-system_admin system role', async () => {
+  const fixedNow = new Date('2026-07-01T00:00:00.000Z');
+  const queries = [];
+  let rolePermissionReadCount = 0;
+  const service = createAdminPermissionService({
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql, params = []) => {
+          queries.push({ params, sql });
+
+          if (sql.includes('FROM roles') && sql.includes('WHERE id = $1')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  code: 'admin',
+                  id: '22222222-2222-4222-8222-222222222222',
+                  is_system_role: true,
+                  level: 80,
+                  name: 'Admin',
+                },
+              ],
+            };
+          }
+
+          if (
+            sql.includes('FROM role_permissions rp') &&
+            sql.includes('JOIN permissions p')
+          ) {
+            rolePermissionReadCount += 1;
+
+            return {
+              rowCount: rolePermissionReadCount === 1 ? 0 : 1,
+              rows:
+                rolePermissionReadCount === 1
+                  ? []
+                  : [
+                      {
+                        action: 'read_all',
+                        code: 'user.read_all',
+                        created_at: fixedNow,
+                        description: 'Read all users',
+                        id: 'permission-1',
+                        module: 'user',
+                        resource: 'user',
+                      },
+                    ],
+            };
+          }
+
+          if (sql.includes('FROM permissions') && sql.includes('WHERE code = ANY')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  action: 'read_all',
+                  code: 'user.read_all',
+                  created_at: fixedNow,
+                  description: 'Read all users',
+                  id: 'permission-1',
+                  module: 'user',
+                  resource: 'user',
+                },
+              ],
+            };
+          }
+
+          if (sql.includes('DELETE FROM role_permissions')) {
+            return {
+              rowCount: 0,
+              rows: [],
+            };
+          }
+
+          if (sql.includes('INSERT INTO role_permissions')) {
+            return {
+              rowCount: 1,
+              rows: [],
+            };
+          }
+
+          if (sql.includes('INSERT INTO user_logs')) {
+            return {
+              rowCount: 1,
+              rows: [],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  const result = await service.replaceRolePermissions({
+    actorRoleCode: 'system_admin',
+    actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    payload: {
+      permission_codes: ['user.read_all'],
+    },
+    roleId: '22222222-2222-4222-8222-222222222222',
+  });
+
+  assert.equal(result.role.code, 'admin');
+  assert.equal(result.permissions.length, 1);
+  assert.ok(
+    queries.some((entry) => entry.sql.includes('DELETE FROM role_permissions')),
+  );
+});
