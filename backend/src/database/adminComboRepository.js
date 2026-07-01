@@ -1,4 +1,4 @@
-const { getPool, query } = require('./queryClient');
+const { getPool, query } = require('./client');
 
 const buildScopedWhere = ({
   allowedServiceIds,
