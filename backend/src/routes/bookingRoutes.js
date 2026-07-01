@@ -8,6 +8,7 @@ const {
   getMyBookingStatusHistory,
   listMyBookings,
   requestBookingCancellation,
+  updateMyBookingContact,
 } = require('../controllers/bookingController');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authRequired } = require('../middleware/authSession');
@@ -70,6 +71,13 @@ router.post(
   authRequired({ allowedRoles: ['customer'] }),
   customerCheckoutRateLimit,
   asyncHandler(requestBookingCancellation),
+);
+
+router.patch(
+  '/bookings/:booking_id/contact',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerCheckoutRateLimit,
+  asyncHandler(updateMyBookingContact),
 );
 
 router.post(
