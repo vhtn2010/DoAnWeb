@@ -1,7 +1,9 @@
 const express = require('express');
 const {
+  cancelAdminBooking,
   completeAdminBooking,
   confirmAdminBooking,
+  expireAdminBooking,
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,
@@ -60,6 +62,20 @@ router.post(
   requireAdminAuth,
   adminBookingRateLimit,
   asyncHandler(completeAdminBooking),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/cancel',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(cancelAdminBooking),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/expire',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(expireAdminBooking),
 );
 
 module.exports = router;

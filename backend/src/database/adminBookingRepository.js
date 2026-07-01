@@ -451,9 +451,44 @@ const createAdminBookingRepository = ({
       toStatus: 'completed',
     });
 
+  const cancelBooking = async ({
+    actorUserId,
+    bookingId,
+    fromStatus,
+    reason,
+  }) =>
+    transitionBookingStatusWithItems({
+      actorUserId,
+      bookingId,
+      fromStatus,
+      itemStatusFrom: ['pending', 'confirmed'],
+      itemStatusTo: 'cancelled',
+      logAction: 'admin.booking.cancel',
+      reason,
+      toStatus: 'cancelled',
+    });
+
+  const expireBooking = async ({
+    actorUserId,
+    bookingId,
+    reason,
+  }) =>
+    transitionBookingStatusWithItems({
+      actorUserId,
+      bookingId,
+      fromStatus: 'pending_payment',
+      itemStatusFrom: ['pending', 'confirmed'],
+      itemStatusTo: 'failed',
+      logAction: 'admin.booking.expire',
+      reason,
+      toStatus: 'expired',
+    });
+
   return {
+    cancelBooking,
     completeBooking,
     confirmBooking,
+    expireBooking,
     getBookingById,
     listBookingItemsByBookingId,
     listBookingPaymentsByBookingId,

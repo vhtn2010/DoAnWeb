@@ -76,9 +76,37 @@ const completeAdminBooking = async (req, res) => {
   });
 };
 
+const cancelAdminBooking = async (req, res) => {
+  const data = await adminBookingService.cancelBooking({
+    auth: req.auth,
+    body: req.body,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking cancelled successfully',
+  });
+};
+
+const expireAdminBooking = async (req, res) => {
+  const data = await adminBookingService.expireBooking({
+    auth: req.auth,
+    body: req.body,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking expired successfully',
+  });
+};
+
 module.exports = {
+  cancelAdminBooking,
   completeAdminBooking,
   confirmAdminBooking,
+  expireAdminBooking,
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,

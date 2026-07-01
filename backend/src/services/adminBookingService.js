@@ -316,6 +316,46 @@ const ensureAdminBookingCompleteAccess = (auth) => {
   throw buildForbiddenError();
 };
 
+const ensureAdminBookingCancelAccess = (auth) => {
+  const role = auth?.role;
+
+  if (!['staff', 'admin', 'system_admin'].includes(role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'booking.cancel',
+      'booking.update_status',
+      'booking.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureAdminBookingExpireAccess = (auth) => {
+  const role = auth?.role;
+
+  if (!['staff', 'admin', 'system_admin'].includes(role)) {
+    throw buildForbiddenError();
+  }
+
+  if (
+    hasAnyPermission(auth, [
+      'booking.expire',
+      'booking.update_status',
+      'booking.manage',
+    ])
+  ) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
 const resolveScopeServiceIds = (auth) => {
   if (auth?.role !== 'staff') {
     return null;
@@ -587,6 +627,14 @@ const hasSufficientSuccessfulPaymentForConfirmation = ({
   return successfulTotal >= roundMoney(booking.total_amount);
 };
 
+const buildCurrentBookingStatusResult = (booking) =>
+  sanitizeBookingStatusUpdateResult({
+    booking_code: booking.booking_code,
+    id: booking.id,
+    status: booking.status,
+    updated_at: booking.updated_at,
+  });
+
 const createAdminBookingService = ({
   repository = createAdminBookingRepository(),
 } = {}) => {
@@ -779,12 +827,7 @@ const createAdminBookingService = ({
     }
 
     if (booking.status === 'confirmed') {
-      return sanitizeBookingStatusUpdateResult({
-        booking_code: booking.booking_code,
-        id: booking.id,
-        status: booking.status,
-        updated_at: booking.updated_at,
-      });
+      return buildCurrentBookingStatusResult(booking);
     }
 
     if (booking.status !== 'paid') {
@@ -830,12 +873,7 @@ const createAdminBookingService = ({
     }
 
     if (booking.status === 'completed') {
-      return sanitizeBookingStatusUpdateResult({
-        booking_code: booking.booking_code,
-        id: booking.id,
-        status: booking.status,
-        updated_at: booking.updated_at,
-      });
+      return buildCurrentBookingStatusResult(booking);
     }
 
     if (booking.status !== 'in_progress') {
@@ -853,9 +891,106 @@ const createAdminBookingService = ({
     return sanitizeBookingStatusUpdateResult(updatedBooking);
   };
 
+  const cancelBooking = async ({
+    auth,
+    body,
+    booking_id: bookingId,
+  } = {}) => {
+    ensureAdminBookingCancelAccess(auth);
+
+    const parsedBookingId = parseBookingId(bookingId);
+    const reason = parseRequiredReason(body?.reason);
+    const booking = await repository.getBookingById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingId: parsedBookingId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (booking.status === 'cancelled') {
+      return buildCurrentBookingStatusResult(booking);
+    }
+
+    if (
+      ![
+        'pending_payment',
+        'paid',
+        'confirmed',
+        'cancel_requested',
+        'refund_pending',
+      ].includes(booking.status)
+    ) {
+      throw buildInvalidStateTransitionError(
+        'Booking is not in a state that allows cancellation',
+      );
+    }
+
+    const updatedBooking = await repository.cancelBooking({
+      actorUserId: auth?.userId || null,
+      bookingId: parsedBookingId,
+      fromStatus: booking.status,
+      reason,
+    });
+
+    return sanitizeBookingStatusUpdateResult(updatedBooking);
+  };
+
+  const expireBooking = async ({
+    auth,
+    body,
+    booking_id: bookingId,
+  } = {}) => {
+    ensureAdminBookingExpireAccess(auth);
+
+    const parsedBookingId = parseBookingId(bookingId);
+    const reason = parseRequiredReason(body?.reason);
+    const booking = await repository.getBookingById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      bookingId: parsedBookingId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (booking.status === 'expired') {
+      return buildCurrentBookingStatusResult(booking);
+    }
+
+    if (booking.status !== 'pending_payment') {
+      throw buildInvalidStateTransitionError(
+        'Only pending_payment bookings can be expired',
+      );
+    }
+
+    if (!booking.expires_at) {
+      throw buildInvalidStateTransitionError(
+        'Booking cannot be expired before expires_at is reached',
+      );
+    }
+
+    if (new Date(booking.expires_at).getTime() > Date.now()) {
+      throw buildInvalidStateTransitionError(
+        'Booking cannot be expired before expires_at is reached',
+      );
+    }
+
+    const updatedBooking = await repository.expireBooking({
+      actorUserId: auth?.userId || null,
+      bookingId: parsedBookingId,
+      reason,
+    });
+
+    return sanitizeBookingStatusUpdateResult(updatedBooking);
+  };
+
   return {
+    cancelBooking,
     completeBooking,
     confirmBooking,
+    expireBooking,
     getBookingDetail,
     getBookingStatusHistory,
     listBookings,
