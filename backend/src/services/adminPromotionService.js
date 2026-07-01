@@ -20,13 +20,8 @@ const MAX_REASON_LENGTH = 500;
 const PROMOTION_CREATE_PERMISSION = 'promotion.create';
 const PROMOTION_UPDATE_PERMISSION = 'promotion.update';
 const PROMOTION_DELETE_PERMISSION = 'promotion.delete';
+const PROMOTION_READ_PERMISSION = 'promotion.read';
 const VOUCHER_READ_ALL_PERMISSION = 'voucher.read_all';
-const PROMOTION_READ_PERMISSIONS = Object.freeze([
-  'promotion.read',
-  PROMOTION_CREATE_PERMISSION,
-  PROMOTION_UPDATE_PERMISSION,
-  PROMOTION_DELETE_PERMISSION,
-]);
 const PROMOTION_STATUS_CHANGE_PERMISSIONS = Object.freeze([
   'promotion.change_status',
   PROMOTION_UPDATE_PERMISSION,
@@ -624,14 +619,14 @@ const ensureActorHasAnyPermission = (permissions, requiredPermissions) => {
 const ensureActorCanReadPromotions = async (queryImpl, actor) => {
   const permissions = await resolveActorPermissions(queryImpl, actor);
 
-  ensureActorHasAnyPermission(permissions, PROMOTION_READ_PERMISSIONS);
+  ensureActorHasAnyPermission(permissions, [PROMOTION_READ_PERMISSION]);
 };
 
 const ensureActorCanReadPromotionVouchers = async (queryImpl, actor) => {
   const permissions = await resolveActorPermissions(queryImpl, actor);
 
   ensureActorHasAnyPermission(permissions, [
-    ...PROMOTION_READ_PERMISSIONS,
+    PROMOTION_READ_PERMISSION,
     VOUCHER_READ_ALL_PERMISSION,
   ]);
 };
