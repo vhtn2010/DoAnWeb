@@ -3,6 +3,7 @@ const {
   API_ERROR_CODES,
   BOOKING_ITEM_STATUS,
   BOOKING_STATUS,
+  BOOKING_STATUS_VALUES,
   CART_STATUS,
   DEFAULT_CURRENCY = 'VND',
   DISCOUNT_TYPE,
@@ -19,7 +20,10 @@ const PHONE_PATTERN = /^[0-9+()\-\s]{8,20}$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_EXPIRY_HOURS = 24;
+const DEFAULT_LIST_LIMIT = 20;
+const DEFAULT_LIST_PAGE = 1;
 const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
+const MAX_LIST_LIMIT = 50;
 
 const buildAppError = ({
   code,
@@ -104,6 +108,61 @@ const parseUuid = (field, value) => {
   }
 
   return value.trim();
+};
+
+const parseOptionalBookingStatus = (value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (Array.isArray(value) || typeof value !== 'string') {
+    throw buildValidationError(
+      'status',
+      `status must be one of: ${BOOKING_STATUS_VALUES.join(', ')}`,
+    );
+  }
+
+  if (!BOOKING_STATUS_VALUES.includes(value)) {
+    throw buildValidationError(
+      'status',
+      `status must be one of: ${BOOKING_STATUS_VALUES.join(', ')}`,
+    );
+  }
+
+  return value;
+};
+
+const parsePositiveInteger = ({
+  defaultValue,
+  field,
+  max,
+  value,
+}) => {
+  if (value == null || value === '') {
+    return defaultValue;
+  }
+
+  if (Array.isArray(value) || !/^\d+$/.test(String(value))) {
+    throw buildValidationError(field, `${field} must be a positive integer`);
+  }
+
+  const parsed = Number.parseInt(String(value), 10);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw buildValidationError(
+      field,
+      `${field} must be greater than or equal to 1`,
+    );
+  }
+
+  if (parsed > max) {
+    throw buildValidationError(
+      field,
+      `${field} must be less than or equal to ${max}`,
+    );
+  }
+
+  return parsed;
 };
 
 const parseRequiredString = ({
@@ -352,6 +411,128 @@ const sanitizeCheckoutResponse = ({ booking, items }) => ({
   voucher_id: booking.voucher_id || null,
 });
 
+const sanitizeBookingSummary = (booking) => ({
+  booking_code: booking.booking_code,
+  contact_name: booking.contact_name,
+  created_at: booking.created_at,
+  currency: booking.currency || DEFAULT_CURRENCY,
+  discount_amount: roundMoney(booking.discount_amount),
+  expires_at: booking.expires_at,
+  id: booking.id,
+  item_count: Number(booking.item_count || 0),
+  status: booking.status,
+  subtotal_amount: roundMoney(booking.subtotal_amount),
+  total_amount: roundMoney(booking.total_amount),
+});
+
+const sanitizeBookingDetailItem = (item) => ({
+  end_at: item.end_at,
+  id: item.id,
+  quantity: Number(item.quantity),
+  reference_id: item.reference_id,
+  service_id: item.service_id,
+  service_type: item.service_type,
+  start_at: item.start_at,
+  status: item.status,
+  title: item.title_snapshot,
+  total_amount: roundMoney(item.total_amount),
+  traveller_info: item.traveller_info ?? null,
+  unit_price: roundMoney(item.unit_price),
+});
+
+const sanitizePaymentSummary = (payment) => ({
+  amount: roundMoney(payment.amount),
+  created_at: payment.created_at,
+  currency: payment.currency || DEFAULT_CURRENCY,
+  expired_at: payment.expired_at,
+  id: payment.id,
+  paid_at: payment.paid_at,
+  payment_code: payment.payment_code,
+  payment_method: payment.payment_method,
+  provider: payment.provider,
+  status: payment.status,
+});
+
+const sanitizeRefundSummary = (refund) => ({
+  amount: roundMoney(refund.amount),
+  created_at: refund.created_at,
+  id: refund.id,
+  payment_id: refund.payment_id,
+  processed_at: refund.processed_at,
+  reason: refund.reason,
+  refund_code: refund.refund_code,
+  status: refund.status,
+});
+
+const sanitizeBookingDetail = ({
+  booking,
+  items,
+  payments,
+  refunds,
+}) => ({
+  booking_code: booking.booking_code,
+  contact_email: booking.contact_email,
+  contact_name: booking.contact_name,
+  contact_phone: booking.contact_phone,
+  created_at: booking.created_at,
+  currency: booking.currency || DEFAULT_CURRENCY,
+  discount_amount: roundMoney(booking.discount_amount),
+  expires_at: booking.expires_at,
+  id: booking.id,
+  items: items.map(sanitizeBookingDetailItem),
+  note: booking.note,
+  payments: payments.map(sanitizePaymentSummary),
+  refunds: refunds.map(sanitizeRefundSummary),
+  status: booking.status,
+  subtotal_amount: roundMoney(booking.subtotal_amount),
+  total_amount: roundMoney(booking.total_amount),
+  updated_at: booking.updated_at,
+  voucher_id: booking.voucher_id || null,
+});
+
+const buildPaginationMeta = ({
+  limit,
+  page,
+  total,
+}) => {
+  const normalizedTotal = Number(total || 0);
+  const totalPages = normalizedTotal === 0
+    ? 0
+    : Math.ceil(normalizedTotal / limit);
+
+  return {
+    has_next: page < totalPages,
+    limit,
+    page,
+    total: normalizedTotal,
+    total_pages: totalPages,
+  };
+};
+
+const validateCustomerAuth = (auth) => {
+  const actorRole = auth?.role || auth?.roleCode;
+
+  if (actorRole !== 'customer' || !auth?.userId) {
+    throw buildForbiddenError();
+  }
+};
+
+const parseListQuery = (query = {}) => ({
+  limit: parsePositiveInteger({
+    defaultValue: DEFAULT_LIST_LIMIT,
+    field: 'limit',
+    max: MAX_LIST_LIMIT,
+    value: query.limit,
+  }),
+  page: parsePositiveInteger({
+    defaultValue: DEFAULT_LIST_PAGE,
+    field: 'page',
+    max: Number.MAX_SAFE_INTEGER,
+    value: query.page,
+  }),
+  status: parseOptionalBookingStatus(query.status),
+});
+
 const buildServiceSnapshot = ({
   cartItem,
   detail,
@@ -549,11 +730,7 @@ const createBookingService = ({
     body,
     headers,
   } = {}) => {
-    const actorRole = auth?.role || auth?.roleCode;
-
-    if (actorRole !== 'customer' || !auth?.userId) {
-      throw buildForbiddenError();
-    }
+    validateCustomerAuth(auth);
 
     const parsedBody = parseBody(body || {});
     const idempotencyKey = parseIdempotencyKey(headers);
@@ -738,8 +915,65 @@ const createBookingService = ({
     return sanitizeCheckoutResponse(result);
   };
 
+  const listMyBookings = async ({
+    auth,
+    query,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedQuery = parseListQuery(query || {});
+    const offset = (parsedQuery.page - 1) * parsedQuery.limit;
+    const result = await repository.listBookingsByUser({
+      limit: parsedQuery.limit,
+      offset,
+      status: parsedQuery.status,
+      userId: auth.userId,
+    });
+
+    return {
+      items: result.rows.map(sanitizeBookingSummary),
+      meta: buildPaginationMeta({
+        limit: parsedQuery.limit,
+        page: parsedQuery.page,
+        total: result.total,
+      }),
+    };
+  };
+
+  const getMyBookingDetail = async ({
+    auth,
+    bookingId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedBookingId = parseUuid('booking_id', bookingId);
+    const booking = await repository.getBookingByIdAndUser({
+      bookingId: parsedBookingId,
+      userId: auth.userId,
+    });
+
+    if (!booking) {
+      throw buildResourceNotFoundError('Booking not found');
+    }
+
+    const [items, payments, refunds] = await Promise.all([
+      repository.listBookingItemsByBookingId(parsedBookingId),
+      repository.listBookingPaymentsByBookingId(parsedBookingId),
+      repository.listBookingRefundsByBookingId(parsedBookingId),
+    ]);
+
+    return sanitizeBookingDetail({
+      booking,
+      items,
+      payments,
+      refunds,
+    });
+  };
+
   return {
     checkout,
+    getMyBookingDetail,
+    listMyBookings,
   };
 };
 

@@ -1,5 +1,9 @@
 const express = require('express');
-const { checkoutBooking } = require('../controllers/bookingController');
+const {
+  checkoutBooking,
+  getMyBookingDetail,
+  listMyBookings,
+} = require('../controllers/bookingController');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authRequired } = require('../middleware/authSession');
 const createRateLimit = require('../middleware/rateLimit');
@@ -9,6 +13,24 @@ const customerCheckoutRateLimit = createRateLimit({
   max: 20,
   windowMs: 60 * 1000,
 });
+const customerBookingReadRateLimit = createRateLimit({
+  max: 120,
+  windowMs: 60 * 1000,
+});
+
+router.get(
+  '/bookings',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerBookingReadRateLimit,
+  asyncHandler(listMyBookings),
+);
+
+router.get(
+  '/bookings/:booking_id',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerBookingReadRateLimit,
+  asyncHandler(getMyBookingDetail),
+);
 
 router.post(
   '/bookings/checkout',
