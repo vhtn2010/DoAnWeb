@@ -3,6 +3,7 @@ const {
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,
+  updateAdminBookingStatus,
 } = require('../controllers/adminBookingController');
 const {
   requireAdminAuth,
@@ -36,6 +37,13 @@ router.get(
   requireAdminAuth,
   adminBookingRateLimit,
   asyncHandler(getAdminBookingStatusHistory),
+);
+
+router.patch(
+  '/admin/bookings/:booking_id/status',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(updateAdminBookingStatus),
 );
 
 module.exports = router;

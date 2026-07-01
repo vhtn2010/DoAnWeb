@@ -37,8 +37,22 @@ const getAdminBookingStatusHistory = async (req, res) => {
   });
 };
 
+const updateAdminBookingStatus = async (req, res) => {
+  const data = await adminBookingService.updateBookingStatus({
+    auth: req.auth,
+    body: req.body,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin booking status updated successfully',
+  });
+};
+
 module.exports = {
   getAdminBookingDetail,
   getAdminBookingStatusHistory,
   listAdminBookings,
+  updateAdminBookingStatus,
 };
