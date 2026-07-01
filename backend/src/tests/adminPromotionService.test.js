@@ -75,7 +75,7 @@ test('getPromotions rejects actor without promotion permissions', async () => {
   );
 });
 
-test('getPromotions validates status filter', async () => {
+test('getPromotions rejects actor that has write permission but lacks promotion.read', async () => {
   const service = createAdminPromotionService({
     queryImpl: async () => ({
       rows: [],
@@ -87,6 +87,27 @@ test('getPromotions validates status filter', async () => {
       service.getPromotions({
         actor: {
           permissions: ['promotion.update'],
+        },
+        query: {},
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+});
+
+test('getPromotions validates status filter', async () => {
+  const service = createAdminPromotionService({
+    queryImpl: async () => ({
+      rows: [],
+    }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.getPromotions({
+        actor: {
+          permissions: ['promotion.read'],
         },
         query: {
           status: 'pending',
@@ -138,7 +159,7 @@ test('getPromotions returns all promotion statuses with pagination meta', async 
 
   const result = await service.getPromotions({
     actor: {
-      permissions: ['promotion.update'],
+      permissions: ['promotion.read'],
     },
     query: {
       limit: '2',
@@ -170,13 +191,34 @@ test('getPromotionById returns RESOURCE_NOT_FOUND when promotion does not exist'
     () =>
       service.getPromotionById({
         actor: {
-          permissions: ['promotion.create'],
+          permissions: ['promotion.read'],
         },
         promotionId: '44444444-4444-4444-8444-444444444444',
       }),
     (error) =>
       error.code === API_ERROR_CODES.RESOURCE_NOT_FOUND &&
       error.statusCode === 404,
+  );
+});
+
+test('getPromotionById rejects actor that lacks promotion.read', async () => {
+  const service = createAdminPromotionService({
+    queryImpl: async () => ({
+      rows: [],
+    }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.getPromotionById({
+        actor: {
+          permissions: ['promotion.delete'],
+        },
+        promotionId: '44444444-4444-4444-8444-444444444444',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
   );
 });
 
@@ -292,7 +334,7 @@ test('getPromotionVouchers returns RESOURCE_NOT_FOUND when parent promotion is m
     () =>
       service.getPromotionVouchers({
         actor: {
-          permissions: ['promotion.update'],
+          permissions: ['promotion.read'],
         },
         promotionId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         query: {},
