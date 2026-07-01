@@ -23,6 +23,7 @@ const cartRoutes = require('./routes/cartRoutes');
 const promotionRoutes = require('./routes/promotionRoutes');
 const voucherRoutes = require('./routes/voucherRoutes');
 const systemRoutes = require('./routes/systemRoutes');
+const supportRoutes = require('./routes/supportRoutes');
 const {
   isSupabaseConfigured,
   testSupabaseConnection,
@@ -65,6 +66,7 @@ app.use(apiPrefix, bookingRoutes);
 app.use(apiPrefix, cartRoutes);
 app.use(apiPrefix, promotionRoutes);
 app.use(apiPrefix, voucherRoutes);
+app.use(apiPrefix, supportRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
   res.success({
