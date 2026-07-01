@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { apiPrefix, corsOrigin, isTest } = require('./config');
+const { createSwaggerRouter, removeSwaggerCsp } = require('./docs/swagger');
 const apiResponse = require('./middleware/apiResponse');
 const asyncHandler = require('./middleware/asyncHandler');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -15,6 +16,7 @@ const adminPermissionRoutes = require('./routes/adminPermissionRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
+const cartRoutes = require('./routes/cartRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const {
   isSupabaseConfigured,
@@ -40,6 +42,9 @@ if (!isTest) {
   app.use(morgan('dev'));
 }
 
+app.use('/swagger-ui', removeSwaggerCsp, createSwaggerRouter());
+app.use(`${apiPrefix}/docs`, removeSwaggerCsp, createSwaggerRouter());
+
 app.use(apiPrefix, systemRoutes);
 app.use(apiPrefix, authRoutes);
 app.use(apiPrefix, adminServiceCatalogRoutes);
@@ -49,6 +54,7 @@ app.use(apiPrefix, adminPermissionRoutes);
 app.use(apiPrefix, profileRoutes);
 app.use(apiPrefix, lookupRoutes);
 app.use(apiPrefix, bookingRoutes);
+app.use(apiPrefix, cartRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
   res.success({
