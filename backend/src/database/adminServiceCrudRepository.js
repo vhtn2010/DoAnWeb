@@ -1,4 +1,4 @@
-const { getPool, query } = require('./queryClient');
+const { getPool, query } = require('./client');
 
 const FINAL_BOOKING_STATUSES = Object.freeze([
   'completed',
