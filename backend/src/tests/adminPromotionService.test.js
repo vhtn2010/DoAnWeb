@@ -323,6 +323,63 @@ test('getPromotionVouchers returns vouchers that belong to the requested promoti
   assert.deepEqual(queries[1].params, ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
 });
 
+test('getPromotionVouchers allows actor with promotion.read and returns empty list when promotion has no vouchers', async () => {
+  const service = createAdminPromotionService({
+    now: () => new Date('2026-07-10T09:00:00.000Z'),
+    queryImpl: async (sql) => {
+      if (sql.includes('FROM promotions p') && sql.includes('voucher_count')) {
+        return {
+          rows: [
+            createPromotionRow({
+              id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+              status: 'active',
+              targetServiceType: null,
+              voucherCount: 0,
+              activeVoucherCount: 0,
+            }),
+          ],
+        };
+      }
+
+      if (sql.includes('COUNT(*)::integer AS total') && sql.includes('FROM vouchers v')) {
+        return {
+          rows: [
+            {
+              total: 0,
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('FROM vouchers v') && sql.includes('ORDER BY v.created_at DESC')) {
+        return {
+          rows: [],
+        };
+      }
+
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+
+  const result = await service.getPromotionVouchers({
+    actor: {
+      permissions: ['promotion.read'],
+    },
+    promotionId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    query: {},
+  });
+
+  assert.deepEqual(result.meta, {
+    has_next: false,
+    limit: 20,
+    page: 1,
+    total: 0,
+    total_pages: 0,
+  });
+  assert.equal(result.promotion.id, 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee');
+  assert.deepEqual(result.vouchers, []);
+});
+
 test('getPromotionVouchers returns RESOURCE_NOT_FOUND when parent promotion is missing', async () => {
   const service = createAdminPromotionService({
     queryImpl: async () => ({

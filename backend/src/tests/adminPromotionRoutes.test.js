@@ -294,6 +294,59 @@ test('GET /api/admin/promotions/:promotionId returns promotion detail', async ()
   }
 });
 
+test('GET /api/admin/promotions/:promotionId/vouchers requires access token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/promotions/88888888-8888-4888-8888-888888888888/vouchers`,
+      {
+        method: 'GET',
+      },
+    );
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/admin/promotions/:promotionId/vouchers returns 403 for customer role', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'customer-user-12',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'customer-user-12',
+    });
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/promotions/88888888-8888-4888-8888-888888888888/vouchers`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        method: 'GET',
+      },
+    );
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
 test('GET /api/admin/promotions/:promotionId/vouchers returns related vouchers with parent promotion info', async () => {
   const server = app.listen(0);
   const accessToken = createAccessToken({
