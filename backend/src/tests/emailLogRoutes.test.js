@@ -791,52 +791,6 @@ test('GET /api/admin/mail/templates returns fixed template metadata and blocks c
   }
 });
 
-test('GET /api/admin/mail/templatess uses the same fixed template metadata handler alias', async () => {
-  const server = app.listen(0);
-
-  emailLogService.listAdminMailTemplates = async ({ auth }) => {
-    assert.equal(auth.role, 'admin');
-    assert.deepEqual(auth.tokenPayload.permissions, ['email.send']);
-
-    return [
-      {
-        description: 'Email bien lai thanh toan booking.',
-        display_name: 'Booking Receipt',
-        required_variables: [
-          'booking_code',
-          'contact_name',
-          'payment_amount',
-          'currency',
-          'payment_method',
-          'receipt_number',
-          'paid_at',
-        ],
-        template_code: 'BOOKING_RECEIPT',
-      },
-    ];
-  };
-
-  try {
-    const response = await request(server, `${apiPrefix}/admin/mail/templatess`, {
-      headers: {
-        Authorization: `Bearer ${createAccessToken({
-          permissions: ['email.send'],
-          roleCode: 'admin',
-          userId: USER_ID,
-        })}`,
-      },
-      method: 'GET',
-    });
-
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body.success, true);
-    assert.equal(response.body.data.length, 1);
-    assert.equal(response.body.data[0].template_code, 'BOOKING_RECEIPT');
-  } finally {
-    server.close();
-  }
-});
-
 test('GET /api/admin/mail/stats returns aggregate stats for admin roles and blocks staff role', async () => {
   const server = app.listen(0);
 
