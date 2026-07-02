@@ -1,5 +1,6 @@
 const {
   API_ERROR_CODES,
+  PAYMENT_STATUS,
   REFUND_STATUS_VALUES,
 } = require('../constants/domainConstraints');
 const {
@@ -140,6 +141,20 @@ const ensureRejectAccess = (auth) => {
   throw buildForbiddenError();
 };
 
+const ensureProcessAccess = (auth) => {
+  if (!['staff', 'admin', 'system_admin'].includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(auth);
+
+  if (permissionCodes.includes('refund.process')) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
 const resolveScopeServiceIds = (auth) => {
   if (auth?.role !== 'staff') {
     return null;
@@ -229,6 +244,16 @@ const parseOptionalDate = (field, value) => {
   }
 
   return parsed.toISOString();
+};
+
+const parseRequiredDate = (field, value) => {
+  const parsed = parseOptionalDate(field, value);
+
+  if (!parsed) {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  return parsed;
 };
 
 const parseRequiredString = ({
@@ -395,6 +420,46 @@ const parseRejectBody = (body = {}) => {
     }),
   };
 };
+
+const parseMarkProcessingBody = (body = {}) => {
+  if (body == null) {
+    return {
+      note: null,
+    };
+  }
+
+  if (typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  return {
+    note: parseOptionalString({
+      field: 'note',
+      value: body.note,
+    }),
+  };
+};
+
+const parseMarkSuccessBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  return {
+    note: parseOptionalString({
+      field: 'note',
+      value: body.note,
+    }),
+    processedAt: parseRequiredDate('processed_at', body.processed_at),
+    providerRefundId: parseOptionalString({
+      field: 'provider_refund_id',
+      maxLength: 255,
+      value: body.provider_refund_id,
+    }),
+  };
+};
+
+const parseMarkFailedBody = (body = {}) => parseRejectBody(body);
 
 const buildPaginationMeta = ({
   limit,
@@ -578,6 +643,22 @@ const assertRefundRequested = (refund) => {
   if (refund.status !== 'requested') {
     throw buildInvalidStateTransitionError(
       'Only requested refunds can be processed with this endpoint',
+    );
+  }
+};
+
+const assertRefundApproved = (refund) => {
+  if (refund.status !== 'approved') {
+    throw buildInvalidStateTransitionError(
+      'Only approved refunds can be marked as processing',
+    );
+  }
+};
+
+const assertRefundProcessing = (refund, message) => {
+  if (refund.status !== 'processing') {
+    throw buildInvalidStateTransitionError(
+      message || 'Only processing refunds can be handled with this endpoint',
     );
   }
 };
@@ -823,10 +904,172 @@ const createAdminRefundService = ({
     return sanitizeRefundDetail(result.refund);
   };
 
+  const markRefundProcessing = async ({
+    auth,
+    body,
+    refund_id: refundId,
+  } = {}) => {
+    ensureProcessAccess(auth);
+
+    const parsedRefundId = parseUuid('refund_id', refundId);
+    const parsedBody = parseMarkProcessingBody(body);
+    const refund = await repository.getRefundById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      refundId: parsedRefundId,
+    });
+
+    if (!refund) {
+      throw buildResourceNotFoundError();
+    }
+
+    assertRefundApproved(refund);
+
+    const result = await repository.markRefundProcessing({
+      actorUserId: auth.userId,
+      note: parsedBody.note,
+      refundId: parsedRefundId,
+    });
+
+    if (!result) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (result.transitionApplied === false) {
+      throw buildInvalidStateTransitionError(
+        'Only approved refunds can be marked as processing',
+      );
+    }
+
+    return sanitizeRefundDetail(result.refund);
+  };
+
+  const markRefundSuccess = async ({
+    auth,
+    body,
+    headers,
+    refund_id: refundId,
+  } = {}) => {
+    ensureProcessAccess(auth);
+
+    const parsedRefundId = parseUuid('refund_id', refundId);
+    const parsedBody = parseMarkSuccessBody(body || {});
+    const idempotencyKey = parseRequiredIdempotencyKey(headers || {});
+    const refund = await repository.getRefundById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      refundId: parsedRefundId,
+    });
+
+    if (!refund) {
+      throw buildResourceNotFoundError();
+    }
+
+    const isReplay = await repository.hasMarkSuccessLogByIdempotencyKey({
+      idempotencyKey,
+      refundId: parsedRefundId,
+    });
+
+    if (isReplay) {
+      const latestRefund = await repository.getRefundById({
+        allowedServiceIds: resolveScopeServiceIds(auth),
+        refundId: parsedRefundId,
+      });
+      return sanitizeRefundDetail(latestRefund);
+    }
+
+    assertRefundProcessing(
+      refund,
+      'Only processing refunds can be marked as successful',
+    );
+
+    if (
+      ![
+        PAYMENT_STATUS.SUCCESS,
+        PAYMENT_STATUS.RECONCILED,
+        PAYMENT_STATUS.PARTIALLY_REFUNDED,
+      ].includes(refund.payment_status)
+    ) {
+      throw buildRefundNotAllowedError(
+        'The original payment is no longer eligible for refund processing',
+      );
+    }
+
+    const result = await repository.markRefundSuccess({
+      actorUserId: auth.userId,
+      idempotencyKey,
+      note: parsedBody.note,
+      processedAt: parsedBody.processedAt,
+      providerRefundId: parsedBody.providerRefundId,
+      refundId: parsedRefundId,
+    });
+
+    if (!result) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (result.transitionApplied === false) {
+      throw buildInvalidStateTransitionError(
+        'Only processing refunds can be marked as successful',
+      );
+    }
+
+    if (result.overRefund === true) {
+      throw buildRefundNotAllowedError(
+        'The refund amount exceeds the remaining refundable amount',
+      );
+    }
+
+    return sanitizeRefundDetail(result.refund);
+  };
+
+  const markRefundFailed = async ({
+    auth,
+    body,
+    refund_id: refundId,
+  } = {}) => {
+    ensureProcessAccess(auth);
+
+    const parsedRefundId = parseUuid('refund_id', refundId);
+    const parsedBody = parseMarkFailedBody(body || {});
+    const refund = await repository.getRefundById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      refundId: parsedRefundId,
+    });
+
+    if (!refund) {
+      throw buildResourceNotFoundError();
+    }
+
+    assertRefundProcessing(
+      refund,
+      'Only processing refunds can be marked as failed',
+    );
+
+    const result = await repository.markRefundFailed({
+      actorUserId: auth.userId,
+      reason: parsedBody.reason,
+      refundId: parsedRefundId,
+    });
+
+    if (!result) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (result.transitionApplied === false) {
+      throw buildInvalidStateTransitionError(
+        'Only processing refunds can be marked as failed',
+      );
+    }
+
+    return sanitizeRefundDetail(result.refund);
+  };
+
   return {
     approveRefund,
     getRefundDetail,
     listRefunds,
+    markRefundFailed,
+    markRefundProcessing,
+    markRefundSuccess,
     rejectRefund,
   };
 };

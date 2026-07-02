@@ -3,6 +3,9 @@ const {
   approveAdminRefund,
   getAdminRefundDetail,
   listAdminRefunds,
+  markAdminRefundFailed,
+  markAdminRefundProcessing,
+  markAdminRefundSuccess,
   rejectAdminRefund,
 } = require('../controllers/adminRefundController');
 const { requireAdminAuth } = require('../middleware/adminAuth');
@@ -47,6 +50,27 @@ router.post(
   requireAdminAuth,
   adminRefundProcessRateLimit,
   asyncHandler(rejectAdminRefund),
+);
+
+router.post(
+  '/admin/refunds/:refund_id/mark-processing',
+  requireAdminAuth,
+  adminRefundProcessRateLimit,
+  asyncHandler(markAdminRefundProcessing),
+);
+
+router.post(
+  '/admin/refunds/:refund_id/mark-success',
+  requireAdminAuth,
+  adminRefundProcessRateLimit,
+  asyncHandler(markAdminRefundSuccess),
+);
+
+router.post(
+  '/admin/refunds/:refund_id/mark-failed',
+  requireAdminAuth,
+  adminRefundProcessRateLimit,
+  asyncHandler(markAdminRefundFailed),
 );
 
 module.exports = router;
