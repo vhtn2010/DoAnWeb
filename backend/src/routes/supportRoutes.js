@@ -12,6 +12,7 @@ const {
   reopenAdminSupportTicket,
   replyToAdminSupportTicket,
   replyToSupportTicket,
+  sendAdminSupportTicketEmail,
   updateAdminSupportTicket,
 } = require('../controllers/supportController');
 const { requireAdminAuth } = require('../middleware/adminAuth');
@@ -54,6 +55,14 @@ const adminSupportTicketReadRateLimit = createRateLimiter({
   maxRequests: 120,
   message: 'Too many admin support ticket requests. Please try again later.',
   storeKey: 'admin-support-ticket-read',
+  windowMs: 60 * 1000,
+});
+const adminSupportTicketEmailRateLimit = createRateLimiter({
+  keyGenerator: (req) =>
+    `${req.auth?.userId || req.ip || 'anonymous'}:${req.params.ticket_id || 'unknown'}`,
+  maxRequests: 20,
+  message: 'Too many support email requests. Please try again later.',
+  storeKey: 'admin-support-ticket-send-email',
   windowMs: 60 * 1000,
 });
 
@@ -146,6 +155,20 @@ router.post(
   requireAdminAuth,
   adminSupportTicketReadRateLimit,
   asyncHandler(markAdminSupportTicketAsSpam),
+);
+
+router.post(
+  '/admin/support/tickets/:ticket_id/send-email',
+  requireAdminAuth,
+  adminSupportTicketEmailRateLimit,
+  asyncHandler(sendAdminSupportTicketEmail),
+);
+
+router.post(
+  '/admin/support/tickets/:ticket_id/send-emails',
+  requireAdminAuth,
+  adminSupportTicketEmailRateLimit,
+  asyncHandler(sendAdminSupportTicketEmail),
 );
 
 module.exports = router;

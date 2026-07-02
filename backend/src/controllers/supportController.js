@@ -117,6 +117,19 @@ const markAdminSupportTicketAsSpam = async (req, res) => {
   });
 };
 
+const sendAdminSupportTicketEmail = async (req, res) => {
+  const data = await supportService.sendAdminTicketEmail({
+    auth: req.auth,
+    body: req.body,
+    ticketId: req.params.ticket_id,
+  });
+
+  res.success({
+    data,
+    message: 'Admin support ticket email sent successfully',
+  });
+};
+
 const listMySupportTickets = async (req, res) => {
   const data = await supportService.listMyTickets({
     auth: req.auth,
@@ -175,6 +188,7 @@ module.exports = {
   closeMySupportTicket,
   createSupportTicket,
   markAdminSupportTicketAsSpam,
+  sendAdminSupportTicketEmail,
   updateAdminSupportTicket,
   getAdminSupportTicketDetail,
   getMySupportTicketDetail,
