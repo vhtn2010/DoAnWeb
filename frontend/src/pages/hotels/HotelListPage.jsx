@@ -165,9 +165,7 @@ function HotelListPage() {
     )
   }
 
-  function handleSearchFieldChange(event) {
-    const { name, value } = event.target
-
+  function handleSearchFieldChange(name, value) {
     setSearchDraft((currentDraft) => ({
       ...currentDraft,
       [name]: value,
@@ -273,7 +271,7 @@ function HotelListPage() {
       <div className="hotel-list-page__search-shell">
         <HotelSearchBar
           searchValues={searchDraft}
-          onChange={handleSearchFieldChange}
+          onFieldChange={handleSearchFieldChange}
           onSubmit={handleApplySearch}
         />
       </div>
