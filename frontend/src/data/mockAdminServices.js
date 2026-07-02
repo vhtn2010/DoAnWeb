@@ -156,6 +156,10 @@ export function formatRoleActorName(role) {
   return adminRoleDisplayNames[role] ?? 'Điều phối viên dịch vụ'
 }
 
+export function getAdminRoleLabel(role) {
+  return adminRoleDisplayNames[role] ?? 'Điều phối viên dịch vụ'
+}
+
 export function slugifyServiceTitle(value) {
   return value
     .normalize('NFD')

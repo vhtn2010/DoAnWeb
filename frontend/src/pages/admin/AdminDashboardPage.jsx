@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import DashboardBreakdownCard from '../../components/admin/dashboard/DashboardBreakdownCard.jsx'
 import DashboardMetricCard from '../../components/admin/dashboard/DashboardMetricCard.jsx'
 import DashboardRevenueChart from '../../components/admin/dashboard/DashboardRevenueChart.jsx'
 import RecentBookingsTable from '../../components/admin/dashboard/RecentBookingsTable.jsx'
+import { getAdminRoleLabel } from '../../data/mockAdminServices.js'
 import {
   dashboardTimeRangeOptions,
   mockDashboardData,
@@ -70,9 +72,37 @@ function formatDateTime(value) {
 }
 
 function AdminDashboardPage() {
+  const outletContext = useOutletContext()
+  const currentRole = outletContext?.currentRole ?? 'system_admin'
   const [selectedRange, setSelectedRange] = useState(mockDashboardData.default_range)
 
   const dashboardData = mockDashboardData.ranges[selectedRange]
+
+  // Partial canonical screen: current dashboard preview is sharing overview and revenue-report content.
+  if (currentRole === 'staff') {
+    return (
+      <main className="admin-dashboard-page">
+        <section className="admin-dashboard-page__hero">
+          <div className="admin-dashboard-page__hero-copy">
+            <p className="admin-dashboard-page__eyebrow">Dashboard quản trị</p>
+            <h1 className="admin-dashboard-page__title">Tổng quan</h1>
+            <p className="admin-dashboard-page__subtitle">
+              Màn hình này chỉ dùng để preview canonical screen cho Admin/System Admin.
+            </p>
+          </div>
+        </section>
+
+        <section className="admin-services-card" aria-label="Giới hạn quyền truy cập">
+          <h2 className="admin-services-page__section-title">Không áp dụng cho vai trò hiện tại</h2>
+          <p className="admin-services-page__section-copy" role="status">
+            Vai trò <strong>{getAdminRoleLabel(currentRole)}</strong> không dùng màn hình tổng
+            quan hệ thống trong luồng thực tế. Staff sẽ thao tác qua các module được phân quyền như
+            quản lý dịch vụ, đơn hàng, giao dịch và hỗ trợ khách hàng.
+          </p>
+        </section>
+      </main>
+    )
+  }
 
   return (
     <main className="admin-dashboard-page">

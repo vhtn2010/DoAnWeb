@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom'
+import { getAdminRoleLabel } from '../../data/mockAdminServices.js'
 import './adminLayout.css'
 
 const routeMeta = {
@@ -12,9 +13,17 @@ const routeMeta = {
   },
 }
 
-function AdminTopbar() {
+const adminPreviewProfiles = {
+  staff: 'Lê Minh Khôi',
+  admin: 'Nguyễn Văn A',
+  system_admin: 'Trần Thu Trang',
+}
+
+function AdminTopbar({ currentRole = 'system_admin' }) {
   const location = useLocation()
   const meta = routeMeta[location.pathname] ?? routeMeta['/admin']
+  const profileRoleLabel = getAdminRoleLabel(currentRole)
+  const profileName = adminPreviewProfiles[currentRole] ?? adminPreviewProfiles.system_admin
 
   return (
     <header className="admin-topbar">
@@ -84,8 +93,8 @@ function AdminTopbar() {
           </span>
 
           <div className="admin-topbar__profile-copy">
-            <span className="admin-topbar__profile-role">Admin</span>
-            <span className="admin-topbar__profile-name">Nguyễn Văn A</span>
+            <span className="admin-topbar__profile-role">{profileRoleLabel}</span>
+            <span className="admin-topbar__profile-name">{profileName}</span>
           </div>
         </div>
       </div>

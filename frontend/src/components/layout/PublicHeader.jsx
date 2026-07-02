@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useSearchParams } from 'react-router-dom'
 
 const navItems = [
   { label: 'Trang chủ', to: '/', end: true },
@@ -26,15 +26,32 @@ function HeaderActionIcon({ children, href, label }) {
   )
 }
 
+function getPublicHeaderState(authState) {
+  const isCustomer = authState === 'customer'
+
+  return {
+    isCustomer,
+    previewSearch: isCustomer ? '?auth=customer' : '',
+  }
+}
+
 function PublicHeader() {
-  const isAuthenticated = false // doi true de preview header customer
-  const role = 'guest' // doi sang 'customer' khi test UI customer
-  const isCustomer = isAuthenticated && role === 'customer'
+  const [searchParams] = useSearchParams()
+  const authPreview = searchParams.get('auth') === 'customer' ? 'customer' : 'guest'
+  const { isCustomer, previewSearch } = getPublicHeaderState(authPreview)
+
+  function buildPreviewPath(path) {
+    return previewSearch ? `${path}${previewSearch}` : path
+  }
 
   return (
     <header className="public-header">
       <div className="public-header__shell">
-        <Link aria-label="Nét Việt Travel" className="public-header__brand" to="/">
+        <Link
+          aria-label="Nét Việt Travel"
+          className="public-header__brand"
+          to={buildPreviewPath('/')}
+        >
           <img
             alt="Nét Việt Travel"
             className="public-header__logo"
@@ -59,7 +76,7 @@ function PublicHeader() {
                 className={getNavLinkClassName}
                 end={item.end}
                 key={item.label}
-                to={item.to}
+                to={buildPreviewPath(item.to)}
               >
                 {item.label}
               </NavLink>

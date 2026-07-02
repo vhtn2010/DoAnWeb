@@ -37,7 +37,7 @@ const destinationServices = [
     size: 'small',
   },
   {
-    service_type: 'resort',
+    service_type: 'hotel',
     title: 'Phú Quốc',
     slug: 'phu-quoc',
     short_description: 'Thiên đường nghỉ dưỡng nhiệt đới.',
@@ -63,7 +63,7 @@ const flashSaleServices = [
     price_unit: '/đêm',
   },
   {
-    service_type: 'resort',
+    service_type: 'hotel',
     title: 'Amanoi Resort Nha Trang',
     slug: 'amanoi-resort-nha-trang',
     short_description: 'Đỉnh cao của sự riêng tư và sang trọng bậc nhất Việt Nam.',
@@ -75,7 +75,7 @@ const flashSaleServices = [
     price_unit: '/đêm',
   },
   {
-    service_type: 'dining',
+    service_type: 'combo',
     title: 'Combo Gourmet Hoi An',
     slug: 'combo-gourmet-hoi-an',
     short_description: 'Thưởng thức tinh hoa ẩm thực phố Hội trên thuyền rồng.',

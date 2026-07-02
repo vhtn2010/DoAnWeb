@@ -16,6 +16,7 @@ const menuSections = [
       {
         label: 'Báo cáo Doanh thu',
         href: '#',
+        allowedRoles: ['admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -30,6 +31,7 @@ const menuSections = [
       {
         label: 'Quản lý Đơn hàng',
         href: '#',
+        allowedRoles: ['staff', 'admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -45,6 +47,7 @@ const menuSections = [
       {
         label: 'Quản lý Dịch vụ',
         to: '/admin/services',
+        allowedRoles: ['staff', 'admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -60,6 +63,7 @@ const menuSections = [
       {
         label: 'Lịch sử Giao dịch',
         href: '#',
+        allowedRoles: ['staff', 'admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -75,6 +79,7 @@ const menuSections = [
       {
         label: 'Yêu cầu Hoàn tiền',
         href: '#',
+        allowedRoles: ['staff', 'admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -97,6 +102,7 @@ const menuSections = [
       {
         label: 'Quản lý Khuyến mãi',
         href: '#',
+        allowedRoles: ['staff', 'admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -118,6 +124,7 @@ const menuSections = [
       {
         label: 'Quản lý Người dùng',
         href: '#',
+        allowedRoles: ['admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.8" />
@@ -134,6 +141,7 @@ const menuSections = [
       {
         label: 'Phân quyền truy cập',
         href: '#',
+        allowedRoles: ['system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.8" />
@@ -149,6 +157,7 @@ const menuSections = [
       {
         label: 'Quản lý hạ tầng',
         href: '#',
+        allowedRoles: ['system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -164,6 +173,7 @@ const menuSections = [
       {
         label: 'Cấu hình hệ thống',
         href: '#',
+        allowedRoles: ['admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -183,6 +193,7 @@ const menuSections = [
       {
         label: 'Phê duyệt Dịch vụ',
         href: '#',
+        allowedRoles: ['admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -203,6 +214,7 @@ const menuSections = [
       {
         label: 'Hỗ trợ khách hàng',
         href: '#',
+        allowedRoles: ['staff', 'admin', 'system_admin'],
         icon: (
           <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
             <path
@@ -219,7 +231,18 @@ const menuSections = [
   },
 ]
 
-function AdminSidebar() {
+function canViewAdminMenuItem(currentRole, item) {
+  return item.allowedRoles?.includes(currentRole) ?? true
+}
+
+function AdminSidebar({ currentRole = 'system_admin' }) {
+  const previewSearch = `?role=${currentRole}`
+  const canAccessDashboard = ['admin', 'system_admin'].includes(currentRole)
+
+  function buildPreviewPath(path) {
+    return `${path}${previewSearch}`
+  }
+
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar__brand">
@@ -231,63 +254,73 @@ function AdminSidebar() {
         <p className="admin-sidebar__system">Hệ thống quản lý admin</p>
       </div>
 
-      <NavLink
-        className={({ isActive }) =>
-          `admin-sidebar__item${isActive ? ' admin-sidebar__item--active' : ''}`
-        }
-        end
-        to="/admin"
-      >
-        <SidebarIcon>
-          <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
-            <path
-              d="M3 10.5 10 4l7 6.5V17a1 1 0 0 1-1 1h-3.5v-4.5h-5V18H4a1 1 0 0 1-1-1v-6.5Z"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1.8"
-            />
-          </svg>
-        </SidebarIcon>
-        <span>Tổng quan</span>
-      </NavLink>
+      {canAccessDashboard ? (
+        <NavLink
+          className={({ isActive }) =>
+            `admin-sidebar__item${isActive ? ' admin-sidebar__item--active' : ''}`
+          }
+          end
+          to={buildPreviewPath('/admin')}
+        >
+          <SidebarIcon>
+            <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
+              <path
+                d="M3 10.5 10 4l7 6.5V17a1 1 0 0 1-1 1h-3.5v-4.5h-5V18H4a1 1 0 0 1-1-1v-6.5Z"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.8"
+              />
+            </svg>
+          </SidebarIcon>
+          <span>Tổng quan</span>
+        </NavLink>
+      ) : null}
 
-      {menuSections.map((section) => (
-        <section className="admin-sidebar__section" key={section.heading}>
-          <p className="admin-sidebar__heading">{section.heading}</p>
-          <nav className="admin-sidebar__nav">
-            {section.items.map((item) => {
-              if (item.to) {
+      {menuSections.map((section) => {
+        const visibleItems = section.items.filter((item) => canViewAdminMenuItem(currentRole, item))
+
+        if (visibleItems.length === 0) {
+          return null
+        }
+
+        return (
+          <section className="admin-sidebar__section" key={section.heading}>
+            <p className="admin-sidebar__heading">{section.heading}</p>
+            <nav className="admin-sidebar__nav">
+              {visibleItems.map((item) => {
+                if (item.to) {
+                  return (
+                    <NavLink
+                      className={({ isActive }) =>
+                        `admin-sidebar__item${isActive ? ' admin-sidebar__item--active' : ''}`
+                      }
+                      end={item.to === '/admin'}
+                      key={item.label}
+                      to={buildPreviewPath(item.to)}
+                    >
+                      <SidebarIcon>{item.icon}</SidebarIcon>
+                      <span>{item.label}</span>
+                    </NavLink>
+                  )
+                }
+
                 return (
-                  <NavLink
-                    className={({ isActive }) =>
-                      `admin-sidebar__item${isActive ? ' admin-sidebar__item--active' : ''}`
-                    }
-                    end={item.to === '/admin'}
+                  <a
+                    className="admin-sidebar__item"
+                    href={item.href}
                     key={item.label}
-                    to={item.to}
+                    onClick={(event) => event.preventDefault()}
                   >
                     <SidebarIcon>{item.icon}</SidebarIcon>
                     <span>{item.label}</span>
-                  </NavLink>
+                  </a>
                 )
-              }
-
-              return (
-                <a
-                  className="admin-sidebar__item"
-                  href={item.href}
-                  key={item.label}
-                  onClick={(event) => event.preventDefault()}
-                >
-                  <SidebarIcon>{item.icon}</SidebarIcon>
-                  <span>{item.label}</span>
-                </a>
-              )
-            })}
-          </nav>
-        </section>
-      ))}
+              })}
+            </nav>
+          </section>
+        )
+      })}
 
       <div className="admin-sidebar__spacer" />
 

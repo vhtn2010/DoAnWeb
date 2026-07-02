@@ -1,3 +1,4 @@
+import { useOutletContext } from 'react-router-dom'
 import { useState } from 'react'
 import AdminServiceFormModal from '../../components/admin/services/AdminServiceFormModal.jsx'
 import AdminServiceStatusActionModal from '../../components/admin/services/AdminServiceStatusActionModal.jsx'
@@ -5,12 +6,11 @@ import {
   adminServiceStatusOptions,
   adminServiceTypeOptions,
   buildServiceStatusActionPayload,
+  getAdminRoleLabel,
   getAllowedServiceActions,
   mockAdminServices,
   updateServiceStatusMock,
 } from '../../data/mockAdminServices.js'
-
-const currentRole = 'admin' // staff | admin | system_admin
 const pageSize = 4
 
 const sortOptions = [
@@ -184,6 +184,8 @@ function getActionFeedbackMessage(actionKey) {
 }
 
 function AdminServicesPage() {
+  const outletContext = useOutletContext()
+  const currentRole = outletContext?.currentRole ?? 'system_admin'
   const [services, setServices] = useState(mockAdminServices)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedType, setSelectedType] = useState('all')
@@ -418,7 +420,7 @@ function AdminServicesPage() {
 
       <section className="admin-services-page__meta-bar" aria-label="Trạng thái mock">
         <div className="admin-services-page__role-pill">
-          Role mock: <strong>{currentRole}</strong>
+          Role mock: <strong>{getAdminRoleLabel(currentRole)}</strong>
         </div>
         <p
           className={`admin-services-page__feedback admin-services-page__feedback--${feedbackState.tone}`}
