@@ -20,6 +20,67 @@ const getDirectPaymentMethods = (req, res) => {
   });
 };
 
+const createCustomerDirectPayment = async (req, res) => {
+  const result = await paymentService.createCustomerDirectPayment({
+    auth: req.auth,
+    body: req.body,
+    bookingId: req.params.booking_id,
+    headers: req.headers,
+  });
+
+  res.success({
+    data: result.payment,
+    message:
+      result.reused === 'idempotency'
+        ? 'Direct payment reused from the same Idempotency-Key'
+        : result.reused === 'pending'
+          ? 'Existing pending direct payment returned successfully'
+          : 'Direct payment created successfully',
+    statusCode: result.created ? 201 : 200,
+  });
+};
+
+const listCustomerBookingPayments = async (req, res) => {
+  const data = await paymentService.listCustomerBookingPayments({
+    auth: req.auth,
+    bookingId: req.params.booking_id,
+  });
+
+  res.success({
+    data,
+    message: 'Booking payments retrieved successfully',
+  });
+};
+
+const getCustomerPaymentDetail = async (req, res) => {
+  const data = await paymentService.getCustomerPaymentDetail({
+    auth: req.auth,
+    paymentId: req.params.payment_id,
+  });
+
+  res.success({
+    data,
+    message: 'Payment detail retrieved successfully',
+  });
+};
+
+const cancelCustomerPayment = async (req, res) => {
+  const data = await paymentService.cancelCustomerPayment({
+    auth: req.auth,
+    body: req.body,
+    paymentId: req.params.payment_id,
+  });
+
+  res.success({
+    data,
+    message: 'Payment cancelled successfully',
+  });
+};
+
 module.exports = {
+  cancelCustomerPayment,
+  createCustomerDirectPayment,
+  getCustomerPaymentDetail,
   getDirectPaymentMethods,
+  listCustomerBookingPayments,
 };
