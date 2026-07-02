@@ -461,6 +461,19 @@ const parseMarkSuccessBody = (body = {}) => {
 
 const parseMarkFailedBody = (body = {}) => parseRejectBody(body);
 
+const parseNoteBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  return {
+    note: parseRequiredString({
+      field: 'note',
+      value: body.note,
+    }),
+  };
+};
+
 const buildPaginationMeta = ({
   limit,
   page,
@@ -498,7 +511,20 @@ const sanitizeInternalNote = (rawResponse) => {
     };
   }
 
-  if (typeof internalNote !== 'object' || Array.isArray(internalNote)) {
+  if (Array.isArray(internalNote)) {
+    return internalNote
+      .filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry))
+      .map((entry) => ({
+        created_at: entry.created_at || null,
+        created_by_user_id:
+          entry.created_by_user_id ||
+          entry.updated_by_user_id ||
+          null,
+        note: entry.note || null,
+      }));
+  }
+
+  if (typeof internalNote !== 'object') {
     return null;
   }
 
@@ -1063,6 +1089,37 @@ const createAdminRefundService = ({
     return sanitizeRefundDetail(result.refund);
   };
 
+  const updateRefundInternalNote = async ({
+    auth,
+    body,
+    refund_id: refundId,
+  } = {}) => {
+    ensureProcessAccess(auth);
+
+    const parsedRefundId = parseUuid('refund_id', refundId);
+    const parsedBody = parseNoteBody(body || {});
+    const refund = await repository.getRefundById({
+      allowedServiceIds: resolveScopeServiceIds(auth),
+      refundId: parsedRefundId,
+    });
+
+    if (!refund) {
+      throw buildResourceNotFoundError();
+    }
+
+    const updatedRefund = await repository.updateRefundInternalNote({
+      actorUserId: auth.userId,
+      note: parsedBody.note,
+      refundId: parsedRefundId,
+    });
+
+    if (!updatedRefund) {
+      throw buildResourceNotFoundError();
+    }
+
+    return sanitizeRefundDetail(updatedRefund);
+  };
+
   return {
     approveRefund,
     getRefundDetail,
@@ -1071,6 +1128,7 @@ const createAdminRefundService = ({
     markRefundProcessing,
     markRefundSuccess,
     rejectRefund,
+    updateRefundInternalNote,
   };
 };
 

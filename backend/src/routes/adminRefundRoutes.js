@@ -7,6 +7,7 @@ const {
   markAdminRefundProcessing,
   markAdminRefundSuccess,
   rejectAdminRefund,
+  updateAdminRefundNote,
 } = require('../controllers/adminRefundController');
 const { requireAdminAuth } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -71,6 +72,13 @@ router.post(
   requireAdminAuth,
   adminRefundProcessRateLimit,
   asyncHandler(markAdminRefundFailed),
+);
+
+router.patch(
+  '/admin/refunds/:refund_id/note',
+  requireAdminAuth,
+  adminRefundProcessRateLimit,
+  asyncHandler(updateAdminRefundNote),
 );
 
 module.exports = router;
