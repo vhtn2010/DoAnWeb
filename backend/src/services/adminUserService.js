@@ -11,6 +11,7 @@ const {
 } = require('../constants/domainConstraints');
 const AppError = require('../utils/AppError');
 const {
+  AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
   buildVerificationEmail,
   MIN_PASSWORD_LENGTH,
 } = require('./authService');
@@ -27,10 +28,11 @@ const ADMIN_USER_CHANGE_STATUS_ACTION = 'admin.user.change_status';
 const ADMIN_USER_CHANGE_ROLE_ACTION = 'admin.user.change_role';
 const ADMIN_USER_SOFT_DELETE_ACTION = 'admin.user.soft_delete';
 const ADMIN_USER_RESEND_VERIFICATION_ACTION =
-  'admin.user.resend_verification';
+  'admin.user.resend_verification_email';
 const ADMIN_USER_UPDATE_PROFILE_ACTION = 'admin.user.update_profile';
 const ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE = 'ADMIN_USER_VERIFY_EMAIL';
-const ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = 'ADMIN_RESEND_VERIFY_EMAIL';
+const ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE =
+  AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE;
 const CUSTOMER_ROLE_CODE = 'customer';
 const SYSTEM_ADMIN_ROLE_CODE = 'system_admin';
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -147,6 +149,14 @@ const createForbiddenError = (message, details) =>
     statusCode: 403,
   });
 
+const createInvalidStateTransitionError = (
+  message = 'User is not in a state that allows verification email resend',
+) =>
+  new AppError(message, {
+    code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+    statusCode: 400,
+  });
+
 const createInternalError = (
   message = 'Unable to complete admin user request',
 ) =>
@@ -218,6 +228,21 @@ const isAllowedAvatarUrl = (value) => {
   return pathSegments.length >= 4 &&
     pathSegments[1] === 'image' &&
     pathSegments[2] === 'upload';
+};
+
+const normalizeRecipientEmail = (email) => {
+  const normalizedEmail = trimToNull(email)?.toLowerCase();
+
+  if (!normalizedEmail || !EMAIL_ADDRESS_REGEX.test(normalizedEmail)) {
+    throw createValidationError([
+      {
+        field: 'email',
+        message: 'email is invalid',
+      },
+    ]);
+  }
+
+  return normalizedEmail;
 };
 
 const normalizePagination = (input = {}) => {
@@ -969,6 +994,21 @@ const ensureActorCanManageTargetLifecycle = (actor, targetUser) => {
   }
 };
 
+const ensureActorCanResendVerificationEmail = (actor, permissions) => {
+  if (!ADMIN_ALLOWED_ROLE_CODES.has(actor.role_code)) {
+    throw createForbiddenError('Only admin users can resend verification emails');
+  }
+
+  if (
+    !permissions.includes('email.send') &&
+    !permissions.includes('user.update_status')
+  ) {
+    throw createForbiddenError(
+      'You do not have permission to resend verification emails',
+    );
+  }
+};
+
 const ensureActorCanChangeRole = (actor, targetUser, targetRole) => {
   if (actor.role_code !== SYSTEM_ADMIN_ROLE_CODE) {
     throw createForbiddenError(
@@ -1634,6 +1674,16 @@ const createAdminUserService = ({
     try {
       return await withTransactionImpl(async (client) => {
         const normalizedUserId = normalizeUserId(userId);
+        const actor = await loadActorById(
+          client.query.bind(client),
+          actorUserId,
+        );
+        const permissions = await loadPermissionsByRoleId(
+          client.query.bind(client),
+          actor.role_id,
+        );
+
+        ensureActorCanResendVerificationEmail(actor, permissions);
         const targetUser = await loadUserById(
           client.query.bind(client),
           normalizedUserId,
@@ -1646,21 +1696,20 @@ const createAdminUserService = ({
           throw createNotFoundError();
         }
 
-        if (targetUser.status !== USER_STATUS.PENDING_VERIFICATION) {
-          throw createForbiddenError(
-            'Verification email can only be resent for pending_verification users',
-          );
-        }
+        const normalizedEmail = normalizeRecipientEmail(targetUser.email);
 
-        if (targetUser.email_verified_at != null) {
-          throw createForbiddenError(
-            'Email is already verified for this user',
+        if (
+          targetUser.status !== USER_STATUS.PENDING_VERIFICATION ||
+          targetUser.email_verified_at != null
+        ) {
+          throw createInvalidStateTransitionError(
+            'Verification email can only be resent for pending_verification users',
           );
         }
 
         const createdAt = now();
         const token = createEmailVerificationTokenImpl({
-          email: targetUser.email,
+          email: normalizedEmail,
           userId: targetUser.id,
         });
         const tokenHash = hashEmailVerificationTokenImpl(token);
@@ -1676,7 +1725,7 @@ const createAdminUserService = ({
           createdAt,
           subject: emailContent.subject,
           templateCode: ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
-          toEmail: targetUser.email,
+          toEmail: normalizedEmail,
           userId: targetUser.id,
         });
         const sendResult = await sendEmailImpl({
@@ -1684,7 +1733,7 @@ const createAdminUserService = ({
           subject: emailContent.subject,
           text: emailContent.text,
           to: {
-            email: targetUser.email,
+            email: normalizedEmail,
             name: targetUser.full_name,
           },
         });
@@ -1714,7 +1763,7 @@ const createAdminUserService = ({
         });
 
         return {
-          email: targetUser.email,
+          email: normalizedEmail,
           request_status: 'resent',
           status: targetUser.status,
         };

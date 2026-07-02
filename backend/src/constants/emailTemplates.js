@@ -1,0 +1,132 @@
+const SYSTEM_EMAIL_TEMPLATES = Object.freeze([
+  Object.freeze({
+    code: 'AUTH_VERIFY_EMAIL',
+    description: 'Email xac thuc tai khoan sau khi dang ky.',
+    display_name: 'Verify Email',
+    required_variables: Object.freeze([
+      'full_name',
+      'token',
+      'verification_url',
+      'api_verify_url',
+      'expires_in_minutes',
+    ]),
+  }),
+  Object.freeze({
+    code: 'AUTH_RESEND_VERIFY_EMAIL',
+    description: 'Email gui lai lien ket xac thuc tai khoan.',
+    display_name: 'Resend Verify Email',
+    required_variables: Object.freeze([
+      'full_name',
+      'token',
+      'verification_url',
+      'api_verify_url',
+      'expires_in_minutes',
+    ]),
+  }),
+  Object.freeze({
+    code: 'AUTH_RESET_PASSWORD',
+    description: 'Email khoi phuc va dat lai mat khau.',
+    display_name: 'Reset Password',
+    required_variables: Object.freeze([
+      'full_name',
+      'token',
+      'reset_url',
+      'api_reset_url',
+      'expires_in_minutes',
+    ]),
+  }),
+  Object.freeze({
+    code: 'AUTH_CHANGE_EMAIL_CONFIRM',
+    description: 'Email xac nhan thay doi dia chi email tai khoan.',
+    display_name: 'Change Email Confirm',
+    required_variables: Object.freeze([
+      'full_name',
+      'new_email',
+      'token',
+      'confirm_url',
+      'api_confirm_url',
+      'expires_in_minutes',
+    ]),
+  }),
+  Object.freeze({
+    code: 'BOOKING_CONFIRMATION',
+    description: 'Email xac nhan booking sau khi tao don thanh cong.',
+    display_name: 'Booking Confirmation',
+    required_variables: Object.freeze([
+      'booking_code',
+      'contact_name',
+      'items',
+      'subtotal_amount',
+      'discount_amount',
+      'total_amount',
+      'currency',
+      'booking_status',
+    ]),
+  }),
+  Object.freeze({
+    code: 'BOOKING_CONFIRMATION_RESEND',
+    description: 'Email gui lai xac nhan booking da ton tai.',
+    display_name: 'Booking Confirmation Resend',
+    required_variables: Object.freeze([
+      'booking_code',
+      'contact_name',
+      'items',
+      'subtotal_amount',
+      'discount_amount',
+      'total_amount',
+      'currency',
+      'booking_status',
+    ]),
+  }),
+  Object.freeze({
+    code: 'BOOKING_RECEIPT',
+    description: 'Email bien lai thanh toan booking.',
+    display_name: 'Booking Receipt',
+    required_variables: Object.freeze([
+      'booking_code',
+      'contact_name',
+      'payment_amount',
+      'currency',
+      'payment_method',
+      'receipt_number',
+      'paid_at',
+    ]),
+  }),
+  Object.freeze({
+    code: 'SUPPORT_MANUAL_EMAIL',
+    description: 'Email ho tro thu cong do staff hoac admin gui trong ngu canh support ticket.',
+    display_name: 'Support Manual Email',
+    required_variables: Object.freeze([
+      'customer_name',
+      'ticket_code',
+      'subject',
+      'message',
+    ]),
+  }),
+  Object.freeze({
+    code: 'SUPPORT_REPLY_NOTIFICATION',
+    description: 'Thong bao email khi support ticket co phan hoi moi.',
+    display_name: 'Support Reply Notification',
+    required_variables: Object.freeze([
+      'customer_name',
+      'ticket_code',
+      'reply_message',
+      'reply_url',
+    ]),
+  }),
+  Object.freeze({
+    code: 'SYSTEM_NOTICE',
+    description: 'Email thong bao he thong phuc vu van hanh hoac debug.',
+    display_name: 'System Notice',
+    required_variables: Object.freeze([
+      'recipient_name',
+      'title',
+      'message',
+      'notice_type',
+    ]),
+  }),
+]);
+
+module.exports = {
+  SYSTEM_EMAIL_TEMPLATES,
+};
