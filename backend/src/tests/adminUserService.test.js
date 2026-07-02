@@ -1163,6 +1163,23 @@ test('resendVerificationEmail queues email and writes audit log for pending user
       queries.push({ params, sql });
 
       if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+        if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                deleted_at: null,
+                email: 'admin@example.com',
+                id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                role_code: 'admin',
+                role_id: 'role-admin-id',
+                role_level: 90,
+                status: 'active',
+              },
+            ],
+          };
+        }
+
         return {
           rowCount: 1,
           rows: [
@@ -1185,6 +1202,13 @@ test('resendVerificationEmail queues email and writes audit log for pending user
               updated_at: fixedNow,
             },
           ],
+        };
+      }
+
+      if (sql.includes('FROM role_permissions rp')) {
+        return {
+          rowCount: 1,
+          rows: [{ code: 'email.send' }],
         };
       }
 
@@ -1244,22 +1268,117 @@ test('resendVerificationEmail rejects non-pending target status', async () => {
   const service = createAdminUserService({
     withTransactionImpl: async (callback) =>
       callback({
-        query: async () => ({
-          rowCount: 1,
-          rows: [
-            {
-              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-              email: 'staff@example.com',
-              email_verified_at: new Date('2026-06-30T00:00:00.000Z'),
-              full_name: 'Active Staff',
-              role_code: 'staff',
-              role_id: 'role-staff-id',
-              role_level: 10,
-              role_name: 'Staff',
-              status: 'active',
-            },
-          ],
-        }),
+        query: async (sql, params = []) => {
+          if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+            if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+              return {
+                rowCount: 1,
+                rows: [
+                  {
+                    deleted_at: null,
+                    email: 'admin@example.com',
+                    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    role_code: 'admin',
+                    role_id: 'role-admin-id',
+                    role_level: 90,
+                    status: 'active',
+                  },
+                ],
+              };
+            }
+
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                  email: 'staff@example.com',
+                  email_verified_at: new Date('2026-06-30T00:00:00.000Z'),
+                  full_name: 'Active Staff',
+                  role_code: 'staff',
+                  role_id: 'role-staff-id',
+                  role_level: 10,
+                  role_name: 'Staff',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          if (sql.includes('FROM role_permissions rp')) {
+            return {
+              rowCount: 1,
+              rows: [{ code: 'user.update_status' }],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.resendVerificationEmail({
+        actorUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.INVALID_STATE_TRANSITION &&
+      error.statusCode === 400,
+  );
+});
+
+test('resendVerificationEmail rejects actor without resend permission', async () => {
+  const service = createAdminUserService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql, params = []) => {
+          if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+            if (params[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+              return {
+                rowCount: 1,
+                rows: [
+                  {
+                    deleted_at: null,
+                    email: 'admin@example.com',
+                    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    role_code: 'admin',
+                    role_id: 'role-admin-id',
+                    role_level: 90,
+                    status: 'active',
+                  },
+                ],
+              };
+            }
+
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                  email: 'staff@example.com',
+                  email_verified_at: null,
+                  full_name: 'Pending Staff',
+                  role_code: 'staff',
+                  role_id: 'role-staff-id',
+                  role_level: 10,
+                  role_name: 'Staff',
+                  status: 'pending_verification',
+                },
+              ],
+            };
+          }
+
+          if (sql.includes('FROM role_permissions rp')) {
+            return {
+              rowCount: 1,
+              rows: [{ code: 'user.read_all' }],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
       }),
   });
 
