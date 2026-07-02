@@ -444,6 +444,60 @@ const createAdminRefundRepository = ({
     return mergedRawResponse;
   };
 
+  const appendInternalNoteEntry = ({
+    actorUserId,
+    note,
+    rawResponse,
+    nowIso,
+  }) => {
+    const mergedRawResponse = buildPlainObject(rawResponse);
+    const existingInternalNotes = mergedRawResponse.internal_notes;
+    const normalizedNotes = [];
+
+    if (Array.isArray(existingInternalNotes)) {
+      for (const entry of existingInternalNotes) {
+        if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+          normalizedNotes.push({
+            created_at: entry.created_at || entry.updated_at || null,
+            created_by_user_id:
+              entry.created_by_user_id ||
+              entry.updated_by_user_id ||
+              null,
+            note: entry.note || null,
+          });
+        }
+      }
+    } else if (
+      existingInternalNotes &&
+      typeof existingInternalNotes === 'object'
+    ) {
+      normalizedNotes.push({
+        created_at: existingInternalNotes.created_at || existingInternalNotes.updated_at || null,
+        created_by_user_id:
+          existingInternalNotes.created_by_user_id ||
+          existingInternalNotes.updated_by_user_id ||
+          null,
+        note: existingInternalNotes.note || null,
+      });
+    } else if (typeof existingInternalNotes === 'string' && existingInternalNotes.trim()) {
+      normalizedNotes.push({
+        created_at: null,
+        created_by_user_id: null,
+        note: existingInternalNotes.trim(),
+      });
+    }
+
+    normalizedNotes.push({
+      created_at: nowIso,
+      created_by_user_id: actorUserId,
+      note,
+    });
+
+    mergedRawResponse.internal_notes = normalizedNotes;
+
+    return mergedRawResponse;
+  };
+
   const lockRefundContext = async (client, refundId) => {
     await client.query(
       `
@@ -1029,6 +1083,60 @@ const createAdminRefundRepository = ({
       };
     });
 
+  const updateRefundInternalNote = async ({
+    actorUserId,
+    note,
+    refundId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const currentRefund = await selectRefundById(client, {
+        allowedServiceIds: null,
+        refundId,
+      });
+
+      if (!currentRefund) {
+        return null;
+      }
+
+      const nowIso = new Date().toISOString();
+      const mergedRawResponse = appendInternalNoteEntry({
+        actorUserId,
+        note,
+        nowIso,
+        rawResponse: currentRefund.raw_response,
+      });
+
+      await client.query(
+        `
+          UPDATE refunds
+          SET raw_response = $2::jsonb
+          WHERE id = $1
+        `,
+        [refundId, JSON.stringify(mergedRawResponse)],
+      );
+
+      const updatedRefund = await selectRefundById(client, {
+        allowedServiceIds: null,
+        refundId,
+      });
+
+      await insertUserLog(client, {
+        action: 'refund.note_update',
+        actorUserId,
+        entityId: refundId,
+        metadata: {
+          booking_id: currentRefund.booking_id,
+          booking_status: currentRefund.booking_status,
+          note,
+          payment_id: currentRefund.payment_id,
+          refund_code: currentRefund.refund_code,
+          refund_status: currentRefund.status,
+        },
+      });
+
+      return updatedRefund;
+    });
+
   return {
     approveRefund,
     getBookingItemsByBookingId,
@@ -1041,6 +1149,7 @@ const createAdminRefundRepository = ({
     markRefundSuccess,
     rejectRefund,
     sumOtherActiveRefundAmountsByPaymentId,
+    updateRefundInternalNote,
   };
 };
 

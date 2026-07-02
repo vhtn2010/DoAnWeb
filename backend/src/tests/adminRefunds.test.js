@@ -24,6 +24,7 @@ const originalMarkRefundFailed = adminRefundService.markRefundFailed;
 const originalMarkRefundProcessing = adminRefundService.markRefundProcessing;
 const originalMarkRefundSuccess = adminRefundService.markRefundSuccess;
 const originalRejectRefund = adminRefundService.rejectRefund;
+const originalUpdateRefundInternalNote = adminRefundService.updateRefundInternalNote;
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -94,6 +95,7 @@ test.afterEach(() => {
   adminRefundService.markRefundProcessing = originalMarkRefundProcessing;
   adminRefundService.markRefundSuccess = originalMarkRefundSuccess;
   adminRefundService.rejectRefund = originalRejectRefund;
+  adminRefundService.updateRefundInternalNote = originalUpdateRefundInternalNote;
 });
 
 test('adminRefundService.listRefunds validates filters and permission refund.read_all', async () => {
@@ -1409,6 +1411,157 @@ test('adminRefundService.markRefundFailed only marks processing refunds as faile
   );
 });
 
+test('adminRefundService.updateRefundInternalNote validates permission and appends admin-only notes', async () => {
+  let capturedUpdateNotePayload;
+  const service = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async ({ allowedServiceIds, refundId }) => {
+        assert.equal(refundId, REFUND_ID);
+        assert.deepEqual(allowedServiceIds, ['service-2']);
+
+        return {
+          amount: '200000',
+          booking_code: 'BK202607020001',
+          booking_id: BOOKING_ID,
+          booking_status: 'refund_pending',
+          id: REFUND_ID,
+          payment_amount: '500000',
+          payment_id: PAYMENT_ID,
+          payment_status: 'success',
+          raw_response: {},
+          refund_code: 'RF202607020001',
+          status: 'processing',
+        };
+      },
+      updateRefundInternalNote: async (payload) => {
+        capturedUpdateNotePayload = payload;
+
+        return {
+          amount: '200000',
+          approved_by_email: null,
+          approved_by_full_name: null,
+          approved_by_phone: null,
+          approved_by_user_id: 'admin-user-6',
+          booking_code: 'BK202607020001',
+          booking_created_at: '2026-07-01T10:00:00.000Z',
+          booking_currency: 'VND',
+          booking_expires_at: '2026-07-03T00:00:00.000Z',
+          booking_id: BOOKING_ID,
+          booking_status: 'refund_pending',
+          booking_total_amount: '500000',
+          contact_email: 'booker@example.com',
+          contact_name: 'Nguyen Van A',
+          contact_phone: '0909000000',
+          created_at: '2026-07-02T01:00:00.000Z',
+          customer_email: 'customer@example.com',
+          customer_full_name: 'Nguyen Van A',
+          customer_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+          customer_phone: '0909000000',
+          id: REFUND_ID,
+          payment_amount: '500000',
+          payment_code: 'PAY202607020001',
+          payment_currency: 'VND',
+          payment_id: PAYMENT_ID,
+          payment_method: 'manual_bank_transfer',
+          payment_paid_at: '2026-07-02T00:30:00.000Z',
+          payment_provider: 'direct',
+          payment_status: 'success',
+          processed_at: null,
+          provider_refund_id: null,
+          raw_response: {
+            internal_notes: [
+              {
+                created_at: '2026-07-04T05:00:00.000Z',
+                created_by_user_id: 'staff-user-6',
+                note: 'Can doi soat them voi ngan hang',
+              },
+            ],
+          },
+          reason: 'Can hoan mot phan',
+          refund_code: 'RF202607020001',
+          requested_by_email: 'customer@example.com',
+          requested_by_full_name: 'Nguyen Van A',
+          requested_by_phone: '0909000000',
+          requested_by_user_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          status: 'processing',
+        };
+      },
+    },
+  });
+
+  const result = await service.updateRefundInternalNote({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: ['service-2'],
+      tokenPayload: {
+        permissions: ['refund.process'],
+      },
+      userId: 'staff-user-6',
+    },
+    body: {
+      note: 'Can doi soat them voi ngan hang',
+    },
+    refund_id: REFUND_ID,
+  });
+
+  assert.deepEqual(capturedUpdateNotePayload, {
+    actorUserId: 'staff-user-6',
+    note: 'Can doi soat them voi ngan hang',
+    refundId: REFUND_ID,
+  });
+  assert.deepEqual(result.internal_note, [
+    {
+      created_at: '2026-07-04T05:00:00.000Z',
+      created_by_user_id: 'staff-user-6',
+      note: 'Can doi soat them voi ngan hang',
+    },
+  ]);
+  assert.equal(result.status, 'processing');
+  assert.equal(result.payment.status, 'success');
+  assert.equal(result.booking.status, 'refund_pending');
+
+  await assert.rejects(
+    () => service.updateRefundInternalNote({
+      auth: {
+        role: 'staff',
+        serviceScopeIds: ['service-2'],
+        tokenPayload: {
+          permissions: ['refund.read_all'],
+        },
+        userId: 'staff-user-6',
+      },
+      body: {
+        note: 'Can doi soat them',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.updateRefundInternalNote({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['refund.process'],
+        },
+        userId: 'admin-user-6',
+      },
+      body: {
+        note: '',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+});
+
 test('GET /api/admin/refunds requires access token', async () => {
   const server = app.listen(0);
 
@@ -1625,6 +1778,7 @@ test('admin refund process routes forward auth, body, and headers to service met
   let capturedMarkProcessingContext;
   let capturedMarkSuccessContext;
   let capturedRejectContext;
+  let capturedUpdateNoteContext;
 
   adminRefundService.approveRefund = async (context) => {
     capturedApproveContext = context;
@@ -1678,6 +1832,24 @@ test('admin refund process routes forward auth, body, and headers to service met
       id: REFUND_ID,
       refund_code: 'RF202607020001',
       status: 'failed',
+    };
+  };
+
+  adminRefundService.updateRefundInternalNote = async (context) => {
+    capturedUpdateNoteContext = context;
+
+    return {
+      amount: 200000,
+      id: REFUND_ID,
+      internal_note: [
+        {
+          created_at: '2026-07-04T05:00:00.000Z',
+          created_by_user_id: 'staff-user-9',
+          note: 'Ghi chu noi bo moi',
+        },
+      ],
+      refund_code: 'RF202607020001',
+      status: 'processing',
     };
   };
 
@@ -1752,6 +1924,19 @@ test('admin refund process routes forward auth, body, and headers to service met
         method: 'POST',
       },
     );
+    const noteResponse = await request(
+      server,
+      `${apiPrefix}/admin/refunds/${REFUND_ID}/note`,
+      {
+        body: {
+          note: 'Ghi chu noi bo moi',
+        },
+        headers: {
+          Authorization: `Bearer ${processToken}`,
+        },
+        method: 'PATCH',
+      },
+    );
 
     assert.equal(approveResponse.statusCode, 200);
     assert.equal(approveResponse.body.message, 'Admin refund approved successfully');
@@ -1798,6 +1983,15 @@ test('admin refund process routes forward auth, body, and headers to service met
     );
     assert.equal(failedResponse.body.data.status, 'failed');
     assert.equal(capturedMarkFailedContext.body.reason, 'Hoan tien that bai');
+
+    assert.equal(noteResponse.statusCode, 200);
+    assert.equal(
+      noteResponse.body.message,
+      'Admin refund note updated successfully',
+    );
+    assert.equal(noteResponse.body.data.status, 'processing');
+    assert.equal(capturedUpdateNoteContext.auth.role, 'staff');
+    assert.equal(capturedUpdateNoteContext.body.note, 'Ghi chu noi bo moi');
   } finally {
     server.close();
   }

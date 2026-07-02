@@ -67,6 +67,19 @@ const rejectAdminRefund = async (req, res) => {
   });
 };
 
+const updateAdminRefundNote = async (req, res) => {
+  const data = await adminRefundService.updateRefundInternalNote({
+    auth: req.auth,
+    body: req.body,
+    ...req.params,
+  });
+
+  res.success({
+    data,
+    message: 'Admin refund note updated successfully',
+  });
+};
+
 const listAdminRefunds = async (req, res) => {
   const result = await adminRefundService.listRefunds({
     auth: req.auth,
@@ -100,4 +113,5 @@ module.exports = {
   markAdminRefundProcessing,
   markAdminRefundSuccess,
   rejectAdminRefund,
+  updateAdminRefundNote,
 };
