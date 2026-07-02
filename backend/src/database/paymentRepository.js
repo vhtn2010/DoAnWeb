@@ -366,6 +366,99 @@ const createPaymentRepository = ({
     }
   };
 
+  const uploadPaymentProof = async ({
+    actorUserId,
+    bankTransactionCode,
+    paymentId,
+    proofImageUrl,
+    transferNote,
+  }) => {
+    const pool = getPoolImpl();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const paymentResult = await client.query(
+        `
+          UPDATE payments
+          SET
+            raw_response = jsonb_set(
+              COALESCE(raw_response, '{}'::jsonb),
+              '{proof}',
+              jsonb_build_object(
+                'proof_image_url', $2,
+                'transfer_note', $3,
+                'bank_transaction_code', $4,
+                'submitted_at', NOW()
+              ),
+              true
+            ),
+            updated_at = NOW()
+          WHERE id = $1
+          RETURNING
+            id,
+            booking_id,
+            payment_code,
+            provider,
+            payment_method,
+            status,
+            amount,
+            currency,
+            raw_response,
+            paid_at,
+            expired_at,
+            created_at,
+            updated_at
+        `,
+        [
+          paymentId,
+          proofImageUrl,
+          transferNote,
+          bankTransactionCode,
+        ],
+      );
+
+      const updatedPayment = paymentResult.rows[0];
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId,
+          'payment.proof.upload',
+          'payment',
+          paymentId,
+          {
+            bank_transaction_code: bankTransactionCode,
+            has_transfer_note: Boolean(transferNote),
+            payment_code: updatedPayment.payment_code,
+            proof_image_url: proofImageUrl,
+            status: updatedPayment.status,
+          },
+        ],
+      );
+
+      await client.query('COMMIT');
+
+      return updatedPayment;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+
   return {
     cancelDirectPayment,
     createDirectPayment,
@@ -374,6 +467,7 @@ const createPaymentRepository = ({
     getBookingById,
     getPaymentById,
     listPaymentsByBookingId,
+    uploadPaymentProof,
   };
 };
 

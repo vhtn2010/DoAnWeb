@@ -3,8 +3,10 @@ const {
   cancelCustomerPayment,
   createCustomerDirectPayment,
   getCustomerPaymentDetail,
+  getCustomerPaymentProof,
   getDirectPaymentMethods,
   listCustomerBookingPayments,
+  uploadCustomerPaymentProof,
 } = require('../controllers/paymentController');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authRequired } = require('../middleware/authSession');
@@ -53,6 +55,20 @@ router.post(
   authRequired({ allowedRoles: ['customer'] }),
   customerPaymentWriteRateLimit,
   asyncHandler(cancelCustomerPayment),
+);
+
+router.post(
+  '/payments/:payment_id/proof',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerPaymentWriteRateLimit,
+  asyncHandler(uploadCustomerPaymentProof),
+);
+
+router.get(
+  '/payments/:payment_id/proof',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerPaymentReadRateLimit,
+  asyncHandler(getCustomerPaymentProof),
 );
 
 module.exports = router;

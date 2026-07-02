@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const { directPayment } = require('../config');
+const { cloudinary } = require('../config/cloudinary');
 const {
   API_ERROR_CODES,
   BOOKING_STATUS,
@@ -116,6 +117,20 @@ const parseUuid = (field, value) => {
   return value.trim();
 };
 
+const parseHttpUrl = (value) => {
+  try {
+    const parsedUrl = new URL(value);
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+
+    return parsedUrl;
+  } catch (error) {
+    return null;
+  }
+};
+
 const parseRequiredString = ({
   field,
   maxLength = 255,
@@ -194,6 +209,30 @@ const parseOptionalPhone = (value) => {
   }
 
   return phone;
+};
+
+const isAllowedProofImageUrl = (value) => {
+  const parsedUrl = parseHttpUrl(value);
+
+  if (!parsedUrl) {
+    return false;
+  }
+
+  if (parsedUrl.hostname !== 'res.cloudinary.com') {
+    return false;
+  }
+
+  const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+
+  if (pathSegments.length < 4) {
+    return false;
+  }
+
+  if (cloudinary.cloudName && pathSegments[0] !== cloudinary.cloudName) {
+    return false;
+  }
+
+  return pathSegments[1] === 'image' && pathSegments[2] === 'upload';
 };
 
 const parseRequiredIdempotencyKey = (headers = {}) => {
@@ -277,6 +316,46 @@ const parseCancelBody = (body = {}) => {
       field: 'reason',
       maxLength: 2000,
       value: body.reason,
+    }),
+  };
+};
+
+const parseProofBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const proofImageUrl = parseRequiredString({
+    field: 'proof_image_url',
+    maxLength: 2000,
+    value: body.proof_image_url,
+  });
+
+  if (!parseHttpUrl(proofImageUrl)) {
+    throw buildValidationError(
+      'proof_image_url',
+      'proof_image_url must be a valid http or https URL',
+    );
+  }
+
+  if (!isAllowedProofImageUrl(proofImageUrl)) {
+    throw buildValidationError(
+      'proof_image_url',
+      'proof_image_url must be a valid Cloudinary delivery URL',
+    );
+  }
+
+  return {
+    bankTransactionCode: parseOptionalString({
+      field: 'bank_transaction_code',
+      maxLength: 150,
+      value: body.bank_transaction_code,
+    }),
+    proofImageUrl,
+    transferNote: parseOptionalString({
+      field: 'transfer_note',
+      maxLength: 2000,
+      value: body.transfer_note,
     }),
   };
 };
@@ -413,11 +492,36 @@ const sanitizeProofSummary = (rawResponse) => {
     return null;
   }
 
-  return {
+  const summary = {
     bank_transaction_code: proof.bank_transaction_code || null,
     proof_image_url: proof.proof_image_url || null,
     transfer_note: proof.transfer_note || null,
-    uploaded_at: proof.uploaded_at || proof.created_at || null,
+    uploaded_at:
+      proof.uploaded_at ||
+      proof.submitted_at ||
+      proof.created_at ||
+      null,
+  };
+
+  if (proof.submitted_at) {
+    summary.submitted_at = proof.submitted_at;
+  }
+
+  return summary;
+};
+
+const sanitizeProof = (rawResponse) => {
+  const proof = rawResponse?.proof;
+
+  if (!proof || typeof proof !== 'object' || Array.isArray(proof)) {
+    return null;
+  }
+
+  return {
+    bank_transaction_code: proof.bank_transaction_code || null,
+    proof_image_url: proof.proof_image_url || null,
+    submitted_at: proof.submitted_at || null,
+    transfer_note: proof.transfer_note || null,
   };
 };
 
@@ -656,12 +760,84 @@ const createPaymentService = ({
     return sanitizePaymentDetail(cancelledPayment);
   };
 
+  const uploadCustomerPaymentProof = async ({
+    auth,
+    body,
+    paymentId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedPaymentId = parseUuid('payment_id', paymentId);
+    const parsedBody = parseProofBody(body);
+    const payment = await repository.getPaymentById(parsedPaymentId);
+
+    if (!payment) {
+      throw buildResourceNotFoundError('Payment not found');
+    }
+
+    if (payment.user_id !== auth.userId) {
+      throw buildForbiddenError('You do not have permission to access this payment');
+    }
+
+    if (payment.provider !== PAYMENT_PROVIDER.DIRECT) {
+      throw buildInvalidStateTransitionError(
+        'Only direct payments support proof upload',
+      );
+    }
+
+    if (payment.status !== PAYMENT_STATUS.PENDING) {
+      throw buildInvalidStateTransitionError(
+        'Only pending payments can be updated with payment proof',
+      );
+    }
+
+    const updatedPayment = await repository.uploadPaymentProof({
+      actorUserId: auth.userId,
+      bankTransactionCode: parsedBody.bankTransactionCode,
+      paymentId: parsedPaymentId,
+      proofImageUrl: parsedBody.proofImageUrl,
+      transferNote: parsedBody.transferNote,
+    });
+
+    return {
+      payment_id: updatedPayment.id,
+      proof: sanitizeProof(updatedPayment.raw_response),
+      status: updatedPayment.status,
+    };
+  };
+
+  const getCustomerPaymentProof = async ({
+    auth,
+    paymentId,
+  } = {}) => {
+    validateCustomerAuth(auth);
+
+    const parsedPaymentId = parseUuid('payment_id', paymentId);
+    const payment = await repository.getPaymentById(parsedPaymentId);
+
+    if (!payment) {
+      throw buildResourceNotFoundError('Payment not found');
+    }
+
+    if (payment.user_id !== auth.userId) {
+      throw buildForbiddenError('You do not have permission to access this payment');
+    }
+
+    return {
+      payment_id: payment.id,
+      proof: sanitizeProof(payment.raw_response),
+      status: payment.status,
+    };
+  };
+
   return {
     cancelCustomerPayment,
     createCustomerDirectPayment,
     getCustomerPaymentDetail,
+    getCustomerPaymentProof,
     getDirectPaymentMethods,
     listCustomerBookingPayments,
+    uploadCustomerPaymentProof,
   };
 };
 
