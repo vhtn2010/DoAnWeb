@@ -77,10 +77,39 @@ const cancelCustomerPayment = async (req, res) => {
   });
 };
 
+const uploadCustomerPaymentProof = async (req, res) => {
+  const data = await paymentService.uploadCustomerPaymentProof({
+    auth: req.auth,
+    body: req.body,
+    paymentId: req.params.payment_id,
+  });
+
+  res.success({
+    data,
+    message: 'Payment proof uploaded successfully',
+  });
+};
+
+const getCustomerPaymentProof = async (req, res) => {
+  const data = await paymentService.getCustomerPaymentProof({
+    auth: req.auth,
+    paymentId: req.params.payment_id,
+  });
+
+  res.success({
+    data,
+    message: data.proof
+      ? 'Payment proof retrieved successfully'
+      : 'Payment proof is not available',
+  });
+};
+
 module.exports = {
   cancelCustomerPayment,
   createCustomerDirectPayment,
   getCustomerPaymentDetail,
+  getCustomerPaymentProof,
   getDirectPaymentMethods,
   listCustomerBookingPayments,
+  uploadCustomerPaymentProof,
 };
