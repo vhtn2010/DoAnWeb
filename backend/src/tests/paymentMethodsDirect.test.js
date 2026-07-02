@@ -36,7 +36,7 @@ const request = (server, path, options = {}) =>
     req.end();
   });
 
-test('paymentService.getDirectPaymentMethods returns enabled public methods only', () => {
+test('paymentService.getDirectPaymentMethods returns enabled public methods only', async () => {
   const service = paymentService.createPaymentService({
     directPaymentConfig: {
       hotline: '1900 8080',
@@ -68,7 +68,7 @@ test('paymentService.getDirectPaymentMethods returns enabled public methods only
     },
   });
 
-  assert.deepEqual(service.getDirectPaymentMethods(), {
+  assert.deepEqual(await service.getDirectPaymentMethods(), {
     hotline: '1900 8080',
     methods: [
       {
@@ -93,18 +93,18 @@ test('paymentService.getDirectPaymentMethods returns enabled public methods only
   });
 });
 
-test('paymentService.getDirectPaymentMethods returns an empty list when no config exists', () => {
+test('paymentService.getDirectPaymentMethods returns an empty list when no config exists', async () => {
   const service = paymentService.createPaymentService({
     directPaymentConfig: {},
   });
 
-  assert.deepEqual(service.getDirectPaymentMethods(), {
+  assert.deepEqual(await service.getDirectPaymentMethods(), {
     hotline: null,
     methods: [],
   });
 });
 
-test('paymentService.getDirectPaymentMethods throws 404 when an enabled method lacks required public config', () => {
+test('paymentService.getDirectPaymentMethods throws 404 when an enabled method lacks required public config', async () => {
   const service = paymentService.createPaymentService({
     directPaymentConfig: {
       hotline: '1900 8080',
@@ -120,7 +120,7 @@ test('paymentService.getDirectPaymentMethods throws 404 when an enabled method l
     },
   });
 
-  assert.throws(() => service.getDirectPaymentMethods(), (error) => {
+  await assert.rejects(service.getDirectPaymentMethods(), (error) => {
     assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
     assert.equal(error.statusCode, 404);
     assert.deepEqual(error.details, [
@@ -138,7 +138,7 @@ test('GET /api/payment-methods/direct is public and returns cacheable direct pay
   const originalGetDirectPaymentMethods = paymentService.getDirectPaymentMethods;
   const server = app.listen(0);
 
-  paymentService.getDirectPaymentMethods = () => ({
+  paymentService.getDirectPaymentMethods = async () => ({
     hotline: '1900 8080',
     methods: [
       {
@@ -198,7 +198,7 @@ test('GET /api/payment-methods/direct returns 200 with an empty list when config
   const originalGetDirectPaymentMethods = paymentService.getDirectPaymentMethods;
   const server = app.listen(0);
 
-  paymentService.getDirectPaymentMethods = () => ({
+  paymentService.getDirectPaymentMethods = async () => ({
     hotline: null,
     methods: [],
   });
@@ -226,7 +226,7 @@ test('GET /api/payment-methods/direct propagates RESOURCE_NOT_FOUND for invalid 
   const originalGetDirectPaymentMethods = paymentService.getDirectPaymentMethods;
   const server = app.listen(0);
 
-  paymentService.getDirectPaymentMethods = () => {
+  paymentService.getDirectPaymentMethods = async () => {
     const error = new Error('Direct payment configuration not found');
     error.code = API_ERROR_CODES.RESOURCE_NOT_FOUND;
     error.statusCode = 404;
