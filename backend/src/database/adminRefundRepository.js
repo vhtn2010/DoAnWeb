@@ -1,3 +1,8 @@
+const {
+  BOOKING_ITEM_STATUS,
+  BOOKING_STATUS,
+  PAYMENT_STATUS,
+} = require('../constants/domainConstraints');
 const { query, withTransaction } = require('./client');
 
 const REFUND_DETAIL_SELECT = `
@@ -64,10 +69,31 @@ const ACTIVE_REFUND_STATUSES = Object.freeze([
   'success',
 ]);
 
+const REFUNDABLE_BOOKING_ITEM_STATUSES = Object.freeze([
+  BOOKING_ITEM_STATUS.PENDING,
+  BOOKING_ITEM_STATUS.CONFIRMED,
+  BOOKING_ITEM_STATUS.COMPLETED,
+]);
+
 const createAdminRefundRepository = ({
   queryImpl = query,
   withTransactionImpl = withTransaction,
 } = {}) => {
+  const toExecutor = (executor) => (
+    typeof executor === 'function'
+      ? { query: executor }
+      : executor
+  );
+
+  const queryWith = (executor, text, params = []) =>
+    toExecutor(executor).query(text, params);
+
+  const buildPlainObject = (value) => (
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? { ...value }
+      : {}
+  );
+
   const buildScopedWhere = ({
     allowedServiceIds,
     from,
@@ -115,6 +141,43 @@ const createAdminRefundRepository = ({
           ? `WHERE ${conditions.join('\n        AND ')}`
           : '',
     };
+  };
+
+  const selectRefundById = async (executor, {
+    allowedServiceIds,
+    refundId,
+  }) => {
+    const params = [refundId];
+    let scopeSql = '';
+
+    if (Array.isArray(allowedServiceIds)) {
+      if (allowedServiceIds.length === 0) {
+        return null;
+      }
+
+      params.push(allowedServiceIds);
+      scopeSql = `
+        AND EXISTS (
+          SELECT 1
+          FROM booking_items scoped_items
+          WHERE scoped_items.booking_id = b.id
+            AND scoped_items.service_id = ANY($${params.length}::uuid[])
+        )
+      `;
+    }
+
+    const result = await queryWith(
+      executor,
+      `
+        ${REFUND_DETAIL_SELECT}
+        WHERE r.id = $1
+        ${scopeSql}
+        LIMIT 1
+      `,
+      params,
+    );
+
+    return result.rows[0] || null;
   };
 
   const listRefunds = async ({
@@ -172,38 +235,10 @@ const createAdminRefundRepository = ({
   const getRefundById = async ({
     allowedServiceIds,
     refundId,
-  }) => {
-    const params = [refundId];
-    let scopeSql = '';
-
-    if (Array.isArray(allowedServiceIds)) {
-      if (allowedServiceIds.length === 0) {
-        return null;
-      }
-
-      params.push(allowedServiceIds);
-      scopeSql = `
-        AND EXISTS (
-          SELECT 1
-          FROM booking_items scoped_items
-          WHERE scoped_items.booking_id = b.id
-            AND scoped_items.service_id = ANY($${params.length}::uuid[])
-        )
-      `;
-    }
-
-    const result = await queryImpl(
-      `
-        ${REFUND_DETAIL_SELECT}
-        WHERE r.id = $1
-        ${scopeSql}
-        LIMIT 1
-      `,
-      params,
-    );
-
-    return result.rows[0] || null;
-  };
+  }) => selectRefundById(queryImpl, {
+    allowedServiceIds,
+    refundId,
+  });
 
   const getBookingItemsByBookingId = async (bookingId) => {
     const result = await queryImpl(
@@ -211,7 +246,8 @@ const createAdminRefundRepository = ({
         SELECT
           id,
           service_id,
-          service_snapshot
+          service_snapshot,
+          status
         FROM booking_items
         WHERE booking_id = $1
         ORDER BY created_at ASC, id ASC
@@ -240,7 +276,23 @@ const createAdminRefundRepository = ({
     return Number(result.rows[0]?.total_reserved || 0);
   };
 
-  const hasApproveLogByIdempotencyKey = async ({
+  const sumSuccessfulRefundAmountsByPaymentId = async (executor, paymentId) => {
+    const result = await queryWith(
+      executor,
+      `
+        SELECT COALESCE(SUM(amount), 0)::numeric AS total_success
+        FROM refunds
+        WHERE payment_id = $1
+          AND status = 'success'
+      `,
+      [paymentId],
+    );
+
+    return Number(result.rows[0]?.total_success || 0);
+  };
+
+  const hasUserLogByIdempotencyKey = async ({
+    action,
     idempotencyKey,
     refundId,
   }) => {
@@ -250,16 +302,34 @@ const createAdminRefundRepository = ({
         FROM user_logs
         WHERE entity_name = 'refund'
           AND entity_id = $1
-          AND action = 'refund.approve'
-          AND metadata ->> 'idempotency_key' = $2
+          AND action = $2
+          AND metadata ->> 'idempotency_key' = $3
         ORDER BY created_at DESC
         LIMIT 1
       `,
-      [refundId, idempotencyKey],
+      [refundId, action, idempotencyKey],
     );
 
     return result.rowCount > 0;
   };
+
+  const hasApproveLogByIdempotencyKey = async ({
+    idempotencyKey,
+    refundId,
+  }) => hasUserLogByIdempotencyKey({
+    action: 'refund.approve',
+    idempotencyKey,
+    refundId,
+  });
+
+  const hasMarkSuccessLogByIdempotencyKey = async ({
+    idempotencyKey,
+    refundId,
+  }) => hasUserLogByIdempotencyKey({
+    action: 'refund.mark_success',
+    idempotencyKey,
+    refundId,
+  });
 
   const insertUserLog = async (client, {
     action,
@@ -355,6 +425,113 @@ const createAdminRefundRepository = ({
     return Number(result.rows[0]?.total || 0);
   };
 
+  const appendInternalNote = ({
+    actorUserId,
+    note,
+    rawResponse,
+    nowIso,
+  }) => {
+    const mergedRawResponse = buildPlainObject(rawResponse);
+
+    if (note) {
+      mergedRawResponse.internal_notes = {
+        note,
+        updated_at: nowIso,
+        updated_by_user_id: actorUserId,
+      };
+    }
+
+    return mergedRawResponse;
+  };
+
+  const lockRefundContext = async (client, refundId) => {
+    await client.query(
+      `
+        SELECT id
+        FROM refunds
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [refundId],
+    );
+
+    const refund = await selectRefundById(client, {
+      allowedServiceIds: null,
+      refundId,
+    });
+
+    if (!refund) {
+      return null;
+    }
+
+    const paymentResult = await client.query(
+      `
+        SELECT
+          id,
+          amount,
+          status
+        FROM payments
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [refund.payment_id],
+    );
+    const bookingResult = await client.query(
+      `
+        SELECT
+          id,
+          total_amount,
+          status
+        FROM bookings
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [refund.booking_id],
+    );
+
+    return {
+      booking: bookingResult.rows[0] || null,
+      payment: paymentResult.rows[0] || null,
+      refund,
+    };
+  };
+
+  const updateBookingItemsRefunded = async (client, bookingId) => {
+    await client.query(
+      `
+        UPDATE booking_items
+        SET status = $2
+        WHERE booking_id = $1
+          AND status = ANY($3::text[])
+      `,
+      [
+        bookingId,
+        BOOKING_ITEM_STATUS.REFUNDED,
+        REFUNDABLE_BOOKING_ITEM_STATUSES,
+      ],
+    );
+  };
+
+  const resolveNextBookingRefundStatus = ({
+    bookingStatus,
+    isFullRefund,
+  }) => {
+    if (bookingStatus === BOOKING_STATUS.REFUND_PENDING) {
+      return isFullRefund
+        ? BOOKING_STATUS.REFUNDED
+        : BOOKING_STATUS.PARTIALLY_REFUNDED;
+    }
+
+    if (
+      bookingStatus === BOOKING_STATUS.PARTIALLY_REFUNDED &&
+      isFullRefund
+    ) {
+      return BOOKING_STATUS.REFUNDED;
+    }
+
+    return null;
+  };
+
   const approveRefund = async ({
     actorUserId,
     approvedAmount,
@@ -364,7 +541,7 @@ const createAdminRefundRepository = ({
     refund,
   }) =>
     withTransactionImpl(async (client) => {
-      const currentRefund = await getRefundById({
+      const currentRefund = await selectRefundById(client, {
         allowedServiceIds: null,
         refundId: refund.id,
       });
@@ -373,28 +550,23 @@ const createAdminRefundRepository = ({
         return null;
       }
 
-      const mergedRawResponse = {
-        ...(currentRefund.raw_response && typeof currentRefund.raw_response === 'object'
-          ? currentRefund.raw_response
-          : {}),
-        approval: {
-          approved_amount: approvedAmount,
-          approved_at: new Date().toISOString(),
-          approved_by_user_id: actorUserId,
-          idempotency_key: idempotencyKey,
-        },
+      const nowIso = new Date().toISOString();
+      const mergedRawResponse = appendInternalNote({
+        actorUserId,
+        note,
+        nowIso,
+        rawResponse: currentRefund.raw_response,
+      });
+
+      mergedRawResponse.approval = {
+        approved_amount: approvedAmount,
+        approved_at: nowIso,
+        approved_by_user_id: actorUserId,
+        idempotency_key: idempotencyKey,
       };
 
       if (approvedAmount !== Number(currentRefund.amount)) {
         mergedRawResponse.requested_amount = Number(currentRefund.amount);
-      }
-
-      if (note) {
-        mergedRawResponse.internal_notes = {
-          note,
-          updated_at: new Date().toISOString(),
-          updated_by_user_id: actorUserId,
-        };
       }
 
       const updateResult = await client.query(
@@ -456,7 +628,7 @@ const createAdminRefundRepository = ({
         },
       });
 
-      const updatedRefund = await getRefundById({
+      const updatedRefund = await selectRefundById(client, {
         allowedServiceIds: null,
         refundId: refund.id,
       });
@@ -473,7 +645,7 @@ const createAdminRefundRepository = ({
     refund,
   }) =>
     withTransactionImpl(async (client) => {
-      const currentRefund = await getRefundById({
+      const currentRefund = await selectRefundById(client, {
         allowedServiceIds: null,
         refundId: refund.id,
       });
@@ -482,14 +654,10 @@ const createAdminRefundRepository = ({
         return null;
       }
 
-      const mergedRawResponse = {
-        ...(currentRefund.raw_response && typeof currentRefund.raw_response === 'object'
-          ? currentRefund.raw_response
-          : {}),
-        rejection_reason: reason,
-        rejected_at: new Date().toISOString(),
-        rejected_by_user_id: actorUserId,
-      };
+      const mergedRawResponse = buildPlainObject(currentRefund.raw_response);
+      mergedRawResponse.rejection_reason = reason;
+      mergedRawResponse.rejected_at = new Date().toISOString();
+      mergedRawResponse.rejected_by_user_id = actorUserId;
 
       const updateResult = await client.query(
         `
@@ -557,7 +725,7 @@ const createAdminRefundRepository = ({
         },
       });
 
-      const updatedRefund = await getRefundById({
+      const updatedRefund = await selectRefundById(client, {
         allowedServiceIds: null,
         refundId: refund.id,
       });
@@ -569,13 +737,309 @@ const createAdminRefundRepository = ({
       };
     });
 
+  const markRefundProcessing = async ({
+    actorUserId,
+    note,
+    refundId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const currentRefund = await selectRefundById(client, {
+        allowedServiceIds: null,
+        refundId,
+      });
+
+      if (!currentRefund) {
+        return null;
+      }
+
+      const nowIso = new Date().toISOString();
+      const mergedRawResponse = appendInternalNote({
+        actorUserId,
+        note,
+        nowIso,
+        rawResponse: currentRefund.raw_response,
+      });
+      mergedRawResponse.processing = {
+        marked_at: nowIso,
+        marked_by_user_id: actorUserId,
+      };
+
+      const updateResult = await client.query(
+        `
+          UPDATE refunds
+          SET
+            status = 'processing',
+            raw_response = $2::jsonb
+          WHERE id = $1
+            AND status = 'approved'
+          RETURNING id
+        `,
+        [refundId, JSON.stringify(mergedRawResponse)],
+      );
+
+      if (updateResult.rowCount !== 1) {
+        return {
+          refund: currentRefund,
+          transitionApplied: false,
+        };
+      }
+
+      await insertUserLog(client, {
+        action: 'refund.mark_processing',
+        actorUserId,
+        entityId: refundId,
+        metadata: {
+          booking_id: currentRefund.booking_id,
+          booking_status_after: currentRefund.booking_status,
+          booking_status_before: currentRefund.booking_status,
+          note,
+          payment_id: currentRefund.payment_id,
+          refund_code: currentRefund.refund_code,
+        },
+      });
+
+      const updatedRefund = await selectRefundById(client, {
+        allowedServiceIds: null,
+        refundId,
+      });
+
+      return {
+        refund: updatedRefund,
+        transitionApplied: true,
+      };
+    });
+
+  const markRefundSuccess = async ({
+    actorUserId,
+    idempotencyKey,
+    note,
+    processedAt,
+    providerRefundId,
+    refundId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const lockedContext = await lockRefundContext(client, refundId);
+
+      if (!lockedContext?.refund || !lockedContext.payment || !lockedContext.booking) {
+        return null;
+      }
+
+      const currentRefund = lockedContext.refund;
+
+      if (currentRefund.status !== 'processing') {
+        return {
+          refund: currentRefund,
+          transitionApplied: false,
+        };
+      }
+
+      const totalSuccessfulBefore = await sumSuccessfulRefundAmountsByPaymentId(
+        client,
+        currentRefund.payment_id,
+      );
+      const nextSuccessfulTotal = Number(
+        (totalSuccessfulBefore + Number(currentRefund.amount)).toFixed(2),
+      );
+      const paymentAmount = Number(Number(currentRefund.payment_amount || 0).toFixed(2));
+
+      if (nextSuccessfulTotal > paymentAmount) {
+        return {
+          overRefund: true,
+          refund: currentRefund,
+          transitionApplied: true,
+        };
+      }
+
+      const nowIso = new Date().toISOString();
+      const mergedRawResponse = appendInternalNote({
+        actorUserId,
+        note,
+        nowIso,
+        rawResponse: currentRefund.raw_response,
+      });
+      mergedRawResponse.success = {
+        idempotency_key: idempotencyKey,
+        processed_at: processedAt,
+        processed_by_user_id: actorUserId,
+        provider_refund_id: providerRefundId || null,
+      };
+
+      const updateResult = await client.query(
+        `
+          UPDATE refunds
+          SET
+            status = 'success',
+            processed_at = $2,
+            provider_refund_id = $3,
+            raw_response = $4::jsonb
+          WHERE id = $1
+            AND status = 'processing'
+          RETURNING id
+        `,
+        [
+          refundId,
+          processedAt,
+          providerRefundId || null,
+          JSON.stringify(mergedRawResponse),
+        ],
+      );
+
+      if (updateResult.rowCount !== 1) {
+        return {
+          refund: currentRefund,
+          transitionApplied: false,
+        };
+      }
+
+      const totalSuccessfulAfter = await sumSuccessfulRefundAmountsByPaymentId(
+        client,
+        currentRefund.payment_id,
+      );
+      const normalizedSuccessfulAfter = Number(totalSuccessfulAfter.toFixed(2));
+      const isFullRefund = normalizedSuccessfulAfter === paymentAmount;
+      const nextPaymentStatus = isFullRefund
+        ? PAYMENT_STATUS.REFUNDED
+        : PAYMENT_STATUS.PARTIALLY_REFUNDED;
+
+      await client.query(
+        `
+          UPDATE payments
+          SET
+            status = $2,
+            updated_at = NOW()
+          WHERE id = $1
+        `,
+        [currentRefund.payment_id, nextPaymentStatus],
+      );
+
+      const nextBookingStatus = resolveNextBookingRefundStatus({
+        bookingStatus: currentRefund.booking_status,
+        isFullRefund,
+      });
+
+      if (nextBookingStatus) {
+        await transitionBookingStatus(client, {
+          actorUserId,
+          bookingId: currentRefund.booking_id,
+          fromStatus: currentRefund.booking_status,
+          reason: 'Admin marked manual refund as successful',
+          toStatus: nextBookingStatus,
+        });
+      }
+
+      if (isFullRefund) {
+        await updateBookingItemsRefunded(client, currentRefund.booking_id);
+      }
+
+      await insertUserLog(client, {
+        action: 'refund.mark_success',
+        actorUserId,
+        entityId: refundId,
+        metadata: {
+          booking_id: currentRefund.booking_id,
+          booking_status_after:
+            nextBookingStatus || currentRefund.booking_status,
+          booking_status_before: currentRefund.booking_status,
+          idempotency_key: idempotencyKey,
+          note,
+          payment_id: currentRefund.payment_id,
+          payment_status_after: nextPaymentStatus,
+          payment_status_before: currentRefund.payment_status,
+          processed_at: processedAt,
+          provider_refund_id: providerRefundId || null,
+          refund_code: currentRefund.refund_code,
+          total_successful_amount: normalizedSuccessfulAfter,
+        },
+      });
+
+      const updatedRefund = await selectRefundById(client, {
+        allowedServiceIds: null,
+        refundId,
+      });
+
+      return {
+        overRefund: false,
+        refund: updatedRefund,
+        transitionApplied: true,
+      };
+    });
+
+  const markRefundFailed = async ({
+    actorUserId,
+    reason,
+    refundId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const currentRefund = await selectRefundById(client, {
+        allowedServiceIds: null,
+        refundId,
+      });
+
+      if (!currentRefund) {
+        return null;
+      }
+
+      const mergedRawResponse = buildPlainObject(currentRefund.raw_response);
+      mergedRawResponse.failure_reason = reason;
+      mergedRawResponse.failed_at = new Date().toISOString();
+      mergedRawResponse.failed_by_user_id = actorUserId;
+
+      const updateResult = await client.query(
+        `
+          UPDATE refunds
+          SET
+            status = 'failed',
+            raw_response = $2::jsonb
+          WHERE id = $1
+            AND status = 'processing'
+          RETURNING id
+        `,
+        [refundId, JSON.stringify(mergedRawResponse)],
+      );
+
+      if (updateResult.rowCount !== 1) {
+        return {
+          refund: currentRefund,
+          transitionApplied: false,
+        };
+      }
+
+      await insertUserLog(client, {
+        action: 'refund.mark_failed',
+        actorUserId,
+        entityId: refundId,
+        metadata: {
+          booking_id: currentRefund.booking_id,
+          booking_status_after: currentRefund.booking_status,
+          booking_status_before: currentRefund.booking_status,
+          payment_id: currentRefund.payment_id,
+          reason,
+          refund_code: currentRefund.refund_code,
+        },
+      });
+
+      const updatedRefund = await selectRefundById(client, {
+        allowedServiceIds: null,
+        refundId,
+      });
+
+      return {
+        refund: updatedRefund,
+        transitionApplied: true,
+      };
+    });
+
   return {
     approveRefund,
-    getRefundById,
     getBookingItemsByBookingId,
+    getRefundById,
     hasApproveLogByIdempotencyKey,
-    rejectRefund,
+    hasMarkSuccessLogByIdempotencyKey,
     listRefunds,
+    markRefundFailed,
+    markRefundProcessing,
+    markRefundSuccess,
+    rejectRefund,
     sumOtherActiveRefundAmountsByPaymentId,
   };
 };

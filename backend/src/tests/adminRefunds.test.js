@@ -20,6 +20,9 @@ const PAYMENT_ID_2 = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const originalGetRefundDetail = adminRefundService.getRefundDetail;
 const originalListRefunds = adminRefundService.listRefunds;
 const originalApproveRefund = adminRefundService.approveRefund;
+const originalMarkRefundFailed = adminRefundService.markRefundFailed;
+const originalMarkRefundProcessing = adminRefundService.markRefundProcessing;
+const originalMarkRefundSuccess = adminRefundService.markRefundSuccess;
 const originalRejectRefund = adminRefundService.rejectRefund;
 
 const request = (server, path, options = {}) =>
@@ -87,6 +90,9 @@ test.afterEach(() => {
   adminRefundService.approveRefund = originalApproveRefund;
   adminRefundService.getRefundDetail = originalGetRefundDetail;
   adminRefundService.listRefunds = originalListRefunds;
+  adminRefundService.markRefundFailed = originalMarkRefundFailed;
+  adminRefundService.markRefundProcessing = originalMarkRefundProcessing;
+  adminRefundService.markRefundSuccess = originalMarkRefundSuccess;
   adminRefundService.rejectRefund = originalRejectRefund;
 });
 
@@ -885,6 +891,524 @@ test('adminRefundService.rejectRefund rejects only requested refunds', async () 
   );
 });
 
+test('adminRefundService.markRefundProcessing requires refund.process and only moves approved refunds to processing', async () => {
+  let capturedProcessingPayload;
+  const service = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async ({ allowedServiceIds, refundId }) => {
+        assert.deepEqual(allowedServiceIds, ['service-1']);
+        assert.equal(refundId, REFUND_ID);
+
+        return {
+          amount: '200000',
+          booking_code: 'BK202607020001',
+          booking_id: BOOKING_ID,
+          booking_status: 'refund_pending',
+          id: REFUND_ID,
+          payment_amount: '500000',
+          payment_id: PAYMENT_ID,
+          payment_status: 'success',
+          raw_response: {},
+          refund_code: 'RF202607020001',
+          status: 'approved',
+        };
+      },
+      markRefundProcessing: async (payload) => {
+        capturedProcessingPayload = payload;
+
+        return {
+          refund: {
+            amount: '200000',
+            approved_by_email: null,
+            approved_by_full_name: null,
+            approved_by_phone: null,
+            approved_by_user_id: 'admin-user-3',
+            booking_code: 'BK202607020001',
+            booking_created_at: '2026-07-01T10:00:00.000Z',
+            booking_currency: 'VND',
+            booking_expires_at: '2026-07-03T00:00:00.000Z',
+            booking_id: BOOKING_ID,
+            booking_status: 'refund_pending',
+            booking_total_amount: '500000',
+            contact_email: 'booker@example.com',
+            contact_name: 'Nguyen Van A',
+            contact_phone: '0909000000',
+            created_at: '2026-07-02T01:00:00.000Z',
+            customer_email: 'customer@example.com',
+            customer_full_name: 'Nguyen Van A',
+            customer_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            customer_phone: '0909000000',
+            id: REFUND_ID,
+            payment_amount: '500000',
+            payment_code: 'PAY202607020001',
+            payment_currency: 'VND',
+            payment_id: PAYMENT_ID,
+            payment_method: 'manual_bank_transfer',
+            payment_paid_at: '2026-07-02T00:30:00.000Z',
+            payment_provider: 'direct',
+            payment_status: 'success',
+            processed_at: null,
+            provider_refund_id: null,
+            raw_response: {
+              internal_notes: {
+                note: 'Dang chuyen khoan hoan',
+                updated_at: '2026-07-04T01:00:00.000Z',
+                updated_by_user_id: 'staff-user-3',
+              },
+            },
+            reason: 'Can hoan mot phan',
+            refund_code: 'RF202607020001',
+            requested_by_email: 'customer@example.com',
+            requested_by_full_name: 'Nguyen Van A',
+            requested_by_phone: '0909000000',
+            requested_by_user_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            status: 'processing',
+          },
+          transitionApplied: true,
+        };
+      },
+    },
+  });
+
+  const result = await service.markRefundProcessing({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: ['service-1'],
+      tokenPayload: {
+        permissions: ['refund.process'],
+      },
+      userId: 'staff-user-3',
+    },
+    body: {
+      note: 'Dang chuyen khoan hoan',
+    },
+    refund_id: REFUND_ID,
+  });
+
+  assert.deepEqual(capturedProcessingPayload, {
+    actorUserId: 'staff-user-3',
+    note: 'Dang chuyen khoan hoan',
+    refundId: REFUND_ID,
+  });
+  assert.equal(result.status, 'processing');
+  assert.deepEqual(result.internal_note, {
+    note: 'Dang chuyen khoan hoan',
+    updated_at: '2026-07-04T01:00:00.000Z',
+    updated_by_user_id: 'staff-user-3',
+  });
+
+  await assert.rejects(
+    () => service.markRefundProcessing({
+      auth: {
+        role: 'staff',
+        serviceScopeIds: ['service-1'],
+        tokenPayload: {
+          permissions: ['refund.read_all'],
+        },
+        userId: 'staff-user-3',
+      },
+      body: {},
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  const invalidStateService = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async () => ({
+        booking_id: BOOKING_ID,
+        booking_status: 'refund_pending',
+        id: REFUND_ID,
+        payment_id: PAYMENT_ID,
+        payment_status: 'success',
+        status: 'requested',
+      }),
+      markRefundProcessing: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => invalidStateService.markRefundProcessing({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['refund.process'],
+        },
+        userId: 'admin-user-3',
+      },
+      body: {},
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('adminRefundService.markRefundSuccess validates idempotency, state, over-refund, and maps statuses', async () => {
+  let capturedMarkSuccessPayload;
+  const service = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async ({ allowedServiceIds, refundId }) => {
+        assert.deepEqual(allowedServiceIds, ['service-1']);
+        assert.equal(refundId, REFUND_ID);
+
+        return {
+          amount: '200000',
+          booking_code: 'BK202607020001',
+          booking_id: BOOKING_ID,
+          booking_status: 'refund_pending',
+          id: REFUND_ID,
+          payment_amount: '500000',
+          payment_id: PAYMENT_ID,
+          payment_status: 'partially_refunded',
+          raw_response: {},
+          refund_code: 'RF202607020001',
+          status: 'processing',
+        };
+      },
+      hasMarkSuccessLogByIdempotencyKey: async ({ idempotencyKey, refundId }) => {
+        assert.equal(idempotencyKey, 'refund-success-key');
+        assert.equal(refundId, REFUND_ID);
+        return false;
+      },
+      markRefundSuccess: async (payload) => {
+        capturedMarkSuccessPayload = payload;
+
+        return {
+          overRefund: false,
+          refund: {
+            amount: '200000',
+            approved_by_email: null,
+            approved_by_full_name: null,
+            approved_by_phone: null,
+            approved_by_user_id: 'admin-user-4',
+            booking_code: 'BK202607020001',
+            booking_created_at: '2026-07-01T10:00:00.000Z',
+            booking_currency: 'VND',
+            booking_expires_at: '2026-07-03T00:00:00.000Z',
+            booking_id: BOOKING_ID,
+            booking_status: 'refunded',
+            booking_total_amount: '500000',
+            contact_email: 'booker@example.com',
+            contact_name: 'Nguyen Van A',
+            contact_phone: '0909000000',
+            created_at: '2026-07-02T01:00:00.000Z',
+            customer_email: 'customer@example.com',
+            customer_full_name: 'Nguyen Van A',
+            customer_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            customer_phone: '0909000000',
+            id: REFUND_ID,
+            payment_amount: '500000',
+            payment_code: 'PAY202607020001',
+            payment_currency: 'VND',
+            payment_id: PAYMENT_ID,
+            payment_method: 'manual_bank_transfer',
+            payment_paid_at: '2026-07-02T00:30:00.000Z',
+            payment_provider: 'direct',
+            payment_status: 'refunded',
+            processed_at: '2026-07-04T02:00:00.000Z',
+            provider_refund_id: 'BANK-REF-001',
+            raw_response: {
+              internal_notes: {
+                note: 'Da hoan tien thanh cong',
+                updated_at: '2026-07-04T02:00:00.000Z',
+                updated_by_user_id: 'staff-user-4',
+              },
+            },
+            reason: 'Can hoan mot phan',
+            refund_code: 'RF202607020001',
+            requested_by_email: 'customer@example.com',
+            requested_by_full_name: 'Nguyen Van A',
+            requested_by_phone: '0909000000',
+            requested_by_user_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            status: 'success',
+          },
+          transitionApplied: true,
+        };
+      },
+    },
+  });
+
+  const result = await service.markRefundSuccess({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: ['service-1'],
+      tokenPayload: {
+        permissions: ['refund.process'],
+      },
+      userId: 'staff-user-4',
+    },
+    body: {
+      note: 'Da hoan tien thanh cong',
+      processed_at: '2026-07-04T02:00:00.000Z',
+      provider_refund_id: 'BANK-REF-001',
+    },
+    headers: {
+      'idempotency-key': 'refund-success-key',
+    },
+    refund_id: REFUND_ID,
+  });
+
+  assert.deepEqual(capturedMarkSuccessPayload, {
+    actorUserId: 'staff-user-4',
+    idempotencyKey: 'refund-success-key',
+    note: 'Da hoan tien thanh cong',
+    processedAt: '2026-07-04T02:00:00.000Z',
+    providerRefundId: 'BANK-REF-001',
+    refundId: REFUND_ID,
+  });
+  assert.equal(result.status, 'success');
+  assert.equal(result.payment.status, 'refunded');
+  assert.equal(result.booking.status, 'refunded');
+
+  const replayService = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async () => ({
+        amount: '200000',
+        booking_id: BOOKING_ID,
+        booking_status: 'refunded',
+        id: REFUND_ID,
+        payment_amount: '500000',
+        payment_id: PAYMENT_ID,
+        payment_status: 'refunded',
+        processed_at: '2026-07-04T02:00:00.000Z',
+        provider_refund_id: 'BANK-REF-001',
+        raw_response: {},
+        refund_code: 'RF202607020001',
+        status: 'success',
+      }),
+      hasMarkSuccessLogByIdempotencyKey: async () => true,
+    },
+  });
+
+  const replayResult = await replayService.markRefundSuccess({
+    auth: {
+      role: 'admin',
+      serviceScopeIds: ['service-1'],
+      tokenPayload: {
+        permissions: ['refund.process'],
+      },
+      userId: 'admin-user-4',
+    },
+    body: {
+      processed_at: '2026-07-04T02:00:00.000Z',
+    },
+    headers: {
+      'idempotency-key': 'refund-success-replay',
+    },
+    refund_id: REFUND_ID,
+  });
+
+  assert.equal(replayResult.status, 'success');
+
+  const overRefundService = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async () => ({
+        amount: '200000',
+        booking_id: BOOKING_ID,
+        booking_status: 'refund_pending',
+        id: REFUND_ID,
+        payment_amount: '500000',
+        payment_id: PAYMENT_ID,
+        payment_status: 'success',
+        refund_code: 'RF202607020001',
+        status: 'processing',
+      }),
+      hasMarkSuccessLogByIdempotencyKey: async () => false,
+      markRefundSuccess: async () => ({
+        overRefund: true,
+        refund: {
+          id: REFUND_ID,
+        },
+        transitionApplied: true,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => overRefundService.markRefundSuccess({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['refund.process'],
+        },
+        userId: 'admin-user-4',
+      },
+      body: {
+        processed_at: '2026-07-04T02:00:00.000Z',
+      },
+      headers: {
+        'idempotency-key': 'refund-success-over',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.REFUND_NOT_ALLOWED);
+      return true;
+    },
+  );
+
+  const invalidStateService = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async () => ({
+        booking_id: BOOKING_ID,
+        booking_status: 'refund_pending',
+        id: REFUND_ID,
+        payment_amount: '500000',
+        payment_id: PAYMENT_ID,
+        payment_status: 'success',
+        status: 'approved',
+      }),
+      hasMarkSuccessLogByIdempotencyKey: async () => false,
+      markRefundSuccess: async () => null,
+    },
+  });
+
+  await assert.rejects(
+    () => invalidStateService.markRefundSuccess({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['refund.process'],
+        },
+        userId: 'staff-user-4',
+      },
+      body: {
+        processed_at: '2026-07-04T02:00:00.000Z',
+      },
+      headers: {
+        'idempotency-key': 'refund-success-invalid',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+});
+
+test('adminRefundService.markRefundFailed only marks processing refunds as failed', async () => {
+  let capturedMarkFailedPayload;
+  const service = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async ({ allowedServiceIds, refundId }) => {
+        assert.equal(refundId, REFUND_ID);
+        assert.deepEqual(allowedServiceIds, null);
+
+        return {
+          amount: '200000',
+          booking_code: 'BK202607020001',
+          booking_id: BOOKING_ID,
+          booking_status: 'refund_pending',
+          id: REFUND_ID,
+          payment_amount: '500000',
+          payment_id: PAYMENT_ID,
+          payment_status: 'success',
+          refund_code: 'RF202607020001',
+          status: 'processing',
+        };
+      },
+      markRefundFailed: async (payload) => {
+        capturedMarkFailedPayload = payload;
+
+        return {
+          refund: {
+            amount: '200000',
+            approved_by_email: null,
+            approved_by_full_name: null,
+            approved_by_phone: null,
+            approved_by_user_id: 'admin-user-5',
+            booking_code: 'BK202607020001',
+            booking_created_at: '2026-07-01T10:00:00.000Z',
+            booking_currency: 'VND',
+            booking_expires_at: '2026-07-03T00:00:00.000Z',
+            booking_id: BOOKING_ID,
+            booking_status: 'refund_pending',
+            booking_total_amount: '500000',
+            contact_email: 'booker@example.com',
+            contact_name: 'Nguyen Van A',
+            contact_phone: '0909000000',
+            created_at: '2026-07-02T01:00:00.000Z',
+            customer_email: 'customer@example.com',
+            customer_full_name: 'Nguyen Van A',
+            customer_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            customer_phone: '0909000000',
+            id: REFUND_ID,
+            payment_amount: '500000',
+            payment_code: 'PAY202607020001',
+            payment_currency: 'VND',
+            payment_id: PAYMENT_ID,
+            payment_method: 'manual_bank_transfer',
+            payment_paid_at: '2026-07-02T00:30:00.000Z',
+            payment_provider: 'direct',
+            payment_status: 'success',
+            processed_at: null,
+            provider_refund_id: null,
+            raw_response: {
+              failure_reason: 'Ngan hang tra loi that bai',
+            },
+            reason: 'Can hoan mot phan',
+            refund_code: 'RF202607020001',
+            requested_by_email: 'customer@example.com',
+            requested_by_full_name: 'Nguyen Van A',
+            requested_by_phone: '0909000000',
+            requested_by_user_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            status: 'failed',
+          },
+          transitionApplied: true,
+        };
+      },
+    },
+  });
+
+  const result = await service.markRefundFailed({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['refund.process'],
+      },
+      userId: 'admin-user-5',
+    },
+    body: {
+      reason: 'Ngan hang tra loi that bai',
+    },
+    refund_id: REFUND_ID,
+  });
+
+  assert.deepEqual(capturedMarkFailedPayload, {
+    actorUserId: 'admin-user-5',
+    reason: 'Ngan hang tra loi that bai',
+    refundId: REFUND_ID,
+  });
+  assert.equal(result.status, 'failed');
+
+  await assert.rejects(
+    () => service.markRefundFailed({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['refund.process'],
+        },
+        userId: 'admin-user-5',
+      },
+      body: {
+        reason: '',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+});
+
 test('GET /api/admin/refunds requires access token', async () => {
   const server = app.listen(0);
 
@@ -1090,7 +1614,16 @@ test('admin refund process routes forward auth, body, and headers to service met
     roleCode: 'system_admin',
     userId: 'system-user-1',
   });
+  const processToken = createAccessToken({
+    permissions: ['refund.process'],
+    roleCode: 'staff',
+    serviceScopeIds: ['service-1'],
+    userId: 'staff-user-9',
+  });
   let capturedApproveContext;
+  let capturedMarkFailedContext;
+  let capturedMarkProcessingContext;
+  let capturedMarkSuccessContext;
   let capturedRejectContext;
 
   adminRefundService.approveRefund = async (context) => {
@@ -1112,6 +1645,39 @@ test('admin refund process routes forward auth, body, and headers to service met
       id: REFUND_ID,
       refund_code: 'RF202607020001',
       status: 'rejected',
+    };
+  };
+
+  adminRefundService.markRefundProcessing = async (context) => {
+    capturedMarkProcessingContext = context;
+
+    return {
+      amount: 200000,
+      id: REFUND_ID,
+      refund_code: 'RF202607020001',
+      status: 'processing',
+    };
+  };
+
+  adminRefundService.markRefundSuccess = async (context) => {
+    capturedMarkSuccessContext = context;
+
+    return {
+      amount: 200000,
+      id: REFUND_ID,
+      refund_code: 'RF202607020001',
+      status: 'success',
+    };
+  };
+
+  adminRefundService.markRefundFailed = async (context) => {
+    capturedMarkFailedContext = context;
+
+    return {
+      amount: 200000,
+      id: REFUND_ID,
+      refund_code: 'RF202607020001',
+      status: 'failed',
     };
   };
 
@@ -1144,6 +1710,48 @@ test('admin refund process routes forward auth, body, and headers to service met
         method: 'POST',
       },
     );
+    const processingResponse = await request(
+      server,
+      `${apiPrefix}/admin/refunds/${REFUND_ID}/mark-processing`,
+      {
+        body: {
+          note: 'Dang xu ly',
+        },
+        headers: {
+          Authorization: `Bearer ${processToken}`,
+        },
+        method: 'POST',
+      },
+    );
+    const successResponse = await request(
+      server,
+      `${apiPrefix}/admin/refunds/${REFUND_ID}/mark-success`,
+      {
+        body: {
+          note: 'Da hoan tien',
+          processed_at: '2026-07-04T02:00:00.000Z',
+          provider_refund_id: 'BANK-REF-ROUTE',
+        },
+        headers: {
+          Authorization: `Bearer ${processToken}`,
+          'Idempotency-Key': 'mark-success-route-key',
+        },
+        method: 'POST',
+      },
+    );
+    const failedResponse = await request(
+      server,
+      `${apiPrefix}/admin/refunds/${REFUND_ID}/mark-failed`,
+      {
+        body: {
+          reason: 'Hoan tien that bai',
+        },
+        headers: {
+          Authorization: `Bearer ${processToken}`,
+        },
+        method: 'POST',
+      },
+    );
 
     assert.equal(approveResponse.statusCode, 200);
     assert.equal(approveResponse.body.message, 'Admin refund approved successfully');
@@ -1158,6 +1766,38 @@ test('admin refund process routes forward auth, body, and headers to service met
     assert.equal(rejectResponse.body.data.status, 'rejected');
     assert.equal(capturedRejectContext.auth.role, 'system_admin');
     assert.equal(capturedRejectContext.body.reason, 'Khong du dieu kien');
+
+    assert.equal(processingResponse.statusCode, 200);
+    assert.equal(
+      processingResponse.body.message,
+      'Admin refund marked as processing successfully',
+    );
+    assert.equal(processingResponse.body.data.status, 'processing');
+    assert.equal(capturedMarkProcessingContext.auth.role, 'staff');
+    assert.equal(capturedMarkProcessingContext.body.note, 'Dang xu ly');
+
+    assert.equal(successResponse.statusCode, 200);
+    assert.equal(
+      successResponse.body.message,
+      'Admin refund marked as success successfully',
+    );
+    assert.equal(successResponse.body.data.status, 'success');
+    assert.equal(
+      capturedMarkSuccessContext.headers['idempotency-key'],
+      'mark-success-route-key',
+    );
+    assert.equal(
+      capturedMarkSuccessContext.body.provider_refund_id,
+      'BANK-REF-ROUTE',
+    );
+
+    assert.equal(failedResponse.statusCode, 200);
+    assert.equal(
+      failedResponse.body.message,
+      'Admin refund marked as failed successfully',
+    );
+    assert.equal(failedResponse.body.data.status, 'failed');
+    assert.equal(capturedMarkFailedContext.body.reason, 'Hoan tien that bai');
   } finally {
     server.close();
   }
