@@ -205,11 +205,53 @@
   outline: none;
 }
 
+.auth-register-shell {
+  min-height: 100vh;
+  background: url('/assets/template/auth/dangky/background.png') center / cover no-repeat;
+  overflow: hidden;
+}
+
+.auth-register-shell__panel {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.auth-register-page {
+  width: min(100%, 560px);
+  display: grid;
+  justify-items: center;
+  gap: 22px;
+}
+
+.auth-register-page__logo {
+  width: min(100%, 420px);
+  height: auto;
+}
+
+.auth-register-page__card {
+  width: 100%;
+  border-radius: 32px;
+  padding: 38px 40px 34px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(233, 219, 205, 0.92);
+  box-shadow: 0 32px 64px rgba(121, 82, 33, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.auth-register-page__header {
+  text-align: left;
+}
+
+.auth-register-page__copy {
+  gap: 14px;
+}
+
 .auth-forgot-shell {
   min-height: 100vh;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.9)),
-    url('/assets/template/auth/quenmatkhau/forgot-password-bg.png') center / cover no-repeat;
+  background: url('/assets/template/auth/quenmatkhau/forgot-password-bg.png') center / cover no-repeat;
   overflow: hidden;
 }
 
@@ -225,6 +267,11 @@
   width: min(100%, 500px);
   display: grid;
   gap: 30px;
+  padding: 24px 28px 28px;
+  border-radius: 36px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 24px 48px rgba(129, 95, 56, 0.08);
+  backdrop-filter: blur(6px);
 }
 
 .auth-forgot-page__header {
@@ -845,31 +892,22 @@
 }
 
 @media (max-width: 720px) {
-  .auth-template-shell {
-    padding: 20px 12px;
-    background-position: center;
+  .auth-register-shell__panel {
+    padding: 24px 12px 36px;
   }
 
-  .auth-template-shell__card {
+  .auth-register-page {
     width: 100%;
+    gap: 18px;
+  }
+
+  .auth-register-page__logo {
+    width: min(100%, 300px);
+  }
+
+  .auth-register-page__card {
     padding: 28px 20px 24px;
     border-radius: 26px;
-  }
-
-  .auth-template-page {
-    gap: 24px;
-  }
-
-  .auth-template-page__header {
-    gap: 14px;
-  }
-
-  .auth-template-page__logo {
-    width: min(100%, 220px);
-  }
-
-  .auth-template-form__actions {
-    grid-template-columns: 1fr;
   }
 
   .auth-forgot-shell {
@@ -884,6 +922,8 @@
   .auth-forgot-page {
     width: 100%;
     gap: 24px;
+    padding: 20px 18px 24px;
+    border-radius: 28px;
   }
 
   .auth-forgot-page__logo {

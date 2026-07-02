@@ -76,7 +76,7 @@ function AuthLayout() {
   const location = useLocation()
   const isLoginPage = location.pathname === '/login'
   const isForgotPasswordPage = location.pathname === '/forgot-password'
-  const isTemplateVisualPage = location.pathname === '/register'
+  const isRegisterPage = location.pathname === '/register'
 
   if (isForgotPasswordPage) {
     return (
@@ -88,15 +88,13 @@ function AuthLayout() {
     )
   }
 
-  if (isTemplateVisualPage) {
+  if (isRegisterPage) {
     const meta = authMeta[location.pathname] ?? authMeta['/forgot-password']
 
     return (
-      <div className="auth-template-shell">
-        <section className="auth-template-shell__panel">
-          <div className="auth-template-shell__card">
-            <Outlet context={{ meta }} />
-          </div>
+      <div className="auth-register-shell">
+        <section className="auth-register-shell__panel">
+          <Outlet context={{ meta }} />
         </section>
       </div>
     )
