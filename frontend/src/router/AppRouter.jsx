@@ -6,6 +6,7 @@ import HomePage from '../pages/public/HomePage.jsx'
 import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
+import CartPage from '../pages/cart/CartPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
 import ServiceDetailPage from '../pages/service/ServiceDetailPage.jsx'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx'
@@ -17,6 +18,7 @@ function AppRouter() {
       <Routes>
         <Route element={<PublicLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/cart" element={<CartPage />} />
           <Route path="/services" element={<ServiceListPage />} />
           <Route path="/services/:slug" element={<ServiceDetailPage />} />
         </Route>
