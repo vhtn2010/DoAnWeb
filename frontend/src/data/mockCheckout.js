@@ -33,9 +33,9 @@ const baseCheckoutSummary = {
 export const mockCheckoutDraft = {
   cart_id: mockActiveCart.id,
   selected_cart_item_ids: ['cart-item-001'],
-  contact_name: 'Nguyễn Văn A',
-  contact_email: 'example@gmail.com',
-  contact_phone: '090 123 4567',
+  contact_name: '',
+  contact_email: '',
+  contact_phone: '',
   voucher_code: '',
   note: '',
   accepted_terms: false,
@@ -44,9 +44,9 @@ export const mockCheckoutDraft = {
       cart_item_id: 'cart-item-001',
       traveller_info: [
         {
-          full_name: 'Nguyễn Văn A',
-          phone: '090 123 4567',
-          email: 'example@gmail.com',
+          full_name: '',
+          phone: '',
+          email: '',
         },
       ],
     },
@@ -89,9 +89,9 @@ export function createMockCheckoutDraft({
   cartSummaryPayload,
 } = {}) {
   const contactValues = {
-    contact_name: 'Nguyễn Văn A',
-    contact_phone: '090 123 4567',
-    contact_email: 'example@gmail.com',
+    contact_name: '',
+    contact_phone: '',
+    contact_email: '',
   }
 
   const selectedIds =

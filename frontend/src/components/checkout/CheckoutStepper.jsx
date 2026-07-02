@@ -23,7 +23,7 @@ function CheckoutStepper({ activeStep = 2 }) {
             <span
               className={`checkout-stepper__label ${
                 isActive ? 'checkout-stepper__label--active' : ''
-              }`}
+              } ${isCompleted ? 'checkout-stepper__label--completed' : ''}`}
             >
               {step.label}
             </span>
@@ -32,7 +32,7 @@ function CheckoutStepper({ activeStep = 2 }) {
               <span
                 aria-hidden="true"
                 className={`checkout-stepper__line ${
-                  step.id < activeStep ? 'checkout-stepper__line--active' : ''
+                  step.id < activeStep ? 'checkout-stepper__line--completed' : ''
                 }`}
               />
             ) : null}

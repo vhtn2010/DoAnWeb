@@ -3,11 +3,13 @@ function ContactField({ error, label, name, onChange, placeholder, type = 'text'
     <label className="checkout-form-card__field">
       <span className="checkout-form-card__label">{label}</span>
       <input
+        aria-invalid={Boolean(error)}
         className={`checkout-form-card__input${
           error ? ' checkout-form-card__input--error' : ''
         }`}
         name={name}
         placeholder={placeholder}
+        required
         type={type}
         value={value}
         onChange={onChange}
@@ -46,7 +48,7 @@ function CheckoutContactCard({ errors, formValues, onChange }) {
           error={errors.contact_name}
           label="Họ và Tên *"
           name="contact_name"
-          placeholder="Nguyá»…n VÄƒn A"
+          placeholder="Nguyễn Văn A"
           value={formValues.contact_name}
           onChange={onChange}
         />
