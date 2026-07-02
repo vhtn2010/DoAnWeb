@@ -1,8 +1,10 @@
 const express = require('express');
 const {
+  getAdminBusinessSettings,
   getAdminDirectPaymentSettings,
   getAdminPublicSettings,
   getPublicSettings,
+  updateAdminBusinessSettings,
   updateAdminDirectPaymentSettings,
   updateAdminPublicSettings,
 } = require('../controllers/settingsController');
@@ -18,6 +20,10 @@ const ADMIN_DIRECT_PAYMENT_SETTINGS_RATE_LIMIT_STORE_KEY =
   'admin-settings-direct-payment-read';
 const ADMIN_DIRECT_PAYMENT_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY =
   'admin-settings-direct-payment-update';
+const ADMIN_BUSINESS_SETTINGS_RATE_LIMIT_STORE_KEY =
+  'admin-settings-business-read';
+const ADMIN_BUSINESS_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY =
+  'admin-settings-business-update';
 
 const router = express.Router();
 const publicSettingsRateLimit = createRateLimiter({
@@ -43,6 +49,16 @@ const adminDirectPaymentSettingsRateLimit = createRateLimiter({
 const adminDirectPaymentSettingsUpdateRateLimit = createRateLimiter({
   maxRequests: 60,
   storeKey: ADMIN_DIRECT_PAYMENT_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY,
+  windowMs: 60 * 1000,
+});
+const adminBusinessSettingsRateLimit = createRateLimiter({
+  maxRequests: 120,
+  storeKey: ADMIN_BUSINESS_SETTINGS_RATE_LIMIT_STORE_KEY,
+  windowMs: 60 * 1000,
+});
+const adminBusinessSettingsUpdateRateLimit = createRateLimiter({
+  maxRequests: 60,
+  storeKey: ADMIN_BUSINESS_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY,
   windowMs: 60 * 1000,
 });
 
@@ -88,6 +104,24 @@ router.patch(
   asyncHandler(updateAdminDirectPaymentSettings),
 );
 
+router.get(
+  '/admin/settings/business',
+  authRequired({
+    allowedRoles: ['admin', 'system_admin'],
+  }),
+  adminBusinessSettingsRateLimit,
+  asyncHandler(getAdminBusinessSettings),
+);
+
+router.patch(
+  '/admin/settings/business',
+  authRequired({
+    allowedRoles: ['admin', 'system_admin'],
+  }),
+  adminBusinessSettingsUpdateRateLimit,
+  asyncHandler(updateAdminBusinessSettings),
+);
+
 module.exports = router;
 module.exports.PUBLIC_SETTINGS_RATE_LIMIT_STORE_KEY =
   PUBLIC_SETTINGS_RATE_LIMIT_STORE_KEY;
@@ -99,3 +133,7 @@ module.exports.ADMIN_DIRECT_PAYMENT_SETTINGS_RATE_LIMIT_STORE_KEY =
   ADMIN_DIRECT_PAYMENT_SETTINGS_RATE_LIMIT_STORE_KEY;
 module.exports.ADMIN_DIRECT_PAYMENT_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY =
   ADMIN_DIRECT_PAYMENT_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY;
+module.exports.ADMIN_BUSINESS_SETTINGS_RATE_LIMIT_STORE_KEY =
+  ADMIN_BUSINESS_SETTINGS_RATE_LIMIT_STORE_KEY;
+module.exports.ADMIN_BUSINESS_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY =
+  ADMIN_BUSINESS_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY;
