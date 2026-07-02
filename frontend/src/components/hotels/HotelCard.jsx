@@ -1,0 +1,73 @@
+function HeartIcon({ isActive }) {
+  return (
+    <svg fill={isActive ? 'currentColor' : 'none'} viewBox="0 0 24 24">
+      <path
+        d="m12 19.2-.92-.84C6.18 13.9 3 11.02 3 7.5a4.2 4.2 0 0 1 4.28-4.2c1.69 0 3.31.8 4.32 2.07A5.5 5.5 0 0 1 15.92 3.3 4.2 4.2 0 0 1 20.2 7.5c0 3.52-3.18 6.4-8.08 10.86l-.12.12Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
+function PinIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path
+        d="M12 20s6-5.1 6-10.2A6 6 0 1 0 6 9.8C6 14.9 12 20 12 20Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <circle cx="12" cy="9.6" r="2.3" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function HotelCard({
+  hotel,
+  isFavorite,
+  onBookNow,
+  onToggleFavorite,
+  ratingValue,
+  formatCurrency,
+}) {
+  return (
+    <article className="hotel-card">
+      <div className="hotel-card__media">
+        <img alt={hotel.title} className="hotel-card__image" src={hotel.image_url} />
+        <span className="hotel-card__badge">{ratingValue.toFixed(1)} Đánh giá</span>
+        <button
+          aria-label={isFavorite ? 'Bỏ yêu thích khách sạn' : 'Thêm khách sạn vào yêu thích'}
+          className={`hotel-card__favorite ${isFavorite ? 'hotel-card__favorite--active' : ''}`}
+          type="button"
+          onClick={() => onToggleFavorite(hotel.id)}
+        >
+          <HeartIcon isActive={isFavorite} />
+        </button>
+      </div>
+
+      <div className="hotel-card__body">
+        <div className="hotel-card__location">
+          <PinIcon />
+          <span>{hotel.details.address}</span>
+        </div>
+
+        <h3 className="hotel-card__title">{hotel.title}</h3>
+
+        <div className="hotel-card__pricing">
+          <span className="hotel-card__price-old">{formatCurrency(hotel.base_price)}</span>
+          <strong className="hotel-card__price-sale">{formatCurrency(hotel.sale_price)}</strong>
+        </div>
+
+        <button className="hotel-card__button" type="button" onClick={() => onBookNow(hotel)}>
+          Đặt ngay
+        </button>
+      </div>
+    </article>
+  )
+}
+
+export default HotelCard

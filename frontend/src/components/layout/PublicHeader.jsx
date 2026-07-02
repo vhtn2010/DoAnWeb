@@ -4,7 +4,7 @@ const navItems = [
   { label: 'Trang chủ', to: '/', end: true },
   { label: 'Tour', to: '/services' },
   { label: 'Đặt vé', to: '#' },
-  { label: 'Khách sạn', to: '#' },
+  { label: 'Khách sạn', to: '/hotels' },
 ]
 
 function getNavLinkClassName({ isActive }) {
@@ -58,6 +58,7 @@ function PublicHeader() {
   const customerCartPath = buildPreviewPath('/cart')
   const isCartPreview = location.pathname === '/cart'
   const isCheckoutPreview = location.pathname === '/checkout'
+  const isHotelPreview = location.pathname === '/hotels'
 
   return (
     <header className="public-header">
@@ -136,8 +137,8 @@ function PublicHeader() {
 
               <span
                 aria-label={
-                  isCartPreview || isCheckoutPreview
-                    ? 'Tài khoản người dùng trên trang checkout'
+                  isCartPreview || isCheckoutPreview || isHotelPreview
+                    ? 'Tài khoản người dùng trên trang preview'
                     : 'Tài khoản người dùng'
                 }
                 className="public-header__profile"

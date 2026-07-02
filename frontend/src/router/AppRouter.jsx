@@ -8,6 +8,7 @@ import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
 import CartPage from '../pages/cart/CartPage.jsx'
 import CheckoutPage from '../pages/checkout/CheckoutPage.jsx'
+import HotelListPage from '../pages/hotels/HotelListPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
 import ServiceDetailPage from '../pages/service/ServiceDetailPage.jsx'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx'
@@ -21,6 +22,7 @@ function AppRouter() {
           <Route path="/" element={<HomePage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/hotels" element={<HotelListPage />} />
           <Route path="/services" element={<ServiceListPage />} />
           <Route path="/services/:slug" element={<ServiceDetailPage />} />
         </Route>
