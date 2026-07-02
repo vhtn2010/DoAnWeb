@@ -2776,6 +2776,12 @@ select {
   font-weight: 800;
 }
 
+.service-detail-reviews__link:hover,
+.service-detail-reviews__link:focus-visible {
+  outline: none;
+  text-decoration: underline;
+}
+
 .service-detail-reviews__summary {
   padding: 24px 28px;
   border-radius: 18px;

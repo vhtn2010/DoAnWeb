@@ -149,10 +149,11 @@ function renderStars(ratingValue) {
 function ServiceDetailPage() {
   const { slug } = useParams()
   const service = getMockServiceBySlug(slug)
+  const details = service.details
   const recommendedServices = getRecommendedServices(service.slug, 3)
 
   const [selectedImage, setSelectedImage] = useState(service.gallery_images[0] ?? service.image_url)
-  const [departureDate, setDepartureDate] = useState(service.details.departure_dates[0] ?? '')
+  const [departureDate, setDepartureDate] = useState(details.departure_dates[0] ?? '')
   const [adultCount, setAdultCount] = useState(2)
   const [childCount, setChildCount] = useState(0)
   const [isFavorite, setIsFavorite] = useState(false)
@@ -160,14 +161,20 @@ function ServiceDetailPage() {
   const [bookingMessage, setBookingMessage] = useState('')
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [slug])
+
+  useEffect(() => {
     setSelectedImage(service.gallery_images[0] ?? service.image_url)
-    setDepartureDate(service.details.departure_dates[0] ?? '')
+    setDepartureDate(details.departure_dates[0] ?? '')
     setAdultCount(2)
     setChildCount(0)
     setIsFavorite(false)
     setIsShared(false)
     setBookingMessage('')
-  }, [service.slug, service.gallery_images, service.image_url, service.details.departure_dates])
+  }, [service.slug, service.gallery_images, service.image_url, details.departure_dates])
 
   const childUnitPrice = Math.round(service.sale_price * 0.7)
   const adultTotal = adultCount * service.sale_price
@@ -190,6 +197,12 @@ function ServiceDetailPage() {
 
   function handleBookNow() {
     setBookingMessage('Yêu cầu giữ chỗ đã được ghi nhận ở chế độ mô phỏng.')
+  }
+
+  function handleImageError(event) {
+    if (event.currentTarget.src !== service.image_url) {
+      event.currentTarget.src = service.image_url
+    }
   }
 
   const infoItems = [
@@ -271,7 +284,7 @@ function ServiceDetailPage() {
 
         <section aria-label="Bộ sưu tập ảnh tour" className="service-detail-gallery">
           <div className="service-detail-gallery__featured">
-            <img alt={service.title} src={selectedImage} />
+            <img alt={service.title} src={selectedImage} onError={handleImageError} />
           </div>
 
           <div className="service-detail-gallery__grid">
@@ -288,7 +301,7 @@ function ServiceDetailPage() {
                   type="button"
                   onClick={() => setSelectedImage(imageUrl)}
                 >
-                  <img alt={`${service.title} ${index + 2}`} src={imageUrl} />
+                  <img alt={`${service.title} ${index + 2}`} src={imageUrl} onError={handleImageError} />
                   {isLastThumb ? (
                     <span className="service-detail-gallery__overlay">
                       +{service.extra_gallery_count} ảnh
@@ -332,7 +345,7 @@ function ServiceDetailPage() {
               </div>
 
               <div className="service-detail-timeline">
-                {service.details.itinerary.map((day) => (
+                {details.itinerary.map((day) => (
                   <article className="service-detail-day" key={day.day_number}>
                     <div className="service-detail-day__marker">
                       <span>{day.day_number}</span>
@@ -366,7 +379,7 @@ function ServiceDetailPage() {
                 </div>
 
                 <ul className="service-detail-inclusions__list">
-                  {service.details.included_services.map((item) => (
+                  {details.included_services.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -381,7 +394,7 @@ function ServiceDetailPage() {
                 </div>
 
                 <ul className="service-detail-inclusions__list">
-                  {service.details.excluded_services.map((item) => (
+                  {details.excluded_services.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -395,7 +408,7 @@ function ServiceDetailPage() {
               </div>
 
               <ul className="service-detail-terms">
-                {service.details.terms.map((item) => (
+                {details.terms.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -408,7 +421,9 @@ function ServiceDetailPage() {
                   <h2 className="service-detail-section__title">Đánh giá từ khách hàng</h2>
                 </div>
 
-                <p className="service-detail-reviews__link">Xem tất cả {service.review_count} đánh giá</p>
+                <a className="service-detail-reviews__link" href="#">
+                  Xem tất cả {service.review_count} đánh giá
+                </a>
               </div>
 
               <div className="service-detail-reviews__summary">
@@ -477,7 +492,7 @@ function ServiceDetailPage() {
                 <label className="service-detail-booking__field">
                   <span>Ngày khởi hành</span>
                   <select value={departureDate} onChange={(event) => setDepartureDate(event.target.value)}>
-                    {service.details.departure_dates.map((dateOption) => (
+                    {details.departure_dates.map((dateOption) => (
                       <option key={dateOption} value={dateOption}>
                         {dateOption}
                       </option>

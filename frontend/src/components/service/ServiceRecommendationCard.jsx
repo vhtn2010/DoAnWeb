@@ -26,6 +26,12 @@ function buildEyebrow(service) {
 function ServiceRecommendationCard({ service }) {
   const imageUrl = service.similar_card_image_url ?? service.image_url
 
+  function handleImageError(event) {
+    if (event.currentTarget.src !== service.image_url) {
+      event.currentTarget.src = service.image_url
+    }
+  }
+
   return (
     <article className="service-recommendation-card">
       <Link className="service-recommendation-card__image-link" to={`/services/${service.slug}`}>
@@ -33,6 +39,7 @@ function ServiceRecommendationCard({ service }) {
           alt={service.title}
           className="service-recommendation-card__image"
           src={imageUrl}
+          onError={handleImageError}
         />
         {service.badge_text ? (
           <span className="service-recommendation-card__badge">{service.badge_text}</span>

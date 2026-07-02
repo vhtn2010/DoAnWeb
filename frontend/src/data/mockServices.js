@@ -12,6 +12,30 @@ const recommendationImages = {
   daLat: '/assets/template/service/detail/recommendation-da-lat.png',
 }
 
+const locationGalleryImages = {
+  mienTrung: [
+    '/assets/template/service/list/tour-mien-trung.png',
+    recommendationImages.mienTrung,
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/10549-Hoi-An_%2837621348460%29.jpg/330px-10549-Hoi-An_%2837621348460%29.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/2024-12-20_Hoi_An_Old_Town_at_night_5.jpg/250px-2024-12-20_Hoi_An_Old_Town_at_night_5.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg/330px-%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg',
+  ],
+  daLat: [
+    '/assets/template/service/list/tour-da-lat.png',
+    recommendationImages.daLat,
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Xuan_Huong_Lake_11.jpg/250px-Xuan_Huong_Lake_11.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Da_Lat_train_station_12.jpg/500px-Da_Lat_train_station_12.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Bao_Dai%27s_Summer_Palace_00.jpg/330px-Bao_Dai%27s_Summer_Palace_00.jpg',
+  ],
+  mienTay: [
+    '/assets/template/service/list/tour-mien-tay.png',
+    recommendationImages.mienTay,
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/M%E1%BB%99t_c%E1%BA%A3nh_%E1%BB%9F_ch%E1%BB%A3_n%E1%BB%95i_C%C3%A1i_R%C4%83ng.jpg/330px-M%E1%BB%99t_c%E1%BA%A3nh_%E1%BB%9F_ch%E1%BB%A3_n%E1%BB%95i_C%C3%A1i_R%C4%83ng.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/M%E1%BB%99t_c%E1%BA%A3nh_ch%E1%BB%A3_n%E1%BB%95i_C%C3%A1i_R%C4%83ng.jpg/330px-M%E1%BB%99t_c%E1%BA%A3nh_ch%E1%BB%A3_n%E1%BB%95i_C%C3%A1i_R%C4%83ng.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Cai_Rang_1.jpg/120px-Cai_Rang_1.jpg',
+  ],
+}
+
 const sharedDepartureDates = ['15/11/2024', '22/11/2024', '29/11/2024']
 
 const sharedReviewSamples = [
@@ -35,7 +59,7 @@ const sharedReviewSamples = [
 
 export const fallbackServiceSlug = 'nghi-duong-vinh-ha-long-du-thuyen-signature'
 
-export const mockServices = [
+const rawMockServices = [
   {
     service_type: 'tour',
     category_label: 'Văn hoá',
@@ -50,13 +74,7 @@ export const mockServices = [
     sale_price: 5200000,
     status: 'active',
     image_url: '/assets/template/service/list/tour-mien-trung.png',
-    gallery_images: [
-      '/assets/template/service/list/tour-mien-trung.png',
-      detailGalleryImages.cabin,
-      detailGalleryImages.dinner,
-      detailGalleryImages.deck,
-      detailGalleryImages.sunset,
-    ],
+    gallery_images: locationGalleryImages.mienTrung,
     extra_gallery_count: 6,
     duration_text: '3 ngày 2 đêm',
     duration_group: '1-3',
@@ -160,6 +178,7 @@ export const mockServices = [
     review_count: 128,
     badge_text: 'Bán chạy',
     recommendation_label: 'VỊNH HẠ LONG - 2 NGÀY 1 ĐÊM',
+    similar_card_image_url: detailGalleryImages.hero,
     sort_order: 4,
     cancellation_policy: 'Giữ chỗ linh hoạt, miễn phí đổi ngày trước 7 ngày khởi hành.',
     details: {
@@ -223,13 +242,7 @@ export const mockServices = [
     sale_price: 6100000,
     status: 'active',
     image_url: '/assets/template/service/list/tour-da-lat.png',
-    gallery_images: [
-      '/assets/template/service/list/tour-da-lat.png',
-      detailGalleryImages.cabin,
-      detailGalleryImages.dinner,
-      detailGalleryImages.deck,
-      detailGalleryImages.sunset,
-    ],
+    gallery_images: locationGalleryImages.daLat,
     extra_gallery_count: 8,
     duration_text: '4 ngày 3 đêm',
     duration_group: '4-7',
@@ -316,13 +329,7 @@ export const mockServices = [
     sale_price: 2450000,
     status: 'active',
     image_url: '/assets/template/service/list/tour-mien-tay.png',
-    gallery_images: [
-      '/assets/template/service/list/tour-mien-tay.png',
-      detailGalleryImages.cabin,
-      detailGalleryImages.dinner,
-      detailGalleryImages.deck,
-      detailGalleryImages.sunset,
-    ],
+    gallery_images: locationGalleryImages.mienTay,
     extra_gallery_count: 4,
     duration_text: '2 ngày 1 đêm',
     duration_group: '1-3',
@@ -384,6 +391,28 @@ export const mockServices = [
     review_samples: sharedReviewSamples,
   },
 ]
+
+function normalizeServiceDetail(service) {
+  const details = service.details ?? {}
+
+  return {
+    ...service,
+    gallery_images:
+      Array.isArray(service.gallery_images) && service.gallery_images.length
+        ? service.gallery_images
+        : [service.image_url].filter(Boolean),
+    details: {
+      itinerary: Array.isArray(details.itinerary) ? details.itinerary : [],
+      included_services: Array.isArray(details.included_services) ? details.included_services : [],
+      excluded_services: Array.isArray(details.excluded_services) ? details.excluded_services : [],
+      terms: Array.isArray(details.terms) ? details.terms : [],
+      departure_dates: Array.isArray(details.departure_dates) ? details.departure_dates : [],
+    },
+    review_samples: Array.isArray(service.review_samples) ? service.review_samples : [],
+  }
+}
+
+export const mockServices = rawMockServices.map(normalizeServiceDetail)
 
 export function getMockServiceBySlug(slug) {
   return mockServices.find((service) => service.slug === slug) ?? getFallbackService()
