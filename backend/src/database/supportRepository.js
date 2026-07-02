@@ -1,3 +1,9 @@
+const {
+  API_ERROR_CODES,
+  DOMAIN_CONSTRAINTS,
+  EMAIL_STATUS,
+} = require('../constants/domainConstraints');
+const AppError = require('../utils/AppError');
 const { getPool, query, withTransaction } = require('./client');
 
 const createSupportRepository = ({
@@ -363,6 +369,55 @@ const createSupportRepository = ({
         LIMIT 1
       `,
       params,
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getTicketById = async (ticketId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          st.id,
+          st.ticket_code,
+          st.user_id,
+          st.booking_id,
+          st.service_id,
+          st.customer_name,
+          st.customer_email,
+          st.customer_phone,
+          st.subject,
+          st.status,
+          st.priority,
+          st.assigned_to,
+          st.created_at,
+          st.updated_at,
+          st.closed_at,
+          b.booking_code,
+          b.status AS booking_status,
+          s.title AS service_title,
+          s.slug AS service_slug,
+          s.service_type,
+          cu.full_name AS customer_user_full_name,
+          cu.email AS customer_user_email,
+          cu.phone AS customer_user_phone,
+          au.full_name AS assigned_user_full_name,
+          ar.code AS assigned_user_role_code
+        FROM support_tickets st
+        LEFT JOIN bookings b
+          ON b.id = st.booking_id
+        LEFT JOIN services s
+          ON s.id = st.service_id
+        LEFT JOIN users cu
+          ON cu.id = st.user_id
+        LEFT JOIN users au
+          ON au.id = st.assigned_to
+        LEFT JOIN roles ar
+          ON ar.id = au.role_id
+        WHERE st.id = $1
+        LIMIT 1
+      `,
+      [ticketId],
     );
 
     return result.rows[0] || null;
@@ -789,20 +844,219 @@ const createSupportRepository = ({
       pool: getPool(),
     });
 
+  const createSupportManualEmailLog = async ({
+    bookingId,
+    createdAt,
+    subject,
+    templateCode,
+    toEmail,
+    userId,
+  }) => {
+    const result = await queryImpl(
+      `
+        INSERT INTO email_logs (
+          user_id,
+          booking_id,
+          to_email,
+          subject,
+          template_code,
+          status,
+          provider,
+          provider_message_id,
+          error_message,
+          sent_at,
+          created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, NULL, $8)
+        RETURNING
+          id,
+          user_id,
+          booking_id,
+          to_email,
+          subject,
+          template_code,
+          status,
+          provider,
+          provider_message_id,
+          error_message,
+          sent_at,
+          created_at
+      `,
+      [
+        userId || null,
+        bookingId || null,
+        toEmail,
+        subject,
+        templateCode,
+        EMAIL_STATUS.QUEUED,
+        DOMAIN_CONSTRAINTS.emailProvider,
+        createdAt,
+      ],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const markSupportManualEmailLogSent = async ({
+    actorUserId,
+    emailLogId,
+    messageId,
+    metadata,
+    sentAt,
+    ticketId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const result = await client.query(
+        `
+          UPDATE email_logs
+          SET
+            status = $2,
+            provider_message_id = $3,
+            error_message = NULL,
+            sent_at = $4
+          WHERE id = $1
+          RETURNING
+            id,
+            user_id,
+            booking_id,
+            to_email,
+            subject,
+            template_code,
+            status,
+            provider,
+            provider_message_id,
+            error_message,
+            sent_at,
+            created_at
+        `,
+        [
+          emailLogId,
+          EMAIL_STATUS.SENT,
+          messageId || null,
+          sentAt,
+        ],
+      );
+
+      if (result.rowCount !== 1) {
+        throw new AppError('Email log not found', {
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          statusCode: 404,
+        });
+      }
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId || null,
+          'admin.support.send_email',
+          'support_ticket',
+          ticketId,
+          metadata || null,
+        ],
+      );
+
+      return result.rows[0];
+    }, {
+      pool: getPool(),
+    });
+
+  const markSupportManualEmailLogFailed = async ({
+    actorUserId,
+    emailLogId,
+    errorMessage,
+    metadata,
+    ticketId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const result = await client.query(
+        `
+          UPDATE email_logs
+          SET
+            status = $2,
+            error_message = $3
+          WHERE id = $1
+          RETURNING
+            id,
+            user_id,
+            booking_id,
+            to_email,
+            subject,
+            template_code,
+            status,
+            provider,
+            provider_message_id,
+            error_message,
+            sent_at,
+            created_at
+        `,
+        [
+          emailLogId,
+          EMAIL_STATUS.FAILED,
+          errorMessage || 'Unknown email provider error',
+        ],
+      );
+
+      if (result.rowCount !== 1) {
+        throw new AppError('Email log not found', {
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          statusCode: 404,
+        });
+      }
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId || null,
+          'admin.support.send_email',
+          'support_ticket',
+          ticketId,
+          metadata || null,
+        ],
+      );
+
+      return result.rows[0];
+    }, {
+      pool: getPool(),
+    });
+
   return {
     addCustomerReply,
     closeTicketByCustomer,
     createAdminReply,
+    createSupportManualEmailLog,
     createTicket,
     getBookingById,
     getAssignableAdminUserById,
     getServiceById,
+    getTicketById,
     getTicketByIdForAdmin,
     getTicketByIdAndUser,
     listRepliesByTicketIdForAdmin,
     listRepliesByTicketId,
     listTicketsForAdmin,
     listTicketsByUser,
+    markSupportManualEmailLogFailed,
+    markSupportManualEmailLogSent,
     updateTicketForAdmin,
   };
 };
