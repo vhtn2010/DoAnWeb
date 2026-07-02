@@ -1,5 +1,6 @@
 const {
   API_ERROR_CODES,
+  NOTIFICATION_STATUS,
   NOTIFICATION_STATUS_VALUES,
   NOTIFICATION_TYPE_VALUES,
 } = require('../constants/domainConstraints');
@@ -9,6 +10,7 @@ const AppError = require('../utils/AppError');
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+const ADMIN_MAX_LIMIT = 100;
 const MAX_BULK_READ_IDS = 100;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -18,6 +20,26 @@ const ALLOWED_ROLES = Object.freeze([
   'admin',
   'system_admin',
 ]);
+const ADMIN_ALLOWED_ROLES = Object.freeze([
+  'admin',
+  'system_admin',
+]);
+const NOTIFICATION_STATUS_TRANSITIONS = Object.freeze({
+  [NOTIFICATION_STATUS.QUEUED]: Object.freeze([
+    NOTIFICATION_STATUS.SENT,
+    NOTIFICATION_STATUS.FAILED,
+  ]),
+  [NOTIFICATION_STATUS.SENT]: Object.freeze([
+    NOTIFICATION_STATUS.DELIVERED,
+    NOTIFICATION_STATUS.FAILED,
+    NOTIFICATION_STATUS.READ,
+  ]),
+  [NOTIFICATION_STATUS.DELIVERED]: Object.freeze([
+    NOTIFICATION_STATUS.READ,
+  ]),
+  [NOTIFICATION_STATUS.READ]: Object.freeze([]),
+  [NOTIFICATION_STATUS.FAILED]: Object.freeze([]),
+});
 
 const buildAppError = ({
   code,
@@ -130,14 +152,74 @@ const buildPaginationMeta = ({
 };
 
 const normalizeAuth = (auth) => ({
+  roleCode: auth?.roleCode || null,
   role: auth?.role || auth?.roleCode || null,
+  tokenPayload: auth?.tokenPayload || null,
   userId: auth?.userId || null,
 });
+
+const normalizePermissionCodes = (auth) => {
+  const rawPermissions =
+    auth?.tokenPayload?.permission_codes ||
+    auth?.tokenPayload?.permissionCodes ||
+    auth?.tokenPayload?.permissions ||
+    [];
+
+  if (!Array.isArray(rawPermissions)) {
+    return [];
+  }
+
+  return rawPermissions
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return entry.trim();
+      }
+
+      if (entry && typeof entry === 'object' && typeof entry.code === 'string') {
+        return entry.code.trim();
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+};
 
 const ensureInboxAccess = (auth) => {
   const actor = normalizeAuth(auth);
 
   if (!actor.userId || !ALLOWED_ROLES.includes(actor.role)) {
+    throw buildForbiddenError();
+  }
+
+  return actor;
+};
+
+const ensureAdminNotificationCatalogAccess = (auth) => {
+  const actor = normalizeAuth(auth);
+
+  if (!actor.userId || !ADMIN_ALLOWED_ROLES.includes(actor.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(actor);
+
+  if (!permissionCodes.includes('notification.manage')) {
+    throw buildForbiddenError();
+  }
+
+  return actor;
+};
+
+const ensureAdminNotificationStatusAccess = (auth) => {
+  const actor = normalizeAuth(auth);
+
+  if (!actor.userId || !ADMIN_ALLOWED_ROLES.includes(actor.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(actor);
+
+  if (!permissionCodes.includes('notification.manage')) {
     throw buildForbiddenError();
   }
 
@@ -192,12 +274,60 @@ const parseNotificationIds = (notificationIds) => {
   return [...new Set(parsedIds)];
 };
 
+const parseAdminNotificationListQuery = (query = {}) => ({
+  limit: parsePositiveInteger({
+    defaultValue: DEFAULT_LIMIT,
+    field: 'limit',
+    max: ADMIN_MAX_LIMIT,
+    value: query.limit,
+  }),
+  page: parsePositiveInteger({
+    defaultValue: DEFAULT_PAGE,
+    field: 'page',
+    max: Number.MAX_SAFE_INTEGER,
+    value: query.page,
+  }),
+  status: parseOptionalEnum({
+    field: 'status',
+    label: NOTIFICATION_STATUS_VALUES,
+    value: query.status,
+    values: NOTIFICATION_STATUS_VALUES,
+  }),
+  type: parseOptionalEnum({
+    field: 'type',
+    label: NOTIFICATION_TYPE_VALUES,
+    value: query.type,
+    values: NOTIFICATION_TYPE_VALUES,
+  }),
+});
+
 const sanitizeNotificationSummary = (row) => ({
   body: row.body,
   created_at: row.created_at,
   id: row.id,
   is_broadcast: row.user_id == null,
   read_at: row.read_at,
+  related_entity_id: row.related_entity_id,
+  related_entity_name: row.related_entity_name,
+  sent_at: row.sent_at,
+  status: row.status,
+  title: row.title,
+  type: row.type,
+});
+
+const sanitizeAdminNotificationSummary = (row) => ({
+  body: row.body,
+  created_at: row.created_at,
+  id: row.id,
+  is_broadcast: row.user_id == null,
+  read_at: row.read_at,
+  recipient: row.user_id == null
+    ? null
+    : {
+        email: row.recipient_email,
+        id: row.user_id,
+        name: row.recipient_name,
+      },
   related_entity_id: row.related_entity_id,
   related_entity_name: row.related_entity_name,
   sent_at: row.sent_at,
@@ -229,6 +359,21 @@ const sanitizeNotificationReadState = (row) => ({
 const sanitizeNotificationDeleteResult = (notificationId) => ({
   deleted: true,
   id: notificationId,
+});
+
+const sanitizeAdminNotificationStatusResult = (row) => ({
+  body: row.body,
+  created_at: row.created_at,
+  id: row.id,
+  is_broadcast: row.user_id == null,
+  read_at: row.read_at,
+  related_entity_id: row.related_entity_id,
+  related_entity_name: row.related_entity_name,
+  sent_at: row.sent_at,
+  status: row.status,
+  title: row.title,
+  type: row.type,
+  user_id: row.user_id,
 });
 
 const createNotificationService = ({
@@ -275,6 +420,108 @@ const createNotificationService = ({
     }
 
     return sanitizeNotificationDeleteResult(parsedNotificationId);
+  };
+
+  const updateAdminNotificationStatus = async ({
+    auth,
+    notificationId,
+    status,
+  } = {}) => {
+    const actor = ensureAdminNotificationStatusAccess(auth);
+    const parsedNotificationId = parseUuid('notification_id', notificationId);
+    const nextStatus = parseOptionalEnum({
+      field: 'status',
+      label: NOTIFICATION_STATUS_VALUES,
+      value: status,
+      values: NOTIFICATION_STATUS_VALUES,
+    });
+
+    if (!nextStatus) {
+      throw buildValidationError('status', 'status is required');
+    }
+
+    const notification = await repository.getNotificationById(parsedNotificationId);
+
+    if (!notification) {
+      throw buildResourceNotFoundError('Notification not found');
+    }
+
+    if (notification.status === nextStatus) {
+      return sanitizeAdminNotificationStatusResult({
+        ...notification,
+        body: notification.body || null,
+        created_at: notification.created_at || null,
+        related_entity_id: notification.related_entity_id || null,
+        related_entity_name: notification.related_entity_name || null,
+        title: notification.title || null,
+        type: notification.type || null,
+      });
+    }
+
+    const allowedTransitions = NOTIFICATION_STATUS_TRANSITIONS[notification.status] || [];
+    const isSystemAdminOverride =
+      actor.role === 'system_admin' &&
+      notification.status === NOTIFICATION_STATUS.READ &&
+      [
+        NOTIFICATION_STATUS.QUEUED,
+        NOTIFICATION_STATUS.SENT,
+      ].includes(nextStatus);
+
+    if (!allowedTransitions.includes(nextStatus) && !isSystemAdminOverride) {
+      throw new AppError('Notification state no longer allows this transition', {
+        code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+        statusCode: 400,
+      });
+    }
+
+    const now = new Date().toISOString();
+    const updatedNotification = await repository.updateNotificationStatus({
+      actorUserId: actor.userId,
+      fromStatus: notification.status,
+      notificationId: parsedNotificationId,
+      readAt:
+        nextStatus === NOTIFICATION_STATUS.READ && notification.read_at == null
+          ? now
+          : null,
+      sentAt:
+        nextStatus === NOTIFICATION_STATUS.SENT && notification.sent_at == null
+          ? now
+          : null,
+      toStatus: nextStatus,
+    });
+
+    if (!updatedNotification) {
+      throw new AppError('Notification state no longer allows this transition', {
+        code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+        statusCode: 400,
+      });
+    }
+
+    return sanitizeAdminNotificationStatusResult(updatedNotification);
+  };
+
+  const listAdminNotifications = async ({
+    auth,
+    query,
+  } = {}) => {
+    ensureAdminNotificationCatalogAccess(auth);
+    const parsedQuery = parseAdminNotificationListQuery(query || {});
+    const offset = (parsedQuery.page - 1) * parsedQuery.limit;
+    const result = await repository.listAdminNotifications({
+      limit: parsedQuery.limit,
+      offset,
+      status: parsedQuery.status,
+      type: parsedQuery.type,
+    });
+
+    return {
+      items: result.rows.map(sanitizeAdminNotificationSummary),
+      meta: buildPaginationMeta({
+        limit: parsedQuery.limit,
+        page: parsedQuery.page,
+        total: result.total,
+      }),
+    };
   };
 
   const markAllMyNotificationsRead = async ({
@@ -370,10 +617,12 @@ const createNotificationService = ({
     deleteMyNotification,
     getUnreadNotificationCount,
     getMyNotificationDetail,
+    listAdminNotifications,
     listMyNotifications,
     markAllMyNotificationsRead,
     markMyNotificationRead,
     markMyNotificationsBulkRead,
+    updateAdminNotificationStatus,
   };
 };
 
