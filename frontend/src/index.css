@@ -338,6 +338,33 @@ select {
   gap: 10px;
 }
 
+.cart-page__back-button {
+  width: fit-content;
+  min-height: 42px;
+  padding: 8px 16px;
+  border: 1px solid rgba(214, 40, 40, 0.16);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-brand-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.cart-page__back-button:hover,
+.cart-page__back-button:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  background: rgba(214, 40, 40, 0.06);
+  border-color: rgba(214, 40, 40, 0.26);
+}
+
 .cart-page__eyebrow {
   margin: 0;
   color: var(--color-brand-primary);

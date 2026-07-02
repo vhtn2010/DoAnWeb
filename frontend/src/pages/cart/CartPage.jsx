@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import CartBenefitCard from '../../components/cart/CartBenefitCard.jsx'
 import CartItemCard from '../../components/cart/CartItemCard.jsx'
 import CartSummaryCard from '../../components/cart/CartSummaryCard.jsx'
@@ -46,6 +46,7 @@ function CartBasketIcon() {
 }
 
 function CartPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const authState = searchParams.get('auth') === 'customer' ? 'customer' : 'guest'
   const isCustomer = authState === 'customer'
@@ -91,18 +92,11 @@ function CartPage() {
 
   const handleContinue = () => {
     // TODO: replace mock validation with POST /cart/validate before checkout integration.
+    // TODO: in checkout integration, allow guest checkout with contact/traveller info; merge guest cart after login only if user chooses to sign in.
     if (selectedItemIds.length === 0) {
       setFeedbackState({
         tone: 'error',
         message: 'Vui lòng chọn ít nhất một dịch vụ để tiếp tục.',
-      })
-      return
-    }
-
-    if (!isCustomer) {
-      setFeedbackState({
-        tone: 'info',
-        message: 'Vui lòng đăng nhập để tiếp tục đặt dịch vụ.',
       })
       return
     }
@@ -115,10 +109,23 @@ function CartPage() {
     })
   }
 
+  const handleGoBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+
+    navigate(isCustomer ? '/services?auth=customer' : '/services')
+  }
+
   return (
     <div className="cart-page">
       <section className="cart-page__hero">
         <div className="cart-page__hero-copy">
+          <button className="cart-page__back-button" type="button" onClick={handleGoBack}>
+            <span aria-hidden="true">←</span>
+            <span>Quay lại</span>
+          </button>
           <p className="cart-page__eyebrow">Cart preview</p>
           <h1 className="cart-page__title">Giỏ hàng của bạn</h1>
         </div>
@@ -167,11 +174,8 @@ function CartPage() {
         <aside className="cart-page__sidebar">
           <CartSummaryCard
             feedbackHint={
-              isCustomer
-                ? 'Khi đã chọn dịch vụ, bạn có thể mock tiếp tục sang bước checkout tiếp theo.'
-                : 'Guest vẫn xem được layout giỏ hàng, nhưng cần đăng nhập để tiếp tục đặt dịch vụ.'
+              'Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo.'
             }
-            isCustomer={isCustomer}
             onContinue={handleContinue}
             summary={{
               ...cartSummary,

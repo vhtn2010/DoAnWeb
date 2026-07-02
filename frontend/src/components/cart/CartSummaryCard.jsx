@@ -1,4 +1,4 @@
-function CartSummaryCard({ feedbackHint, isCustomer, onContinue, summary }) {
+function CartSummaryCard({ feedbackHint, onContinue, summary }) {
   return (
     <section className="cart-summary-card">
       <div className="cart-summary-card__accent" aria-hidden="true" />
@@ -23,10 +23,7 @@ function CartSummaryCard({ feedbackHint, isCustomer, onContinue, summary }) {
       </button>
 
       <p className="cart-summary-card__hint">
-        {feedbackHint ||
-          (isCustomer
-            ? 'Sẵn sàng cho bước thông tin đặt đơn ở phase tiếp theo.'
-            : 'Đăng nhập để tiếp tục đặt dịch vụ ở bước checkout sau.' )}
+        {feedbackHint || 'Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo.'}
       </p>
     </section>
   )
