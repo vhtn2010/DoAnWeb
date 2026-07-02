@@ -10,7 +10,9 @@ const AppError = require('../utils/AppError');
 const DEFAULT_CURRENCY = 'VND';
 const DEFAULT_LIST_LIMIT = 20;
 const DEFAULT_LIST_PAGE = 1;
+const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
 const MAX_LIST_LIMIT = 100;
+const MAX_NOTE_LENGTH = 2000;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -38,6 +40,22 @@ const buildResourceNotFoundError = (message = 'Refund not found') =>
   new AppError(message, {
     code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
     statusCode: 404,
+  });
+
+const buildInvalidStateTransitionError = (
+  message = 'Refund state no longer allows this transition',
+) =>
+  new AppError(message, {
+    code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+    statusCode: 400,
+  });
+
+const buildRefundNotAllowedError = (
+  message = 'This refund request is not allowed',
+) =>
+  new AppError(message, {
+    code: API_ERROR_CODES.REFUND_NOT_ALLOWED,
+    statusCode: 400,
   });
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
@@ -80,6 +98,42 @@ const ensureReadAllAccess = (auth) => {
   }
 
   if (permissionCodes.includes('refund.read_all')) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureApproveAccess = (auth) => {
+  if (!['admin', 'system_admin'].includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(auth);
+
+  if (permissionCodes.length === 0) {
+    return;
+  }
+
+  if (permissionCodes.includes('refund.approve')) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const ensureRejectAccess = (auth) => {
+  if (!['admin', 'system_admin'].includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(auth);
+
+  if (permissionCodes.length === 0) {
+    return;
+  }
+
+  if (permissionCodes.includes('refund.reject')) {
     return;
   }
 
@@ -177,6 +231,112 @@ const parseOptionalDate = (field, value) => {
   return parsed.toISOString();
 };
 
+const parseRequiredString = ({
+  field,
+  maxLength = MAX_NOTE_LENGTH,
+  value,
+}) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  if (normalized.length > maxLength) {
+    throw buildValidationError(
+      field,
+      `${field} must be less than or equal to ${maxLength} characters`,
+    );
+  }
+
+  return normalized;
+};
+
+const parseOptionalString = ({
+  field,
+  maxLength = MAX_NOTE_LENGTH,
+  value,
+}) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    throw buildValidationError(field, `${field} must be a string`);
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > maxLength) {
+    throw buildValidationError(
+      field,
+      `${field} must be less than or equal to ${maxLength} characters`,
+    );
+  }
+
+  return normalized;
+};
+
+const parseRequiredMoney = (field, value) => {
+  if (value == null || value === '') {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw buildValidationError(field, `${field} must be greater than 0`);
+  }
+
+  return roundMoney(parsed);
+};
+
+const parseRequiredIdempotencyKey = (headers = {}) => {
+  const value =
+    headers[IDEMPOTENCY_KEY_HEADER] ??
+    headers[IDEMPOTENCY_KEY_HEADER.toLowerCase()];
+
+  if (value == null || value === '') {
+    throw buildValidationError(
+      IDEMPOTENCY_KEY_HEADER,
+      `${IDEMPOTENCY_KEY_HEADER} is required`,
+    );
+  }
+
+  if (Array.isArray(value) || typeof value !== 'string') {
+    throw buildValidationError(
+      IDEMPOTENCY_KEY_HEADER,
+      `${IDEMPOTENCY_KEY_HEADER} must be a string`,
+    );
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    throw buildValidationError(
+      IDEMPOTENCY_KEY_HEADER,
+      `${IDEMPOTENCY_KEY_HEADER} is required`,
+    );
+  }
+
+  if (normalized.length > 255) {
+    throw buildValidationError(
+      IDEMPOTENCY_KEY_HEADER,
+      `${IDEMPOTENCY_KEY_HEADER} must be less than or equal to 255 characters`,
+    );
+  }
+
+  return normalized;
+};
+
 const parseListQuery = (query = {}) => {
   const status = parseOptionalEnum(
     'status',
@@ -206,6 +366,33 @@ const parseListQuery = (query = {}) => {
     }),
     status,
     to,
+  };
+};
+
+const parseApproveBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  return {
+    approvedAmount: parseRequiredMoney('approved_amount', body.approved_amount),
+    note: parseOptionalString({
+      field: 'note',
+      value: body.note,
+    }),
+  };
+};
+
+const parseRejectBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  return {
+    reason: parseRequiredString({
+      field: 'reason',
+      value: body.reason,
+    }),
   };
 };
 
@@ -374,6 +561,88 @@ const sanitizeRefundDetail = (row) => ({
   status: row.status,
 });
 
+const bookingAllowsCompletedRefund = (bookingItems) =>
+  bookingItems.some((item) => {
+    const snapshot = item?.service_snapshot;
+
+    if (!snapshot || typeof snapshot !== 'object') {
+      return false;
+    }
+
+    return Boolean(
+      snapshot.cancellation_policy || snapshot.cancellationPolicy,
+    );
+  });
+
+const assertRefundRequested = (refund) => {
+  if (refund.status !== 'requested') {
+    throw buildInvalidStateTransitionError(
+      'Only requested refunds can be processed with this endpoint',
+    );
+  }
+};
+
+const assertRefundablePayment = (refund) => {
+  if (!['success', 'reconciled', 'partially_refunded'].includes(refund.payment_status)) {
+    throw buildRefundNotAllowedError(
+      'The original payment is no longer eligible for refund approval',
+    );
+  }
+};
+
+const assertRefundableBooking = ({
+  bookingItems,
+  refund,
+}) => {
+  if (
+    [
+      'pending_payment',
+      'payment_processing',
+      'failed',
+      'expired',
+      'refunded',
+    ].includes(refund.booking_status)
+  ) {
+    throw buildRefundNotAllowedError(
+      'The booking is no longer eligible for refund approval',
+    );
+  }
+
+  if (
+    refund.booking_status === 'completed' &&
+    !bookingAllowsCompletedRefund(bookingItems)
+  ) {
+    throw buildRefundNotAllowedError(
+      'This completed booking does not allow manual refunds',
+    );
+  }
+};
+
+const resolveApprovedBookingStatus = ({
+  bookingItems,
+  refund,
+}) => {
+  if (refund.booking_status === 'refund_pending') {
+    return null;
+  }
+
+  if (
+    refund.booking_status === 'paid' ||
+    refund.booking_status === 'cancel_requested'
+  ) {
+    return 'refund_pending';
+  }
+
+  if (
+    refund.booking_status === 'completed' &&
+    bookingAllowsCompletedRefund(bookingItems)
+  ) {
+    return 'refund_pending';
+  }
+
+  return null;
+};
+
 const createAdminRefundService = ({
   repository = createAdminRefundRepository(),
 } = {}) => {
@@ -423,15 +692,149 @@ const createAdminRefundService = ({
     return sanitizeRefundDetail(refund);
   };
 
+  const approveRefund = async ({
+    auth,
+    body,
+    headers,
+    refund_id: refundId,
+  } = {}) => {
+    ensureApproveAccess(auth);
+
+    const parsedRefundId = parseUuid('refund_id', refundId);
+    const parsedBody = parseApproveBody(body || {});
+    const idempotencyKey = parseRequiredIdempotencyKey(headers || {});
+    const refund = await repository.getRefundById({
+      allowedServiceIds: null,
+      refundId: parsedRefundId,
+    });
+
+    if (!refund) {
+      throw buildResourceNotFoundError();
+    }
+
+    const isReplay = await repository.hasApproveLogByIdempotencyKey({
+      idempotencyKey,
+      refundId: parsedRefundId,
+    });
+
+    if (isReplay) {
+      const latestRefund = await repository.getRefundById({
+        allowedServiceIds: null,
+        refundId: parsedRefundId,
+      });
+      return sanitizeRefundDetail(latestRefund);
+    }
+
+    assertRefundRequested(refund);
+    assertRefundablePayment(refund);
+
+    const bookingItems =
+      await repository.getBookingItemsByBookingId(refund.booking_id);
+    assertRefundableBooking({
+      bookingItems,
+      refund,
+    });
+
+    if (parsedBody.approvedAmount > roundMoney(refund.amount)) {
+      throw buildRefundNotAllowedError(
+        'approved_amount cannot exceed the requested refund amount',
+      );
+    }
+
+    const otherReservedAmount =
+      await repository.sumOtherActiveRefundAmountsByPaymentId({
+        excludedRefundId: refund.id,
+        paymentId: refund.payment_id,
+      });
+    const remainingRefundableAmount = roundMoney(
+      Number(refund.payment_amount) - otherReservedAmount,
+    );
+
+    if (
+      remainingRefundableAmount <= 0 ||
+      parsedBody.approvedAmount > remainingRefundableAmount
+    ) {
+      throw buildRefundNotAllowedError(
+        'approved_amount exceeds the remaining refundable amount',
+      );
+    }
+
+    const result = await repository.approveRefund({
+      actorUserId: auth.userId,
+      approvedAmount: parsedBody.approvedAmount,
+      idempotencyKey,
+      nextBookingStatus: resolveApprovedBookingStatus({
+        bookingItems,
+        refund,
+      }),
+      note: parsedBody.note,
+      refund,
+    });
+
+    if (!result) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (result.transitionApplied === false) {
+      throw buildInvalidStateTransitionError(
+        'Only requested refunds can be approved',
+      );
+    }
+
+    return sanitizeRefundDetail(result.refund);
+  };
+
+  const rejectRefund = async ({
+    auth,
+    body,
+    refund_id: refundId,
+  } = {}) => {
+    ensureRejectAccess(auth);
+
+    const parsedRefundId = parseUuid('refund_id', refundId);
+    const parsedBody = parseRejectBody(body || {});
+    const refund = await repository.getRefundById({
+      allowedServiceIds: null,
+      refundId: parsedRefundId,
+    });
+
+    if (!refund) {
+      throw buildResourceNotFoundError();
+    }
+
+    assertRefundRequested(refund);
+
+    const result = await repository.rejectRefund({
+      actorUserId: auth.userId,
+      reason: parsedBody.reason,
+      refund,
+    });
+
+    if (!result) {
+      throw buildResourceNotFoundError();
+    }
+
+    if (result.transitionApplied === false) {
+      throw buildInvalidStateTransitionError(
+        'Only requested refunds can be rejected',
+      );
+    }
+
+    return sanitizeRefundDetail(result.refund);
+  };
+
   return {
+    approveRefund,
     getRefundDetail,
     listRefunds,
+    rejectRefund,
   };
 };
 
 module.exports = Object.assign(createAdminRefundService(), {
   DEFAULT_LIST_LIMIT,
   DEFAULT_LIST_PAGE,
+  IDEMPOTENCY_KEY_HEADER,
   MAX_LIST_LIMIT,
   createAdminRefundService,
 });

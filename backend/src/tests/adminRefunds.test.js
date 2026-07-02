@@ -16,8 +16,11 @@ const adminRefundService = require('../services/adminRefundService');
 const REFUND_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const BOOKING_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const PAYMENT_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const PAYMENT_ID_2 = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const originalGetRefundDetail = adminRefundService.getRefundDetail;
 const originalListRefunds = adminRefundService.listRefunds;
+const originalApproveRefund = adminRefundService.approveRefund;
+const originalRejectRefund = adminRefundService.rejectRefund;
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -81,8 +84,10 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
 };
 
 test.afterEach(() => {
+  adminRefundService.approveRefund = originalApproveRefund;
   adminRefundService.getRefundDetail = originalGetRefundDetail;
   adminRefundService.listRefunds = originalListRefunds;
+  adminRefundService.rejectRefund = originalRejectRefund;
 });
 
 test('adminRefundService.listRefunds validates filters and permission refund.read_all', async () => {
@@ -445,6 +450,441 @@ test('adminRefundService.getRefundDetail rejects invalid UUID and missing refund
   );
 });
 
+test('adminRefundService.approveRefund validates permission, idempotency, state, and approved amount rules', async () => {
+  const service = adminRefundService.createAdminRefundService({
+    repository: {
+      getBookingItemsByBookingId: async () => [],
+      getRefundById: async ({ refundId }) => {
+        assert.equal(refundId, REFUND_ID);
+
+        return {
+          amount: '200000',
+          booking_id: BOOKING_ID,
+          booking_status: 'paid',
+          id: REFUND_ID,
+          payment_amount: '500000',
+          payment_id: PAYMENT_ID,
+          payment_status: 'success',
+          raw_response: {},
+          refund_code: 'RF202607020001',
+          status: 'approved',
+        };
+      },
+      hasApproveLogByIdempotencyKey: async ({ idempotencyKey, refundId }) => {
+        assert.equal(idempotencyKey, 'approve-key-1');
+        assert.equal(refundId, REFUND_ID);
+        return true;
+      },
+      sumOtherActiveRefundAmountsByPaymentId: async () => 0,
+    },
+  });
+
+  const replayResult = await service.approveRefund({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['refund.approve'],
+      },
+      userId: 'admin-user-1',
+    },
+    body: {
+      approved_amount: 200000,
+    },
+    headers: {
+      'idempotency-key': 'approve-key-1',
+    },
+    refund_id: REFUND_ID,
+  });
+
+  assert.equal(replayResult.status, 'approved');
+
+  const noPermissionService = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async () => null,
+      hasApproveLogByIdempotencyKey: async () => false,
+    },
+  });
+
+  await assert.rejects(
+    () => noPermissionService.approveRefund({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['refund.read_all'],
+        },
+        userId: 'admin-user-1',
+      },
+      body: {
+        approved_amount: 200000,
+      },
+      headers: {
+        'idempotency-key': 'approve-key-2',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => noPermissionService.approveRefund({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['refund.approve'],
+        },
+        userId: 'staff-user-1',
+      },
+      body: {
+        approved_amount: 200000,
+      },
+      headers: {
+        'idempotency-key': 'approve-key-staff',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  const invalidAmountService = adminRefundService.createAdminRefundService({
+    repository: {
+      getBookingItemsByBookingId: async () => [],
+      getRefundById: async () => ({
+        amount: '200000',
+        booking_id: BOOKING_ID,
+        booking_status: 'paid',
+        id: REFUND_ID,
+        payment_amount: '500000',
+        payment_id: PAYMENT_ID,
+        payment_status: 'success',
+        refund_code: 'RF202607020001',
+        status: 'requested',
+      }),
+      hasApproveLogByIdempotencyKey: async () => false,
+      sumOtherActiveRefundAmountsByPaymentId: async () => 100000,
+    },
+  });
+
+  await assert.rejects(
+    () => invalidAmountService.approveRefund({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['refund.approve'],
+        },
+        userId: 'admin-user-1',
+      },
+      body: {
+        approved_amount: 450000,
+      },
+      headers: {
+        'idempotency-key': 'approve-key-3',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.REFUND_NOT_ALLOWED);
+      return true;
+    },
+  );
+});
+
+test('adminRefundService.approveRefund approves a requested refund and maps admin-safe result', async () => {
+  let capturedApprovePayload;
+  const service = adminRefundService.createAdminRefundService({
+    repository: {
+      approveRefund: async (payload) => {
+        capturedApprovePayload = payload;
+
+        return {
+          refund: {
+            amount: '180000',
+            approved_by_email: null,
+            approved_by_full_name: null,
+            approved_by_phone: null,
+            approved_by_user_id: 'admin-user-1',
+            booking_code: 'BK202607020001',
+            booking_created_at: '2026-07-01T10:00:00.000Z',
+            booking_currency: 'VND',
+            booking_expires_at: '2026-07-03T00:00:00.000Z',
+            booking_id: BOOKING_ID,
+            booking_status: 'refund_pending',
+            booking_total_amount: '500000',
+            contact_email: 'booker@example.com',
+            contact_name: 'Nguyen Van A',
+            contact_phone: '0909000000',
+            created_at: '2026-07-02T01:00:00.000Z',
+            customer_email: 'customer@example.com',
+            customer_full_name: 'Nguyen Van A',
+            customer_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            customer_phone: '0909000000',
+            id: REFUND_ID,
+            payment_amount: '500000',
+            payment_code: 'PAY202607020001',
+            payment_currency: 'VND',
+            payment_id: PAYMENT_ID,
+            payment_method: 'manual_bank_transfer',
+            payment_paid_at: '2026-07-02T00:30:00.000Z',
+            payment_provider: 'direct',
+            payment_status: 'success',
+            processed_at: null,
+            provider_refund_id: null,
+            raw_response: {
+              approval: {
+                approved_amount: 180000,
+              },
+              internal_notes: {
+                note: 'Duyet mot phan',
+                updated_at: '2026-07-03T03:00:00.000Z',
+                updated_by_user_id: 'admin-user-1',
+              },
+            },
+            reason: 'Can hoan mot phan',
+            refund_code: 'RF202607020001',
+            requested_by_email: 'customer@example.com',
+            requested_by_full_name: 'Nguyen Van A',
+            requested_by_phone: '0909000000',
+            requested_by_user_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            status: 'approved',
+          },
+          transitionApplied: true,
+        };
+      },
+      getBookingItemsByBookingId: async () => [],
+      getRefundById: async ({ refundId }) => {
+        assert.equal(refundId, REFUND_ID);
+
+        return {
+          amount: '200000',
+          booking_id: BOOKING_ID,
+          booking_status: 'paid',
+          id: REFUND_ID,
+          payment_amount: '500000',
+          payment_id: PAYMENT_ID,
+          payment_status: 'success',
+          reason: 'Can hoan mot phan',
+          refund_code: 'RF202607020001',
+          status: 'requested',
+        };
+      },
+      hasApproveLogByIdempotencyKey: async () => false,
+      sumOtherActiveRefundAmountsByPaymentId: async ({ excludedRefundId, paymentId }) => {
+        assert.equal(excludedRefundId, REFUND_ID);
+        assert.equal(paymentId, PAYMENT_ID);
+        return 100000;
+      },
+    },
+  });
+
+  const result = await service.approveRefund({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['refund.approve'],
+      },
+      userId: 'admin-user-1',
+    },
+    body: {
+      approved_amount: 180000,
+      note: 'Duyet mot phan',
+    },
+    headers: {
+      'idempotency-key': 'approve-key-9',
+    },
+    refund_id: REFUND_ID,
+  });
+
+  assert.deepEqual(capturedApprovePayload, {
+    actorUserId: 'admin-user-1',
+    approvedAmount: 180000,
+    idempotencyKey: 'approve-key-9',
+    nextBookingStatus: 'refund_pending',
+    note: 'Duyet mot phan',
+    refund: {
+      amount: '200000',
+      booking_id: BOOKING_ID,
+      booking_status: 'paid',
+      id: REFUND_ID,
+      payment_amount: '500000',
+      payment_id: PAYMENT_ID,
+      payment_status: 'success',
+      reason: 'Can hoan mot phan',
+      refund_code: 'RF202607020001',
+      status: 'requested',
+    },
+  });
+  assert.equal(result.status, 'approved');
+  assert.equal(result.amount, 180000);
+  assert.deepEqual(result.internal_note, {
+    note: 'Duyet mot phan',
+    updated_at: '2026-07-03T03:00:00.000Z',
+    updated_by_user_id: 'admin-user-1',
+  });
+});
+
+test('adminRefundService.rejectRefund rejects only requested refunds', async () => {
+  let capturedRejectPayload;
+  const service = adminRefundService.createAdminRefundService({
+    repository: {
+      getRefundById: async ({ refundId }) => {
+        if (refundId === REFUND_ID) {
+          return {
+            amount: '200000',
+            booking_code: 'BK202607020001',
+            booking_id: BOOKING_ID,
+            booking_status: 'refund_pending',
+            id: REFUND_ID,
+            payment_amount: '500000',
+            payment_id: PAYMENT_ID,
+            payment_status: 'success',
+            refund_code: 'RF202607020001',
+            status: 'requested',
+          };
+        }
+
+        return {
+          amount: '200000',
+          booking_id: BOOKING_ID,
+          booking_status: 'refund_pending',
+          id: refundId,
+          payment_amount: '500000',
+          payment_id: PAYMENT_ID,
+          payment_status: 'success',
+          refund_code: 'RF202607020002',
+          status: 'approved',
+        };
+      },
+      rejectRefund: async (payload) => {
+        capturedRejectPayload = payload;
+
+        return {
+          refund: {
+            amount: '200000',
+            approved_by_email: null,
+            approved_by_full_name: null,
+            approved_by_phone: null,
+            approved_by_user_id: null,
+            booking_code: 'BK202607020001',
+            booking_created_at: '2026-07-01T10:00:00.000Z',
+            booking_currency: 'VND',
+            booking_expires_at: '2026-07-03T00:00:00.000Z',
+            booking_id: BOOKING_ID,
+            booking_status: 'paid',
+            booking_total_amount: '500000',
+            contact_email: 'booker@example.com',
+            contact_name: 'Nguyen Van A',
+            contact_phone: '0909000000',
+            created_at: '2026-07-02T01:00:00.000Z',
+            customer_email: 'customer@example.com',
+            customer_full_name: 'Nguyen Van A',
+            customer_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            customer_phone: '0909000000',
+            id: REFUND_ID,
+            payment_amount: '500000',
+            payment_code: 'PAY202607020001',
+            payment_currency: 'VND',
+            payment_id: PAYMENT_ID,
+            payment_method: 'manual_bank_transfer',
+            payment_paid_at: '2026-07-02T00:30:00.000Z',
+            payment_provider: 'direct',
+            payment_status: 'success',
+            processed_at: null,
+            provider_refund_id: null,
+            raw_response: {
+              rejection_reason: 'Khong du dieu kien hoan tien',
+            },
+            reason: 'Can hoan mot phan',
+            refund_code: 'RF202607020001',
+            requested_by_email: 'customer@example.com',
+            requested_by_full_name: 'Nguyen Van A',
+            requested_by_phone: '0909000000',
+            requested_by_user_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            status: 'rejected',
+          },
+          transitionApplied: true,
+        };
+      },
+    },
+  });
+
+  const result = await service.rejectRefund({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['refund.reject'],
+      },
+      userId: 'admin-user-2',
+    },
+    body: {
+      reason: 'Khong du dieu kien hoan tien',
+    },
+    refund_id: REFUND_ID,
+  });
+
+  assert.deepEqual(capturedRejectPayload, {
+    actorUserId: 'admin-user-2',
+    reason: 'Khong du dieu kien hoan tien',
+    refund: {
+      amount: '200000',
+      booking_code: 'BK202607020001',
+      booking_id: BOOKING_ID,
+      booking_status: 'refund_pending',
+      id: REFUND_ID,
+      payment_amount: '500000',
+      payment_id: PAYMENT_ID,
+      payment_status: 'success',
+      refund_code: 'RF202607020001',
+      status: 'requested',
+    },
+  });
+  assert.equal(result.status, 'rejected');
+
+  await assert.rejects(
+    () => service.rejectRefund({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['refund.reject'],
+        },
+        userId: 'admin-user-2',
+      },
+      body: {
+        reason: 'Khong du dieu kien hoan tien',
+      },
+      refund_id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.rejectRefund({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['refund.reject'],
+        },
+        userId: 'staff-user-2',
+      },
+      body: {
+        reason: 'Khong du dieu kien hoan tien',
+      },
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+});
+
 test('GET /api/admin/refunds requires access token', async () => {
   const server = app.listen(0);
 
@@ -633,6 +1073,91 @@ test('GET /api/admin/refunds/{refund_id} returns detail payload for authorized a
     assert.equal(response.body.message, 'Admin refund detail retrieved successfully');
     assert.equal(response.body.data.id, REFUND_ID);
     assert.equal(response.body.data.payment.payment_code, 'PAY202607020001');
+  } finally {
+    server.close();
+  }
+});
+
+test('admin refund process routes forward auth, body, and headers to service methods', async () => {
+  const server = app.listen(0);
+  const adminApproveToken = createAccessToken({
+    permissions: ['refund.approve'],
+    roleCode: 'admin',
+    userId: 'admin-user-1',
+  });
+  const adminRejectToken = createAccessToken({
+    permissions: ['refund.reject'],
+    roleCode: 'system_admin',
+    userId: 'system-user-1',
+  });
+  let capturedApproveContext;
+  let capturedRejectContext;
+
+  adminRefundService.approveRefund = async (context) => {
+    capturedApproveContext = context;
+
+    return {
+      amount: 180000,
+      id: REFUND_ID,
+      refund_code: 'RF202607020001',
+      status: 'approved',
+    };
+  };
+
+  adminRefundService.rejectRefund = async (context) => {
+    capturedRejectContext = context;
+
+    return {
+      amount: 200000,
+      id: REFUND_ID,
+      refund_code: 'RF202607020001',
+      status: 'rejected',
+    };
+  };
+
+  try {
+    const approveResponse = await request(
+      server,
+      `${apiPrefix}/admin/refunds/${REFUND_ID}/approve`,
+      {
+        body: {
+          approved_amount: 180000,
+          note: 'Duyet mot phan',
+        },
+        headers: {
+          Authorization: `Bearer ${adminApproveToken}`,
+          'Idempotency-Key': 'approve-route-key',
+        },
+        method: 'POST',
+      },
+    );
+    const rejectResponse = await request(
+      server,
+      `${apiPrefix}/admin/refunds/${REFUND_ID}/reject`,
+      {
+        body: {
+          reason: 'Khong du dieu kien',
+        },
+        headers: {
+          Authorization: `Bearer ${adminRejectToken}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(approveResponse.statusCode, 200);
+    assert.equal(approveResponse.body.message, 'Admin refund approved successfully');
+    assert.equal(approveResponse.body.data.status, 'approved');
+    assert.equal(capturedApproveContext.auth.role, 'admin');
+    assert.equal(capturedApproveContext.refund_id, REFUND_ID);
+    assert.equal(capturedApproveContext.headers['idempotency-key'], 'approve-route-key');
+    assert.equal(capturedApproveContext.body.approved_amount, 180000);
+
+    assert.equal(rejectResponse.statusCode, 200);
+    assert.equal(rejectResponse.body.message, 'Admin refund rejected successfully');
+    assert.equal(rejectResponse.body.data.status, 'rejected');
+    assert.equal(capturedRejectContext.auth.role, 'system_admin');
+    assert.equal(capturedRejectContext.body.reason, 'Khong du dieu kien');
   } finally {
     server.close();
   }
