@@ -1,4 +1,4 @@
-const { query } = require('./client');
+const { query, withTransaction } = require('./client');
 
 const REFUND_DETAIL_SELECT = `
   SELECT
@@ -57,8 +57,16 @@ const REFUND_DETAIL_SELECT = `
     ON approver.id = r.approved_by
 `;
 
+const ACTIVE_REFUND_STATUSES = Object.freeze([
+  'requested',
+  'approved',
+  'processing',
+  'success',
+]);
+
 const createAdminRefundRepository = ({
   queryImpl = query,
+  withTransactionImpl = withTransaction,
 } = {}) => {
   const buildScopedWhere = ({
     allowedServiceIds,
@@ -197,9 +205,378 @@ const createAdminRefundRepository = ({
     return result.rows[0] || null;
   };
 
+  const getBookingItemsByBookingId = async (bookingId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          service_id,
+          service_snapshot
+        FROM booking_items
+        WHERE booking_id = $1
+        ORDER BY created_at ASC, id ASC
+      `,
+      [bookingId],
+    );
+
+    return result.rows;
+  };
+
+  const sumOtherActiveRefundAmountsByPaymentId = async ({
+    excludedRefundId,
+    paymentId,
+  }) => {
+    const result = await queryImpl(
+      `
+        SELECT COALESCE(SUM(amount), 0)::numeric AS total_reserved
+        FROM refunds
+        WHERE payment_id = $1
+          AND id <> $2
+          AND status = ANY($3::text[])
+      `,
+      [paymentId, excludedRefundId, ACTIVE_REFUND_STATUSES],
+    );
+
+    return Number(result.rows[0]?.total_reserved || 0);
+  };
+
+  const hasApproveLogByIdempotencyKey = async ({
+    idempotencyKey,
+    refundId,
+  }) => {
+    const result = await queryImpl(
+      `
+        SELECT 1
+        FROM user_logs
+        WHERE entity_name = 'refund'
+          AND entity_id = $1
+          AND action = 'refund.approve'
+          AND metadata ->> 'idempotency_key' = $2
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [refundId, idempotencyKey],
+    );
+
+    return result.rowCount > 0;
+  };
+
+  const insertUserLog = async (client, {
+    action,
+    actorUserId,
+    entityId,
+    metadata,
+  }) => {
+    await client.query(
+      `
+        INSERT INTO user_logs (
+          user_id,
+          action,
+          entity_name,
+          entity_id,
+          metadata,
+          created_at
+        )
+        VALUES ($1, $2, 'refund', $3, $4, NOW())
+      `,
+      [
+        actorUserId,
+        action,
+        entityId,
+        metadata || null,
+      ],
+    );
+  };
+
+  const setLocalConfig = async (client, key, value) => {
+    await client.query(
+      'SELECT set_config($1, $2, TRUE)',
+      [key, value],
+    );
+  };
+
+  const transitionBookingStatus = async (client, {
+    actorUserId,
+    bookingId,
+    fromStatus,
+    reason,
+    toStatus,
+  }) => {
+    await setLocalConfig(client, 'app.current_user_id', actorUserId);
+    await setLocalConfig(client, 'app.status_change_reason', reason);
+
+    const result = await client.query(
+      `
+        UPDATE bookings
+        SET status = $2
+        WHERE id = $1
+          AND status = $3
+        RETURNING id, booking_code, status, expires_at, updated_at
+      `,
+      [bookingId, toStatus, fromStatus],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getLatestRefundPendingTransition = async (client, bookingId) => {
+    const result = await client.query(
+      `
+        SELECT
+          from_status,
+          to_status
+        FROM booking_status_histories
+        WHERE booking_id = $1
+          AND to_status = 'refund_pending'
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+      `,
+      [bookingId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const countOtherActiveRefunds = async (client, {
+    bookingId,
+    refundId,
+  }) => {
+    const result = await client.query(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM refunds
+        WHERE booking_id = $1
+          AND id <> $2
+          AND status = ANY($3::text[])
+      `,
+      [bookingId, refundId, ACTIVE_REFUND_STATUSES],
+    );
+
+    return Number(result.rows[0]?.total || 0);
+  };
+
+  const approveRefund = async ({
+    actorUserId,
+    approvedAmount,
+    idempotencyKey,
+    nextBookingStatus,
+    note,
+    refund,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const currentRefund = await getRefundById({
+        allowedServiceIds: null,
+        refundId: refund.id,
+      });
+
+      if (!currentRefund) {
+        return null;
+      }
+
+      const mergedRawResponse = {
+        ...(currentRefund.raw_response && typeof currentRefund.raw_response === 'object'
+          ? currentRefund.raw_response
+          : {}),
+        approval: {
+          approved_amount: approvedAmount,
+          approved_at: new Date().toISOString(),
+          approved_by_user_id: actorUserId,
+          idempotency_key: idempotencyKey,
+        },
+      };
+
+      if (approvedAmount !== Number(currentRefund.amount)) {
+        mergedRawResponse.requested_amount = Number(currentRefund.amount);
+      }
+
+      if (note) {
+        mergedRawResponse.internal_notes = {
+          note,
+          updated_at: new Date().toISOString(),
+          updated_by_user_id: actorUserId,
+        };
+      }
+
+      const updateResult = await client.query(
+        `
+          UPDATE refunds
+          SET
+            status = 'approved',
+            amount = $2,
+            approved_by = $3,
+            raw_response = $4::jsonb
+          WHERE id = $1
+            AND status = 'requested'
+          RETURNING id
+        `,
+        [
+          refund.id,
+          approvedAmount,
+          actorUserId,
+          JSON.stringify(mergedRawResponse),
+        ],
+      );
+
+      if (updateResult.rowCount !== 1) {
+        return {
+          refund: currentRefund,
+          transitionApplied: false,
+        };
+      }
+
+      let bookingStatus = currentRefund.booking_status;
+
+      if (nextBookingStatus && nextBookingStatus !== currentRefund.booking_status) {
+        const updatedBooking = await transitionBookingStatus(client, {
+          actorUserId,
+          bookingId: currentRefund.booking_id,
+          fromStatus: currentRefund.booking_status,
+          reason: 'Admin approved manual refund request',
+          toStatus: nextBookingStatus,
+        });
+
+        if (updatedBooking) {
+          bookingStatus = updatedBooking.status;
+        }
+      }
+
+      await insertUserLog(client, {
+        action: 'refund.approve',
+        actorUserId,
+        entityId: refund.id,
+        metadata: {
+          approved_amount: approvedAmount,
+          booking_id: currentRefund.booking_id,
+          booking_status_after: bookingStatus,
+          booking_status_before: currentRefund.booking_status,
+          idempotency_key: idempotencyKey,
+          note,
+          payment_id: currentRefund.payment_id,
+          refund_code: currentRefund.refund_code,
+        },
+      });
+
+      const updatedRefund = await getRefundById({
+        allowedServiceIds: null,
+        refundId: refund.id,
+      });
+
+      return {
+        refund: updatedRefund,
+        transitionApplied: true,
+      };
+    });
+
+  const rejectRefund = async ({
+    actorUserId,
+    reason,
+    refund,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const currentRefund = await getRefundById({
+        allowedServiceIds: null,
+        refundId: refund.id,
+      });
+
+      if (!currentRefund) {
+        return null;
+      }
+
+      const mergedRawResponse = {
+        ...(currentRefund.raw_response && typeof currentRefund.raw_response === 'object'
+          ? currentRefund.raw_response
+          : {}),
+        rejection_reason: reason,
+        rejected_at: new Date().toISOString(),
+        rejected_by_user_id: actorUserId,
+      };
+
+      const updateResult = await client.query(
+        `
+          UPDATE refunds
+          SET
+            status = 'rejected',
+            raw_response = $2::jsonb
+          WHERE id = $1
+            AND status = 'requested'
+          RETURNING id
+        `,
+        [refund.id, JSON.stringify(mergedRawResponse)],
+      );
+
+      if (updateResult.rowCount !== 1) {
+        return {
+          bookingStatus: currentRefund.booking_status,
+          refund: currentRefund,
+          transitionApplied: false,
+        };
+      }
+
+      let bookingStatus = currentRefund.booking_status;
+
+      if (currentRefund.booking_status === 'refund_pending') {
+        const otherActiveRefunds = await countOtherActiveRefunds(client, {
+          bookingId: currentRefund.booking_id,
+          refundId: currentRefund.id,
+        });
+
+        if (otherActiveRefunds === 0) {
+          const latestTransition = await getLatestRefundPendingTransition(
+            client,
+            currentRefund.booking_id,
+          );
+          const fallbackStatus = latestTransition?.from_status;
+
+          if (fallbackStatus && fallbackStatus !== 'refund_pending') {
+            const restoredBooking = await transitionBookingStatus(client, {
+              actorUserId,
+              bookingId: currentRefund.booking_id,
+              fromStatus: 'refund_pending',
+              reason: 'Admin rejected manual refund request',
+              toStatus: fallbackStatus,
+            });
+
+            if (restoredBooking) {
+              bookingStatus = restoredBooking.status;
+            }
+          }
+        }
+      }
+
+      await insertUserLog(client, {
+        action: 'refund.reject',
+        actorUserId,
+        entityId: refund.id,
+        metadata: {
+          booking_id: currentRefund.booking_id,
+          booking_status_after: bookingStatus,
+          booking_status_before: currentRefund.booking_status,
+          payment_id: currentRefund.payment_id,
+          reason,
+          refund_code: currentRefund.refund_code,
+        },
+      });
+
+      const updatedRefund = await getRefundById({
+        allowedServiceIds: null,
+        refundId: refund.id,
+      });
+
+      return {
+        bookingStatus,
+        refund: updatedRefund,
+        transitionApplied: true,
+      };
+    });
+
   return {
+    approveRefund,
     getRefundById,
+    getBookingItemsByBookingId,
+    hasApproveLogByIdempotencyKey,
+    rejectRefund,
     listRefunds,
+    sumOtherActiveRefundAmountsByPaymentId,
   };
 };
 
