@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import AdminServiceTypeFields from './AdminServiceTypeFields.jsx'
 import {
   adminServiceFormStatusOptions,
@@ -40,6 +40,10 @@ function validateServiceForm(values) {
     errors.sale_price = 'Giá khuyến mãi phải là số không âm.'
   }
 
+  if (values.sale_price !== '' && !Number.isNaN(salePrice) && salePrice > basePrice) {
+    errors.sale_price = 'Giá khuyến mãi không được lớn hơn giá gốc.'
+  }
+
   if (!values.status) {
     errors.status = 'Vui lòng chọn trạng thái.'
   }
@@ -61,12 +65,31 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
   const [formValues, setFormValues] = useState(() => getInitialServiceFormValues(service))
   const [errors, setErrors] = useState({})
   const [slugTouched, setSlugTouched] = useState(mode === 'edit')
+  const titleId = useId()
+  const descriptionId = useId()
 
   useEffect(() => {
     setFormValues(getInitialServiceFormValues(service))
     setErrors({})
     setSlugTouched(mode === 'edit')
   }, [mode, service])
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [onClose])
 
   const isEditMode = mode === 'edit'
   const modalTitle = isEditMode ? 'Cập nhật dịch vụ' : 'Thêm dịch vụ'
@@ -145,6 +168,8 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
   return (
     <div
       aria-modal="true"
+      aria-describedby={descriptionId}
+      aria-labelledby={titleId}
       className="admin-service-modal"
       role="dialog"
       onClick={onClose}
@@ -153,8 +178,8 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
         <div className="admin-service-modal__header">
           <div>
             <p className="admin-service-modal__eyebrow">Service form mock</p>
-            <h2 className="admin-service-modal__title">{modalTitle}</h2>
-            <p className="admin-service-modal__subtitle">
+            <h2 className="admin-service-modal__title" id={titleId}>{modalTitle}</h2>
+            <p className="admin-service-modal__subtitle" id={descriptionId}>
               Chuẩn bị payload cho POST/PATCH `/admin/services` và giữ toàn bộ thao tác ở local state.
             </p>
           </div>

@@ -118,6 +118,19 @@ function getCurrentPrice(service) {
   return service.sale_price ?? service.base_price
 }
 
+function matchesServiceFilters(service, normalizedQuery, selectedType, selectedStatus) {
+  const matchesQuery =
+    normalizedQuery.length === 0 ||
+    [service.service_code, service.title, service.location_text].some((value) =>
+      value.toLowerCase().includes(normalizedQuery)
+    )
+
+  const matchesType = selectedType === 'all' || service.service_type === selectedType
+  const matchesStatus = selectedStatus === 'all' || service.status === selectedStatus
+
+  return matchesQuery && matchesType && matchesStatus
+}
+
 function getServiceDetailSummary(service) {
   if (service.service_type === 'tour') {
     return `${service.details.duration_days ?? '-'}N${service.details.duration_nights ?? '-'}Đ • ${service.details.transport_type ?? 'n/a'}`
@@ -193,18 +206,9 @@ function AdminServicesPage() {
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
   const filteredServices = [...services]
-    .filter((service) => {
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        [service.service_code, service.title, service.location_text].some((value) =>
-          value.toLowerCase().includes(normalizedQuery)
-        )
-
-      const matchesType = selectedType === 'all' || service.service_type === selectedType
-      const matchesStatus = selectedStatus === 'all' || service.status === selectedStatus
-
-      return matchesQuery && matchesType && matchesStatus
-    })
+    .filter((service) =>
+      matchesServiceFilters(service, normalizedQuery, selectedType, selectedStatus)
+    )
     .sort((serviceA, serviceB) => {
       if (selectedSort === 'oldest') {
         return new Date(serviceA.updated_at) - new Date(serviceB.updated_at)
@@ -282,10 +286,11 @@ function AdminServicesPage() {
   }
 
   const handleCloseModal = () => {
-    setModalState((currentState) => ({
-      ...currentState,
+    setModalState({
       isOpen: false,
-    }))
+      mode: 'add',
+      service: null,
+    })
   }
 
   const handleCloseActionModal = () => {
@@ -340,14 +345,32 @@ function AdminServicesPage() {
       currentServices.map((service) => (service.id === nextService.id ? nextService : service))
     )
     setSelectedServiceId(nextService.id)
+    const visibilityNote = matchesServiceFilters(
+      nextService,
+      normalizedQuery,
+      selectedType,
+      selectedStatus
+    )
+      ? ''
+      : ' Dịch vụ có thể không còn xuất hiện trong danh sách vì không khớp bộ lọc hiện tại.'
+
     setFeedbackState({
       tone: 'success',
-      message: getActionFeedbackMessage(actionState.actionKey),
+      message: `${getActionFeedbackMessage(actionState.actionKey)} Mã dịch vụ: ${nextService.service_code}.${visibilityNote}`,
     })
     handleCloseActionModal()
   }
 
   const handleSaveService = (nextService, submitIntent) => {
+    const visibilityNote = matchesServiceFilters(
+      nextService,
+      normalizedQuery,
+      selectedType,
+      selectedStatus
+    )
+      ? ''
+      : ' Dịch vụ có thể chưa xuất hiện trong danh sách do bộ lọc hiện tại.'
+
     if (modalState.mode === 'edit') {
       setServices((currentServices) =>
         currentServices.map((service) => (service.id === nextService.id ? nextService : service))
@@ -355,7 +378,7 @@ function AdminServicesPage() {
       setSelectedServiceId(nextService.id)
       setFeedbackState({
         tone: 'success',
-        message: 'Đã cập nhật dịch vụ.',
+        message: `Đã cập nhật dịch vụ. Mã dịch vụ: ${nextService.service_code}.${visibilityNote}`,
       })
     } else {
       setServices((currentServices) => [nextService, ...currentServices])
@@ -365,8 +388,8 @@ function AdminServicesPage() {
         tone: 'success',
         message:
           submitIntent === 'draft' || nextService.status === 'draft'
-            ? 'Đã tạo bản nháp dịch vụ.'
-            : 'Đã tạo dịch vụ.',
+            ? `Đã tạo bản nháp dịch vụ. Mã dịch vụ: ${nextService.service_code}.${visibilityNote}`
+            : `Đã tạo dịch vụ. Mã dịch vụ: ${nextService.service_code}.${visibilityNote}`,
       })
     }
 

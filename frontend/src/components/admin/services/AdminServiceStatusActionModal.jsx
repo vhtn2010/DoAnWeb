@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 
 const actionContentMap = {
   submit_review: {
@@ -66,8 +66,35 @@ function getValidationError(actionKey, formValues) {
 function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service }) {
   const [formValues, setFormValues] = useState(() => getInitialFormValues())
   const [errorMessage, setErrorMessage] = useState('')
-
+  const titleId = useId()
+  const descriptionId = useId()
   const content = actionContentMap[actionKey]
+
+  useEffect(() => {
+    setFormValues(getInitialFormValues())
+    setErrorMessage('')
+  }, [actionKey, service])
+
+  useEffect(() => {
+    if (!content || !service) {
+      return undefined
+    }
+
+    const previousOverflow = document.body.style.overflow
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [content, onClose, service])
 
   if (!content || !service) {
     return null
@@ -102,7 +129,14 @@ function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service 
   }
 
   return (
-    <div aria-modal="true" className="admin-service-action-modal" role="dialog" onClick={onClose}>
+    <div
+      aria-describedby={descriptionId}
+      aria-labelledby={titleId}
+      aria-modal="true"
+      className="admin-service-action-modal"
+      role="dialog"
+      onClick={onClose}
+    >
       <div
         className="admin-service-action-modal__dialog"
         onClick={(event) => event.stopPropagation()}
@@ -110,8 +144,12 @@ function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service 
         <div className="admin-service-action-modal__header">
           <div>
             <p className="admin-service-action-modal__eyebrow">{content.eyebrow}</p>
-            <h2 className="admin-service-action-modal__title">{content.title}</h2>
-            <p className="admin-service-action-modal__subtitle">{content.description}</p>
+            <h2 className="admin-service-action-modal__title" id={titleId}>
+              {content.title}
+            </h2>
+            <p className="admin-service-action-modal__subtitle" id={descriptionId}>
+              {content.description}
+            </p>
           </div>
 
           <button
