@@ -1,5 +1,11 @@
 function DashboardRevenueChart({ chart, periodLabel, formatCurrency, formatShortCurrency }) {
   const highestPoint = Math.max(...chart.series.map((point) => point.value), 1)
+  const chartTicks = [1, 0.75, 0.5, 0.25].map((ratio) => ({
+    key: ratio,
+    label: formatShortCurrency(Math.round(highestPoint * ratio)),
+  }))
+  const isPositiveTrend = chart.compare_percent >= 0
+  const trendPrefix = chart.compare_percent > 0 ? '+' : ''
 
   return (
     <section className="admin-dashboard-card admin-dashboard-chart-card">
@@ -13,8 +19,15 @@ function DashboardRevenueChart({ chart, periodLabel, formatCurrency, formatShort
 
         <div className="admin-dashboard-chart-card__summary">
           <strong>{formatCurrency(chart.total_amount, chart.currency)}</strong>
-          <span>
-            +{chart.compare_percent}% {chart.compare_label}
+          <span
+            className={`admin-dashboard-chart-card__summary-trend ${
+              isPositiveTrend
+                ? 'admin-dashboard-chart-card__summary-trend--up'
+                : 'admin-dashboard-chart-card__summary-trend--down'
+            }`}
+          >
+            {trendPrefix}
+            {chart.compare_percent}% {chart.compare_label}
           </span>
         </div>
       </div>
@@ -32,29 +45,51 @@ function DashboardRevenueChart({ chart, periodLabel, formatCurrency, formatShort
       </div>
 
       <div className="admin-dashboard-chart-card__plot" role="img" aria-label="Biểu đồ doanh thu">
-        <div className="admin-dashboard-chart-card__grid" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
+        <div className="admin-dashboard-chart-card__plot-shell">
+          <div className="admin-dashboard-chart-card__y-axis" aria-hidden="true">
+            {chartTicks.map((tick) => (
+              <span className="admin-dashboard-chart-card__y-axis-tick" key={tick.key}>
+                {tick.label}
+              </span>
+            ))}
+            <span className="admin-dashboard-chart-card__y-axis-tick">0</span>
+          </div>
 
-        <div className="admin-dashboard-chart-card__bars">
-          {chart.series.map((point) => {
-            const height = `${Math.max((point.value / highestPoint) * 100, 18)}%`
+          <div className="admin-dashboard-chart-card__plot-area">
+            <div className="admin-dashboard-chart-card__grid" aria-hidden="true">
+              {chartTicks.map((tick) => (
+                <span key={tick.key} />
+              ))}
+              <span />
+            </div>
 
-            return (
-              <div className="admin-dashboard-chart-card__bar-group" key={point.label}>
-                <span className="admin-dashboard-chart-card__bar-value">
-                  {formatShortCurrency(point.value)}
-                </span>
-                <div className="admin-dashboard-chart-card__bar-track">
-                  <div className="admin-dashboard-chart-card__bar-fill" style={{ height }} />
-                </div>
-                <span className="admin-dashboard-chart-card__bar-label">{point.label}</span>
-              </div>
-            )
-          })}
+            <div className="admin-dashboard-chart-card__bars">
+              {chart.series.map((point) => {
+                const height = `${Math.max((point.value / highestPoint) * 100, 18)}%`
+                const isPeak = point.value === highestPoint
+
+                return (
+                  <div className="admin-dashboard-chart-card__bar-group" key={point.label}>
+                    <span
+                      className="admin-dashboard-chart-card__bar-value"
+                      title={formatCurrency(point.value, chart.currency)}
+                    >
+                      {formatShortCurrency(point.value)}
+                    </span>
+                    <div className="admin-dashboard-chart-card__bar-track">
+                      <div
+                        className={`admin-dashboard-chart-card__bar-fill ${
+                          isPeak ? 'admin-dashboard-chart-card__bar-fill--peak' : ''
+                        }`}
+                        style={{ height }}
+                      />
+                    </div>
+                    <span className="admin-dashboard-chart-card__bar-label">{point.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </section>

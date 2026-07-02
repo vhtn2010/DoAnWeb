@@ -21,12 +21,12 @@ function RecentBookingsTable({ bookings, formatCurrency, formatDateTime }) {
         <table className="admin-dashboard-table">
           <thead>
             <tr>
-              <th>Mã đơn</th>
-              <th>Khách hàng</th>
-              <th>Dịch vụ</th>
-              <th>Tổng tiền</th>
-              <th>Trạng thái</th>
-              <th>Thời gian</th>
+              <th scope="col">Mã đơn</th>
+              <th scope="col">Khách hàng</th>
+              <th scope="col">Dịch vụ</th>
+              <th scope="col">Tổng tiền</th>
+              <th scope="col">Trạng thái</th>
+              <th scope="col">Thời gian</th>
             </tr>
           </thead>
           <tbody>
@@ -39,17 +39,32 @@ function RecentBookingsTable({ bookings, formatCurrency, formatDateTime }) {
               return (
                 <tr key={booking.booking_code}>
                   <td className="admin-dashboard-table__code">{booking.booking_code}</td>
-                  <td>{booking.customer_name}</td>
-                  <td>{booking.service_title}</td>
-                  <td>{formatCurrency(booking.total_amount, booking.currency)}</td>
+                  <td>
+                    <span className="admin-dashboard-table__text" title={booking.customer_name}>
+                      {booking.customer_name}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="admin-dashboard-table__service" title={booking.service_title}>
+                      {booking.service_title}
+                    </span>
+                  </td>
+                  <td className="admin-dashboard-table__amount">
+                    {formatCurrency(booking.total_amount, booking.currency)}
+                  </td>
                   <td>
                     <span
                       className={`admin-dashboard-status-badge admin-dashboard-status-badge--${meta.tone}`}
                     >
+                      <span className="admin-dashboard-status-badge__dot" aria-hidden="true" />
                       {meta.label}
                     </span>
                   </td>
-                  <td>{formatDateTime(booking.created_at)}</td>
+                  <td>
+                    <span className="admin-dashboard-table__date">
+                      {formatDateTime(booking.created_at)}
+                    </span>
+                  </td>
                 </tr>
               )
             })}
