@@ -4,10 +4,49 @@ import {
   adminTransportTypeOptions,
 } from '../../../data/mockAdminServices.js'
 
+const detailFieldLabels = {
+  departure_location: 'Điểm khởi hành',
+  destination_location: 'Điểm đến chi tiết',
+  duration_days: 'Số ngày',
+  duration_nights: 'Số đêm',
+  transport_type: 'Phương tiện',
+  max_group_size: 'Sức chứa tối đa',
+  departure_schedule: 'Lịch khởi hành',
+  itinerary: 'Lịch trình',
+  included_services: 'Dịch vụ bao gồm',
+  excluded_services: 'Dịch vụ không bao gồm',
+  terms: 'Điều khoản',
+  star_rating: 'Hạng sao',
+  address: 'Địa chỉ',
+  checkin_time: 'Giờ nhận phòng',
+  checkout_time: 'Giờ trả phòng',
+  amenities: 'Tiện ích',
+  hotel_policy: 'Chính sách khách sạn',
+  airline_name: 'Hãng bay',
+  flight_number: 'Số hiệu chuyến bay',
+  departure_airport: 'Sân bay đi',
+  arrival_airport: 'Sân bay đến',
+  departure_at: 'Thời gian khởi hành',
+  arrival_at: 'Thời gian đến',
+  cabin_class: 'Hạng vé',
+  seats_total: 'Tổng số chỗ',
+  seats_available: 'Số chỗ còn lại',
+  fare_price: 'Giá vé',
+  train_number: 'Số tàu',
+  departure_station: 'Ga đi',
+  arrival_station: 'Ga đến',
+  seat_class: 'Hạng ghế',
+  combo_items: 'Danh sách hạng mục combo',
+}
+
+function formatDetailLabel(label) {
+  return detailFieldLabels[label] ?? label
+}
+
 function FieldShell({ children, error, label }) {
   return (
     <label className="admin-service-modal__field">
-      <span className="admin-service-modal__field-label">{label}</span>
+      <span className="admin-service-modal__field-label">{formatDetailLabel(label)}</span>
       {children}
       {error ? <span className="admin-service-modal__field-error">{error}</span> : null}
     </label>

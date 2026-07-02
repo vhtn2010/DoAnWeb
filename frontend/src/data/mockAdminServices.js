@@ -57,6 +57,26 @@ export const adminRoleDisplayNames = {
   system_admin: 'System Admin',
 }
 
+export const adminServiceTypeDisplayNames = {
+  tour: 'Tour',
+  hotel: 'Khách sạn',
+  room: 'Phòng',
+  flight: 'Chuyến bay',
+  train: 'Tàu hỏa',
+  combo: 'Combo',
+}
+
+export const adminServiceStatusDisplayNames = {
+  draft: 'Bản nháp',
+  pending_review: 'Chờ duyệt',
+  active: 'Đang bán',
+  hidden: 'Tạm ẩn',
+  sold_out: 'Hết chỗ',
+  expired: 'Hết hạn',
+  archived: 'Lưu trữ',
+  deleted: 'Đã xóa',
+}
+
 const serviceActionRoleMap = {
   submit_review: ['staff', 'admin', 'system_admin'],
   approve: ['admin', 'system_admin'],
@@ -158,6 +178,14 @@ export function formatRoleActorName(role) {
 
 export function getAdminRoleLabel(role) {
   return adminRoleDisplayNames[role] ?? 'Điều phối viên dịch vụ'
+}
+
+export function getAdminServiceTypeLabel(serviceType) {
+  return adminServiceTypeDisplayNames[serviceType] ?? serviceType ?? 'Chưa xác định'
+}
+
+export function getAdminServiceStatusLabel(status) {
+  return adminServiceStatusDisplayNames[status] ?? status ?? 'Chưa cập nhật'
 }
 
 export function slugifyServiceTitle(value) {

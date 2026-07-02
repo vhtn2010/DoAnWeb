@@ -748,6 +748,7 @@ function AdminServicesPage() {
       {actionState.isOpen ? (
         <AdminServiceStatusActionModal
           actionKey={actionState.actionKey}
+          currentRole={currentRole}
           service={actionState.service}
           onClose={handleCloseActionModal}
           onConfirm={handleConfirmAction}

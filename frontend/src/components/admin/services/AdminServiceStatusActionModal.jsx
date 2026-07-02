@@ -1,45 +1,60 @@
 import { useEffect, useId, useState } from 'react'
+import {
+  formatRoleActorName,
+  getAdminRoleLabel,
+  getAdminServiceStatusLabel,
+  getAdminServiceTypeLabel,
+  getServiceStatusTransition,
+} from '../../../data/mockAdminServices.js'
 
 const actionContentMap = {
   submit_review: {
-    eyebrow: 'Submit review mock',
+    eyebrow: 'Workflow mock',
     title: 'Gửi duyệt dịch vụ',
     description:
       'Xác nhận chuyển dịch vụ từ bản nháp sang trạng thái chờ duyệt trên local state.',
-    confirmLabel: 'Xác nhận gửi duyệt',
+    confirmLabel: 'Gửi duyệt',
+    nextStatus: 'pending_review',
   },
   approve: {
-    eyebrow: 'Approve mock',
+    eyebrow: 'Phê duyệt dịch vụ',
     title: 'Duyệt dịch vụ',
     description:
       'Trạng thái sẽ chuyển sang active. Có thể thêm ghi chú nội bộ trước khi tích hợp API thật.',
-    confirmLabel: 'Xác nhận duyệt',
+    confirmLabel: 'Duyệt dịch vụ',
+    nextStatus: 'active',
   },
   reject: {
-    eyebrow: 'Reject mock',
+    eyebrow: 'Phê duyệt dịch vụ',
     title: 'Từ chối dịch vụ',
     description: 'Trạng thái sẽ chuyển về draft. Vui lòng nhập lý do để QA flow rõ ràng hơn.',
-    confirmLabel: 'Xác nhận từ chối',
+    confirmLabel: 'Từ chối',
+    nextStatus: 'draft',
+    warningText: 'Lý do từ chối sẽ được dùng làm dữ liệu mock cho bước phản hồi nhà cung cấp.',
   },
   hide: {
-    eyebrow: 'Hide mock',
+    eyebrow: 'Ẩn dịch vụ',
     title: 'Ẩn dịch vụ',
     description: 'Dịch vụ active sẽ được chuyển sang hidden trên local state.',
-    confirmLabel: 'Xác nhận ẩn',
+    confirmLabel: 'Tạm ẩn',
+    nextStatus: 'hidden',
+    warningText: 'Dịch vụ sẽ không còn ở trạng thái hiển thị công khai sau khi tích hợp API thật.',
   },
   restore: {
-    eyebrow: 'Restore mock',
+    eyebrow: 'Khôi phục dịch vụ',
     title: 'Khôi phục dịch vụ',
     description:
       'Khôi phục dịch vụ hidden hoặc archived. Mặc định sẽ trả về active để bám workflow mock.',
-    confirmLabel: 'Xác nhận khôi phục',
+    confirmLabel: 'Khôi phục',
   },
   delete: {
-    eyebrow: 'Soft delete mock',
+    eyebrow: 'Xóa mềm dịch vụ',
     title: 'Xóa mềm dịch vụ',
     description:
       'Dịch vụ sẽ được chuyển sang deleted và vẫn giữ lại trong danh sách để phù hợp soft delete.',
-    confirmLabel: 'Xác nhận xóa mềm',
+    confirmLabel: 'Xóa mềm',
+    nextStatus: 'deleted',
+    warningText: 'Thao tác này không hard delete nhưng sẽ chuyển trạng thái dịch vụ sang đã xóa.',
   },
 }
 
@@ -63,7 +78,33 @@ function getValidationError(actionKey, formValues) {
   return ''
 }
 
-function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service }) {
+function getStatusTone(status) {
+  if (status === 'active') {
+    return 'active'
+  }
+
+  if (status === 'pending_review' || status === 'expired') {
+    return 'pending'
+  }
+
+  if (status === 'hidden' || status === 'sold_out') {
+    return 'hidden'
+  }
+
+  if (status === 'deleted') {
+    return 'deleted'
+  }
+
+  return 'draft'
+}
+
+function AdminServiceStatusActionModal({
+  actionKey,
+  currentRole,
+  onClose,
+  onConfirm,
+  service,
+}) {
   const [formValues, setFormValues] = useState(() => getInitialFormValues())
   const [errorMessage, setErrorMessage] = useState('')
   const titleId = useId()
@@ -99,6 +140,13 @@ function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service 
   if (!content || !service) {
     return null
   }
+
+  const nextStatus = getServiceStatusTransition(actionKey, service.status, formValues.target_status)
+  const currentStatusLabel = getAdminServiceStatusLabel(service.status)
+  const nextStatusLabel = getAdminServiceStatusLabel(nextStatus)
+  const actorRoleLabel = getAdminRoleLabel(currentRole)
+  const actorName = formatRoleActorName(currentRole)
+  const serviceTypeLabel = getAdminServiceTypeLabel(service.service_type)
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -142,7 +190,7 @@ function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service 
         onClick={(event) => event.stopPropagation()}
       >
         <div className="admin-service-action-modal__header">
-          <div>
+          <div className="admin-service-action-modal__header-copy">
             <p className="admin-service-action-modal__eyebrow">{content.eyebrow}</p>
             <h2 className="admin-service-action-modal__title" id={titleId}>
               {content.title}
@@ -163,17 +211,85 @@ function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service 
         </div>
 
         <div className="admin-service-action-modal__body">
-          <div className="admin-service-action-modal__service">
-            <span className="admin-service-action-modal__service-code">{service.service_code}</span>
-            <strong className="admin-service-action-modal__service-title">{service.title}</strong>
-            <span className="admin-service-action-modal__service-status">
-              Trạng thái hiện tại: {service.status}
-            </span>
-          </div>
+          <section className="admin-service-action-modal__service-card">
+            <div className="admin-service-action-modal__service-preview">
+              {service.image_url ? (
+                <img
+                  alt={service.title}
+                  className="admin-service-action-modal__service-image"
+                  src={service.image_url}
+                />
+              ) : (
+                <div className="admin-service-action-modal__service-placeholder">Chưa có ảnh</div>
+              )}
+            </div>
+
+            <div className="admin-service-action-modal__service-copy">
+              <div className="admin-service-action-modal__service-head">
+                <span className="admin-service-action-modal__service-code">{service.service_code}</span>
+                <span className="admin-service-action-modal__service-type">{serviceTypeLabel}</span>
+              </div>
+              <strong className="admin-service-action-modal__service-title">{service.title}</strong>
+              <p className="admin-service-action-modal__service-summary">
+                {service.short_description}
+              </p>
+
+              <dl className="admin-service-action-modal__service-meta">
+                <div>
+                  <dt>Đối tác</dt>
+                  <dd>{service.provider_name}</dd>
+                </div>
+                <div>
+                  <dt>Địa điểm</dt>
+                  <dd>{service.location_text}</dd>
+                </div>
+                <div>
+                  <dt>Vai trò thao tác</dt>
+                  <dd>{actorRoleLabel}</dd>
+                </div>
+                <div>
+                  <dt>Người thao tác mock</dt>
+                  <dd>{actorName}</dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+
+          <section className="admin-service-action-modal__transition-card">
+            <div className="admin-service-action-modal__transition-flow">
+              <div className="admin-service-action-modal__transition-state">
+                <span className="admin-service-action-modal__transition-label">Trạng thái hiện tại</span>
+                <span
+                  className={`admin-service-action-modal__status-badge admin-service-action-modal__status-badge--${getStatusTone(service.status)}`}
+                >
+                  {currentStatusLabel}
+                </span>
+              </div>
+
+              <span className="admin-service-action-modal__transition-arrow" aria-hidden="true">
+                →
+              </span>
+
+              <div className="admin-service-action-modal__transition-state">
+                <span className="admin-service-action-modal__transition-label">Sau thao tác</span>
+                <span
+                  className={`admin-service-action-modal__status-badge admin-service-action-modal__status-badge--${getStatusTone(nextStatus)}`}
+                >
+                  {nextStatusLabel}
+                </span>
+              </div>
+            </div>
+
+            {content.warningText ? (
+              <p className="admin-service-action-modal__warning" role="status">
+                {content.warningText}
+              </p>
+            ) : null}
+          </section>
 
           {actionKey === 'approve' ? (
             <label className="admin-service-action-modal__field">
-              <span className="admin-service-action-modal__label">note</span>
+              <span className="admin-service-action-modal__label">Ghi chú nội bộ</span>
               <textarea
                 className="admin-service-action-modal__textarea"
                 name="note"
@@ -186,7 +302,9 @@ function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service 
 
           {actionKey === 'reject' || actionKey === 'hide' || actionKey === 'delete' ? (
             <label className="admin-service-action-modal__field">
-              <span className="admin-service-action-modal__label">reason</span>
+              <span className="admin-service-action-modal__label">
+                {actionKey === 'hide' ? 'Lý do / ghi chú' : 'Lý do xử lý'}
+              </span>
               <textarea
                 className={`admin-service-action-modal__textarea${
                   errorMessage ? ' admin-service-action-modal__textarea--error' : ''
@@ -201,7 +319,7 @@ function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service 
 
           {actionKey === 'restore' ? (
             <label className="admin-service-action-modal__field">
-              <span className="admin-service-action-modal__label">target_status</span>
+              <span className="admin-service-action-modal__label">Trạng thái khôi phục</span>
               <select
                 className="admin-service-action-modal__select"
                 name="target_status"
@@ -230,7 +348,11 @@ function AdminServiceStatusActionModal({ actionKey, onClose, onConfirm, service 
             Hủy
           </button>
           <button
-            className="admin-service-action-modal__button admin-service-action-modal__button--primary"
+            className={`admin-service-action-modal__button ${
+              actionKey === 'reject' || actionKey === 'delete'
+                ? 'admin-service-action-modal__button--danger'
+                : 'admin-service-action-modal__button--primary'
+            }`}
             type="button"
             onClick={handleSubmit}
           >
