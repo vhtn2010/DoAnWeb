@@ -266,12 +266,8 @@
 .auth-forgot-page {
   width: min(100%, 500px);
   display: grid;
-  gap: 30px;
-  padding: 24px 28px 28px;
-  border-radius: 36px;
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 24px 48px rgba(129, 95, 56, 0.08);
-  backdrop-filter: blur(6px);
+  justify-items: center;
+  gap: 22px;
 }
 
 .auth-forgot-page__header {
@@ -284,6 +280,17 @@
 .auth-forgot-page__logo {
   width: min(100%, 420px);
   height: auto;
+}
+
+.auth-forgot-page__card {
+  width: 100%;
+  display: grid;
+  gap: 30px;
+  padding: 24px 28px 28px;
+  border-radius: 36px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 24px 48px rgba(129, 95, 56, 0.08);
+  backdrop-filter: blur(6px);
 }
 
 .auth-forgot-page__copy {
@@ -921,13 +928,17 @@
 
   .auth-forgot-page {
     width: 100%;
-    gap: 24px;
-    padding: 20px 18px 24px;
-    border-radius: 28px;
+    gap: 18px;
   }
 
   .auth-forgot-page__logo {
     width: min(100%, 300px);
+  }
+
+  .auth-forgot-page__card {
+    gap: 24px;
+    padding: 20px 18px 24px;
+    border-radius: 28px;
   }
 
   .auth-forgot-form__control {

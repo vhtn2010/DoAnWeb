@@ -123,134 +123,147 @@ function ForgotPasswordPage() {
 
   return (
     <section className="auth-forgot-page">
-      <header className="auth-forgot-page__header">
-        <img
-          alt="Nét Việt Travel"
-          className="auth-forgot-page__logo"
-          src="/assets/template/auth/quenmatkhau/forgot-password-logo.png"
-        />
-        <div className="auth-forgot-page__copy">
-          <h1 className="auth-forgot-page__title">Quên mật khẩu</h1>
-          <p className="auth-forgot-page__description">
-            Nhập địa chỉ email đã đăng ký để nhận liên kết đặt lại mật khẩu.
-          </p>
-        </div>
-      </header>
+      <img
+        alt="Nét Việt Travel"
+        className="auth-forgot-page__logo"
+        src="/assets/template/auth/quenmatkhau/forgot-password-logo.png"
+      />
 
-      <form className="auth-forgot-form" onSubmit={handleSubmit}>
-        <label className="auth-forgot-form__field" htmlFor="forgot-password-email">
-          <span className="auth-forgot-form__label">Địa chỉ Email</span>
-          <div className="auth-forgot-form__control auth-forgot-form__control--email">
-            <span aria-hidden="true" className="auth-forgot-form__icon">
-              <MailIcon />
-            </span>
+      <div className="auth-forgot-page__card">
+        <header className="auth-forgot-page__header">
+          <div className="auth-forgot-page__copy">
+            <h1 className="auth-forgot-page__title">Quên mật khẩu</h1>
+            <p className="auth-forgot-page__description">
+              Nhập địa chỉ email đã đăng ký để nhận liên kết đặt lại mật khẩu.
+            </p>
+          </div>
+        </header>
+
+        <form className="auth-forgot-form" onSubmit={handleSubmit}>
+          <label className="auth-forgot-form__field" htmlFor="forgot-password-email">
+            <span className="auth-forgot-form__label">Địa chỉ Email</span>
+            <div className="auth-forgot-form__control auth-forgot-form__control--email">
+              <span aria-hidden="true" className="auth-forgot-form__icon">
+                <MailIcon />
+              </span>
+              <input
+                autoComplete="email"
+                className="auth-forgot-form__input"
+                id="forgot-password-email"
+                name="email"
+                placeholder="example@gmail.com"
+                type="email"
+              />
+              <button
+                className={`auth-forgot-form__inline-button${sentCode ? ' auth-forgot-form__inline-button--sent' : ''}`}
+                type="button"
+                onClick={() => setSentCode(true)}
+              >
+                {sentCode ? 'Đã gửi' : 'Gửi mã'}
+              </button>
+            </div>
+          </label>
+
+          <label className="auth-forgot-form__field" htmlFor="forgot-password-code">
+            <span className="auth-forgot-form__label">Mã xác nhận</span>
+            <div className="auth-forgot-form__control">
+              <span aria-hidden="true" className="auth-forgot-form__icon">
+                <CodeIcon />
+              </span>
+              <input
+                className="auth-forgot-form__input"
+                id="forgot-password-code"
+                name="verificationCode"
+                placeholder="1234"
+                type="text"
+              />
+            </div>
+          </label>
+
+          <label className="auth-forgot-form__field" htmlFor="forgot-password-new-password">
+            <span className="auth-forgot-form__label">Mật khẩu mới</span>
+            <div className="auth-forgot-form__control">
+              <span aria-hidden="true" className="auth-forgot-form__icon">
+                <LockIcon />
+              </span>
+              <input
+                autoComplete="new-password"
+                className="auth-forgot-form__input"
+                id="forgot-password-new-password"
+                name="newPassword"
+                placeholder="••••••••"
+                type={showPassword ? 'text' : 'password'}
+              />
+              <button
+                aria-label={showPassword ? 'Ẩn mật khẩu mới' : 'Hiện mật khẩu mới'}
+                className="auth-forgot-form__toggle"
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                <EyeIcon visible={showPassword} />
+              </button>
+            </div>
+          </label>
+
+          <label className="auth-forgot-form__field" htmlFor="forgot-password-confirm-password">
+            <span className="auth-forgot-form__label">Nhập lại mật khẩu mới</span>
+            <div className="auth-forgot-form__control">
+              <span aria-hidden="true" className="auth-forgot-form__icon">
+                <LockIcon />
+              </span>
+              <input
+                autoComplete="new-password"
+                className="auth-forgot-form__input"
+                id="forgot-password-confirm-password"
+                name="confirmPassword"
+                placeholder="••••••••"
+                type={showConfirmPassword ? 'text' : 'password'}
+              />
+              <button
+                aria-label={
+                  showConfirmPassword
+                    ? 'Ẩn xác nhận mật khẩu mới'
+                    : 'Hiện xác nhận mật khẩu mới'
+                }
+                className="auth-forgot-form__toggle"
+                type="button"
+                onClick={() => setShowConfirmPassword((value) => !value)}
+              >
+                <EyeIcon visible={showConfirmPassword} />
+              </button>
+            </div>
+          </label>
+
+          <label className="auth-forgot-form__agreement" htmlFor="forgot-password-agreement">
             <input
-              autoComplete="email"
-              className="auth-forgot-form__input"
-              id="forgot-password-email"
-              name="email"
-              placeholder="example@gmail.com"
-              type="email"
+              checked={acceptedTerms}
+              id="forgot-password-agreement"
+              name="agreement"
+              type="checkbox"
+              onChange={(event) => setAcceptedTerms(event.target.checked)}
             />
+            <span>
+              Tôi đồng ý với <a href="#">Điều khoản</a> & <a href="#">Chính sách bảo mật</a> của
+              Nét Việt.
+            </span>
+          </label>
+
+          <div className="auth-forgot-form__actions">
             <button
-              className={`auth-forgot-form__inline-button${sentCode ? ' auth-forgot-form__inline-button--sent' : ''}`}
-              type="button"
-              onClick={() => setSentCode(true)}
+              className="auth-forgot-form__button auth-forgot-form__button--primary"
+              type="submit"
             >
-              {sentCode ? 'Đã gửi' : 'Gửi mã'}
+              Hoàn tất thay đổi
             </button>
-          </div>
-        </label>
-
-        <label className="auth-forgot-form__field" htmlFor="forgot-password-code">
-          <span className="auth-forgot-form__label">Mã xác nhận</span>
-          <div className="auth-forgot-form__control">
-            <span aria-hidden="true" className="auth-forgot-form__icon">
-              <CodeIcon />
-            </span>
-            <input
-              className="auth-forgot-form__input"
-              id="forgot-password-code"
-              name="verificationCode"
-              placeholder="1234"
-              type="text"
-            />
-          </div>
-        </label>
-
-        <label className="auth-forgot-form__field" htmlFor="forgot-password-new-password">
-          <span className="auth-forgot-form__label">Mật khẩu mới</span>
-          <div className="auth-forgot-form__control">
-            <span aria-hidden="true" className="auth-forgot-form__icon">
-              <LockIcon />
-            </span>
-            <input
-              autoComplete="new-password"
-              className="auth-forgot-form__input"
-              id="forgot-password-new-password"
-              name="newPassword"
-              placeholder="••••••••"
-              type={showPassword ? 'text' : 'password'}
-            />
-            <button
-              aria-label={showPassword ? 'Ẩn mật khẩu mới' : 'Hiện mật khẩu mới'}
-              className="auth-forgot-form__toggle"
-              type="button"
-              onClick={() => setShowPassword((value) => !value)}
+            <Link
+              className="auth-forgot-form__button auth-forgot-form__button--secondary"
+              to="/login"
             >
-              <EyeIcon visible={showPassword} />
-            </button>
+              Hủy bỏ
+            </Link>
           </div>
-        </label>
-
-        <label className="auth-forgot-form__field" htmlFor="forgot-password-confirm-password">
-          <span className="auth-forgot-form__label">Nhập lại mật khẩu mới</span>
-          <div className="auth-forgot-form__control">
-            <span aria-hidden="true" className="auth-forgot-form__icon">
-              <LockIcon />
-            </span>
-            <input
-              autoComplete="new-password"
-              className="auth-forgot-form__input"
-              id="forgot-password-confirm-password"
-              name="confirmPassword"
-              placeholder="••••••••"
-              type={showConfirmPassword ? 'text' : 'password'}
-            />
-            <button
-              aria-label={showConfirmPassword ? 'Ẩn xác nhận mật khẩu mới' : 'Hiện xác nhận mật khẩu mới'}
-              className="auth-forgot-form__toggle"
-              type="button"
-              onClick={() => setShowConfirmPassword((value) => !value)}
-            >
-              <EyeIcon visible={showConfirmPassword} />
-            </button>
-          </div>
-        </label>
-
-        <label className="auth-forgot-form__agreement" htmlFor="forgot-password-agreement">
-          <input
-            checked={acceptedTerms}
-            id="forgot-password-agreement"
-            name="agreement"
-            type="checkbox"
-            onChange={(event) => setAcceptedTerms(event.target.checked)}
-          />
-          <span>
-            Tôi đồng ý với <a href="#">Điều khoản</a> & <a href="#">Chính sách bảo mật</a> của
-            Nét Việt.
-          </span>
-        </label>
-
-        <div className="auth-forgot-form__actions">
-          <button className="auth-forgot-form__button auth-forgot-form__button--primary" type="submit">
-            Hoàn tất thay đổi
-          </button>
-          <Link className="auth-forgot-form__button auth-forgot-form__button--secondary" to="/login">
-            Hủy bỏ
-          </Link>
-        </div>
-      </form>
+        </form>
+      </div>
     </section>
   )
 }
