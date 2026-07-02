@@ -9,6 +9,7 @@ const {
   PAYMENT_STATUS,
 } = require('../constants/domainConstraints');
 const { createPaymentRepository } = require('../database/paymentRepository');
+const { createSettingsRepository } = require('../database/settingsRepository');
 const AppError = require('../utils/AppError');
 
 const DEFAULT_CURRENCY = 'VND';
@@ -27,6 +28,7 @@ const PAYMENT_CREATION_ALLOWED_STATUSES = Object.freeze([
 const PHONE_PATTERN = /^[0-9+()\-\s]{8,20}$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SETTINGS_CACHE_SCOPE = 'direct_payment';
 
 const normalizeOptionalString = (value) => {
   if (value == null) {
@@ -43,6 +45,9 @@ const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
 
 const hasConfigEntries = (value) =>
   Boolean(value && typeof value === 'object' && Object.keys(value).length > 0);
+
+const isPlainObject = (value) =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const buildAppError = ({
   code,
@@ -379,9 +384,11 @@ const assertRequiredAnyOf = (methodCode, payload, requiredFields) => {
 const sanitizeCashAtOfficeMethod = (config, fallbackHotline) => {
   const payload = {
     code: 'cash_at_office',
-    name: METHOD_DISPLAY_NAMES.cash_at_office,
+    name: normalizeOptionalString(config.display_name) || METHOD_DISPLAY_NAMES.cash_at_office,
     office_address: normalizeOptionalString(config.office_address),
-    office_hours: normalizeOptionalString(config.office_hours),
+    office_hours:
+      normalizeOptionalString(config.office_hours) ||
+      normalizeOptionalString(config.working_hours),
     hotline: normalizeOptionalString(config.hotline) || fallbackHotline,
     instructions: normalizeOptionalString(config.instructions),
   };
@@ -398,7 +405,9 @@ const sanitizeCashAtOfficeMethod = (config, fallbackHotline) => {
 const sanitizeManualBankTransferMethod = (config) => {
   const payload = {
     code: 'manual_bank_transfer',
-    name: METHOD_DISPLAY_NAMES.manual_bank_transfer,
+    name:
+      normalizeOptionalString(config.display_name) ||
+      METHOD_DISPLAY_NAMES.manual_bank_transfer,
     bank_name: normalizeOptionalString(config.bank_name),
     account_number: normalizeOptionalString(config.account_number),
     account_holder: normalizeOptionalString(config.account_holder),
@@ -422,7 +431,7 @@ const sanitizeManualBankTransferMethod = (config) => {
 const sanitizeStaffCollectMethod = (config, fallbackHotline) => {
   const payload = {
     code: 'staff_collect',
-    name: METHOD_DISPLAY_NAMES.staff_collect,
+    name: normalizeOptionalString(config.display_name) || METHOD_DISPLAY_NAMES.staff_collect,
     hotline: normalizeOptionalString(config.hotline) || fallbackHotline,
     conditions: normalizeOptionalString(config.conditions),
     instructions: normalizeOptionalString(config.instructions),
@@ -457,8 +466,141 @@ const sanitizeMethodConfig = (methodCode, config, fallbackHotline) => {
   return null;
 };
 
+const createDefaultMethodConfig = (code) => ({
+  code,
+  display_name: METHOD_DISPLAY_NAMES[code],
+  enabled: false,
+});
+
+const normalizeStoredMethodsArray = (methods = []) =>
+  methods.reduce((accumulator, entry) => {
+    if (!isPlainObject(entry) || typeof entry.code !== 'string') {
+      return accumulator;
+    }
+
+    const normalizedCode = entry.code.trim();
+
+    if (!DIRECT_PAYMENT_METHOD_VALUES.includes(normalizedCode)) {
+      return accumulator;
+    }
+
+    accumulator[normalizedCode] = {
+      ...entry,
+      code: normalizedCode,
+      display_name:
+        normalizeOptionalString(entry.display_name) ||
+        normalizeOptionalString(entry.name) ||
+        METHOD_DISPLAY_NAMES[normalizedCode],
+      enabled: Boolean(entry.enabled),
+      hotline:
+        normalizeOptionalString(entry.hotline) ||
+        null,
+      instructions:
+        normalizeOptionalString(entry.instructions) ||
+        null,
+      office_address:
+        normalizeOptionalString(entry.office_address) ||
+        null,
+      office_hours:
+        normalizeOptionalString(entry.office_hours) ||
+        normalizeOptionalString(entry.working_hours) ||
+        null,
+      working_hours:
+        normalizeOptionalString(entry.working_hours) ||
+        normalizeOptionalString(entry.office_hours) ||
+        null,
+      bank_name:
+        normalizeOptionalString(entry.bank_name) ||
+        null,
+      account_number:
+        normalizeOptionalString(entry.account_number) ||
+        null,
+      account_holder:
+        normalizeOptionalString(entry.account_holder) ||
+        null,
+      branch:
+        normalizeOptionalString(entry.branch) ||
+        null,
+      transfer_content_template:
+        normalizeOptionalString(entry.transfer_content_template) ||
+        null,
+      qr_code_url:
+        normalizeOptionalString(entry.qr_code_url) ||
+        null,
+      conditions:
+        normalizeOptionalString(entry.conditions) ||
+        null,
+      sort_order:
+        Number.isInteger(entry.sort_order) && entry.sort_order >= 0
+          ? entry.sort_order
+          : 0,
+    };
+
+    return accumulator;
+  }, {});
+
+const normalizeDirectPaymentConfigShape = (inputConfig) => {
+  const config = isPlainObject(inputConfig) ? inputConfig : {};
+  const methodsSource = config.methods;
+  let normalizedMethods = {};
+
+  if (Array.isArray(methodsSource)) {
+    normalizedMethods = normalizeStoredMethodsArray(methodsSource);
+  } else if (isPlainObject(methodsSource)) {
+    normalizedMethods = DIRECT_PAYMENT_METHOD_VALUES.reduce((accumulator, code) => {
+      const entry = methodsSource[code];
+
+      if (isPlainObject(entry)) {
+        accumulator[code] = {
+          ...entry,
+          code,
+          display_name:
+            normalizeOptionalString(entry.display_name) ||
+            normalizeOptionalString(entry.name) ||
+            METHOD_DISPLAY_NAMES[code],
+          enabled: Boolean(entry.enabled),
+          office_hours:
+            normalizeOptionalString(entry.office_hours) ||
+            normalizeOptionalString(entry.working_hours) ||
+            null,
+          working_hours:
+            normalizeOptionalString(entry.working_hours) ||
+            normalizeOptionalString(entry.office_hours) ||
+            null,
+        };
+      }
+
+      return accumulator;
+    }, {});
+  }
+
+  return {
+    hotline: normalizeOptionalString(config.hotline),
+    methods: normalizedMethods,
+  };
+};
+
+const normalizeDirectPaymentConfig = (config) => {
+  const normalizedConfig = normalizeDirectPaymentConfigShape(config);
+  const methods = DIRECT_PAYMENT_METHOD_VALUES.reduce((accumulator, code) => {
+    accumulator[code] = {
+      ...createDefaultMethodConfig(code),
+      ...(normalizedConfig.methods[code] || {}),
+      code,
+    };
+    return accumulator;
+  }, {});
+
+  return {
+    hotline: normalizedConfig.hotline,
+    methods,
+  };
+};
+
 const isDirectPaymentMethodEnabled = (methodCode, directPaymentConfig) =>
-  Boolean(directPaymentConfig?.methods?.[methodCode]?.enabled);
+  Boolean(
+    normalizeDirectPaymentConfig(directPaymentConfig).methods?.[methodCode]?.enabled,
+  );
 
 const isBookingExpired = (booking) => {
   if (!booking?.expires_at) {
@@ -557,10 +699,50 @@ const sanitizePaymentDetail = (payment) => ({
 const createPaymentService = ({
   directPaymentConfig = directPayment,
   repository = createPaymentRepository(),
+  settingsRepository = createSettingsRepository(),
 } = {}) => {
-  const getDirectPaymentMethods = () => {
-    const methodsConfig = directPaymentConfig?.methods;
-    const hotline = normalizeOptionalString(directPaymentConfig?.hotline);
+  let directPaymentConfigCache =
+    directPaymentConfig === directPayment
+      ? null
+      : normalizeDirectPaymentConfig(directPaymentConfig);
+  let directPaymentCacheExpiresAt = 0;
+
+  const invalidateDirectPaymentConfigCache = () => {
+    directPaymentConfigCache = null;
+    directPaymentCacheExpiresAt = 0;
+  };
+
+  const hydrateDirectPaymentConfigCache = (config) => {
+    directPaymentConfigCache = normalizeDirectPaymentConfig(config);
+    directPaymentCacheExpiresAt = Date.now() + DIRECT_PAYMENT_CACHE_SECONDS * 1000;
+  };
+
+  const resolveDirectPaymentConfig = async () => {
+    if (directPaymentConfig !== directPayment) {
+      return normalizeDirectPaymentConfig(directPaymentConfig);
+    }
+
+    const now = Date.now();
+
+    if (directPaymentConfigCache && directPaymentCacheExpiresAt > now) {
+      return directPaymentConfigCache;
+    }
+
+    const settingsRecord = await settingsRepository.getDirectPaymentSettings();
+    const normalizedConfig = normalizeDirectPaymentConfig(
+      settingsRecord?.settings || directPayment,
+    );
+
+    directPaymentConfigCache = normalizedConfig;
+    directPaymentCacheExpiresAt = now + DIRECT_PAYMENT_CACHE_SECONDS * 1000;
+
+    return normalizedConfig;
+  };
+
+  const getDirectPaymentMethods = async () => {
+    const activeDirectPaymentConfig = await resolveDirectPaymentConfig();
+    const methodsConfig = activeDirectPaymentConfig?.methods;
+    const hotline = normalizeOptionalString(activeDirectPaymentConfig?.hotline);
 
     if (!hasConfigEntries(methodsConfig)) {
       return {
@@ -600,6 +782,7 @@ const createPaymentService = ({
     const parsedBookingId = parseUuid('booking_id', bookingId);
     const idempotencyKey = parseRequiredIdempotencyKey(headers);
     const parsedBody = parseCreateBody(body);
+    const activeDirectPaymentConfig = await resolveDirectPaymentConfig();
     const booking = await repository.getBookingById(parsedBookingId);
 
     if (!booking) {
@@ -624,7 +807,7 @@ const createPaymentService = ({
       };
     }
 
-    if (!isDirectPaymentMethodEnabled(parsedBody.paymentMethod, directPaymentConfig)) {
+    if (!isDirectPaymentMethodEnabled(parsedBody.paymentMethod, activeDirectPaymentConfig)) {
       throw buildValidationError(
         'payment_method',
         'payment_method is not currently available',
@@ -836,6 +1019,8 @@ const createPaymentService = ({
     getCustomerPaymentDetail,
     getCustomerPaymentProof,
     getDirectPaymentMethods,
+    hydrateDirectPaymentConfigCache,
+    invalidateDirectPaymentConfigCache,
     listCustomerBookingPayments,
     uploadCustomerPaymentProof,
   };
@@ -845,5 +1030,7 @@ module.exports = Object.assign(createPaymentService(), {
   DIRECT_PAYMENT_CACHE_SECONDS,
   IDEMPOTENCY_KEY_HEADER,
   METHOD_DISPLAY_NAMES,
+  SETTINGS_CACHE_SCOPE,
   createPaymentService,
+  normalizeDirectPaymentConfig,
 });
