@@ -101,11 +101,14 @@ function CartPage() {
       return
     }
 
-    buildCartSummaryPayload(mockActiveCart, cartItems, selectedItemIds)
+    const checkoutPath = isCustomer ? '/checkout?auth=customer' : '/checkout'
+    const cartSummaryPayload = buildCartSummaryPayload(mockActiveCart, cartItems, selectedItemIds)
 
-    setFeedbackState({
-      tone: 'success',
-      message: 'Sẵn sàng chuyển sang thông tin đặt đơn. Checkout sẽ làm ở Task 16B.',
+    navigate(checkoutPath, {
+      state: {
+        selectedCartItemIds: selectedItemIds,
+        cartSummaryPayload,
+      },
     })
   }
 

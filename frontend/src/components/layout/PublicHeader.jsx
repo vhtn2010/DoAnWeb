@@ -57,6 +57,7 @@ function PublicHeader() {
 
   const customerCartPath = buildPreviewPath('/cart')
   const isCartPreview = location.pathname === '/cart'
+  const isCheckoutPreview = location.pathname === '/checkout'
 
   return (
     <header className="public-header">
@@ -101,6 +102,16 @@ function PublicHeader() {
         <div className="public-header__actions">
           {isCustomer ? (
             <div className="public-header__customer-actions">
+              <HeaderActionIcon href="#" label="Ngôn ngữ">
+                <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.8" />
+                <path
+                  d="M3.9 12h16.2M12 3.75c2.2 2.25 3.44 5.14 3.5 8.25-.06 3.11-1.3 6-3.5 8.25-2.2-2.25-3.44-5.14-3.5-8.25.06-3.11 1.3-6 3.5-8.25Z"
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+              </HeaderActionIcon>
+
               <HeaderActionIcon href="#" label="Yêu thích">
                 <path
                   d="m12 19.2-.92-.84C6.18 13.9 3 11.02 3 7.5a4.2 4.2 0 0 1 4.28-4.2c1.69 0 3.31.8 4.32 2.07A5.5 5.5 0 0 1 15.92 3.3 4.2 4.2 0 0 1 20.2 7.5c0 3.52-3.18 6.4-8.08 10.86l-.12.12Z"
@@ -124,7 +135,11 @@ function PublicHeader() {
               </HeaderActionIcon>
 
               <span
-                aria-label={isCartPreview ? 'Tài khoản người dùng trên trang giỏ hàng' : 'Tài khoản người dùng'}
+                aria-label={
+                  isCartPreview || isCheckoutPreview
+                    ? 'Tài khoản người dùng trên trang checkout'
+                    : 'Tài khoản người dùng'
+                }
                 className="public-header__profile"
                 role="img"
               >
