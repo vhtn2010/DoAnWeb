@@ -1,5 +1,6 @@
 const settingsService = require('../services/settingsService');
 const adminSettingsService = require('../services/adminSettingsService');
+const adminBusinessSettingsService = require('../services/adminBusinessSettingsService');
 const adminDirectPaymentSettingsService = require('../services/adminDirectPaymentSettingsService');
 
 const setCacheHeaders = (res, seconds) => {
@@ -70,10 +71,37 @@ const updateAdminDirectPaymentSettings = async (req, res) => {
   });
 };
 
+const getAdminBusinessSettings = async (req, res) => {
+  const data = await adminBusinessSettingsService.getBusinessSettings({
+    auth: req.auth,
+  });
+
+  res.success({
+    data,
+    message: 'Admin business settings retrieved successfully',
+  });
+};
+
+const updateAdminBusinessSettings = async (req, res) => {
+  const data = await adminBusinessSettingsService.updateBusinessSettings({
+    auth: req.auth,
+    body: req.body,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  res.success({
+    data,
+    message: 'Admin business settings updated successfully',
+  });
+};
+
 module.exports = {
+  getAdminBusinessSettings,
   getAdminDirectPaymentSettings,
   getAdminPublicSettings,
   getPublicSettings,
+  updateAdminBusinessSettings,
   updateAdminDirectPaymentSettings,
   updateAdminPublicSettings,
 };

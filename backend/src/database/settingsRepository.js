@@ -4,6 +4,7 @@ const PUBLIC_SETTINGS_TABLE_SCHEMA = 'public';
 const PUBLIC_SETTINGS_TABLE_NAME = 'settings_store';
 const PUBLIC_SETTINGS_UPDATE_ACTION = 'settings.public.update';
 const DIRECT_PAYMENT_SETTINGS_UPDATE_ACTION = 'settings.direct_payment.update';
+const BUSINESS_SETTINGS_UPDATE_ACTION = 'settings.business.update';
 const KEY_COLUMN_CANDIDATES = Object.freeze([
   'setting_key',
   'key',
@@ -36,6 +37,12 @@ const DIRECT_PAYMENT_ROW_KEY_CANDIDATES = Object.freeze([
   'payment_direct',
   'payment_methods_direct',
 ]);
+const BUSINESS_ROW_KEY_CANDIDATES = Object.freeze([
+  'business',
+  'business_settings',
+  'invoice_business',
+  'company_business',
+]);
 const PUBLIC_FIELD_NAMES = Object.freeze([
   'site_name',
   'logo_url',
@@ -55,6 +62,16 @@ const ADMIN_PUBLIC_FIELD_NAMES = Object.freeze([
 const DIRECT_PAYMENT_FIELD_NAMES = Object.freeze([
   'hotline',
   'methods',
+]);
+const BUSINESS_FIELD_NAMES = Object.freeze([
+  'company_name',
+  'tax_code',
+  'address',
+  'invoice_email',
+  'invoice_phone',
+  'legal_representative',
+  'business_license_no',
+  'invoice_note',
 ]);
 const CREATED_AT_COLUMN_CANDIDATES = Object.freeze([
   'created_at',
@@ -207,9 +224,7 @@ const buildQueryPlan = (
   const hasDirectFields = directFields.length > 0;
 
   if (!payloadColumn && !hasDirectFields) {
-    throw new Error(
-      'settings_store does not expose a supported public settings payload',
-    );
+    throw new Error('settings_store does not expose a supported settings payload');
   }
 
   const selectedColumns = new Set([
@@ -424,6 +439,19 @@ const createSettingsRepository = ({
     };
   };
 
+  const getBusinessSettings = async () => {
+    const result = await readSettingsRecord({
+      fieldNames: BUSINESS_FIELD_NAMES,
+      rowKeyCandidates: BUSINESS_ROW_KEY_CANDIDATES,
+    });
+
+    return {
+      exists: result.exists,
+      metadata: result.metadata,
+      settings: result.settings,
+    };
+  };
+
   const listPermissionCodesByRoleId = async (roleId) => {
     const result = await query(
       `
@@ -557,7 +585,7 @@ const createSettingsRepository = ({
       });
 
       if (assignments.length === 0) {
-        throw new Error('settings_store does not expose writable public settings columns');
+        throw new Error('settings_store does not expose writable settings columns');
       }
 
       let saveResult;
@@ -696,18 +724,43 @@ const createSettingsRepository = ({
       userAgent,
     });
 
+  const saveBusinessSettings = async ({
+    actorUserId,
+    changedFields,
+    ipAddress,
+    settings,
+    userAgent,
+  } = {}) =>
+    saveScopedSettings({
+      actorUserId,
+      changedFields,
+      fieldNames: BUSINESS_FIELD_NAMES,
+      ipAddress,
+      logAction: BUSINESS_SETTINGS_UPDATE_ACTION,
+      logMetadata: {
+        scope: 'business',
+      },
+      rowKeyCandidates: BUSINESS_ROW_KEY_CANDIDATES,
+      settings,
+      userAgent,
+    });
+
   return {
     getAdminPublicSettings,
+    getBusinessSettings,
     getDirectPaymentSettings,
     getPublicSettings,
     listPermissionCodesByRoleId,
     saveAdminPublicSettings,
+    saveBusinessSettings,
     saveDirectPaymentSettings,
   };
 };
 
 module.exports = {
   ADMIN_PUBLIC_FIELD_NAMES,
+  BUSINESS_FIELD_NAMES,
+  BUSINESS_SETTINGS_UPDATE_ACTION,
   DIRECT_PAYMENT_FIELD_NAMES,
   DIRECT_PAYMENT_SETTINGS_UPDATE_ACTION,
   PUBLIC_FIELD_NAMES,
