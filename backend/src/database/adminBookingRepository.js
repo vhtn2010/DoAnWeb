@@ -723,7 +723,7 @@ const createAdminBookingRepository = ({
         `,
         [
           actorUserId,
-          'admin.booking.resend_confirmation_email',
+          'admin.mail.booking_confirmation_resend',
           'booking',
           bookingId,
           {

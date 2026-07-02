@@ -437,9 +437,9 @@ const ensureAdminBookingCommunicationAccess = (auth) => {
 
   if (
     hasAnyPermission(auth, [
+      'email.resend',
       'email.send',
-      'booking.update_status',
-      'booking.manage',
+      'booking.export',
     ])
   ) {
     return;
