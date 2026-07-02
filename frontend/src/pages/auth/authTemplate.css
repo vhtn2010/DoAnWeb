@@ -205,6 +205,268 @@
   outline: none;
 }
 
+.auth-forgot-shell {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.9)),
+    url('/assets/template/auth/quenmatkhau/forgot-password-bg.png') center / cover no-repeat;
+  overflow: hidden;
+}
+
+.auth-forgot-shell__panel {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.auth-forgot-page {
+  width: min(100%, 500px);
+  display: grid;
+  gap: 30px;
+}
+
+.auth-forgot-page__header {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.auth-forgot-page__logo {
+  width: min(100%, 420px);
+  height: auto;
+}
+
+.auth-forgot-page__copy {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-forgot-page__title {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: clamp(2.1rem, 4vw, 2.5rem);
+  line-height: 1.12;
+  font-weight: 900;
+}
+
+.auth-forgot-page__description {
+  margin: 0;
+  color: #666;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.auth-forgot-form {
+  display: grid;
+  gap: 18px;
+}
+
+.auth-forgot-form__field {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-forgot-form__label {
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.auth-forgot-form__control {
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px 0 18px;
+  border: 1px solid rgba(214, 40, 40, 0.16);
+  border-radius: 999px;
+  background: rgba(249, 250, 251, 0.78);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.auth-forgot-form__control:hover {
+  border-color: rgba(214, 40, 40, 0.28);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.auth-forgot-form__control:focus-within {
+  border-color: #d62828;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 0 0 4px rgba(214, 40, 40, 0.12);
+}
+
+.auth-forgot-form__control--email {
+  padding-right: 8px;
+}
+
+.auth-forgot-form__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: #f4c542;
+}
+
+.auth-forgot-form__icon svg,
+.auth-forgot-form__toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.auth-forgot-form__input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: #1a1a1a;
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+.auth-forgot-form__input::placeholder {
+  color: #9ca3af;
+}
+
+.auth-forgot-form__input:focus {
+  outline: none;
+}
+
+.auth-forgot-form__inline-button,
+.auth-forgot-form__toggle {
+  border: none;
+  background: transparent;
+  font: inherit;
+}
+
+.auth-forgot-form__inline-button {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: rgba(214, 40, 40, 0.1);
+  color: #d62828;
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.auth-forgot-form__inline-button:hover,
+.auth-forgot-form__inline-button:focus-visible {
+  outline: none;
+  background: rgba(214, 40, 40, 0.14);
+  transform: translateY(-1px);
+}
+
+.auth-forgot-form__inline-button--sent {
+  background: rgba(244, 197, 66, 0.18);
+  color: #8a5b08;
+}
+
+.auth-forgot-form__toggle {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8b8f97;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.auth-forgot-form__toggle:hover,
+.auth-forgot-form__toggle:focus-visible {
+  outline: none;
+  color: #d62828;
+}
+
+.auth-forgot-form__agreement {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 4px;
+  color: #5f5b5b;
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.auth-forgot-form__agreement input {
+  width: 18px;
+  height: 18px;
+  margin-top: 4px;
+  accent-color: #d62828;
+}
+
+.auth-forgot-form__agreement a {
+  color: #d62828;
+  font-weight: 700;
+}
+
+.auth-forgot-form__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.auth-forgot-form__button {
+  min-height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 0.98rem;
+  font-weight: 900;
+  text-align: center;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.auth-forgot-form__button--primary {
+  border: none;
+  background: linear-gradient(135deg, #d62828 0%, #bf2323 100%);
+  color: #fff;
+  box-shadow: 0 16px 32px rgba(214, 40, 40, 0.18);
+  cursor: pointer;
+}
+
+.auth-forgot-form__button--primary:hover,
+.auth-forgot-form__button--primary:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(214, 40, 40, 0.22);
+}
+
+.auth-forgot-form__button--secondary {
+  border: 1px solid rgba(214, 40, 40, 0.32);
+  background: rgba(255, 255, 255, 0.92);
+  color: #d62828;
+}
+
+.auth-forgot-form__button--secondary:hover,
+.auth-forgot-form__button--secondary:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: #d62828;
+  box-shadow: 0 14px 28px rgba(214, 40, 40, 0.1);
+}
+
 .auth-login-shell {
   min-height: 100vh;
   display: grid;
@@ -610,6 +872,40 @@
     grid-template-columns: 1fr;
   }
 
+  .auth-forgot-shell {
+    background-position: 68% center;
+  }
+
+  .auth-forgot-shell__panel {
+    padding: 32px 16px 40px;
+    align-items: flex-start;
+  }
+
+  .auth-forgot-page {
+    width: 100%;
+    gap: 24px;
+  }
+
+  .auth-forgot-page__logo {
+    width: min(100%, 300px);
+  }
+
+  .auth-forgot-form__control {
+    min-height: 56px;
+    gap: 10px;
+    padding-left: 16px;
+  }
+
+  .auth-forgot-form__inline-button {
+    min-height: 40px;
+    padding-inline: 14px;
+    font-size: 0.88rem;
+  }
+
+  .auth-forgot-form__actions {
+    grid-template-columns: 1fr;
+  }
+
   .auth-login-shell {
     grid-template-columns: 1fr;
   }
@@ -663,6 +959,10 @@
 @media (prefers-reduced-motion: reduce) {
   .auth-template-form__input,
   .auth-template-form__button,
+  .auth-forgot-form__control,
+  .auth-forgot-form__inline-button,
+  .auth-forgot-form__toggle,
+  .auth-forgot-form__button,
   .auth-login-form__input,
   .auth-login-form__submit,
   .auth-login-form__social-button {

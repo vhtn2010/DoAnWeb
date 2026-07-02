@@ -75,8 +75,18 @@ const styles = {
 function AuthLayout() {
   const location = useLocation()
   const isLoginPage = location.pathname === '/login'
-  const isTemplateVisualPage =
-    location.pathname === '/register' || location.pathname === '/forgot-password'
+  const isForgotPasswordPage = location.pathname === '/forgot-password'
+  const isTemplateVisualPage = location.pathname === '/register'
+
+  if (isForgotPasswordPage) {
+    return (
+      <div className="auth-forgot-shell">
+        <section className="auth-forgot-shell__panel">
+          <Outlet />
+        </section>
+      </div>
+    )
+  }
 
   if (isTemplateVisualPage) {
     const meta = authMeta[location.pathname] ?? authMeta['/forgot-password']
