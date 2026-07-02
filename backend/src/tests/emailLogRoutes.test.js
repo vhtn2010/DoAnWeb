@@ -20,6 +20,7 @@ const USER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const BOOKING_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 const originalGetAdminEmailLogDetail = emailLogService.getAdminEmailLogDetail;
+const originalListAdminMailTemplates = emailLogService.listAdminMailTemplates;
 const originalListAdminEmailLogs = emailLogService.listAdminEmailLogs;
 const originalResendAdminEmailLog = emailLogService.resendAdminEmailLog;
 
@@ -67,16 +68,20 @@ const request = (server, path, options = {}) =>
 
 test.beforeEach(() => {
   clearRateLimitStore('admin-email-log-catalog');
+  clearRateLimitStore('admin-mail-template-catalog');
   clearRateLimitStore('admin-email-log-resend');
   emailLogService.getAdminEmailLogDetail = originalGetAdminEmailLogDetail;
+  emailLogService.listAdminMailTemplates = originalListAdminMailTemplates;
   emailLogService.listAdminEmailLogs = originalListAdminEmailLogs;
   emailLogService.resendAdminEmailLog = originalResendAdminEmailLog;
 });
 
 test.afterEach(() => {
   clearRateLimitStore('admin-email-log-catalog');
+  clearRateLimitStore('admin-mail-template-catalog');
   clearRateLimitStore('admin-email-log-resend');
   emailLogService.getAdminEmailLogDetail = originalGetAdminEmailLogDetail;
+  emailLogService.listAdminMailTemplates = originalListAdminMailTemplates;
   emailLogService.listAdminEmailLogs = originalListAdminEmailLogs;
   emailLogService.resendAdminEmailLog = originalResendAdminEmailLog;
 });
@@ -199,6 +204,75 @@ test('emailLogService.listAdminEmailLogs validates permission, filters, and pagi
     }),
     (error) => {
       assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+});
+
+test('emailLogService.listAdminMailTemplates returns fixed safe metadata for authorized admin users', async () => {
+  const service = emailLogService.createEmailLogService();
+
+  const result = await service.listAdminMailTemplates({
+    auth: {
+      role: 'staff',
+      tokenPayload: {
+        permissions: ['email_log.read'],
+      },
+      userId: USER_ID,
+    },
+  });
+
+  assert.ok(Array.isArray(result));
+  assert.ok(result.length >= 10);
+  assert.deepEqual(result[0], {
+    description: 'Email xac thuc tai khoan sau khi dang ky.',
+    display_name: 'Verify Email',
+    required_variables: [
+      'full_name',
+      'token',
+      'verification_url',
+      'api_verify_url',
+      'expires_in_minutes',
+    ],
+    template_code: 'AUTH_VERIFY_EMAIL',
+  });
+  assert.equal(
+    result.some((template) => template.template_code === 'SUPPORT_MANUAL_EMAIL'),
+    true,
+  );
+  assert.equal(
+    result.some((template) => Object.prototype.hasOwnProperty.call(template, 'provider')),
+    false,
+  );
+  assert.equal(
+    result.some((template) => Object.prototype.hasOwnProperty.call(template, 'html')),
+    false,
+  );
+
+  const emailSendPermissionResult = await service.listAdminMailTemplates({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['email.send'],
+      },
+      userId: USER_ID,
+    },
+  });
+
+  assert.equal(emailSendPermissionResult.length, result.length);
+
+  await assert.rejects(
+    () => service.listAdminMailTemplates({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['support.reply'],
+        },
+        userId: USER_ID,
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
       return true;
     },
   );
@@ -481,6 +555,123 @@ test('emailLogService.resendAdminEmailLog regenerates verification emails with a
 
   assert.equal(createdLogs[0].templateCode, 'AUTH_RESEND_VERIFY_EMAIL');
   assert.equal(result.template_code, 'AUTH_RESEND_VERIFY_EMAIL');
+});
+
+test('GET /api/admin/mail/templates returns fixed template metadata and blocks customer role', async () => {
+  const server = app.listen(0);
+
+  emailLogService.listAdminMailTemplates = async ({ auth }) => {
+    assert.equal(auth.role, 'staff');
+    assert.equal(auth.userId, USER_ID);
+    assert.deepEqual(auth.tokenPayload.permissions, ['email_log.read']);
+
+    return [
+      {
+        description: 'Email xac thuc tai khoan sau khi dang ky.',
+        display_name: 'Verify Email',
+        required_variables: [
+          'full_name',
+          'token',
+          'verification_url',
+          'api_verify_url',
+          'expires_in_minutes',
+        ],
+        template_code: 'AUTH_VERIFY_EMAIL',
+      },
+      {
+        description: 'Email ho tro thu cong do staff hoac admin gui trong ngu canh support ticket.',
+        display_name: 'Support Manual Email',
+        required_variables: [
+          'customer_name',
+          'ticket_code',
+          'subject',
+          'message',
+        ],
+        template_code: 'SUPPORT_MANUAL_EMAIL',
+      },
+    ];
+  };
+
+  try {
+    const okResponse = await request(server, `${apiPrefix}/admin/mail/templates`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['email_log.read'],
+          roleCode: 'staff',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(okResponse.statusCode, 200);
+    assert.equal(okResponse.body.success, true);
+    assert.equal(okResponse.body.data.length, 2);
+    assert.equal(okResponse.body.data[0].template_code, 'AUTH_VERIFY_EMAIL');
+    assert.equal(okResponse.body.data[1].template_code, 'SUPPORT_MANUAL_EMAIL');
+
+    const forbiddenResponse = await request(server, `${apiPrefix}/admin/mail/templates`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['email_log.read'],
+          roleCode: 'customer',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/admin/mail/templatess uses the same fixed template metadata handler alias', async () => {
+  const server = app.listen(0);
+
+  emailLogService.listAdminMailTemplates = async ({ auth }) => {
+    assert.equal(auth.role, 'admin');
+    assert.deepEqual(auth.tokenPayload.permissions, ['email.send']);
+
+    return [
+      {
+        description: 'Email bien lai thanh toan booking.',
+        display_name: 'Booking Receipt',
+        required_variables: [
+          'booking_code',
+          'contact_name',
+          'payment_amount',
+          'currency',
+          'payment_method',
+          'receipt_number',
+          'paid_at',
+        ],
+        template_code: 'BOOKING_RECEIPT',
+      },
+    ];
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/admin/mail/templatess`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['email.send'],
+          roleCode: 'admin',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.length, 1);
+    assert.equal(response.body.data[0].template_code, 'BOOKING_RECEIPT');
+  } finally {
+    server.close();
+  }
 });
 
 test('GET /api/admin/email-logs returns admin-safe email log list and blocks customer role', async () => {
