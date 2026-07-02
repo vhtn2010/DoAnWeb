@@ -20,7 +20,11 @@ const { createAccessToken } = require('../utils/sessionToken');
 const USER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const NOTIFICATION_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const BROADCAST_NOTIFICATION_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const RECIPIENT_USER_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const DISABLED_USER_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const RELATED_ENTITY_ID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 
+const originalBroadcastAdminNotification = notificationService.broadcastAdminNotification;
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalDeleteMyNotification = notificationService.deleteMyNotification;
 const originalGetUnreadNotificationCount = notificationService.getUnreadNotificationCount;
@@ -30,6 +34,7 @@ const originalListMyNotifications = notificationService.listMyNotifications;
 const originalMarkAllMyNotificationsRead = notificationService.markAllMyNotificationsRead;
 const originalMarkMyNotificationRead = notificationService.markMyNotificationRead;
 const originalMarkMyNotificationsBulkRead = notificationService.markMyNotificationsBulkRead;
+const originalSendAdminNotificationToUser = notificationService.sendAdminNotificationToUser;
 const originalUpdateAdminNotificationStatus = notificationService.updateAdminNotificationStatus;
 
 const createAuthContext = ({
@@ -90,8 +95,10 @@ const request = (server, path, options = {}) =>
 
 test.beforeEach(() => {
   clearRateLimitStore('admin-notification-catalog');
+  clearRateLimitStore('admin-notification-dispatch');
   clearRateLimitStore('admin-notification-status');
   clearRateLimitStore('notification-read');
+  notificationService.broadcastAdminNotification = originalBroadcastAdminNotification;
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   notificationService.deleteMyNotification = originalDeleteMyNotification;
   notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
@@ -101,13 +108,16 @@ test.beforeEach(() => {
   notificationService.markAllMyNotificationsRead = originalMarkAllMyNotificationsRead;
   notificationService.markMyNotificationRead = originalMarkMyNotificationRead;
   notificationService.markMyNotificationsBulkRead = originalMarkMyNotificationsBulkRead;
+  notificationService.sendAdminNotificationToUser = originalSendAdminNotificationToUser;
   notificationService.updateAdminNotificationStatus = originalUpdateAdminNotificationStatus;
 });
 
 test.afterEach(() => {
   clearRateLimitStore('admin-notification-catalog');
+  clearRateLimitStore('admin-notification-dispatch');
   clearRateLimitStore('admin-notification-status');
   clearRateLimitStore('notification-read');
+  notificationService.broadcastAdminNotification = originalBroadcastAdminNotification;
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   notificationService.deleteMyNotification = originalDeleteMyNotification;
   notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
@@ -117,6 +127,7 @@ test.afterEach(() => {
   notificationService.markAllMyNotificationsRead = originalMarkAllMyNotificationsRead;
   notificationService.markMyNotificationRead = originalMarkMyNotificationRead;
   notificationService.markMyNotificationsBulkRead = originalMarkMyNotificationsBulkRead;
+  notificationService.sendAdminNotificationToUser = originalSendAdminNotificationToUser;
   notificationService.updateAdminNotificationStatus = originalUpdateAdminNotificationStatus;
 });
 
@@ -262,6 +273,269 @@ test('notificationService.listAdminNotifications validates permission, filters, 
       query: {
         limit: '101',
       },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+});
+
+test('notificationService admin dispatch validates permission, payload, and recipient state', async () => {
+  const service = notificationService.createNotificationService({
+    repository: {
+      createBroadcastNotification: async (payload) => {
+        assert.equal(payload.actorUserId, USER_ID);
+        assert.equal(payload.body, 'Maintenance tonight');
+        assert.equal(payload.readAt, null);
+        assert.equal(payload.relatedEntityId, null);
+        assert.equal(payload.relatedEntityName, null);
+        assert.equal(payload.sentAt, null);
+        assert.equal(payload.status, NOTIFICATION_STATUS.QUEUED);
+        assert.equal(payload.target, 'all');
+        assert.equal(payload.title, 'System notice');
+        assert.equal(payload.type, NOTIFICATION_TYPE.SYSTEM);
+
+        return {
+          body: payload.body,
+          created_at: '2026-07-02T09:00:00.000Z',
+          id: BROADCAST_NOTIFICATION_ID,
+          read_at: null,
+          related_entity_id: null,
+          related_entity_name: null,
+          sent_at: null,
+          status: payload.status,
+          title: payload.title,
+          type: payload.type,
+          user_id: null,
+        };
+      },
+      createUserNotification: async (payload) => {
+        assert.equal(payload.actorUserId, USER_ID);
+        assert.equal(payload.body, 'Your booking was updated');
+        assert.equal(payload.readAt, null);
+        assert.equal(payload.recipientUserId, RECIPIENT_USER_ID);
+        assert.equal(payload.relatedEntityId, RELATED_ENTITY_ID);
+        assert.equal(payload.relatedEntityName, 'booking');
+        assert.equal(payload.sentAt, null);
+        assert.equal(payload.status, NOTIFICATION_STATUS.QUEUED);
+        assert.equal(payload.title, 'Booking update');
+        assert.equal(payload.type, NOTIFICATION_TYPE.BOOKING_STATUS);
+
+        return {
+          body: payload.body,
+          created_at: '2026-07-02T09:05:00.000Z',
+          id: NOTIFICATION_ID,
+          read_at: null,
+          related_entity_id: payload.relatedEntityId,
+          related_entity_name: payload.relatedEntityName,
+          sent_at: null,
+          status: payload.status,
+          title: payload.title,
+          type: payload.type,
+          user_id: payload.recipientUserId,
+        };
+      },
+      getDispatchUserById: async (userId) => {
+        if (userId === RECIPIENT_USER_ID) {
+          return {
+            deleted_at: null,
+            email: 'recipient@example.com',
+            full_name: 'Recipient User',
+            id: RECIPIENT_USER_ID,
+            role_code: 'customer',
+            status: 'active',
+          };
+        }
+
+        if (userId === DISABLED_USER_ID) {
+          return {
+            deleted_at: null,
+            email: 'disabled@example.com',
+            full_name: 'Disabled User',
+            id: DISABLED_USER_ID,
+            role_code: 'customer',
+            status: 'disabled',
+          };
+        }
+
+        return null;
+      },
+    },
+  });
+
+  const broadcastResult = await service.broadcastAdminNotification({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['notification.broadcast'],
+      },
+      userId: USER_ID,
+    },
+    body: {
+      body: 'Maintenance tonight',
+      target: 'all',
+      title: 'System notice',
+      type: NOTIFICATION_TYPE.SYSTEM,
+    },
+  });
+
+  assert.equal(broadcastResult.id, BROADCAST_NOTIFICATION_ID);
+  assert.equal(broadcastResult.created_count, 1);
+  assert.equal(broadcastResult.target, 'all');
+  assert.equal(broadcastResult.status, NOTIFICATION_STATUS.QUEUED);
+  assert.equal(broadcastResult.read_at, null);
+
+  const userResult = await service.sendAdminNotificationToUser({
+    auth: {
+      role: 'system_admin',
+      tokenPayload: {
+        permissions: ['notification.manage'],
+      },
+      userId: USER_ID,
+    },
+    body: {
+      body: 'Your booking was updated',
+      related_entity_id: RELATED_ENTITY_ID,
+      related_entity_name: 'booking',
+      title: 'Booking update',
+      type: NOTIFICATION_TYPE.BOOKING_STATUS,
+    },
+    userId: RECIPIENT_USER_ID,
+  });
+
+  assert.equal(userResult.id, NOTIFICATION_ID);
+  assert.equal(userResult.user_id, RECIPIENT_USER_ID);
+  assert.equal(userResult.recipient.email, 'recipient@example.com');
+  assert.equal(userResult.status, NOTIFICATION_STATUS.QUEUED);
+  assert.equal(userResult.read_at, null);
+
+  await assert.rejects(
+    () => service.broadcastAdminNotification({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.read_self'],
+        },
+        userId: USER_ID,
+      },
+      body: {
+        body: 'Maintenance tonight',
+        target: 'all',
+        title: 'System notice',
+        type: NOTIFICATION_TYPE.SYSTEM,
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.broadcastAdminNotification({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.broadcast'],
+        },
+        userId: USER_ID,
+      },
+      body: {
+        body: 'Maintenance tonight',
+        status: NOTIFICATION_STATUS.READ,
+        target: 'all',
+        title: 'System notice',
+        type: NOTIFICATION_TYPE.SYSTEM,
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.broadcastAdminNotification({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.broadcast'],
+        },
+        userId: USER_ID,
+      },
+      body: {
+        body: 'Maintenance tonight',
+        target: 'guests',
+        title: 'System notice',
+        type: NOTIFICATION_TYPE.SYSTEM,
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.sendAdminNotificationToUser({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.broadcast'],
+        },
+        userId: USER_ID,
+      },
+      body: {
+        body: 'Your booking was updated',
+        title: 'Booking update',
+        type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      },
+      userId: 'not-a-uuid',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.sendAdminNotificationToUser({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.broadcast'],
+        },
+        userId: USER_ID,
+      },
+      body: {
+        body: 'Your booking was updated',
+        title: 'Booking update',
+        type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      },
+      userId: '99999999-9999-4999-8999-999999999999',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RESOURCE_NOT_FOUND);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.sendAdminNotificationToUser({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.broadcast'],
+        },
+        userId: USER_ID,
+      },
+      body: {
+        body: 'Your booking was updated',
+        title: 'Booking update',
+        type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      },
+      userId: DISABLED_USER_ID,
     }),
     (error) => {
       assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
@@ -1220,6 +1494,139 @@ test('GET /api/admin/notifications returns admin notification list and blocks di
         })}`,
       },
       method: 'GET',
+    });
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/admin/notifications/broadcast and /users/{user_id} create notifications and block staff', async () => {
+  const server = app.listen(0);
+
+  notificationService.broadcastAdminNotification = async ({ auth, body }) => {
+    assert.equal(auth.role, 'admin');
+    assert.equal(auth.userId, USER_ID);
+    assert.deepEqual(auth.tokenPayload.permissions, ['notification.broadcast']);
+    assert.equal(body.target, 'all');
+    assert.equal(body.type, NOTIFICATION_TYPE.SYSTEM);
+
+    return {
+      body: 'Maintenance tonight',
+      created_at: '2026-07-02T09:00:00.000Z',
+      created_count: 1,
+      id: BROADCAST_NOTIFICATION_ID,
+      is_broadcast: true,
+      read_at: null,
+      related_entity_id: null,
+      related_entity_name: null,
+      sent_at: null,
+      status: NOTIFICATION_STATUS.QUEUED,
+      target: 'all',
+      title: 'System notice',
+      type: NOTIFICATION_TYPE.SYSTEM,
+      user_id: null,
+    };
+  };
+
+  notificationService.sendAdminNotificationToUser = async ({
+    auth,
+    body,
+    userId,
+  }) => {
+    assert.equal(auth.role, 'system_admin');
+    assert.equal(auth.userId, USER_ID);
+    assert.deepEqual(auth.tokenPayload.permissions, ['notification.manage']);
+    assert.equal(userId, RECIPIENT_USER_ID);
+    assert.equal(body.related_entity_id, RELATED_ENTITY_ID);
+    assert.equal(body.related_entity_name, 'booking');
+
+    return {
+      body: 'Your booking was updated',
+      created_at: '2026-07-02T09:05:00.000Z',
+      id: NOTIFICATION_ID,
+      is_broadcast: false,
+      read_at: null,
+      recipient: {
+        email: 'recipient@example.com',
+        id: RECIPIENT_USER_ID,
+        name: 'Recipient User',
+      },
+      related_entity_id: RELATED_ENTITY_ID,
+      related_entity_name: 'booking',
+      sent_at: null,
+      status: NOTIFICATION_STATUS.QUEUED,
+      title: 'Booking update',
+      type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      user_id: RECIPIENT_USER_ID,
+    };
+  };
+
+  try {
+    const broadcastResponse = await request(server, `${apiPrefix}/admin/notifications/broadcast`, {
+      body: {
+        body: 'Maintenance tonight',
+        target: 'all',
+        title: 'System notice',
+        type: NOTIFICATION_TYPE.SYSTEM,
+      },
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['notification.broadcast'],
+          roleCode: 'admin',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'POST',
+    });
+
+    assert.equal(broadcastResponse.statusCode, 201);
+    assert.equal(broadcastResponse.body.success, true);
+    assert.equal(broadcastResponse.body.data.id, BROADCAST_NOTIFICATION_ID);
+    assert.equal(broadcastResponse.body.data.created_count, 1);
+    assert.equal(broadcastResponse.body.data.target, 'all');
+
+    const userResponse = await request(server, `${apiPrefix}/admin/notifications/users/${RECIPIENT_USER_ID}`, {
+      body: {
+        body: 'Your booking was updated',
+        related_entity_id: RELATED_ENTITY_ID,
+        related_entity_name: 'booking',
+        title: 'Booking update',
+        type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      },
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['notification.manage'],
+          roleCode: 'system_admin',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'POST',
+    });
+
+    assert.equal(userResponse.statusCode, 201);
+    assert.equal(userResponse.body.success, true);
+    assert.equal(userResponse.body.data.id, NOTIFICATION_ID);
+    assert.equal(userResponse.body.data.recipient.email, 'recipient@example.com');
+    assert.equal(userResponse.body.data.user_id, RECIPIENT_USER_ID);
+
+    const forbiddenResponse = await request(server, `${apiPrefix}/admin/notifications/broadcast`, {
+      body: {
+        body: 'Maintenance tonight',
+        target: 'all',
+        title: 'System notice',
+        type: NOTIFICATION_TYPE.SYSTEM,
+      },
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['notification.broadcast'],
+          roleCode: 'staff',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'POST',
     });
 
     assert.equal(forbiddenResponse.statusCode, 403);

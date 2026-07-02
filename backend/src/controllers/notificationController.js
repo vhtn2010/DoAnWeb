@@ -1,5 +1,22 @@
 const notificationService = require('../services/notificationService');
 
+const broadcastAdminNotification = async (req, res) => {
+  const data = await notificationService.broadcastAdminNotification({
+    auth: req.auth,
+    body: req.body,
+    context: {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    },
+  });
+
+  res.success({
+    data,
+    message: 'Broadcast notification created successfully',
+    statusCode: 201,
+  });
+};
+
 const listAdminNotifications = async (req, res) => {
   const data = await notificationService.listAdminNotifications({
     auth: req.auth,
@@ -23,6 +40,24 @@ const updateAdminNotificationStatus = async (req, res) => {
   res.success({
     data,
     message: 'Notification status updated successfully',
+  });
+};
+
+const sendAdminNotificationToUser = async (req, res) => {
+  const data = await notificationService.sendAdminNotificationToUser({
+    auth: req.auth,
+    body: req.body,
+    context: {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    },
+    userId: req.params.user_id,
+  });
+
+  res.success({
+    data,
+    message: 'Notification created successfully',
+    statusCode: 201,
   });
 };
 
@@ -110,6 +145,7 @@ const getMyNotificationDetail = async (req, res) => {
 };
 
 module.exports = {
+  broadcastAdminNotification,
   deleteMyNotification,
   getUnreadNotificationCount,
   getMyNotificationDetail,
@@ -118,5 +154,6 @@ module.exports = {
   markAllMyNotificationsRead,
   markMyNotificationRead,
   markMyNotificationsBulkRead,
+  sendAdminNotificationToUser,
   updateAdminNotificationStatus,
 };

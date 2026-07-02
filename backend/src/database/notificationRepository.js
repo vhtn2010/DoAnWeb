@@ -7,8 +7,10 @@ const createNotificationRepository = ({
   const createNotificationUserLog = async (client, {
     action,
     actorUserId,
+    ipAddress,
     metadata,
     notificationId,
+    userAgent,
   }) => {
     await client.query(
       `
@@ -17,19 +19,78 @@ const createNotificationRepository = ({
           action,
           entity_name,
           entity_id,
+          ip_address,
+          user_agent,
           metadata,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       `,
       [
         actorUserId,
         action,
         'notification',
         notificationId,
+        ipAddress || null,
+        userAgent || null,
         metadata || null,
       ],
     );
+  };
+
+  const createNotificationRecord = async (client, {
+    body,
+    readAt,
+    relatedEntityId,
+    relatedEntityName,
+    sentAt,
+    status,
+    title,
+    type,
+    userId,
+  }) => {
+    const result = await client.query(
+      `
+        INSERT INTO notifications (
+          user_id,
+          title,
+          body,
+          type,
+          status,
+          related_entity_name,
+          related_entity_id,
+          sent_at,
+          read_at,
+          created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        RETURNING
+          id,
+          user_id,
+          title,
+          body,
+          type,
+          status,
+          related_entity_name,
+          related_entity_id,
+          sent_at,
+          read_at,
+          created_at
+      `,
+      [
+        userId || null,
+        title,
+        body,
+        type,
+        status,
+        relatedEntityName || null,
+        relatedEntityId || null,
+        sentAt || null,
+        readAt || null,
+      ],
+    );
+
+    return result.rows[0] || null;
   };
 
   const markAllNotificationsReadForUser = async (userId) => {
@@ -132,6 +193,114 @@ const createNotificationRepository = ({
 
     return result.rows[0]?.unread_count || 0;
   };
+
+  const getDispatchUserById = async (userId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          u.id,
+          u.email,
+          u.full_name,
+          u.status,
+          u.deleted_at,
+          r.code AS role_code
+        FROM users u
+        JOIN roles r
+          ON r.id = u.role_id
+        WHERE u.id = $1
+        LIMIT 1
+      `,
+      [userId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const createBroadcastNotification = async ({
+    actorUserId,
+    body,
+    ipAddress,
+    readAt,
+    relatedEntityId,
+    relatedEntityName,
+    sentAt,
+    status,
+    target,
+    title,
+    type,
+    userAgent,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const notification = await createNotificationRecord(client, {
+        body,
+        readAt,
+        relatedEntityId,
+        relatedEntityName,
+        sentAt,
+        status,
+        title,
+        type,
+        userId: null,
+      });
+
+      await createNotificationUserLog(client, {
+        action: 'admin.notification.broadcast',
+        actorUserId,
+        ipAddress,
+        metadata: {
+          status,
+          target,
+          type,
+        },
+        notificationId: notification.id,
+        userAgent,
+      });
+
+      return notification;
+    });
+
+  const createUserNotification = async ({
+    actorUserId,
+    body,
+    ipAddress,
+    readAt,
+    recipientUserId,
+    relatedEntityId,
+    relatedEntityName,
+    sentAt,
+    status,
+    title,
+    type,
+    userAgent,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const notification = await createNotificationRecord(client, {
+        body,
+        readAt,
+        relatedEntityId,
+        relatedEntityName,
+        sentAt,
+        status,
+        title,
+        type,
+        userId: recipientUserId,
+      });
+
+      await createNotificationUserLog(client, {
+        action: 'admin.notification.user_dispatch',
+        actorUserId,
+        ipAddress,
+        metadata: {
+          recipient_user_id: recipientUserId,
+          status,
+          type,
+        },
+        notificationId: notification.id,
+        userAgent,
+      });
+
+      return notification;
+    });
 
   const listAdminNotifications = async ({
     limit,
@@ -285,11 +454,13 @@ const createNotificationRepository = ({
       await createNotificationUserLog(client, {
         action: 'admin.notification.status_update',
         actorUserId,
+        ipAddress: null,
         metadata: {
           from_status: fromStatus,
           to_status: toStatus,
         },
         notificationId,
+        userAgent: null,
       });
 
       return notification;
@@ -382,7 +553,10 @@ const createNotificationRepository = ({
 
   return {
     countUnreadNotificationsForUser,
+    createBroadcastNotification,
+    createUserNotification,
     deleteNotificationForUser,
+    getDispatchUserById,
     getNotificationById,
     getNotificationInboxDetail,
     listAdminNotifications,
