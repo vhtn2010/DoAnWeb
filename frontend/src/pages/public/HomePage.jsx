@@ -88,23 +88,56 @@ const flashSaleServices = [
   },
 ]
 
+const vietnamProvinceOptions = [
+  'Hà Nội',
+  'Huế',
+  'Hải Phòng',
+  'Đà Nẵng',
+  'TP. Hồ Chí Minh',
+  'Cần Thơ',
+  'Cao Bằng',
+  'Tuyên Quang',
+  'Lào Cai',
+  'Thái Nguyên',
+  'Phú Thọ',
+  'Bắc Ninh',
+  'Hưng Yên',
+  'Ninh Bình',
+  'Quảng Trị',
+  'Quảng Ngãi',
+  'Gia Lai',
+  'Khánh Hòa',
+  'Lâm Đồng',
+  'Đắk Lắk',
+  'Đồng Nai',
+  'Tây Ninh',
+  'Vĩnh Long',
+  'Đồng Tháp',
+  'Cà Mau',
+  'An Giang',
+  'Điện Biên',
+  'Lai Châu',
+  'Sơn La',
+  'Lạng Sơn',
+  'Quảng Ninh',
+  'Thanh Hóa',
+  'Nghệ An',
+  'Hà Tĩnh',
+]
+
 const searchFieldOptions = [
   {
     key: 'from',
-    label: 'điểm khởi hành',
+    label: 'ĐIỂM KHỞI HÀNH',
     icon: 'departure',
-    options: [
-      'TP. Hồ Chí Minh (SGN)',
-      'Hà Nội (HAN)',
-      'Đà Nẵng (DAD)',
-      'Cần Thơ (VCA)',
-    ],
+    options: vietnamProvinceOptions,  
   },
+
   {
     key: 'to',
-    label: 'điểm đến',
+    label: 'ĐIỂM ĐẾN',
     icon: 'destination',
-    options: ['Hà Nội (HAN)', 'Đà Nẵng (DAD)', 'Nha Trang', 'Hội An', 'Đà Lạt'],
+    options: vietnamProvinceOptions,
   },
 ]
 
@@ -129,7 +162,7 @@ const filterGroups = [
   {
     key: 'train',
     label: 'Vé tàu',
-    options: ['Ghế mềm', 'Giường nằm', 'Khoang VIP'],
+    options: ['Ghế cứng','Ghế mềm', 'Giường nằm', 'Khoang VIP'],
   },
 ]
 
