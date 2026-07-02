@@ -8,6 +8,10 @@ export const adminServiceTypeOptions = [
   { value: 'combo', label: 'combo' },
 ]
 
+export const adminServiceFormTypeOptions = adminServiceTypeOptions.filter(
+  (option) => option.value !== 'all'
+)
+
 export const adminServiceStatusOptions = [
   { value: 'all', label: 'Tất cả' },
   { value: 'draft', label: 'draft' },
@@ -19,6 +23,402 @@ export const adminServiceStatusOptions = [
   { value: 'archived', label: 'archived' },
   { value: 'deleted', label: 'deleted' },
 ]
+
+export const adminServiceFormStatusOptions = adminServiceStatusOptions.filter(
+  (option) => option.value !== 'all'
+)
+
+export const adminTransportTypeOptions = [
+  { value: 'bus', label: 'bus' },
+  { value: 'flight', label: 'flight' },
+  { value: 'train', label: 'train' },
+  { value: 'car', label: 'car' },
+  { value: 'ship', label: 'ship' },
+  { value: 'mixed', label: 'mixed' },
+]
+
+export const adminCabinClassOptions = [
+  { value: 'economy', label: 'economy' },
+  { value: 'premium_economy', label: 'premium_economy' },
+  { value: 'business', label: 'business' },
+  { value: 'first', label: 'first' },
+]
+
+export const adminSeatClassOptions = [
+  { value: 'hard_seat', label: 'hard_seat' },
+  { value: 'soft_seat', label: 'soft_seat' },
+  { value: 'sleeper', label: 'sleeper' },
+  { value: 'vip', label: 'vip' },
+]
+
+export const adminRoleDisplayNames = {
+  staff: 'Nhân viên điều hành',
+  admin: 'Quản trị viên',
+  system_admin: 'System Admin',
+}
+
+const serviceDetailTemplates = {
+  tour: {
+    departure_location: '',
+    destination_location: '',
+    duration_days: '',
+    duration_nights: '',
+    transport_type: 'bus',
+    max_group_size: '',
+    departure_schedule: '',
+    itinerary: '',
+    included_services: '',
+    excluded_services: '',
+    terms: '',
+  },
+  hotel: {
+    star_rating: '',
+    address: '',
+    checkin_time: '',
+    checkout_time: '',
+    amenities: '',
+    hotel_policy: '',
+  },
+  flight: {
+    airline_name: '',
+    flight_number: '',
+    departure_airport: '',
+    arrival_airport: '',
+    departure_at: '',
+    arrival_at: '',
+    cabin_class: 'economy',
+    seats_total: '',
+    seats_available: '',
+    fare_price: '',
+  },
+  train: {
+    train_number: '',
+    departure_station: '',
+    arrival_station: '',
+    departure_at: '',
+    arrival_at: '',
+    seat_class: 'soft_seat',
+    seats_total: '',
+    seats_available: '',
+    fare_price: '',
+  },
+  combo: {
+    combo_items: '',
+    terms: '',
+    included_services: '',
+    excluded_services: '',
+  },
+  room: {},
+}
+
+export function createServiceDetailDefaults(serviceType) {
+  return {
+    ...(serviceDetailTemplates[serviceType] ?? {}),
+  }
+}
+
+function serializeListValue(value, formatter = (item) => item) {
+  if (!Array.isArray(value)) {
+    return value ?? ''
+  }
+
+  return value.map(formatter).filter(Boolean).join('\n')
+}
+
+function serializeComboItems(items) {
+  return serializeListValue(items, (item) => {
+    if (item && typeof item === 'object') {
+      if (item.service_type && item.service_code) {
+        return `${item.service_type}:${item.service_code}`
+      }
+
+      if (item.service_code) {
+        return item.service_code
+      }
+
+      return JSON.stringify(item)
+    }
+
+    return String(item)
+  })
+}
+
+function formatRoleActorName(role) {
+  return adminRoleDisplayNames[role] ?? 'Điều phối viên dịch vụ'
+}
+
+export function slugifyServiceTitle(value) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+}
+
+function normalizeMultilineArray(value) {
+  return String(value ?? '')
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function parseComboItems(value) {
+  return normalizeMultilineArray(value).map((line) => {
+    const [serviceType, serviceCode] = line.split(':').map((item) => item?.trim())
+
+    if (serviceType && serviceCode) {
+      return {
+        service_type: serviceType,
+        service_code: serviceCode,
+      }
+    }
+
+    return {
+      service_code: line,
+    }
+  })
+}
+
+function parseNumberValue(value, fallback = null) {
+  if (value === '' || value === null || value === undefined) {
+    return fallback
+  }
+
+  const parsed = Number(value)
+
+  return Number.isNaN(parsed) ? fallback : parsed
+}
+
+function normalizeServiceDetails(serviceType, details, fallbackPrice) {
+  if (serviceType === 'tour') {
+    return {
+      departure_location: details.departure_location.trim(),
+      destination_location: details.destination_location.trim(),
+      duration_days: parseNumberValue(details.duration_days),
+      duration_nights: parseNumberValue(details.duration_nights),
+      transport_type: details.transport_type || 'bus',
+      max_group_size: parseNumberValue(details.max_group_size),
+      departure_schedule: normalizeMultilineArray(details.departure_schedule),
+      itinerary: normalizeMultilineArray(details.itinerary),
+      included_services: details.included_services.trim(),
+      excluded_services: details.excluded_services.trim(),
+      terms: details.terms.trim(),
+    }
+  }
+
+  if (serviceType === 'hotel') {
+    return {
+      star_rating: parseNumberValue(details.star_rating),
+      address: details.address.trim(),
+      checkin_time: details.checkin_time.trim(),
+      checkout_time: details.checkout_time.trim(),
+      amenities: normalizeMultilineArray(details.amenities),
+      hotel_policy: details.hotel_policy.trim(),
+    }
+  }
+
+  if (serviceType === 'flight') {
+    return {
+      airline_name: details.airline_name.trim(),
+      flight_number: details.flight_number.trim(),
+      departure_airport: details.departure_airport.trim(),
+      arrival_airport: details.arrival_airport.trim(),
+      departure_at: details.departure_at || null,
+      arrival_at: details.arrival_at || null,
+      cabin_class: details.cabin_class || 'economy',
+      seats_total: parseNumberValue(details.seats_total),
+      seats_available: parseNumberValue(details.seats_available),
+      fare_price: parseNumberValue(details.fare_price, fallbackPrice),
+    }
+  }
+
+  if (serviceType === 'train') {
+    return {
+      train_number: details.train_number.trim(),
+      departure_station: details.departure_station.trim(),
+      arrival_station: details.arrival_station.trim(),
+      departure_at: details.departure_at || null,
+      arrival_at: details.arrival_at || null,
+      seat_class: details.seat_class || 'soft_seat',
+      seats_total: parseNumberValue(details.seats_total),
+      seats_available: parseNumberValue(details.seats_available),
+      fare_price: parseNumberValue(details.fare_price, fallbackPrice),
+    }
+  }
+
+  if (serviceType === 'combo') {
+    return {
+      combo_items: parseComboItems(details.combo_items),
+      terms: details.terms.trim(),
+      included_services: details.included_services.trim(),
+      excluded_services: details.excluded_services.trim(),
+    }
+  }
+
+  return {}
+}
+
+export function getInitialServiceFormValues(service = null) {
+  const serviceType = service?.service_type ?? 'tour'
+  const defaults = createServiceDetailDefaults(serviceType)
+  const sourceDetails = service?.details ?? {}
+
+  return {
+    service_type: serviceType,
+    title: service?.title ?? '',
+    slug: service?.slug ?? '',
+    short_description: service?.short_description ?? '',
+    description: service?.description ?? '',
+    provider_name: service?.provider_name ?? '',
+    location_text: service?.location_text ?? '',
+    base_price: service?.base_price != null ? String(service.base_price) : '',
+    sale_price: service?.sale_price != null ? String(service.sale_price) : '',
+    currency: service?.currency ?? 'VND',
+    status: service?.status ?? 'draft',
+    cancellation_policy: service?.cancellation_policy ?? '',
+    image_url: service?.image_url ?? '',
+    details: {
+      ...defaults,
+      ...(serviceType === 'tour'
+        ? {
+            departure_location: sourceDetails.departure_location ?? defaults.departure_location,
+            destination_location:
+              sourceDetails.destination_location ?? defaults.destination_location,
+            duration_days:
+              sourceDetails.duration_days != null ? String(sourceDetails.duration_days) : '',
+            duration_nights:
+              sourceDetails.duration_nights != null ? String(sourceDetails.duration_nights) : '',
+            transport_type: sourceDetails.transport_type ?? defaults.transport_type,
+            max_group_size:
+              sourceDetails.max_group_size != null ? String(sourceDetails.max_group_size) : '',
+            departure_schedule: serializeListValue(sourceDetails.departure_schedule),
+            itinerary: serializeListValue(sourceDetails.itinerary),
+            included_services: sourceDetails.included_services ?? defaults.included_services,
+            excluded_services: sourceDetails.excluded_services ?? defaults.excluded_services,
+            terms: sourceDetails.terms ?? defaults.terms,
+          }
+        : {}),
+      ...(serviceType === 'hotel'
+        ? {
+            star_rating: sourceDetails.star_rating != null ? String(sourceDetails.star_rating) : '',
+            address: sourceDetails.address ?? defaults.address,
+            checkin_time: sourceDetails.checkin_time ?? defaults.checkin_time,
+            checkout_time: sourceDetails.checkout_time ?? defaults.checkout_time,
+            amenities: serializeListValue(sourceDetails.amenities),
+            hotel_policy: sourceDetails.hotel_policy ?? defaults.hotel_policy,
+          }
+        : {}),
+      ...(serviceType === 'flight'
+        ? {
+            airline_name: sourceDetails.airline_name ?? defaults.airline_name,
+            flight_number: sourceDetails.flight_number ?? defaults.flight_number,
+            departure_airport: sourceDetails.departure_airport ?? defaults.departure_airport,
+            arrival_airport: sourceDetails.arrival_airport ?? defaults.arrival_airport,
+            departure_at: sourceDetails.departure_at ?? defaults.departure_at,
+            arrival_at: sourceDetails.arrival_at ?? defaults.arrival_at,
+            cabin_class: sourceDetails.cabin_class ?? defaults.cabin_class,
+            seats_total: sourceDetails.seats_total != null ? String(sourceDetails.seats_total) : '',
+            seats_available:
+              sourceDetails.seats_available != null ? String(sourceDetails.seats_available) : '',
+            fare_price:
+              sourceDetails.fare_price != null
+                ? String(sourceDetails.fare_price)
+                : service?.base_price != null
+                  ? String(service.base_price)
+                  : '',
+          }
+        : {}),
+      ...(serviceType === 'train'
+        ? {
+            train_number: sourceDetails.train_number ?? defaults.train_number,
+            departure_station: sourceDetails.departure_station ?? defaults.departure_station,
+            arrival_station: sourceDetails.arrival_station ?? defaults.arrival_station,
+            departure_at: sourceDetails.departure_at ?? defaults.departure_at,
+            arrival_at: sourceDetails.arrival_at ?? defaults.arrival_at,
+            seat_class: sourceDetails.seat_class ?? defaults.seat_class,
+            seats_total: sourceDetails.seats_total != null ? String(sourceDetails.seats_total) : '',
+            seats_available:
+              sourceDetails.seats_available != null ? String(sourceDetails.seats_available) : '',
+            fare_price:
+              sourceDetails.fare_price != null
+                ? String(sourceDetails.fare_price)
+                : service?.base_price != null
+                  ? String(service.base_price)
+                  : '',
+          }
+        : {}),
+      ...(serviceType === 'combo'
+        ? {
+            combo_items: serializeComboItems(sourceDetails.combo_items),
+            terms: sourceDetails.terms ?? defaults.terms,
+            included_services: sourceDetails.included_services ?? defaults.included_services,
+            excluded_services: sourceDetails.excluded_services ?? defaults.excluded_services,
+          }
+        : {}),
+    },
+  }
+}
+
+export function normalizeServiceFormValues(formValues) {
+  const basePrice = parseNumberValue(formValues.base_price, 0)
+
+  return {
+    service_type: formValues.service_type,
+    title: formValues.title.trim(),
+    slug: formValues.slug.trim(),
+    short_description: formValues.short_description.trim(),
+    description: formValues.description.trim(),
+    provider_name: formValues.provider_name.trim(),
+    location_text: formValues.location_text.trim(),
+    base_price: basePrice,
+    sale_price: parseNumberValue(formValues.sale_price),
+    currency: formValues.currency.trim() || 'VND',
+    status: formValues.status || 'draft',
+    cancellation_policy: formValues.cancellation_policy.trim(),
+    image_url: formValues.image_url.trim(),
+    details: normalizeServiceDetails(formValues.service_type, formValues.details, basePrice),
+  }
+}
+
+export function buildServicePayloadFromForm(
+  formValues,
+  { currentRole, existingService = null, mode = 'add', submitIntent = 'save' }
+) {
+  const normalized = normalizeServiceFormValues(formValues)
+  const now = new Date().toISOString()
+  const timestamp = Date.now()
+  const actorName = formatRoleActorName(currentRole)
+  const nextStatus = submitIntent === 'draft' ? 'draft' : normalized.status || 'draft'
+
+  return {
+    id: mode === 'add' ? `mock-${timestamp}` : existingService.id,
+    service_code: mode === 'add' ? `SVC-${timestamp}` : existingService.service_code,
+    service_type: normalized.service_type,
+    title: normalized.title,
+    slug: normalized.slug || slugifyServiceTitle(normalized.title),
+    short_description: normalized.short_description,
+    description: normalized.description,
+    provider_name: normalized.provider_name,
+    location_text: normalized.location_text,
+    base_price: normalized.base_price,
+    sale_price: normalized.sale_price,
+    currency: normalized.currency || 'VND',
+    status: nextStatus,
+    cancellation_policy: normalized.cancellation_policy,
+    image_url: normalized.image_url,
+    created_by_name: mode === 'add' ? actorName : existingService.created_by_name,
+    updated_by_name: actorName,
+    approved_by_name: mode === 'add' ? null : existingService.approved_by_name,
+    approved_at: mode === 'add' ? null : existingService.approved_at,
+    created_at: mode === 'add' ? now : existingService.created_at,
+    updated_at: now,
+    deleted_at: nextStatus === 'deleted' ? existingService?.deleted_at ?? now : null,
+    details: normalized.details,
+  }
+}
 
 export const mockAdminServices = [
   {
@@ -46,9 +446,17 @@ export const mockAdminServices = [
     updated_at: '2026-06-29T14:15:00+07:00',
     deleted_at: null,
     details: {
+      departure_location: 'Hà Nội',
+      destination_location: 'Hạ Long',
       duration_days: 2,
       duration_nights: 1,
       transport_type: 'ship',
+      max_group_size: 24,
+      departure_schedule: ['Thứ 6 hàng tuần', 'Thứ 7 hàng tuần'],
+      itinerary: ['Ngày 1: Khởi hành và check-in du thuyền', 'Ngày 2: Hang động và trở về bờ'],
+      included_services: 'Cabin, ăn chính, vé tham quan',
+      excluded_services: 'Đồ uống cá nhân, chi phí phát sinh',
+      terms: 'Giữ chỗ tối thiểu 48 giờ trước giờ khởi hành.',
     },
   },
   {
@@ -78,6 +486,10 @@ export const mockAdminServices = [
     details: {
       star_rating: 5,
       address: 'Bãi Bắc, Sơn Trà, Đà Nẵng',
+      checkin_time: '14:00',
+      checkout_time: '12:00',
+      amenities: ['Hồ bơi vô cực', 'Spa', 'Shuttle ra sân bay'],
+      hotel_policy: 'Nhận phòng với CCCD hoặc hộ chiếu hợp lệ.',
     },
   },
   {
@@ -109,6 +521,9 @@ export const mockAdminServices = [
         { service_type: 'flight', service_code: 'FLIGHT-SGN-PQC-210' },
         { service_type: 'hotel', service_code: 'HOTEL-PQ-0021' },
       ],
+      terms: 'Áp dụng cho khởi hành trong vòng 30 ngày kể từ khi xác nhận.',
+      included_services: 'Vé khứ hồi, 2 đêm resort, xe đón sân bay',
+      excluded_services: 'Phụ thu cuối tuần, ăn trưa cá nhân',
     },
   },
   {
@@ -137,6 +552,14 @@ export const mockAdminServices = [
     deleted_at: null,
     details: {
       train_number: 'SE3',
+      departure_station: 'Ga Hà Nội',
+      arrival_station: 'Ga Đà Nẵng',
+      departure_at: '2026-07-20T21:30',
+      arrival_at: '2026-07-21T11:40',
+      seat_class: 'sleeper',
+      seats_total: 40,
+      seats_available: 18,
+      fare_price: 1450000,
     },
   },
   {
@@ -166,6 +589,14 @@ export const mockAdminServices = [
     details: {
       airline_name: 'Vietnam Airlines',
       flight_number: 'VN210',
+      departure_airport: 'SGN',
+      arrival_airport: 'HAN',
+      departure_at: '2026-07-18T07:15',
+      arrival_at: '2026-07-18T09:25',
+      cabin_class: 'economy',
+      seats_total: 180,
+      seats_available: 32,
+      fare_price: 2890000,
     },
   },
   {
@@ -193,9 +624,17 @@ export const mockAdminServices = [
     updated_at: '2026-06-27T16:25:00+07:00',
     deleted_at: null,
     details: {
+      departure_location: 'TP.HCM',
+      destination_location: 'Đà Lạt',
       duration_days: 3,
       duration_nights: 2,
       transport_type: 'bus',
+      max_group_size: 28,
+      departure_schedule: ['Khởi hành mỗi thứ 5', 'Khởi hành mỗi thứ 7'],
+      itinerary: ['Ngày 1: Đón khách và di chuyển', 'Ngày 2: Săn mây, đồi thông', 'Ngày 3: Chợ Đà Lạt và về lại TP.HCM'],
+      included_services: 'Xe giường nằm, khách sạn, bữa sáng',
+      excluded_services: 'Chi phí cá nhân, vé trò chơi tự chọn',
+      terms: 'Đủ tối thiểu 10 khách để giữ lịch khởi hành.',
     },
   },
   {
@@ -251,6 +690,10 @@ export const mockAdminServices = [
     details: {
       star_rating: 4,
       address: '12 Trần Phú, Nha Trang, Khánh Hòa',
+      checkin_time: '14:00',
+      checkout_time: '12:00',
+      amenities: ['Ăn sáng buffet', 'Hồ bơi ngoài trời', 'Xe đưa đón theo lịch'],
+      hotel_policy: 'Không hút thuốc trong phòng nghỉ.',
     },
   },
   {
@@ -280,6 +723,14 @@ export const mockAdminServices = [
     details: {
       airline_name: 'VietJet Air',
       flight_number: 'VJ846',
+      departure_airport: 'DAD',
+      arrival_airport: 'CXR',
+      departure_at: '2026-07-14T10:20',
+      arrival_at: '2026-07-14T11:35',
+      cabin_class: 'economy',
+      seats_total: 180,
+      seats_available: 12,
+      fare_price: 1690000,
     },
   },
   {
@@ -308,6 +759,14 @@ export const mockAdminServices = [
     deleted_at: '2026-06-10T10:50:00+07:00',
     details: {
       train_number: 'SNT1',
+      departure_station: 'Ga Sài Gòn',
+      arrival_station: 'Ga Nha Trang',
+      departure_at: '2026-07-25T22:10',
+      arrival_at: '2026-07-26T06:25',
+      seat_class: 'soft_seat',
+      seats_total: 56,
+      seats_available: 0,
+      fare_price: 1180000,
     },
   },
 ]

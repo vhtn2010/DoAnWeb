@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AdminServiceFormModal from '../../components/admin/services/AdminServiceFormModal.jsx'
 import {
   adminServiceStatusOptions,
   adminServiceTypeOptions,
@@ -158,42 +159,48 @@ function getActionKeys(service, role) {
 
 function getServiceDetailSummary(service) {
   if (service.service_type === 'tour') {
-    return `${service.details.duration_days}N${service.details.duration_nights}Đ • ${service.details.transport_type}`
+    return `${service.details.duration_days ?? '-'}N${service.details.duration_nights ?? '-'}Đ • ${service.details.transport_type ?? 'n/a'}`
   }
 
   if (service.service_type === 'hotel') {
-    return `${service.details.star_rating} sao • ${service.details.address}`
+    return `${service.details.star_rating ?? '-'} sao • ${service.details.address ?? service.provider_name}`
   }
 
   if (service.service_type === 'flight') {
-    return `${service.details.airline_name} • ${service.details.flight_number}`
+    return `${service.details.airline_name ?? service.provider_name} • ${service.details.flight_number ?? 'n/a'}`
   }
 
   if (service.service_type === 'train') {
-    return `Số tàu ${service.details.train_number}`
+    return `Số tàu ${service.details.train_number ?? 'n/a'}`
   }
 
   if (service.service_type === 'combo') {
-    return `${service.details.combo_items.length} hạng mục trong combo`
+    return `${Array.isArray(service.details.combo_items) ? service.details.combo_items.length : 0} hạng mục trong combo`
   }
 
   return service.provider_name
 }
 
 function AdminServicesPage() {
+  const [services, setServices] = useState(mockAdminServices)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedType, setSelectedType] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedSort, setSelectedSort] = useState('newest')
   const [selectedServiceId, setSelectedServiceId] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    mode: 'add',
+    service: null,
+  })
   const [feedbackMessage, setFeedbackMessage] = useState(
-    'Các thao tác trên màn hình này hiện chỉ là UI mock để sẵn sàng tích hợp Admin Service API.'
+    'Các thao tác trên màn hình này hiện là UI mock, sẵn sàng thay bằng tích hợp Admin Service API.'
   )
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
-  const filteredServices = [...mockAdminServices]
+  const filteredServices = [...services]
     .filter((service) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
@@ -229,8 +236,8 @@ function AdminServicesPage() {
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
   const summaryCards = summaryCardConfig.map((card) => ({
     ...card,
-    value: card.getValue(mockAdminServices),
-    helper: card.getHelper(mockAdminServices),
+    value: card.getValue(services),
+    helper: card.getHelper(services),
   }))
 
   const handleResetFilters = () => {
@@ -242,6 +249,16 @@ function AdminServicesPage() {
   }
 
   const handleMockAction = (service, actionKey) => {
+    if (actionKey === 'edit') {
+      setSelectedServiceId(service.id)
+      setModalState({
+        isOpen: true,
+        mode: 'edit',
+        service,
+      })
+      return
+    }
+
     setSelectedServiceId(service.id)
     setFeedbackMessage(
       `${actionMeta[actionKey].message} cho ${service.service_code} chỉ là thao tác mô phỏng, chưa gọi API.`
@@ -249,7 +266,44 @@ function AdminServicesPage() {
   }
 
   const handleAddService = () => {
-    setFeedbackMessage('Nút Thêm dịch vụ đang là UI mock. Form tạo mới sẽ được triển khai ở Task 13B.')
+    setSelectedServiceId(null)
+    setModalState({
+      isOpen: true,
+      mode: 'add',
+      service: null,
+    })
+  }
+
+  const handleCloseModal = () => {
+    setModalState((currentState) => ({
+      ...currentState,
+      isOpen: false,
+    }))
+  }
+
+  const handleSaveService = (nextService, submitIntent) => {
+    if (modalState.mode === 'edit') {
+      setServices((currentServices) =>
+        currentServices.map((service) => (service.id === nextService.id ? nextService : service))
+      )
+      setSelectedServiceId(nextService.id)
+      setFeedbackMessage('Đã cập nhật dịch vụ.')
+    } else {
+      setServices((currentServices) => [nextService, ...currentServices])
+      setSelectedServiceId(nextService.id)
+      setCurrentPage(1)
+      setFeedbackMessage(
+        submitIntent === 'draft' || nextService.status === 'draft'
+          ? 'Đã tạo bản nháp dịch vụ.'
+          : 'Đã tạo dịch vụ.'
+      )
+    }
+
+    setModalState({
+      isOpen: false,
+      mode: 'add',
+      service: null,
+    })
   }
 
   return (
@@ -442,7 +496,7 @@ function AdminServicesPage() {
                           <img
                             alt={service.title}
                             className="admin-services-table__thumb"
-                            src={service.image_url}
+                            src={service.image_url || '/assets/template/brand/logo.png'}
                           />
                           <div className="admin-services-table__service-copy">
                             <strong className="admin-services-table__service-title">
@@ -580,6 +634,16 @@ function AdminServicesPage() {
           ) : null}
         </div>
       </section>
+
+      {modalState.isOpen ? (
+        <AdminServiceFormModal
+          currentRole={currentRole}
+          mode={modalState.mode}
+          service={modalState.service}
+          onClose={handleCloseModal}
+          onSave={handleSaveService}
+        />
+      ) : null}
     </main>
   )
 }
