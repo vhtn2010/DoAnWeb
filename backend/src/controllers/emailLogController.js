@@ -25,7 +25,20 @@ const getAdminEmailLogDetail = async (req, res) => {
   });
 };
 
+const resendAdminEmailLog = async (req, res) => {
+  const data = await emailLogService.resendAdminEmailLog({
+    auth: req.auth,
+    emailLogId: req.params.email_log_id,
+  });
+
+  res.success({
+    data,
+    message: 'Email resent successfully',
+  });
+};
+
 module.exports = {
   getAdminEmailLogDetail,
   listAdminEmailLogs,
+  resendAdminEmailLog,
 };
