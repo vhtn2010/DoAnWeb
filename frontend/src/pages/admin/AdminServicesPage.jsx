@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import AdminServiceFormModal from '../../components/admin/services/AdminServiceFormModal.jsx'
+import AdminServiceStatusActionModal from '../../components/admin/services/AdminServiceStatusActionModal.jsx'
 import {
   adminServiceStatusOptions,
   adminServiceTypeOptions,
+  buildServiceStatusActionPayload,
+  getAllowedServiceActions,
   mockAdminServices,
+  updateServiceStatusMock,
 } from '../../data/mockAdminServices.js'
 
 const currentRole = 'admin' // staff | admin | system_admin
@@ -70,17 +74,20 @@ const summaryCardConfig = [
 ]
 
 const actionMeta = {
-  view: { label: 'Xem', variant: 'ghost', message: 'Mở chi tiết dịch vụ' },
-  edit: { label: 'Sửa', variant: 'ghost', message: 'Mở form chỉnh sửa' },
-  submit_review: {
-    label: 'Gửi duyệt',
-    variant: 'primary',
-    message: 'Gửi dịch vụ lên trạng thái chờ duyệt',
-  },
-  approve: { label: 'Duyệt', variant: 'success', message: 'Duyệt dịch vụ' },
-  reject: { label: 'Từ chối', variant: 'danger', message: 'Từ chối yêu cầu duyệt' },
-  hide: { label: 'Ẩn', variant: 'warning', message: 'Chuyển dịch vụ sang trạng thái hidden' },
-  restore: { label: 'Khôi phục', variant: 'secondary', message: 'Khôi phục về trạng thái phù hợp' },
+  view: { label: 'Xem', variant: 'ghost' },
+  edit: { label: 'Sửa', variant: 'ghost' },
+  submit_review: { label: 'Gửi duyệt', variant: 'primary' },
+  approve: { label: 'Duyệt', variant: 'success' },
+  reject: { label: 'Từ chối', variant: 'danger' },
+  hide: { label: 'Ẩn', variant: 'warning' },
+  restore: { label: 'Khôi phục', variant: 'secondary' },
+  delete: { label: 'Xóa mềm', variant: 'danger' },
+}
+
+const initialFeedbackState = {
+  tone: 'info',
+  message:
+    'Các thao tác trên màn hình này hiện là UI mock, sẵn sàng thay bằng tích hợp Admin Service API.',
 }
 
 const numberFormatter = new Intl.NumberFormat('vi-VN')
@@ -111,52 +118,6 @@ function getCurrentPrice(service) {
   return service.sale_price ?? service.base_price
 }
 
-function getActionKeys(service, role) {
-  const actions = ['view', 'edit']
-
-  if (role === 'staff') {
-    if (service.status === 'draft') {
-      actions.push('submit_review')
-    }
-
-    return actions
-  }
-
-  if (role === 'admin') {
-    if (service.status === 'pending_review') {
-      actions.push('approve', 'reject')
-    }
-
-    if (service.status === 'active') {
-      actions.push('hide')
-    }
-
-    if (['hidden', 'archived'].includes(service.status)) {
-      actions.push('restore')
-    }
-
-    return actions
-  }
-
-  if (service.status === 'draft') {
-    actions.push('submit_review')
-  }
-
-  if (service.status === 'pending_review') {
-    actions.push('approve', 'reject')
-  }
-
-  if (service.status === 'active') {
-    actions.push('hide')
-  }
-
-  if (['hidden', 'archived'].includes(service.status)) {
-    actions.push('restore')
-  }
-
-  return actions
-}
-
 function getServiceDetailSummary(service) {
   if (service.service_type === 'tour') {
     return `${service.details.duration_days ?? '-'}N${service.details.duration_nights ?? '-'}Đ • ${service.details.transport_type ?? 'n/a'}`
@@ -181,6 +142,34 @@ function getServiceDetailSummary(service) {
   return service.provider_name
 }
 
+function getActionFeedbackMessage(actionKey) {
+  if (actionKey === 'submit_review') {
+    return 'Đã gửi dịch vụ chờ duyệt.'
+  }
+
+  if (actionKey === 'approve') {
+    return 'Đã duyệt và công khai dịch vụ.'
+  }
+
+  if (actionKey === 'reject') {
+    return 'Đã từ chối và chuyển về bản nháp.'
+  }
+
+  if (actionKey === 'hide') {
+    return 'Đã tạm ẩn dịch vụ.'
+  }
+
+  if (actionKey === 'restore') {
+    return 'Đã khôi phục dịch vụ.'
+  }
+
+  if (actionKey === 'delete') {
+    return 'Đã chuyển dịch vụ vào trạng thái đã xóa.'
+  }
+
+  return 'Đã cập nhật trạng thái dịch vụ.'
+}
+
 function AdminServicesPage() {
   const [services, setServices] = useState(mockAdminServices)
   const [searchQuery, setSearchQuery] = useState('')
@@ -194,9 +183,12 @@ function AdminServicesPage() {
     mode: 'add',
     service: null,
   })
-  const [feedbackMessage, setFeedbackMessage] = useState(
-    'Các thao tác trên màn hình này hiện là UI mock, sẵn sàng thay bằng tích hợp Admin Service API.'
-  )
+  const [actionState, setActionState] = useState({
+    isOpen: false,
+    actionKey: null,
+    service: null,
+  })
+  const [feedbackState, setFeedbackState] = useState(initialFeedbackState)
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
@@ -248,7 +240,16 @@ function AdminServicesPage() {
     setCurrentPage(1)
   }
 
-  const handleMockAction = (service, actionKey) => {
+  const handleOpenActionModal = (service, actionKey) => {
+    setSelectedServiceId(service.id)
+    setActionState({
+      isOpen: true,
+      actionKey,
+      service,
+    })
+  }
+
+  const handleActionClick = (service, actionKey) => {
     if (actionKey === 'edit') {
       setSelectedServiceId(service.id)
       setModalState({
@@ -259,10 +260,16 @@ function AdminServicesPage() {
       return
     }
 
-    setSelectedServiceId(service.id)
-    setFeedbackMessage(
-      `${actionMeta[actionKey].message} cho ${service.service_code} chỉ là thao tác mô phỏng, chưa gọi API.`
-    )
+    if (actionKey === 'view') {
+      setSelectedServiceId(service.id)
+      setFeedbackState({
+        tone: 'info',
+        message: `Chi tiết admin service ${service.service_code} sẽ nối GET /admin/services/{service_id} ở giai đoạn tích hợp API.`,
+      })
+      return
+    }
+
+    handleOpenActionModal(service, actionKey)
   }
 
   const handleAddService = () => {
@@ -281,22 +288,86 @@ function AdminServicesPage() {
     }))
   }
 
+  const handleCloseActionModal = () => {
+    setActionState({
+      isOpen: false,
+      actionKey: null,
+      service: null,
+    })
+  }
+
+  const handleConfirmAction = (formValues) => {
+    const currentService = services.find((service) => service.id === actionState.service?.id)
+
+    if (!currentService || !actionState.actionKey) {
+      setFeedbackState({
+        tone: 'error',
+        message: 'Không tìm thấy dịch vụ để xử lý thao tác mock.',
+      })
+      handleCloseActionModal()
+      return
+    }
+
+    const allowedActions = getAllowedServiceActions(currentService, currentRole)
+
+    if (!allowedActions.includes(actionState.actionKey)) {
+      setFeedbackState({
+        tone: 'error',
+        message: 'Thao tác không hợp lệ với trạng thái hiện tại.',
+      })
+      handleCloseActionModal()
+      return
+    }
+
+    const payload = buildServiceStatusActionPayload(actionState.actionKey, currentService, formValues)
+    const nextService = updateServiceStatusMock(
+      currentService,
+      actionState.actionKey,
+      currentRole,
+      payload
+    )
+
+    if (!nextService) {
+      setFeedbackState({
+        tone: 'error',
+        message: 'Thao tác không hợp lệ với trạng thái hiện tại.',
+      })
+      handleCloseActionModal()
+      return
+    }
+
+    setServices((currentServices) =>
+      currentServices.map((service) => (service.id === nextService.id ? nextService : service))
+    )
+    setSelectedServiceId(nextService.id)
+    setFeedbackState({
+      tone: 'success',
+      message: getActionFeedbackMessage(actionState.actionKey),
+    })
+    handleCloseActionModal()
+  }
+
   const handleSaveService = (nextService, submitIntent) => {
     if (modalState.mode === 'edit') {
       setServices((currentServices) =>
         currentServices.map((service) => (service.id === nextService.id ? nextService : service))
       )
       setSelectedServiceId(nextService.id)
-      setFeedbackMessage('Đã cập nhật dịch vụ.')
+      setFeedbackState({
+        tone: 'success',
+        message: 'Đã cập nhật dịch vụ.',
+      })
     } else {
       setServices((currentServices) => [nextService, ...currentServices])
       setSelectedServiceId(nextService.id)
       setCurrentPage(1)
-      setFeedbackMessage(
-        submitIntent === 'draft' || nextService.status === 'draft'
-          ? 'Đã tạo bản nháp dịch vụ.'
-          : 'Đã tạo dịch vụ.'
-      )
+      setFeedbackState({
+        tone: 'success',
+        message:
+          submitIntent === 'draft' || nextService.status === 'draft'
+            ? 'Đã tạo bản nháp dịch vụ.'
+            : 'Đã tạo dịch vụ.',
+      })
     }
 
     setModalState({
@@ -326,8 +397,11 @@ function AdminServicesPage() {
         <div className="admin-services-page__role-pill">
           Role mock: <strong>{currentRole}</strong>
         </div>
-        <p className="admin-services-page__feedback" role="status">
-          {feedbackMessage}
+        <p
+          className={`admin-services-page__feedback admin-services-page__feedback--${feedbackState.tone}`}
+          role="status"
+        >
+          {feedbackState.message}
         </p>
       </section>
 
@@ -478,6 +552,7 @@ function AdminServicesPage() {
               {visibleServices.length > 0 ? (
                 visibleServices.map((service) => {
                   const status = statusMeta[service.status]
+                  const actions = getAllowedServiceActions(service, currentRole)
 
                   return (
                     <tr
@@ -553,12 +628,12 @@ function AdminServicesPage() {
                       </td>
                       <td>
                         <div className="admin-services-table__actions">
-                          {getActionKeys(service, currentRole).map((actionKey) => (
+                          {actions.map((actionKey) => (
                             <button
                               key={actionKey}
                               className={`admin-services-table__action admin-services-table__action--${actionMeta[actionKey].variant}`}
                               type="button"
-                              onClick={() => handleMockAction(service, actionKey)}
+                              onClick={() => handleActionClick(service, actionKey)}
                             >
                               {actionMeta[actionKey].label}
                             </button>
@@ -642,6 +717,15 @@ function AdminServicesPage() {
           service={modalState.service}
           onClose={handleCloseModal}
           onSave={handleSaveService}
+        />
+      ) : null}
+
+      {actionState.isOpen ? (
+        <AdminServiceStatusActionModal
+          actionKey={actionState.actionKey}
+          service={actionState.service}
+          onClose={handleCloseActionModal}
+          onConfirm={handleConfirmAction}
         />
       ) : null}
     </main>

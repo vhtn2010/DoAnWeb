@@ -4152,6 +4152,18 @@ select {
   font-weight: 700;
 }
 
+.admin-services-page__feedback--info {
+  color: var(--color-text-soft);
+}
+
+.admin-services-page__feedback--success {
+  color: #15803d;
+}
+
+.admin-services-page__feedback--error {
+  color: #b91c1c;
+}
+
 .admin-services-card {
   padding: 24px;
 }
@@ -4975,6 +4987,203 @@ select {
   box-shadow: 0 14px 28px rgba(200, 16, 46, 0.18);
 }
 
+.admin-service-action-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 24, 40, 0.52);
+  backdrop-filter: blur(6px);
+}
+
+.admin-service-action-modal__dialog {
+  width: min(560px, 100%);
+  border: 1px solid rgba(225, 227, 228, 0.92);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), #fff8f3);
+  box-shadow: 0 28px 64px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+}
+
+.admin-service-action-modal__header,
+.admin-service-action-modal__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+}
+
+.admin-service-action-modal__header {
+  border-bottom: 1px solid rgba(225, 227, 228, 0.9);
+  background:
+    radial-gradient(circle at top right, rgba(244, 197, 66, 0.14), transparent 30%),
+    rgba(255, 255, 255, 0.82);
+}
+
+.admin-service-action-modal__eyebrow,
+.admin-service-action-modal__label,
+.admin-service-action-modal__service-code {
+  margin: 0;
+  color: var(--color-brand-primary);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-service-action-modal__title {
+  margin: 0;
+  color: #191c1d;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.admin-service-action-modal__subtitle,
+.admin-service-action-modal__service-status {
+  margin: 8px 0 0;
+  color: var(--color-text-soft);
+  line-height: 1.7;
+}
+
+.admin-service-action-modal__close {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(225, 227, 228, 0.92);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--color-text-soft);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-service-action-modal__close:hover,
+.admin-service-action-modal__close:focus-visible {
+  outline: none;
+  color: #191c1d;
+  transform: translateY(-1px);
+}
+
+.admin-service-action-modal__body {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+.admin-service-action-modal__service,
+.admin-service-action-modal__field {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-service-action-modal__service {
+  padding: 16px 18px;
+  border: 1px solid rgba(225, 227, 228, 0.92);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.admin-service-action-modal__service-title {
+  color: #191c1d;
+  font-size: 1rem;
+}
+
+.admin-service-action-modal__service-code {
+  color: #9f1239;
+}
+
+.admin-service-action-modal__select,
+.admin-service-action-modal__textarea {
+  width: 100%;
+  border: 1px solid rgba(225, 227, 228, 0.96);
+  border-radius: 16px;
+  background: rgba(248, 249, 250, 0.96);
+  color: #191c1d;
+  font: inherit;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.admin-service-action-modal__select {
+  min-height: 48px;
+  padding: 0 14px;
+}
+
+.admin-service-action-modal__textarea {
+  min-height: 120px;
+  padding: 14px;
+  resize: vertical;
+}
+
+.admin-service-action-modal__select:focus,
+.admin-service-action-modal__textarea:focus {
+  outline: none;
+  border-color: rgba(200, 16, 46, 0.3);
+  box-shadow: 0 0 0 4px rgba(200, 16, 46, 0.08);
+  background: #fff;
+}
+
+.admin-service-action-modal__textarea--error {
+  border-color: rgba(220, 38, 38, 0.38);
+  background: rgba(254, 242, 242, 0.92);
+}
+
+.admin-service-action-modal__error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.admin-service-action-modal__footer {
+  border-top: 1px solid rgba(225, 227, 228, 0.9);
+  background: rgba(255, 255, 255, 0.92);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.admin-service-action-modal__button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-service-action-modal__button:hover,
+.admin-service-action-modal__button:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.admin-service-action-modal__button--ghost {
+  background: rgba(248, 249, 250, 0.96);
+  color: var(--color-text-soft);
+}
+
+.admin-service-action-modal__button--primary {
+  background: linear-gradient(135deg, #c8102e, #dc2626);
+  color: #fff;
+  box-shadow: 0 14px 28px rgba(200, 16, 46, 0.18);
+}
+
 @media (max-width: 1024px) {
   .admin-service-modal__grid,
   .admin-service-modal__details-grid {
@@ -5003,6 +5212,25 @@ select {
   }
 
   .admin-service-modal__button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-service-action-modal {
+    padding: 12px;
+  }
+
+  .admin-service-action-modal__header,
+  .admin-service-action-modal__body,
+  .admin-service-action-modal__footer {
+    padding: 18px;
+  }
+
+  .admin-service-action-modal__footer {
+    justify-content: stretch;
+  }
+
+  .admin-service-action-modal__button {
     width: 100%;
     justify-content: center;
   }

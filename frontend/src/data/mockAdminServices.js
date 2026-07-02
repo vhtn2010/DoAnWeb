@@ -57,6 +57,15 @@ export const adminRoleDisplayNames = {
   system_admin: 'System Admin',
 }
 
+const serviceActionRoleMap = {
+  submit_review: ['staff', 'admin', 'system_admin'],
+  approve: ['admin', 'system_admin'],
+  reject: ['admin', 'system_admin'],
+  hide: ['admin', 'system_admin'],
+  restore: ['admin', 'system_admin'],
+  delete: ['admin', 'system_admin'],
+}
+
 const serviceDetailTemplates = {
   tour: {
     departure_location: '',
@@ -143,7 +152,7 @@ function serializeComboItems(items) {
   })
 }
 
-function formatRoleActorName(role) {
+export function formatRoleActorName(role) {
   return adminRoleDisplayNames[role] ?? 'Điều phối viên dịch vụ'
 }
 
@@ -418,6 +427,136 @@ export function buildServicePayloadFromForm(
     deleted_at: nextStatus === 'deleted' ? existingService?.deleted_at ?? now : null,
     details: normalized.details,
   }
+}
+
+function isRoleAllowedForServiceAction(action, currentRole) {
+  return serviceActionRoleMap[action]?.includes(currentRole) ?? false
+}
+
+export function getServiceStatusTransition(action, currentStatus, targetStatus = 'active') {
+  if (action === 'submit_review') {
+    return currentStatus === 'draft' ? 'pending_review' : null
+  }
+
+  if (action === 'approve') {
+    return currentStatus === 'pending_review' ? 'active' : null
+  }
+
+  if (action === 'reject') {
+    return currentStatus === 'pending_review' ? 'draft' : null
+  }
+
+  if (action === 'hide') {
+    return currentStatus === 'active' ? 'hidden' : null
+  }
+
+  if (action === 'restore') {
+    if (!['hidden', 'archived'].includes(currentStatus)) {
+      return null
+    }
+
+    return targetStatus === 'draft' ? 'draft' : 'active'
+  }
+
+  if (action === 'delete') {
+    return currentStatus !== 'deleted' ? 'deleted' : null
+  }
+
+  return null
+}
+
+export function getAllowedServiceActions(service, currentRole) {
+  const actions = ['view', 'edit']
+  const statusActions = ['submit_review', 'approve', 'reject', 'hide', 'restore', 'delete']
+
+  statusActions.forEach((action) => {
+    if (!isRoleAllowedForServiceAction(action, currentRole)) {
+      return
+    }
+
+    if (getServiceStatusTransition(action, service.status)) {
+      actions.push(action)
+    }
+  })
+
+  return actions
+}
+
+export function buildServiceStatusActionPayload(action, service, reasonOrNote = {}) {
+  const normalizedReason = reasonOrNote.reason?.trim()
+  const normalizedNote = reasonOrNote.note?.trim()
+  const canRestoreToDraft = ['hidden', 'archived'].includes(service?.status)
+  const targetStatus =
+    reasonOrNote.target_status === 'draft' && canRestoreToDraft ? 'draft' : 'active'
+
+  if (action === 'submit_review') {
+    return {}
+  }
+
+  if (action === 'approve') {
+    return normalizedNote ? { note: normalizedNote } : {}
+  }
+
+  if (action === 'reject') {
+    return normalizedReason ? { reason: normalizedReason } : {}
+  }
+
+  if (action === 'hide') {
+    return normalizedReason ? { reason: normalizedReason } : {}
+  }
+
+  if (action === 'restore') {
+    return { target_status: targetStatus }
+  }
+
+  if (action === 'delete') {
+    return normalizedReason ? { reason: normalizedReason } : {}
+  }
+
+  return null
+}
+
+export function applyServiceStatusTransition(service, action, actorName, reasonOrNote = {}) {
+  const payload = buildServiceStatusActionPayload(action, service, reasonOrNote)
+  const nextStatus = getServiceStatusTransition(
+    action,
+    service.status,
+    payload?.target_status ?? 'active'
+  )
+
+  if (!nextStatus) {
+    return null
+  }
+
+  const now = new Date().toISOString()
+  const nextService = {
+    ...service,
+    status: nextStatus,
+    updated_at: now,
+    updated_by_name: actorName,
+    deleted_at: nextStatus === 'deleted' ? service.deleted_at ?? now : null,
+  }
+
+  if (action === 'approve') {
+    nextService.approved_by_name = actorName
+    nextService.approved_at = now
+  }
+
+  if (action === 'reject' || action === 'submit_review') {
+    nextService.approved_by_name = null
+    nextService.approved_at = null
+  }
+
+  return nextService
+}
+
+export function updateServiceStatusMock(service, action, currentRole, reasonOrNote = {}) {
+  if (!isRoleAllowedForServiceAction(action, currentRole)) {
+    return null
+  }
+
+  // TODO: replace local status transition with Admin Service API action endpoint in integration phase.
+  return applyServiceStatusTransition(service, action, formatRoleActorName(currentRole), reasonOrNote)
 }
 
 export const mockAdminServices = [
