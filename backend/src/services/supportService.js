@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const {
   API_ERROR_CODES,
+  DOMAIN_CONSTRAINTS,
   SUPPORT_TICKET_PRIORITY,
   SUPPORT_TICKET_PRIORITY_VALUES,
   SUPPORT_TICKET_STATUS,
@@ -8,6 +9,7 @@ const {
   SENDER_TYPE,
 } = require('../constants/domainConstraints');
 const { createSupportRepository } = require('../database/supportRepository');
+const { sendEmail } = require('./sendgridService');
 const AppError = require('../utils/AppError');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,6 +24,10 @@ const MAX_LIST_LIMIT = 50;
 const MAX_ADMIN_LIST_LIMIT = 100;
 const MAX_TICKET_CODE_ATTEMPTS = 3;
 const DEFAULT_LIST_PAGE = 1;
+const SUPPORT_MANUAL_EMAIL_TEMPLATE_CODE = 'SUPPORT_MANUAL_EMAIL';
+const SUPPORT_MANUAL_EMAIL_RATE_LIMIT_MAX_REQUESTS = 3;
+const SUPPORT_MANUAL_EMAIL_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const supportManualEmailRateLimitStore = new Map();
 const CUSTOMER_REPLY_ALLOWED_STATUSES = Object.freeze([
   SUPPORT_TICKET_STATUS.OPEN,
   'assigned',
@@ -109,7 +115,25 @@ const buildInvalidStateTransitionError = (message) =>
     statusCode: 400,
   });
 
+const buildRateLimitedError = (
+  message = 'Too many support emails have been sent for this ticket recipient. Please try again later.',
+) =>
+  new AppError(message, {
+    code: API_ERROR_CODES.RATE_LIMITED,
+    statusCode: 429,
+  });
+
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
+const pruneRateLimitEntries = (timestamps, nowMs) =>
+  timestamps.filter((timestamp) => nowMs - timestamp < SUPPORT_MANUAL_EMAIL_RATE_LIMIT_WINDOW_MS);
+const escapeHtml = (value) =>
+  String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    '\'': '&#39;',
+  })[character]);
 
 const parseUuid = (field, value) => {
   if (value == null || value === '') {
@@ -581,6 +605,149 @@ const sanitizeCustomerCloseResult = ({
   updated_at: ticket.updated_at,
 });
 
+const sanitizeAdminSupportEmailResult = ({
+  emailLog,
+  recipientSource,
+  ticket,
+}) => ({
+  booking_id: emailLog.booking_id || null,
+  email_log_id: emailLog.id,
+  provider: emailLog.provider || DOMAIN_CONSTRAINTS.emailProvider,
+  recipient_source: recipientSource,
+  recipient_user_id: emailLog.user_id || null,
+  sent_at: emailLog.sent_at || null,
+  status: emailLog.status,
+  template_code: emailLog.template_code,
+  ticket_id: ticket.id,
+  ticket_code: ticket.ticket_code,
+  to_email: emailLog.to_email,
+});
+
+const normalizeStoredEmailCandidate = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (!normalized || !EMAIL_PATTERN.test(normalized)) {
+    return null;
+  }
+
+  return normalized;
+};
+
+const resolveSupportManualEmailRecipient = (ticket) => {
+  const userEmail = normalizeStoredEmailCandidate(ticket?.customer_user_email);
+  const customerEmail = normalizeStoredEmailCandidate(ticket?.customer_email);
+
+  if (ticket?.user_id) {
+    if (userEmail) {
+      return {
+        email: userEmail,
+        source: 'user',
+      };
+    }
+
+    if (customerEmail) {
+      return {
+        email: customerEmail,
+        source: 'ticket',
+      };
+    }
+  }
+
+  if (customerEmail) {
+    return {
+      email: customerEmail,
+      source: 'ticket',
+    };
+  }
+
+  if (userEmail) {
+    return {
+      email: userEmail,
+      source: 'user',
+    };
+  }
+
+  return null;
+};
+
+const normalizeNowValue = (value) => {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date();
+  }
+
+  return parsed;
+};
+
+const enforceSupportManualEmailRateLimit = ({
+  recipientEmail,
+  ticketId,
+  timestamp,
+}) => {
+  const nowMs = normalizeNowValue(timestamp).getTime();
+  const rateLimitKey = `${ticketId}:${recipientEmail}`;
+  const recentTimestamps = pruneRateLimitEntries(
+    supportManualEmailRateLimitStore.get(rateLimitKey) || [],
+    nowMs,
+  );
+
+  recentTimestamps.push(nowMs);
+  supportManualEmailRateLimitStore.set(rateLimitKey, recentTimestamps);
+
+  if (recentTimestamps.length > SUPPORT_MANUAL_EMAIL_RATE_LIMIT_MAX_REQUESTS) {
+    throw buildRateLimitedError();
+  }
+};
+
+const buildSupportManualEmailContent = ({
+  message,
+  subject,
+  ticket,
+}) => {
+  const customerName =
+    ticket.customer_name ||
+    ticket.customer_user_full_name ||
+    'customer';
+  const escapedMessage = escapeHtml(message).replace(/\n/g, '<br />');
+  const escapedSubject = escapeHtml(subject);
+  const escapedCustomerName = escapeHtml(customerName);
+  const escapedTicketCode = escapeHtml(ticket.ticket_code || ticket.id);
+
+  return {
+    html: [
+      '<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6;">',
+      `<p>Xin chao ${escapedCustomerName},</p>`,
+      '<p>Day la email ho tro thu cong tu doi ngu Net Viet Travel.</p>',
+      `<p><strong>Ticket:</strong> ${escapedTicketCode}</p>`,
+      `<p><strong>Chu de:</strong> ${escapedSubject}</p>`,
+      `<div style="margin-top:16px;padding:16px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;">${escapedMessage}</div>`,
+      '<p style="margin-top:16px;">Neu can them ho tro, vui long phan hoi qua kenh cham soc khach hang cua chung toi.</p>',
+      '</div>',
+    ].join(''),
+    subject,
+    text: [
+      `Xin chao ${customerName},`,
+      '',
+      'Day la email ho tro thu cong tu doi ngu Net Viet Travel.',
+      `Ticket: ${ticket.ticket_code || ticket.id}`,
+      `Chu de: ${subject}`,
+      '',
+      message,
+      '',
+      'Neu can them ho tro, vui long phan hoi qua kenh cham soc khach hang cua chung toi.',
+    ].join('\n'),
+  };
+};
+
 const isTicketCodeDuplicateError = (error) =>
   error?.code === '23505' &&
   (
@@ -765,6 +932,29 @@ const parseAdminReplyBody = (body = {}) => {
   return {
     isInternalNote,
     message,
+  };
+};
+
+const parseAdminSupportEmailBody = (body = {}) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw buildValidationError('body', 'body must be an object');
+  }
+
+  const allowedFields = new Set(['message', 'subject']);
+
+  for (const key of Object.keys(body)) {
+    if (!allowedFields.has(key)) {
+      throw buildValidationError(key, `${key} is not allowed in this endpoint`);
+    }
+  }
+
+  return {
+    message: parseRequiredMessage(body.message),
+    subject: parseRequiredInlineString({
+      field: 'subject',
+      maxLength: 255,
+      value: body.subject,
+    }),
   };
 };
 
@@ -973,6 +1163,18 @@ const ensureAdminSupportReplyAccess = (auth) => {
   throw buildForbiddenError();
 };
 
+const ensureAdminSupportEmailAccess = (auth) => {
+  if (!ADMIN_SUPPORT_ALLOWED_ROLES.includes(auth?.role)) {
+    throw buildForbiddenError();
+  }
+
+  if (hasAnyPermission(auth, ['email.send', 'support.reply'])) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
 const ensureAdminSupportCloseAccess = (auth) => {
   if (!ADMIN_SUPPORT_ALLOWED_ROLES.includes(auth?.role)) {
     throw buildForbiddenError();
@@ -1021,6 +1223,24 @@ const ensureTicketAllowsAdminMutation = (ticket) => {
   }
 };
 
+const ensureTicketAllowsManualSupportEmail = ({
+  auth,
+  ticket,
+}) => {
+  if (!ticket) {
+    throw buildResourceNotFoundError('Support ticket not found');
+  }
+
+  if (
+    ticket.status === SUPPORT_TICKET_STATUS.SPAM &&
+    !['admin', 'system_admin'].includes(auth?.role)
+  ) {
+    throw buildInvalidStateTransitionError(
+      'This support ticket status does not allow manual support email',
+    );
+  }
+};
+
 const validateAssignableAdminUser = (user) => {
   if (!user) {
     throw buildResourceNotFoundError('Assigned user was not found');
@@ -1051,7 +1271,36 @@ const resolveAdminReplySenderType = (auth) => {
 
 const createSupportService = ({
   repository = createSupportRepository(),
+  now = () => new Date(),
+  sendEmailImpl = sendEmail,
 } = {}) => {
+  const getScopedAdminTicketOrThrow = async ({
+    auth,
+    ticketId,
+  }) => {
+    const staffScopeUserId = resolveAdminSupportScope(auth);
+    const ticket = await repository.getTicketByIdForAdmin({
+      staffScopeUserId,
+      ticketId,
+    });
+
+    if (ticket) {
+      return ticket;
+    }
+
+    if (auth?.role === 'staff') {
+      const existingTicket = await repository.getTicketById(ticketId);
+
+      if (existingTicket) {
+        throw buildForbiddenError(
+          'You do not have permission to access this support ticket',
+        );
+      }
+    }
+
+    throw buildResourceNotFoundError('Support ticket not found');
+  };
+
   const createTicket = async ({
     auth,
     body,
@@ -1491,6 +1740,112 @@ const createSupportService = ({
     return sanitizeAdminReplyMutationResult(result);
   };
 
+  const sendAdminTicketEmail = async ({
+    auth,
+    body,
+    ticketId,
+  } = {}) => {
+    ensureAdminSupportEmailAccess(auth);
+
+    const parsedTicketId = parseUuid('ticket_id', ticketId);
+    const parsedBody = parseAdminSupportEmailBody(body || {});
+    const ticket = await getScopedAdminTicketOrThrow({
+      auth,
+      ticketId: parsedTicketId,
+    });
+
+    ensureTicketAllowsManualSupportEmail({
+      auth,
+      ticket,
+    });
+
+    const recipient = resolveSupportManualEmailRecipient(ticket);
+
+    if (!recipient) {
+      throw buildValidationError(
+        'to_email',
+        'Support ticket does not have a valid recipient email',
+      );
+    }
+
+    const queuedAt = now();
+    enforceSupportManualEmailRateLimit({
+      recipientEmail: recipient.email,
+      ticketId: parsedTicketId,
+      timestamp: queuedAt,
+    });
+
+    const emailContent = buildSupportManualEmailContent({
+      message: parsedBody.message,
+      subject: parsedBody.subject,
+      ticket,
+    });
+    const queuedEmailLog = await repository.createSupportManualEmailLog({
+      bookingId: ticket.booking_id || null,
+      createdAt: queuedAt,
+      subject: emailContent.subject,
+      templateCode: SUPPORT_MANUAL_EMAIL_TEMPLATE_CODE,
+      toEmail: recipient.email,
+      userId: ticket.user_id || null,
+    });
+
+    try {
+      const sendResult = await sendEmailImpl({
+        html: emailContent.html,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        to: {
+          email: recipient.email,
+          name: ticket.customer_name || ticket.customer_user_full_name || undefined,
+        },
+      });
+      const sentAt = now();
+      const sentEmailLog = await repository.markSupportManualEmailLogSent({
+        actorUserId: auth?.userId || null,
+        emailLogId: queuedEmailLog.id,
+        messageId: sendResult.messageId,
+        metadata: {
+          email_log_id: queuedEmailLog.id,
+          provider_message_id: sendResult.messageId || null,
+          recipient_source: recipient.source,
+          status: 'sent',
+          template_code: SUPPORT_MANUAL_EMAIL_TEMPLATE_CODE,
+          ticket_status: ticket.status,
+          to_email: recipient.email,
+        },
+        sentAt,
+        ticketId: parsedTicketId,
+      });
+
+      return sanitizeAdminSupportEmailResult({
+        emailLog: sentEmailLog,
+        recipientSource: recipient.source,
+        ticket,
+      });
+    } catch (error) {
+      await repository.markSupportManualEmailLogFailed({
+        actorUserId: auth?.userId || null,
+        emailLogId: queuedEmailLog.id,
+        errorMessage: error?.message || 'Unknown email provider error',
+        metadata: {
+          email_log_id: queuedEmailLog.id,
+          error_message: error?.message || 'Unknown email provider error',
+          recipient_source: recipient.source,
+          status: 'failed',
+          template_code: SUPPORT_MANUAL_EMAIL_TEMPLATE_CODE,
+          ticket_status: ticket.status,
+          to_email: recipient.email,
+        },
+        ticketId: parsedTicketId,
+      });
+
+      throw new AppError('Failed to send support email', {
+        code: API_ERROR_CODES.INTERNAL_ERROR,
+        statusCode: 500,
+      });
+    }
+  };
+
   const closeAdminTicket = async ({
     auth,
     body,
@@ -1660,13 +2015,19 @@ const createSupportService = ({
     listMyTickets,
     markAdminTicketAsSpam,
     reopenAdminTicket,
+    sendAdminTicketEmail,
     replyToAdminTicket,
     replyToTicket,
     updateAdminTicket,
   };
 };
 
+const clearSupportManualEmailRateLimitStore = () => {
+  supportManualEmailRateLimitStore.clear();
+};
+
 module.exports = Object.assign(createSupportService(), {
   buildTicketCode,
+  clearSupportManualEmailRateLimitStore,
   createSupportService,
 });
