@@ -1,4 +1,5 @@
 const settingsService = require('../services/settingsService');
+const adminSettingsService = require('../services/adminSettingsService');
 
 const setCacheHeaders = (res, seconds) => {
   res.set(
@@ -17,6 +18,33 @@ const getPublicSettings = async (req, res) => {
   });
 };
 
+const getAdminPublicSettings = async (req, res) => {
+  const data = await adminSettingsService.getPublicSettings({
+    auth: req.auth,
+  });
+
+  res.success({
+    data,
+    message: 'Admin public settings retrieved successfully',
+  });
+};
+
+const updateAdminPublicSettings = async (req, res) => {
+  const data = await adminSettingsService.updatePublicSettings({
+    auth: req.auth,
+    body: req.body,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  res.success({
+    data,
+    message: 'Admin public settings updated successfully',
+  });
+};
+
 module.exports = {
+  getAdminPublicSettings,
   getPublicSettings,
+  updateAdminPublicSettings,
 };

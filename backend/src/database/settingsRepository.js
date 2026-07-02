@@ -1,7 +1,8 @@
-const { query: defaultQuery } = require('./client');
+const { query: defaultQuery, withTransaction } = require('./client');
 
 const PUBLIC_SETTINGS_TABLE_SCHEMA = 'public';
 const PUBLIC_SETTINGS_TABLE_NAME = 'settings_store';
+const PUBLIC_SETTINGS_UPDATE_ACTION = 'settings.public.update';
 const KEY_COLUMN_CANDIDATES = Object.freeze([
   'setting_key',
   'key',
@@ -38,6 +39,26 @@ const PUBLIC_FIELD_NAMES = Object.freeze([
   'business_hours',
   'business_info_public',
 ]);
+const ADMIN_PUBLIC_FIELD_NAMES = Object.freeze([
+  ...PUBLIC_FIELD_NAMES,
+  'seo_title',
+  'seo_description',
+  'footer_text',
+]);
+const CREATED_AT_COLUMN_CANDIDATES = Object.freeze([
+  'created_at',
+]);
+const UPDATED_AT_COLUMN_CANDIDATES = Object.freeze([
+  'updated_at',
+]);
+const UPDATED_BY_COLUMN_CANDIDATES = Object.freeze([
+  'updated_by',
+  'updated_by_user_id',
+  'updated_by_id',
+  'modified_by',
+  'modified_by_user_id',
+]);
+const CTID_ALIAS = '__row_ctid';
 
 const isPlainObject = (value) =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -52,6 +73,12 @@ const quoteIdentifier = (identifier) => {
 
 const pickFirstColumn = (availableColumns, candidates) =>
   candidates.find((candidate) => availableColumns.has(candidate)) || null;
+
+const getColumnMap = (columns) =>
+  columns.reduce((accumulator, column) => {
+    accumulator.set(column.column_name, column);
+    return accumulator;
+  }, new Map());
 
 const buildOrderByClause = (availableColumns) => {
   const sortableColumns = ['updated_at', 'created_at', 'id'].filter((column) =>
@@ -103,7 +130,16 @@ const extractDirectFields = (row, availableColumns) =>
     return accumulator;
   }, {});
 
-const pickPayloadCandidate = (payload) => {
+const extractScopedFields = (row, availableColumns, fieldNames) =>
+  fieldNames.reduce((accumulator, fieldName) => {
+    if (availableColumns.has(fieldName) && row[fieldName] !== undefined) {
+      accumulator[fieldName] = row[fieldName];
+    }
+
+    return accumulator;
+  }, {});
+
+const pickPayloadCandidate = (payload, fieldNames = PUBLIC_FIELD_NAMES) => {
   if (!isPlainObject(payload)) {
     return null;
   }
@@ -120,23 +156,43 @@ const pickPayloadCandidate = (payload) => {
     nestedCandidates.find(
       (candidate) =>
         isPlainObject(candidate) &&
-        PUBLIC_FIELD_NAMES.some((fieldName) => fieldName in candidate),
+        fieldNames.some((fieldName) => fieldName in candidate),
     ) ||
     payload
   );
 };
 
-const buildQueryPlan = (columns) => {
+const buildQueryPlan = (
+  columns,
+  {
+    fieldNames = PUBLIC_FIELD_NAMES,
+    includeCtid = false,
+  } = {},
+) => {
   const availableColumns = new Set(columns.map((column) => column.column_name));
+  const columnMap = getColumnMap(columns);
   const keyColumn = pickFirstColumn(availableColumns, KEY_COLUMN_CANDIDATES);
   const payloadColumn =
     pickFirstColumn(availableColumns, PAYLOAD_COLUMN_CANDIDATES) ||
     columns.find((column) => ['json', 'jsonb'].includes(column.udt_name))
       ?.column_name ||
     null;
-  const hasDirectFields = PUBLIC_FIELD_NAMES.some((fieldName) =>
+  const createdAtColumn = pickFirstColumn(
+    availableColumns,
+    CREATED_AT_COLUMN_CANDIDATES,
+  );
+  const updatedAtColumn = pickFirstColumn(
+    availableColumns,
+    UPDATED_AT_COLUMN_CANDIDATES,
+  );
+  const updatedByColumn = pickFirstColumn(
+    availableColumns,
+    UPDATED_BY_COLUMN_CANDIDATES,
+  );
+  const directFields = fieldNames.filter((fieldName) =>
     availableColumns.has(fieldName),
   );
+  const hasDirectFields = directFields.length > 0;
 
   if (!payloadColumn && !hasDirectFields) {
     throw new Error(
@@ -147,22 +203,34 @@ const buildQueryPlan = (columns) => {
   const selectedColumns = new Set([
     ...(keyColumn ? [keyColumn] : []),
     ...(payloadColumn ? [payloadColumn] : []),
-    ...PUBLIC_FIELD_NAMES.filter((fieldName) => availableColumns.has(fieldName)),
-    ...['id', 'created_at', 'updated_at'].filter((fieldName) =>
+    ...directFields,
+    ...['id', createdAtColumn, updatedAtColumn, updatedByColumn].filter((fieldName) =>
       availableColumns.has(fieldName),
     ),
   ]);
+  const selectFragments = [];
 
-  const selectClause = Array.from(selectedColumns)
-    .map((column) => quoteIdentifier(column))
-    .join(', ');
+  if (includeCtid) {
+    selectFragments.push(`ctid::text AS ${quoteIdentifier(CTID_ALIAS)}`);
+  }
+
+  selectFragments.push(
+    ...Array.from(selectedColumns).map((column) => quoteIdentifier(column)),
+  );
+
+  const selectClause = selectFragments.join(', ');
   const orderByClause = buildOrderByClause(availableColumns);
 
   if (keyColumn) {
     return {
       availableColumns,
+      columnMap,
+      createdAtColumn,
+      directFields,
       keyColumn,
       payloadColumn,
+      updatedAtColumn,
+      updatedByColumn,
       text: `SELECT ${selectClause} FROM ${PUBLIC_SETTINGS_TABLE_SCHEMA}.${PUBLIC_SETTINGS_TABLE_NAME} WHERE LOWER(${quoteIdentifier(
         keyColumn,
       )}::text) = ANY($1::text[])${orderByClause} LIMIT 1`,
@@ -172,8 +240,13 @@ const buildQueryPlan = (columns) => {
 
   return {
     availableColumns,
+    columnMap,
+    createdAtColumn,
+    directFields,
     keyColumn: null,
     payloadColumn,
+    updatedAtColumn,
+    updatedByColumn,
     text: `SELECT ${selectClause} FROM ${PUBLIC_SETTINGS_TABLE_SCHEMA}.${PUBLIC_SETTINGS_TABLE_NAME}${orderByClause} LIMIT 1`,
     values: [],
   };
@@ -181,11 +254,12 @@ const buildQueryPlan = (columns) => {
 
 const extractPublicSettings = ({
   availableColumns,
+  fieldNames = PUBLIC_FIELD_NAMES,
   payloadColumn,
   row,
 }) => {
-  const directFields = extractDirectFields(row, availableColumns);
-  const payload = pickPayloadCandidate(parsePayload(row[payloadColumn]));
+  const directFields = extractScopedFields(row, availableColumns, fieldNames);
+  const payload = pickPayloadCandidate(parsePayload(row[payloadColumn]), fieldNames);
 
   if (isPlainObject(payload)) {
     return {
@@ -201,11 +275,51 @@ const extractPublicSettings = ({
   return null;
 };
 
+const extractMetadata = ({
+  row,
+  updatedAtColumn,
+  updatedByColumn,
+}) => ({
+  updated_at: updatedAtColumn ? row[updatedAtColumn] || null : null,
+  updated_by: updatedByColumn ? row[updatedByColumn] || null : null,
+});
+
+const buildPayloadValueExpression = (columnInfo, parameterIndex) => {
+  if (!columnInfo) {
+    return `$${parameterIndex}`;
+  }
+
+  if (['json', 'jsonb'].includes(columnInfo.udt_name)) {
+    return `$${parameterIndex}::${columnInfo.udt_name}`;
+  }
+
+  return `$${parameterIndex}`;
+};
+
+const serializeColumnValue = (value) => {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+
+  return value;
+};
+
+const executeQuery = (queryExecutor, text, params) =>
+  typeof queryExecutor === 'function'
+    ? queryExecutor(text, params)
+    : queryExecutor.query(text, params);
+
 const createSettingsRepository = ({
   query = defaultQuery,
+  withTransactionImpl = withTransaction,
 } = {}) => {
-  const getPublicSettings = async () => {
-    const columnsResult = await query(
+  const loadColumns = async (queryExecutor) => {
+    const columnsResult = await executeQuery(
+      queryExecutor,
       `SELECT column_name, data_type, udt_name
        FROM information_schema.columns
        WHERE table_schema = $1 AND table_name = $2
@@ -218,27 +332,302 @@ const createSettingsRepository = ({
       throw new Error('settings_store is not available');
     }
 
-    const plan = buildQueryPlan(columns);
-    const settingsResult = await query(plan.text, plan.values);
+    return columns;
+  };
+
+  const readSettingsRecord = async ({
+    fieldNames = PUBLIC_FIELD_NAMES,
+    includeCtid = false,
+    queryExecutor = query,
+  } = {}) => {
+    const columns = await loadColumns(queryExecutor);
+    const plan = buildQueryPlan(columns, {
+      fieldNames,
+      includeCtid,
+    });
+    const settingsResult = await executeQuery(queryExecutor, plan.text, plan.values);
     const row = settingsResult.rows?.[0];
 
     if (!row) {
-      return null;
+      return {
+        exists: false,
+        metadata: {
+          updated_at: null,
+          updated_by: null,
+        },
+        plan,
+        row: null,
+        settings: null,
+      };
     }
 
-    return extractPublicSettings({
-      availableColumns: plan.availableColumns,
-      payloadColumn: plan.payloadColumn,
+    return {
+      exists: true,
+      metadata: extractMetadata({
+        row,
+        updatedAtColumn: plan.updatedAtColumn,
+        updatedByColumn: plan.updatedByColumn,
+      }),
+      plan,
       row,
-    });
+      settings: extractPublicSettings({
+        availableColumns: plan.availableColumns,
+        fieldNames,
+        payloadColumn: plan.payloadColumn,
+        row,
+      }),
+    };
   };
 
+  const getPublicSettings = async () => {
+    const result = await readSettingsRecord();
+
+    return result.settings;
+  };
+
+  const getAdminPublicSettings = async () => {
+    const result = await readSettingsRecord({
+      fieldNames: ADMIN_PUBLIC_FIELD_NAMES,
+    });
+
+    return {
+      exists: result.exists,
+      metadata: result.metadata,
+      settings: result.settings,
+    };
+  };
+
+  const listPermissionCodesByRoleId = async (roleId) => {
+    const result = await query(
+      `
+        SELECT p.code
+        FROM role_permissions rp
+        JOIN permissions p ON p.id = rp.permission_id
+        WHERE rp.role_id = $1
+        ORDER BY p.code ASC
+      `,
+      [roleId],
+    );
+
+    return result.rows.map((row) => row.code);
+  };
+
+  const setLocalConfig = async (client, key, value) => {
+    await client.query('SELECT set_config($1, $2, TRUE)', [key, value]);
+  };
+
+  const buildUpsertAssignments = ({
+    actorUserId,
+    plan,
+    settings,
+  }) => {
+    const assignments = [];
+    const insertColumns = [];
+    const insertValues = [];
+    const params = [];
+
+    if (plan.keyColumn) {
+      insertColumns.push(plan.keyColumn);
+      params.push(PUBLIC_ROW_KEY_CANDIDATES[0]);
+      insertValues.push(buildPayloadValueExpression(
+        plan.columnMap.get(plan.keyColumn),
+        params.length,
+      ));
+    }
+
+    if (plan.payloadColumn) {
+      insertColumns.push(plan.payloadColumn);
+      params.push(JSON.stringify(settings));
+      const payloadExpression = buildPayloadValueExpression(
+        plan.columnMap.get(plan.payloadColumn),
+        params.length,
+      );
+
+      insertValues.push(payloadExpression);
+      assignments.push(
+        `${quoteIdentifier(plan.payloadColumn)} = ${payloadExpression}`,
+      );
+    }
+
+    for (const fieldName of plan.directFields) {
+      insertColumns.push(fieldName);
+      params.push(serializeColumnValue(settings[fieldName]));
+      const expression = buildPayloadValueExpression(
+        plan.columnMap.get(fieldName),
+        params.length,
+      );
+
+      insertValues.push(expression);
+      assignments.push(`${quoteIdentifier(fieldName)} = ${expression}`);
+    }
+
+    if (plan.createdAtColumn) {
+      insertColumns.push(plan.createdAtColumn);
+      insertValues.push('NOW()');
+    }
+
+    if (plan.updatedAtColumn) {
+      assignments.push(`${quoteIdentifier(plan.updatedAtColumn)} = NOW()`);
+      insertColumns.push(plan.updatedAtColumn);
+      insertValues.push('NOW()');
+    }
+
+    if (plan.updatedByColumn) {
+      params.push(actorUserId || null);
+      const expression = buildPayloadValueExpression(
+        plan.columnMap.get(plan.updatedByColumn),
+        params.length,
+      );
+
+      assignments.push(`${quoteIdentifier(plan.updatedByColumn)} = ${expression}`);
+      insertColumns.push(plan.updatedByColumn);
+      insertValues.push(expression);
+    }
+
+    return {
+      assignments,
+      insertColumns,
+      insertValues,
+      params,
+    };
+  };
+
+  const saveAdminPublicSettings = async ({
+    actorUserId,
+    changedFields,
+    ipAddress,
+    settings,
+    userAgent,
+  } = {}) =>
+    withTransactionImpl(async (client) => {
+      await setLocalConfig(client, 'app.current_user_id', String(actorUserId || ''));
+
+      if (userAgent) {
+        await setLocalConfig(client, 'app.user_agent', String(userAgent));
+      }
+
+      const record = await readSettingsRecord({
+        fieldNames: ADMIN_PUBLIC_FIELD_NAMES,
+        includeCtid: true,
+        queryExecutor: client,
+      });
+      const {
+        assignments,
+        insertColumns,
+        insertValues,
+        params,
+      } = buildUpsertAssignments({
+        actorUserId,
+        plan: record.plan,
+        settings,
+      });
+
+      if (assignments.length === 0) {
+        throw new Error('settings_store does not expose writable public settings columns');
+      }
+
+      let saveResult;
+
+      if (record.exists) {
+        if (record.plan.keyColumn) {
+          saveResult = await client.query(
+            `
+              UPDATE ${PUBLIC_SETTINGS_TABLE_SCHEMA}.${PUBLIC_SETTINGS_TABLE_NAME}
+              SET ${assignments.join(', ')}
+              WHERE LOWER(${quoteIdentifier(record.plan.keyColumn)}::text) = ANY($${params.length + 1}::text[])
+              RETURNING *
+            `,
+            [...params, PUBLIC_ROW_KEY_CANDIDATES],
+          );
+        } else {
+          saveResult = await client.query(
+            `
+              UPDATE ${PUBLIC_SETTINGS_TABLE_SCHEMA}.${PUBLIC_SETTINGS_TABLE_NAME}
+              SET ${assignments.join(', ')}
+              WHERE ctid IN (
+                SELECT ctid
+                FROM ${PUBLIC_SETTINGS_TABLE_SCHEMA}.${PUBLIC_SETTINGS_TABLE_NAME}
+                ${buildOrderByClause(record.plan.availableColumns)}
+                LIMIT 1
+              )
+              RETURNING *
+            `,
+            params,
+          );
+        }
+      }
+
+      if (!record.exists || saveResult.rowCount === 0) {
+        saveResult = await client.query(
+          `
+            INSERT INTO ${PUBLIC_SETTINGS_TABLE_SCHEMA}.${PUBLIC_SETTINGS_TABLE_NAME} (
+              ${insertColumns.map((column) => quoteIdentifier(column)).join(', ')}
+            )
+            VALUES (${insertValues.join(', ')})
+            RETURNING *
+          `,
+          params,
+        );
+      }
+
+      const savedRow = saveResult.rows[0];
+      const savedSettings = extractPublicSettings({
+        availableColumns: record.plan.availableColumns,
+        fieldNames: ADMIN_PUBLIC_FIELD_NAMES,
+        payloadColumn: record.plan.payloadColumn,
+        row: savedRow,
+      });
+      const savedMetadata = extractMetadata({
+        row: savedRow,
+        updatedAtColumn: record.plan.updatedAtColumn,
+        updatedByColumn: record.plan.updatedByColumn,
+      });
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            ip_address,
+            user_agent,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
+        `,
+        [
+          actorUserId || null,
+          PUBLIC_SETTINGS_UPDATE_ACTION,
+          'settings',
+          savedRow?.id || null,
+          ipAddress || null,
+          userAgent || null,
+          JSON.stringify({
+            changed_fields: Array.isArray(changedFields) ? changedFields : [],
+            scope: 'public',
+          }),
+        ],
+      );
+
+      return {
+        metadata: savedMetadata,
+        settings: savedSettings,
+      };
+    });
+
   return {
+    getAdminPublicSettings,
     getPublicSettings,
+    listPermissionCodesByRoleId,
+    saveAdminPublicSettings,
   };
 };
 
 module.exports = {
+  ADMIN_PUBLIC_FIELD_NAMES,
   PUBLIC_FIELD_NAMES,
+  PUBLIC_SETTINGS_UPDATE_ACTION,
   createSettingsRepository,
 };

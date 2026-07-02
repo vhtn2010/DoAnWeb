@@ -105,7 +105,40 @@ const sanitizeStructuredValue = (value, keyName = '') => {
   return null;
 };
 
+const sanitizeSocialLinkEntry = (entry, keyName = 'social_link') => {
+  if (typeof entry === 'string') {
+    return sanitizePublicUrl(entry);
+  }
+
+  if (!isPlainObject(entry)) {
+    return null;
+  }
+
+  const nestedUrl =
+    sanitizePublicUrl(entry.url) ||
+    sanitizePublicUrl(entry.href) ||
+    sanitizePublicUrl(entry.link);
+  const sanitizedEntry = sanitizeStructuredValue(entry, keyName);
+
+  if (!sanitizedEntry || !nestedUrl) {
+    return null;
+  }
+
+  return {
+    ...sanitizedEntry,
+    url: nestedUrl,
+  };
+};
+
 const sanitizeSocialLinks = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry, index) =>
+        sanitizeSocialLinkEntry(entry, `social_links_${index}`),
+      )
+      .filter((entry) => entry != null);
+  }
+
   if (!isPlainObject(value)) {
     return {};
   }
@@ -117,29 +150,10 @@ const sanitizeSocialLinks = (value) => {
       return accumulator;
     }
 
-    if (typeof entry === 'string') {
-      const sanitizedUrl = sanitizePublicUrl(entry);
+    const sanitizedEntry = sanitizeSocialLinkEntry(entry, normalizedKey);
 
-      if (sanitizedUrl) {
-        accumulator[normalizedKey] = sanitizedUrl;
-      }
-
-      return accumulator;
-    }
-
-    if (isPlainObject(entry)) {
-      const nestedUrl =
-        sanitizePublicUrl(entry.url) ||
-        sanitizePublicUrl(entry.href) ||
-        sanitizePublicUrl(entry.link);
-      const sanitizedEntry = sanitizeStructuredValue(entry, normalizedKey);
-
-      if (sanitizedEntry && nestedUrl) {
-        accumulator[normalizedKey] = {
-          ...sanitizedEntry,
-          url: nestedUrl,
-        };
-      }
+    if (sanitizedEntry) {
+      accumulator[normalizedKey] = sanitizedEntry;
     }
 
     return accumulator;
