@@ -1881,7 +1881,7 @@ test('adminBookingService.resendBookingConfirmationEmail sends a confirmation em
       role: 'staff',
       serviceScopeIds: ['service-1'],
       tokenPayload: {
-        permissions: ['email.send'],
+        permissions: ['email.resend'],
       },
       userId: 'staff-1',
     },
@@ -1936,7 +1936,7 @@ test('adminBookingService.resendBookingConfirmationEmail validates permission, c
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['email.send'],
+          permissions: ['email.resend'],
         },
         userId: 'admin-1',
       },
@@ -1970,7 +1970,7 @@ test('adminBookingService.resendBookingConfirmationEmail validates permission, c
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['booking.update_status'],
+          permissions: ['booking.export'],
         },
         userId: 'admin-1',
       },
@@ -2030,7 +2030,7 @@ test('adminBookingService.resendBookingConfirmationEmail marks failed email logs
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['email.send'],
+          permissions: ['email.resend'],
         },
         userId: 'admin-1',
       },
@@ -2052,7 +2052,7 @@ test('POST /api/admin/bookings/{booking_id}/resend-confirmation-email returns re
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
-    permissions: ['email.send'],
+    permissions: ['email.resend'],
     role: 'staff',
     sub: 'staff-1',
   });
@@ -2064,7 +2064,7 @@ test('POST /api/admin/bookings/{booking_id}/resend-confirmation-email returns re
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
-          permissions: ['email.send'],
+          permissions: ['email.resend'],
           role: 'staff',
           sub: 'staff-1',
         },
@@ -2121,7 +2121,7 @@ test('POST /api/admin/bookings/{booking_id}/resend-confirmation-email validates 
   });
   const tokenWithPermission = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
-    permissions: ['email.send'],
+    permissions: ['email.resend'],
     role: 'admin',
     sub: 'admin-1',
   });

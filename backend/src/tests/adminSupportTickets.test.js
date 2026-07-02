@@ -9,7 +9,10 @@ const app = require('../app');
 const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const supportService = require('../services/supportService');
-const { createSupportService } = require('../services/supportService');
+const {
+  clearSupportManualEmailRateLimitStore,
+  createSupportService,
+} = require('../services/supportService');
 const { createAccessToken } = require('../utils/sessionToken');
 
 const ADMIN_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -27,6 +30,7 @@ const originalListAdminTickets = supportService.listAdminTickets;
 const originalMarkAdminTicketAsSpam = supportService.markAdminTicketAsSpam;
 const originalReopenAdminTicket = supportService.reopenAdminTicket;
 const originalReplyToAdminTicket = supportService.replyToAdminTicket;
+const originalSendAdminTicketEmail = supportService.sendAdminTicketEmail;
 const originalUpdateAdminTicket = supportService.updateAdminTicket;
 
 const request = (server, path, options = {}) =>
@@ -83,7 +87,9 @@ test.afterEach(() => {
   supportService.markAdminTicketAsSpam = originalMarkAdminTicketAsSpam;
   supportService.reopenAdminTicket = originalReopenAdminTicket;
   supportService.replyToAdminTicket = originalReplyToAdminTicket;
+  supportService.sendAdminTicketEmail = originalSendAdminTicketEmail;
   supportService.updateAdminTicket = originalUpdateAdminTicket;
+  clearSupportManualEmailRateLimitStore();
 });
 
 test('supportService.listAdminTickets validates filters and applies staff assignment scope', async () => {
@@ -1425,6 +1431,464 @@ test('POST /admin/support/tickets/{ticket_id}/replies blocks customer role', asy
 
     assert.equal(response.statusCode, 403);
     assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('supportService.sendAdminTicketEmail prefers the linked user email, writes email logs, and does not mutate ticket state', async () => {
+  let createEmailLogCalls = 0;
+  let markSentCalls = 0;
+  let nowCallCount = 0;
+  const service = createSupportService({
+    now: () => new Date(Date.UTC(2026, 6, 2, 8, nowCallCount++ * 5, 0)),
+    repository: {
+      createSupportManualEmailLog: async ({
+        bookingId,
+        createdAt,
+        subject,
+        templateCode,
+        toEmail,
+        userId,
+      }) => {
+        createEmailLogCalls += 1;
+        assert.equal(bookingId, BOOKING_ID);
+        assert.ok(createdAt instanceof Date);
+        assert.equal(subject, 'Follow-up support');
+        assert.equal(templateCode, 'SUPPORT_MANUAL_EMAIL');
+        assert.equal(toEmail, 'member@example.com');
+        assert.equal(userId, '22222222-2222-4222-8222-222222222222');
+
+        return {
+          booking_id: BOOKING_ID,
+          created_at: createdAt.toISOString(),
+          id: '33333333-3333-4333-8333-333333333333',
+          provider: 'sendgrid',
+          sent_at: null,
+          status: 'queued',
+          subject,
+          template_code: templateCode,
+          to_email: toEmail,
+          user_id: userId,
+        };
+      },
+      getTicketByIdForAdmin: async ({
+        staffScopeUserId,
+        ticketId,
+      }) => {
+        assert.equal(staffScopeUserId, null);
+        assert.equal(ticketId, TICKET_ID);
+
+        return {
+          assigned_to: ASSIGNED_STAFF_ID,
+          booking_id: BOOKING_ID,
+          created_at: '2026-07-02T07:30:00.000Z',
+          customer_email: 'guest-ticket@example.com',
+          customer_name: 'Guest Contact',
+          customer_phone: '+84901234567',
+          customer_user_email: 'member@example.com',
+          customer_user_full_name: 'Member User',
+          customer_user_phone: '+84901234568',
+          id: TICKET_ID,
+          priority: 'normal',
+          status: 'closed',
+          subject: 'Need help',
+          ticket_code: 'TK20260702AAAA0001',
+          updated_at: '2026-07-02T07:40:00.000Z',
+          user_id: '22222222-2222-4222-8222-222222222222',
+        };
+      },
+      markSupportManualEmailLogSent: async ({
+        actorUserId,
+        emailLogId,
+        messageId,
+        metadata,
+        sentAt,
+        ticketId,
+      }) => {
+        markSentCalls += 1;
+        assert.equal(actorUserId, ADMIN_ID);
+        assert.equal(emailLogId, '33333333-3333-4333-8333-333333333333');
+        assert.equal(messageId, 'sg-message-1');
+        assert.equal(ticketId, TICKET_ID);
+        assert.equal(metadata.status, 'sent');
+        assert.equal(metadata.recipient_source, 'user');
+        assert.equal(metadata.ticket_status, 'closed');
+        assert.ok(sentAt instanceof Date);
+
+        return {
+          booking_id: BOOKING_ID,
+          created_at: '2026-07-02T08:00:00.000Z',
+          id: emailLogId,
+          provider: 'sendgrid',
+          sent_at: sentAt.toISOString(),
+          status: 'sent',
+          subject: 'Follow-up support',
+          template_code: 'SUPPORT_MANUAL_EMAIL',
+          to_email: 'member@example.com',
+          user_id: '22222222-2222-4222-8222-222222222222',
+        };
+      },
+    },
+    sendEmailImpl: async ({
+      html,
+      subject,
+      text,
+      to,
+    }) => {
+      assert.equal(subject, 'Follow-up support');
+      assert.equal(to.email, 'member@example.com');
+      assert.equal(to.name, 'Guest Contact');
+      assert.match(html, /TK20260702AAAA0001/);
+      assert.match(text, /Follow-up support/);
+
+      return {
+        messageId: 'sg-message-1',
+      };
+    },
+  });
+
+  const result = await service.sendAdminTicketEmail({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['email.send'],
+      },
+      userId: ADMIN_ID,
+    },
+    body: {
+      message: 'We are checking your support case.',
+      subject: 'Follow-up support',
+    },
+    ticketId: TICKET_ID,
+  });
+
+  assert.equal(createEmailLogCalls, 1);
+  assert.equal(markSentCalls, 1);
+  assert.equal(result.status, 'sent');
+  assert.equal(result.to_email, 'member@example.com');
+  assert.equal(result.recipient_source, 'user');
+  assert.equal(result.ticket_id, TICKET_ID);
+  assert.equal(result.template_code, 'SUPPORT_MANUAL_EMAIL');
+});
+
+test('supportService.sendAdminTicketEmail returns forbidden when staff is outside ticket scope', async () => {
+  const service = createSupportService({
+    repository: {
+      getTicketById: async (ticketId) => {
+        assert.equal(ticketId, TICKET_ID);
+
+        return {
+          id: TICKET_ID,
+          status: 'open',
+        };
+      },
+      getTicketByIdForAdmin: async ({
+        staffScopeUserId,
+        ticketId,
+      }) => {
+        assert.equal(staffScopeUserId, STAFF_ID);
+        assert.equal(ticketId, TICKET_ID);
+        return null;
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.sendAdminTicketEmail({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['support.reply'],
+        },
+        userId: STAFF_ID,
+      },
+      body: {
+        message: 'Checking',
+        subject: 'Need update',
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      assert.equal(error.statusCode, 403);
+      return true;
+    },
+  );
+});
+
+test('supportService.sendAdminTicketEmail marks email log failed and returns internal error when provider fails', async () => {
+  let failedLogRecorded = 0;
+  const service = createSupportService({
+    now: () => new Date('2026-07-02T09:00:00.000Z'),
+    repository: {
+      createSupportManualEmailLog: async () => ({
+        booking_id: null,
+        created_at: '2026-07-02T09:00:00.000Z',
+        id: '44444444-4444-4444-8444-444444444444',
+        provider: 'sendgrid',
+        sent_at: null,
+        status: 'queued',
+        subject: 'Need help',
+        template_code: 'SUPPORT_MANUAL_EMAIL',
+        to_email: 'guest@example.com',
+        user_id: null,
+      }),
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        booking_id: null,
+        customer_email: 'guest@example.com',
+        customer_name: 'Guest User',
+        customer_user_email: null,
+        customer_user_full_name: null,
+        id: TICKET_ID,
+        status: 'open',
+        subject: 'Question',
+        ticket_code: 'TK20260702AAAA0002',
+        user_id: null,
+      }),
+      markSupportManualEmailLogFailed: async ({
+        actorUserId,
+        emailLogId,
+        errorMessage,
+        metadata,
+        ticketId,
+      }) => {
+        failedLogRecorded += 1;
+        assert.equal(actorUserId, ADMIN_ID);
+        assert.equal(emailLogId, '44444444-4444-4444-8444-444444444444');
+        assert.equal(ticketId, TICKET_ID);
+        assert.equal(errorMessage, 'Provider outage');
+        assert.equal(metadata.status, 'failed');
+        assert.equal(metadata.to_email, 'guest@example.com');
+
+        return {
+          id: emailLogId,
+          status: 'failed',
+        };
+      },
+    },
+    sendEmailImpl: async () => {
+      throw new Error('Provider outage');
+    },
+  });
+
+  await assert.rejects(
+    () => service.sendAdminTicketEmail({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['email.send'],
+        },
+        userId: ADMIN_ID,
+      },
+      body: {
+        message: 'Need help',
+        subject: 'Need help',
+      },
+      ticketId: TICKET_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INTERNAL_ERROR);
+      assert.equal(error.statusCode, 500);
+      return true;
+    },
+  );
+
+  assert.equal(failedLogRecorded, 1);
+});
+
+test('supportService.sendAdminTicketEmail enforces rate limit per ticket recipient', async () => {
+  let createEmailLogCalls = 0;
+  let markSentCalls = 0;
+  const service = createSupportService({
+    now: () => new Date('2026-07-02T10:00:00.000Z'),
+    repository: {
+      createSupportManualEmailLog: async () => {
+        createEmailLogCalls += 1;
+
+        return {
+          booking_id: null,
+          created_at: '2026-07-02T10:00:00.000Z',
+          id: `55555555-5555-4555-8555-55555555555${createEmailLogCalls}`,
+          provider: 'sendgrid',
+          sent_at: null,
+          status: 'queued',
+          subject: 'Quick update',
+          template_code: 'SUPPORT_MANUAL_EMAIL',
+          to_email: 'guest@example.com',
+          user_id: null,
+        };
+      },
+      getTicketByIdForAdmin: async () => ({
+        assigned_to: null,
+        booking_id: null,
+        customer_email: 'guest@example.com',
+        customer_name: 'Guest User',
+        customer_user_email: null,
+        customer_user_full_name: null,
+        id: TICKET_ID,
+        status: 'open',
+        subject: 'Question',
+        ticket_code: 'TK20260702AAAA0003',
+        user_id: null,
+      }),
+      markSupportManualEmailLogSent: async ({
+        emailLogId,
+      }) => {
+        markSentCalls += 1;
+
+        return {
+          booking_id: null,
+          id: emailLogId,
+          provider: 'sendgrid',
+          sent_at: '2026-07-02T10:00:00.000Z',
+          status: 'sent',
+          template_code: 'SUPPORT_MANUAL_EMAIL',
+          to_email: 'guest@example.com',
+          user_id: null,
+        };
+      },
+    },
+    sendEmailImpl: async () => ({
+      messageId: 'sg-message-rate-limit',
+    }),
+  });
+
+  const payload = {
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['email.send'],
+      },
+      userId: ADMIN_ID,
+    },
+    body: {
+      message: 'Quick update',
+      subject: 'Quick update',
+    },
+    ticketId: TICKET_ID,
+  };
+
+  await service.sendAdminTicketEmail(payload);
+  await service.sendAdminTicketEmail(payload);
+  await service.sendAdminTicketEmail(payload);
+
+  await assert.rejects(
+    () => service.sendAdminTicketEmail(payload),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.RATE_LIMITED);
+      assert.equal(error.statusCode, 429);
+      return true;
+    },
+  );
+
+  assert.equal(createEmailLogCalls, 3);
+  assert.equal(markSentCalls, 3);
+});
+
+test('POST /admin/support/tickets/{ticket_id}/send-email returns manual support email result for authorized admins', async () => {
+  const server = app.listen(0);
+  supportService.sendAdminTicketEmail = async ({ auth, body, ticketId }) => {
+    assert.equal(auth.role, 'admin');
+    assert.equal(ticketId, TICKET_ID);
+    assert.equal(body.subject, 'Manual follow up');
+    assert.equal(body.message, 'We have sent you more details.');
+
+    return {
+      booking_id: BOOKING_ID,
+      email_log_id: '66666666-6666-4666-8666-666666666666',
+      provider: 'sendgrid',
+      recipient_source: 'user',
+      recipient_user_id: '22222222-2222-4222-8222-222222222222',
+      sent_at: '2026-07-02T10:15:00.000Z',
+      status: 'sent',
+      template_code: 'SUPPORT_MANUAL_EMAIL',
+      ticket_id: TICKET_ID,
+      ticket_code: 'TK20260702AAAA0004',
+      to_email: 'member@example.com',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/send-email`,
+      {
+        body: {
+          message: 'We have sent you more details.',
+          subject: 'Manual follow up',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['email.send'],
+            roleCode: 'admin',
+            userId: ADMIN_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.status, 'sent');
+    assert.equal(response.body.data.template_code, 'SUPPORT_MANUAL_EMAIL');
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test('POST /admin/support/tickets/{ticket_id}/send-emails uses the same manual support email handler alias', async () => {
+  const server = app.listen(0);
+  let handlerCalls = 0;
+  supportService.sendAdminTicketEmail = async ({ ticketId }) => {
+    handlerCalls += 1;
+    assert.equal(ticketId, TICKET_ID);
+
+    return {
+      booking_id: null,
+      email_log_id: '77777777-7777-4777-8777-777777777777',
+      provider: 'sendgrid',
+      recipient_source: 'ticket',
+      recipient_user_id: null,
+      sent_at: '2026-07-02T10:20:00.000Z',
+      status: 'sent',
+      template_code: 'SUPPORT_MANUAL_EMAIL',
+      ticket_id: TICKET_ID,
+      ticket_code: 'TK20260702AAAA0005',
+      to_email: 'guest@example.com',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/admin/support/tickets/${TICKET_ID}/send-emails`,
+      {
+        body: {
+          message: 'Alias route check.',
+          subject: 'Alias route',
+        },
+        headers: {
+          Authorization: `Bearer ${createAccessToken({
+            permissions: ['support.reply'],
+            roleCode: 'staff',
+            userId: STAFF_ID,
+          })}`,
+        },
+        method: 'POST',
+      },
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.to_email, 'guest@example.com');
+    assert.equal(handlerCalls, 1);
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
