@@ -31,9 +31,12 @@ const {
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const DEFAULT_CURRENCY = 'VND';
+const DEFAULT_STATS_RANGE_DAYS = 7;
+const MAX_STATS_RANGE_DAYS = 366;
 const MAX_LIMIT = 100;
 const MAX_EMAIL_QUERY_LENGTH = 255;
 const MAX_TEMPLATE_CODE_LENGTH = 100;
+const MAIL_STATS_CACHE_TTL_MS = 60 * 1000;
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -48,6 +51,11 @@ const ADMIN_ALLOWED_ROLES = Object.freeze([
   'admin',
   'system_admin',
 ]);
+const MAIL_STATS_ALLOWED_ROLES = Object.freeze([
+  'admin',
+  'system_admin',
+]);
+const mailStatsCacheStore = new Map();
 const VERIFICATION_TEMPLATE_CODE_MAP = Object.freeze({
   [ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE]:
     ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
@@ -111,6 +119,17 @@ const roundMoney = (value) => {
   return Number(Number(value).toFixed(2));
 };
 
+const cloneMailStatsPayload = (payload) => ({
+  by_status: { ...payload.by_status },
+  by_template_code: { ...payload.by_template_code },
+  bounced_rate: payload.bounced_rate,
+  failed_rate: payload.failed_rate,
+  from: payload.from,
+  spam_reported_rate: payload.spam_reported_rate,
+  to: payload.to,
+  total: payload.total,
+});
+
 const parseUuid = (field, value) => {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value.trim())) {
     throw buildValidationError(field, `${field} must be a valid UUID`);
@@ -149,6 +168,44 @@ const parsePositiveInteger = ({
 
   if (parsed > max) {
     throw buildValidationError(field, `${field} must be less than or equal to ${max}`);
+  }
+
+  return parsed;
+};
+
+const parseDateQuery = ({
+  field,
+  rangeEdge,
+  value,
+}) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  if (Array.isArray(value) || typeof value !== 'string') {
+    throw buildValidationError(field, `${field} must be a valid date or ISO datetime`);
+  }
+
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  let parsed;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalizedValue)) {
+    parsed = new Date(
+      rangeEdge === 'start'
+        ? `${normalizedValue}T00:00:00.000Z`
+        : `${normalizedValue}T23:59:59.999Z`,
+    );
+  } else {
+    parsed = new Date(normalizedValue);
+  }
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw buildValidationError(field, `${field} must be a valid date or ISO datetime`);
   }
 
   return parsed;
@@ -250,6 +307,26 @@ const ensureAdminMailTemplateReadAccess = (auth) => {
   if (
     !permissionCodes.includes('email_log.read') &&
     !permissionCodes.includes('email.send')
+  ) {
+    throw buildForbiddenError();
+  }
+
+  return actor;
+};
+
+const ensureAdminMailStatsReadAccess = (auth) => {
+  const actor = normalizeAuth(auth);
+
+  if (!actor.userId || !MAIL_STATS_ALLOWED_ROLES.includes(actor.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(actor);
+
+  if (
+    !permissionCodes.includes('dashboard.read') &&
+    !permissionCodes.includes('report.read') &&
+    !permissionCodes.includes('email_log.read')
   ) {
     throw buildForbiddenError();
   }
@@ -417,6 +494,64 @@ const sanitizeMailTemplateMetadata = (template) => ({
   template_code: template.code,
 });
 
+const sanitizeMailStats = ({
+  byStatus,
+  byTemplateCode,
+  from,
+  to,
+  total,
+}) => ({
+  by_status: { ...byStatus },
+  by_template_code: { ...byTemplateCode },
+  bounced_rate: total === 0 ? 0 : Number((byStatus.bounced / total).toFixed(4)),
+  failed_rate: total === 0 ? 0 : Number((byStatus.failed / total).toFixed(4)),
+  from,
+  spam_reported_rate: total === 0
+    ? 0
+    : Number((byStatus.spam_reported / total).toFixed(4)),
+  to,
+  total,
+});
+
+const parseAdminMailStatsQuery = ({
+  now,
+  query = {},
+}) => {
+  const parsedFrom = parseDateQuery({
+    field: 'from',
+    rangeEdge: 'start',
+    value: query.from,
+  });
+  const parsedTo = parseDateQuery({
+    field: 'to',
+    rangeEdge: 'end',
+    value: query.to,
+  });
+  const effectiveTo = parsedTo || new Date(now.getTime());
+  const effectiveFrom = parsedFrom || new Date(
+    effectiveTo.getTime() - (DEFAULT_STATS_RANGE_DAYS * 24 * 60 * 60 * 1000),
+  );
+
+  if (effectiveFrom.getTime() > effectiveTo.getTime()) {
+    throw buildValidationError('from', 'from must be less than or equal to to');
+  }
+
+  const rangeMs = effectiveTo.getTime() - effectiveFrom.getTime();
+  const maxRangeMs = MAX_STATS_RANGE_DAYS * 24 * 60 * 60 * 1000;
+
+  if (rangeMs > maxRangeMs) {
+    throw buildValidationError(
+      'to',
+      `The requested date range must be less than or equal to ${MAX_STATS_RANGE_DAYS} days`,
+    );
+  }
+
+  return {
+    from: effectiveFrom,
+    to: effectiveTo,
+  };
+};
+
 const buildVerificationLinks = (token) => {
   const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
   const normalizedBackendUrl = backendUrl.replace(/\/$/, '');
@@ -495,6 +630,8 @@ const buildBookingConfirmationResendEmail = ({
 };
 
 const createEmailLogService = ({
+  cacheStore = mailStatsCacheStore,
+  cacheTtlMs = MAIL_STATS_CACHE_TTL_MS,
   repository = createEmailLogRepository(),
   createEmailVerificationTokenImpl = createEmailVerificationToken,
   createResetPasswordTokenImpl = createResetPasswordToken,
@@ -723,6 +860,69 @@ const createEmailLogService = ({
     return SYSTEM_EMAIL_TEMPLATES.map(sanitizeMailTemplateMetadata);
   };
 
+  const getAdminMailStats = async ({
+    auth,
+    query,
+  } = {}) => {
+    ensureAdminMailStatsReadAccess(auth);
+
+    const currentTime = now();
+    const parsedQuery = parseAdminMailStatsQuery({
+      now: currentTime,
+      query: query || {},
+    });
+    const cacheKey =
+      `${parsedQuery.from.toISOString()}::${parsedQuery.to.toISOString()}`;
+    const cachedEntry = cacheStore.get(cacheKey);
+
+    if (
+      cachedEntry &&
+      (currentTime.getTime() - cachedEntry.createdAtMs) < cacheTtlMs
+    ) {
+      return cloneMailStatsPayload(cachedEntry.payload);
+    }
+
+    const stats = await repository.getAdminEmailStats({
+      from: parsedQuery.from,
+      to: parsedQuery.to,
+    });
+    const byStatus = EMAIL_STATUS_VALUES.reduce((accumulator, status) => {
+      accumulator[status] = 0;
+      return accumulator;
+    }, {});
+
+    for (const row of stats.byStatusRows) {
+      if (row?.status && Object.prototype.hasOwnProperty.call(byStatus, row.status)) {
+        byStatus[row.status] = Number(row.count || 0);
+      }
+    }
+
+    const byTemplateCode = {};
+
+    for (const row of stats.byTemplateRows) {
+      if (!row?.template_code) {
+        continue;
+      }
+
+      byTemplateCode[row.template_code] = Number(row.count || 0);
+    }
+
+    const payload = sanitizeMailStats({
+      byStatus,
+      byTemplateCode,
+      from: parsedQuery.from.toISOString(),
+      to: parsedQuery.to.toISOString(),
+      total: Number(stats.total || 0),
+    });
+
+    cacheStore.set(cacheKey, {
+      createdAtMs: currentTime.getTime(),
+      payload,
+    });
+
+    return cloneMailStatsPayload(payload);
+  };
+
   const getAdminEmailLogDetail = async ({
     auth,
     emailLogId,
@@ -813,12 +1013,18 @@ const createEmailLogService = ({
 
   return {
     getAdminEmailLogDetail,
+    getAdminMailStats,
     listAdminMailTemplates,
     listAdminEmailLogs,
     resendAdminEmailLog,
   };
 };
 
+const clearMailStatsCache = () => {
+  mailStatsCacheStore.clear();
+};
+
 module.exports = Object.assign(createEmailLogService(), {
+  clearMailStatsCache,
   createEmailLogService,
 });

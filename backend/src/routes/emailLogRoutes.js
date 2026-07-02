@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getAdminEmailLogDetail,
+  getAdminMailStats,
   listAdminMailTemplates,
   listAdminEmailLogs,
   resendAdminEmailLog,
@@ -28,6 +29,13 @@ const adminMailTemplateRateLimit = createRateLimiter({
   storeKey: 'admin-mail-template-catalog',
   windowMs: 60 * 1000,
 });
+const adminMailStatsRateLimit = createRateLimiter({
+  keyGenerator: (req) => req.auth?.userId || req.ip || 'anonymous',
+  maxRequests: 60,
+  message: 'Too many admin mail stats requests. Please try again later.',
+  storeKey: 'admin-mail-stats',
+  windowMs: 60 * 1000,
+});
 
 const adminEmailLogResendRateLimit = createRateLimiter({
   keyGenerator: (req) =>
@@ -52,6 +60,14 @@ router.get(
   requireAdminRoles(['staff', 'admin', 'system_admin']),
   adminMailTemplateRateLimit,
   asyncHandler(listAdminMailTemplates),
+);
+
+router.get(
+  '/admin/mail/stats',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminMailStatsRateLimit,
+  asyncHandler(getAdminMailStats),
 );
 
 router.get(

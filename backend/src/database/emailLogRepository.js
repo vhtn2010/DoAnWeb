@@ -157,6 +157,54 @@ const createEmailLogRepository = ({
     return result.rows[0] || null;
   };
 
+  const getAdminEmailStats = async ({
+    from,
+    to,
+  }) => {
+    const totalResult = await queryImpl(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM email_logs
+        WHERE created_at >= $1
+          AND created_at <= $2
+      `,
+      [from, to],
+    );
+
+    const statusResult = await queryImpl(
+      `
+        SELECT
+          status,
+          COUNT(*)::int AS count
+        FROM email_logs
+        WHERE created_at >= $1
+          AND created_at <= $2
+        GROUP BY status
+      `,
+      [from, to],
+    );
+
+    const templateResult = await queryImpl(
+      `
+        SELECT
+          COALESCE(template_code, 'UNSPECIFIED') AS template_code,
+          COUNT(*)::int AS count
+        FROM email_logs
+        WHERE created_at >= $1
+          AND created_at <= $2
+        GROUP BY COALESCE(template_code, 'UNSPECIFIED')
+        ORDER BY count DESC, template_code ASC
+      `,
+      [from, to],
+    );
+
+    return {
+      byStatusRows: statusResult.rows,
+      byTemplateRows: templateResult.rows,
+      total: totalResult.rows[0]?.total || 0,
+    };
+  };
+
   const listBookingItemsByBookingId = async (bookingId) => {
     const result = await queryImpl(
       `
@@ -347,6 +395,7 @@ const createEmailLogRepository = ({
   return {
     createResendEmailLog,
     getAdminEmailLogById,
+    getAdminEmailStats,
     getBookingEmailContextById,
     getUserEmailContextById,
     listAdminEmailLogs,

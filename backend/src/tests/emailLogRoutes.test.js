@@ -20,6 +20,7 @@ const USER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const BOOKING_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 const originalGetAdminEmailLogDetail = emailLogService.getAdminEmailLogDetail;
+const originalGetAdminMailStats = emailLogService.getAdminMailStats;
 const originalListAdminMailTemplates = emailLogService.listAdminMailTemplates;
 const originalListAdminEmailLogs = emailLogService.listAdminEmailLogs;
 const originalResendAdminEmailLog = emailLogService.resendAdminEmailLog;
@@ -69,8 +70,11 @@ const request = (server, path, options = {}) =>
 test.beforeEach(() => {
   clearRateLimitStore('admin-email-log-catalog');
   clearRateLimitStore('admin-mail-template-catalog');
+  clearRateLimitStore('admin-mail-stats');
   clearRateLimitStore('admin-email-log-resend');
+  emailLogService.clearMailStatsCache();
   emailLogService.getAdminEmailLogDetail = originalGetAdminEmailLogDetail;
+  emailLogService.getAdminMailStats = originalGetAdminMailStats;
   emailLogService.listAdminMailTemplates = originalListAdminMailTemplates;
   emailLogService.listAdminEmailLogs = originalListAdminEmailLogs;
   emailLogService.resendAdminEmailLog = originalResendAdminEmailLog;
@@ -79,8 +83,11 @@ test.beforeEach(() => {
 test.afterEach(() => {
   clearRateLimitStore('admin-email-log-catalog');
   clearRateLimitStore('admin-mail-template-catalog');
+  clearRateLimitStore('admin-mail-stats');
   clearRateLimitStore('admin-email-log-resend');
+  emailLogService.clearMailStatsCache();
   emailLogService.getAdminEmailLogDetail = originalGetAdminEmailLogDetail;
+  emailLogService.getAdminMailStats = originalGetAdminMailStats;
   emailLogService.listAdminMailTemplates = originalListAdminMailTemplates;
   emailLogService.listAdminEmailLogs = originalListAdminEmailLogs;
   emailLogService.resendAdminEmailLog = originalResendAdminEmailLog;
@@ -273,6 +280,162 @@ test('emailLogService.listAdminMailTemplates returns fixed safe metadata for aut
     }),
     (error) => {
       assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+});
+
+test('emailLogService.getAdminMailStats validates range, aggregates status and template counts, and caches short-lived results', async () => {
+  let statsCalls = 0;
+  const cacheStore = new Map();
+  const service = emailLogService.createEmailLogService({
+    cacheStore,
+    now: () => new Date('2026-07-02T12:00:00.000Z'),
+    repository: {
+      getAdminEmailStats: async ({
+        from,
+        to,
+      }) => {
+        statsCalls += 1;
+        assert.equal(from.toISOString(), '2026-06-25T12:00:00.000Z');
+        assert.equal(to.toISOString(), '2026-07-02T12:00:00.000Z');
+
+        return {
+          byStatusRows: [
+            { count: 10, status: 'sent' },
+            { count: 3, status: 'failed' },
+            { count: 2, status: 'bounced' },
+            { count: 1, status: 'spam_reported' },
+          ],
+          byTemplateRows: [
+            { count: 8, template_code: 'AUTH_VERIFY_EMAIL' },
+            { count: 5, template_code: 'SUPPORT_MANUAL_EMAIL' },
+            { count: 3, template_code: 'UNSPECIFIED' },
+          ],
+          total: 16,
+        };
+      },
+    },
+  });
+
+  const result = await service.getAdminMailStats({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['report.read'],
+      },
+      userId: USER_ID,
+    },
+    query: {},
+  });
+
+  assert.equal(result.total, 16);
+  assert.equal(result.from, '2026-06-25T12:00:00.000Z');
+  assert.equal(result.to, '2026-07-02T12:00:00.000Z');
+  assert.deepEqual(result.by_status, {
+    bounced: 2,
+    delivered: 0,
+    failed: 3,
+    opened: 0,
+    queued: 0,
+    sent: 10,
+    spam_reported: 1,
+  });
+  assert.deepEqual(result.by_template_code, {
+    AUTH_VERIFY_EMAIL: 8,
+    SUPPORT_MANUAL_EMAIL: 5,
+    UNSPECIFIED: 3,
+  });
+  assert.equal(result.failed_rate, 0.1875);
+  assert.equal(result.bounced_rate, 0.125);
+  assert.equal(result.spam_reported_rate, 0.0625);
+
+  const cachedResult = await service.getAdminMailStats({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['report.read'],
+      },
+      userId: USER_ID,
+    },
+    query: {},
+  });
+
+  assert.equal(statsCalls, 1);
+  assert.deepEqual(cachedResult, result);
+
+  await assert.rejects(
+    () => service.getAdminMailStats({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['support.reply'],
+        },
+        userId: USER_ID,
+      },
+      query: {},
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getAdminMailStats({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['email_log.read'],
+        },
+        userId: USER_ID,
+      },
+      query: {
+        from: 'bad-date',
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getAdminMailStats({
+      auth: {
+        role: 'system_admin',
+        tokenPayload: {
+          permissions: ['dashboard.read'],
+        },
+        userId: USER_ID,
+      },
+      query: {
+        from: '2026-07-03',
+        to: '2026-07-02',
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.getAdminMailStats({
+      auth: {
+        role: 'system_admin',
+        tokenPayload: {
+          permissions: ['dashboard.read'],
+        },
+        userId: USER_ID,
+      },
+      query: {
+        from: '2025-01-01',
+        to: '2026-07-02',
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
       return true;
     },
   );
@@ -669,6 +832,142 @@ test('GET /api/admin/mail/templatess uses the same fixed template metadata handl
     assert.equal(response.body.success, true);
     assert.equal(response.body.data.length, 1);
     assert.equal(response.body.data[0].template_code, 'BOOKING_RECEIPT');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/admin/mail/stats returns aggregate stats for admin roles and blocks staff role', async () => {
+  const server = app.listen(0);
+
+  emailLogService.getAdminMailStats = async ({ auth, query }) => {
+    assert.equal(auth.role, 'admin');
+    assert.equal(auth.userId, USER_ID);
+    assert.deepEqual(auth.tokenPayload.permissions, ['report.read']);
+    assert.equal(query.from, '2026-06-01');
+    assert.equal(query.to, '2026-06-30');
+
+    return {
+      by_status: {
+        bounced: 1,
+        delivered: 0,
+        failed: 2,
+        opened: 4,
+        queued: 0,
+        sent: 10,
+        spam_reported: 1,
+      },
+      by_template_code: {
+        AUTH_VERIFY_EMAIL: 8,
+        SUPPORT_MANUAL_EMAIL: 10,
+      },
+      bounced_rate: 0.0556,
+      failed_rate: 0.1111,
+      from: '2026-06-01T00:00:00.000Z',
+      spam_reported_rate: 0.0556,
+      to: '2026-06-30T23:59:59.999Z',
+      total: 18,
+    };
+  };
+
+  try {
+    const okResponse = await request(server, `${apiPrefix}/admin/mail/stats?from=2026-06-01&to=2026-06-30`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['report.read'],
+          roleCode: 'admin',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(okResponse.statusCode, 200);
+    assert.equal(okResponse.body.success, true);
+    assert.equal(okResponse.body.data.total, 18);
+    assert.equal(okResponse.body.data.by_status.failed, 2);
+    assert.equal(okResponse.body.data.by_template_code.SUPPORT_MANUAL_EMAIL, 10);
+
+    const forbiddenResponse = await request(server, `${apiPrefix}/admin/mail/stats`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['report.read'],
+          roleCode: 'staff',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/admin/mail/stats validates date query and allows system_admin permission fallback', async () => {
+  const server = app.listen(0);
+
+  emailLogService.getAdminMailStats = async ({ auth, query }) => {
+    assert.equal(auth.role, 'system_admin');
+    assert.deepEqual(auth.tokenPayload.permissions, ['dashboard.read']);
+    assert.equal(query.from, '2026-07-01T00:00:00.000Z');
+    assert.equal(query.to, undefined);
+
+    return {
+      by_status: {
+        bounced: 0,
+        delivered: 0,
+        failed: 0,
+        opened: 0,
+        queued: 1,
+        sent: 2,
+        spam_reported: 0,
+      },
+      by_template_code: {
+        AUTH_VERIFY_EMAIL: 3,
+      },
+      bounced_rate: 0,
+      failed_rate: 0,
+      from: '2026-07-01T00:00:00.000Z',
+      spam_reported_rate: 0,
+      to: '2026-07-02T12:00:00.000Z',
+      total: 3,
+    };
+  };
+
+  try {
+    const okResponse = await request(server, `${apiPrefix}/admin/mail/stats?from=2026-07-01T00:00:00.000Z`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['dashboard.read'],
+          roleCode: 'system_admin',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(okResponse.statusCode, 200);
+    assert.equal(okResponse.body.success, true);
+    assert.equal(okResponse.body.data.total, 3);
+
+    emailLogService.getAdminMailStats = originalGetAdminMailStats;
+
+    const validationResponse = await request(server, `${apiPrefix}/admin/mail/stats?from=not-a-date`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['email_log.read'],
+          roleCode: 'admin',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(validationResponse.statusCode, 400);
+    assert.equal(validationResponse.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
   } finally {
     server.close();
   }
