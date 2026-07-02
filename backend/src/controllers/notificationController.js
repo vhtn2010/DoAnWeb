@@ -1,5 +1,31 @@
 const notificationService = require('../services/notificationService');
 
+const listAdminNotifications = async (req, res) => {
+  const data = await notificationService.listAdminNotifications({
+    auth: req.auth,
+    query: req.query,
+  });
+
+  res.success({
+    data: data.items,
+    message: 'Admin notifications fetched successfully',
+    meta: data.meta,
+  });
+};
+
+const updateAdminNotificationStatus = async (req, res) => {
+  const data = await notificationService.updateAdminNotificationStatus({
+    auth: req.auth,
+    notificationId: req.params.notification_id,
+    status: req.body?.status,
+  });
+
+  res.success({
+    data,
+    message: 'Notification status updated successfully',
+  });
+};
+
 const deleteMyNotification = async (req, res) => {
   const data = await notificationService.deleteMyNotification({
     auth: req.auth,
@@ -87,8 +113,10 @@ module.exports = {
   deleteMyNotification,
   getUnreadNotificationCount,
   getMyNotificationDetail,
+  listAdminNotifications,
   listMyNotifications,
   markAllMyNotificationsRead,
   markMyNotificationRead,
   markMyNotificationsBulkRead,
+  updateAdminNotificationStatus,
 };

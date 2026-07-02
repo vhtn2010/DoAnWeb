@@ -25,10 +25,12 @@ const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalDeleteMyNotification = notificationService.deleteMyNotification;
 const originalGetUnreadNotificationCount = notificationService.getUnreadNotificationCount;
 const originalGetMyNotificationDetail = notificationService.getMyNotificationDetail;
+const originalListAdminNotifications = notificationService.listAdminNotifications;
 const originalListMyNotifications = notificationService.listMyNotifications;
 const originalMarkAllMyNotificationsRead = notificationService.markAllMyNotificationsRead;
 const originalMarkMyNotificationRead = notificationService.markMyNotificationRead;
 const originalMarkMyNotificationsBulkRead = notificationService.markMyNotificationsBulkRead;
+const originalUpdateAdminNotificationStatus = notificationService.updateAdminNotificationStatus;
 
 const createAuthContext = ({
   roleCode = 'customer',
@@ -87,27 +89,35 @@ const request = (server, path, options = {}) =>
   });
 
 test.beforeEach(() => {
+  clearRateLimitStore('admin-notification-catalog');
+  clearRateLimitStore('admin-notification-status');
   clearRateLimitStore('notification-read');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   notificationService.deleteMyNotification = originalDeleteMyNotification;
   notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
   notificationService.getMyNotificationDetail = originalGetMyNotificationDetail;
+  notificationService.listAdminNotifications = originalListAdminNotifications;
   notificationService.listMyNotifications = originalListMyNotifications;
   notificationService.markAllMyNotificationsRead = originalMarkAllMyNotificationsRead;
   notificationService.markMyNotificationRead = originalMarkMyNotificationRead;
   notificationService.markMyNotificationsBulkRead = originalMarkMyNotificationsBulkRead;
+  notificationService.updateAdminNotificationStatus = originalUpdateAdminNotificationStatus;
 });
 
 test.afterEach(() => {
+  clearRateLimitStore('admin-notification-catalog');
+  clearRateLimitStore('admin-notification-status');
   clearRateLimitStore('notification-read');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   notificationService.deleteMyNotification = originalDeleteMyNotification;
   notificationService.getUnreadNotificationCount = originalGetUnreadNotificationCount;
   notificationService.getMyNotificationDetail = originalGetMyNotificationDetail;
+  notificationService.listAdminNotifications = originalListAdminNotifications;
   notificationService.listMyNotifications = originalListMyNotifications;
   notificationService.markAllMyNotificationsRead = originalMarkAllMyNotificationsRead;
   notificationService.markMyNotificationRead = originalMarkMyNotificationRead;
   notificationService.markMyNotificationsBulkRead = originalMarkMyNotificationsBulkRead;
+  notificationService.updateAdminNotificationStatus = originalUpdateAdminNotificationStatus;
 });
 
 test('notificationService.getUnreadNotificationCount counts only unread user-specific notifications', async () => {
@@ -140,6 +150,300 @@ test('notificationService.getUnreadNotificationCount counts only unread user-spe
     }),
     (error) => {
       assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+});
+
+test('notificationService.listAdminNotifications validates permission, filters, and pagination', async () => {
+  const service = notificationService.createNotificationService({
+    repository: {
+      listAdminNotifications: async ({
+        limit,
+        offset,
+        status,
+        type,
+      }) => {
+        assert.equal(type, NOTIFICATION_TYPE.SYSTEM);
+        assert.equal(status, NOTIFICATION_STATUS.FAILED);
+        assert.equal(limit, 20);
+        assert.equal(offset, 0);
+
+        return {
+          rows: [
+            {
+              body: 'System maintenance tonight.',
+              created_at: '2026-07-01T10:00:00.000Z',
+              id: BROADCAST_NOTIFICATION_ID,
+              read_at: null,
+              recipient_email: null,
+              recipient_name: null,
+              related_entity_id: null,
+              related_entity_name: null,
+              sent_at: '2026-07-01T09:50:00.000Z',
+              status: NOTIFICATION_STATUS.FAILED,
+              title: 'Maintenance failed',
+              type: NOTIFICATION_TYPE.SYSTEM,
+              user_id: null,
+            },
+            {
+              body: 'Booking confirmed.',
+              created_at: '2026-07-01T09:00:00.000Z',
+              id: NOTIFICATION_ID,
+              read_at: '2026-07-01T09:05:00.000Z',
+              recipient_email: 'recipient@example.com',
+              recipient_name: 'Recipient User',
+              related_entity_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+              related_entity_name: 'booking',
+              sent_at: '2026-07-01T08:59:00.000Z',
+              status: NOTIFICATION_STATUS.FAILED,
+              title: 'Booking update failed',
+              type: NOTIFICATION_TYPE.SYSTEM,
+              user_id: USER_ID,
+            },
+          ],
+          total: 2,
+        };
+      },
+    },
+  });
+
+  const result = await service.listAdminNotifications({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['notification.manage'],
+      },
+      userId: USER_ID,
+    },
+    query: {
+      status: NOTIFICATION_STATUS.FAILED,
+      type: NOTIFICATION_TYPE.SYSTEM,
+    },
+  });
+
+  assert.equal(result.items.length, 2);
+  assert.equal(result.items[0].is_broadcast, true);
+  assert.equal(result.items[1].recipient.email, 'recipient@example.com');
+  assert.deepEqual(result.meta, {
+    has_next: false,
+    limit: 20,
+    page: 1,
+    total: 2,
+    total_pages: 1,
+  });
+
+  await assert.rejects(
+    () => service.listAdminNotifications({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['booking.read_all'],
+        },
+        userId: USER_ID,
+      },
+      query: {},
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.listAdminNotifications({
+      auth: {
+        role: 'system_admin',
+        tokenPayload: {
+          permissions: ['notification.manage'],
+        },
+        userId: USER_ID,
+      },
+      query: {
+        limit: '101',
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+});
+
+test('notificationService.updateAdminNotificationStatus validates permission and lifecycle transitions', async () => {
+  const notifications = new Map([
+    [
+      NOTIFICATION_ID,
+      {
+        body: 'Queued notice',
+        created_at: '2026-07-01T09:00:00.000Z',
+        id: NOTIFICATION_ID,
+        read_at: null,
+        related_entity_id: null,
+        related_entity_name: null,
+        sent_at: null,
+        status: NOTIFICATION_STATUS.QUEUED,
+        title: 'Queued',
+        type: NOTIFICATION_TYPE.SYSTEM,
+        user_id: USER_ID,
+      },
+    ],
+    [
+      BROADCAST_NOTIFICATION_ID,
+      {
+        body: 'Read broadcast',
+        created_at: '2026-07-01T10:00:00.000Z',
+        id: BROADCAST_NOTIFICATION_ID,
+        read_at: '2026-07-01T10:30:00.000Z',
+        related_entity_id: null,
+        related_entity_name: null,
+        sent_at: '2026-07-01T10:05:00.000Z',
+        status: NOTIFICATION_STATUS.READ,
+        title: 'Read',
+        type: NOTIFICATION_TYPE.SYSTEM,
+        user_id: null,
+      },
+    ],
+  ]);
+
+  const service = notificationService.createNotificationService({
+    repository: {
+      getNotificationById: async (notificationId) => notifications.get(notificationId) || null,
+      updateNotificationStatus: async ({
+        actorUserId,
+        fromStatus,
+        notificationId,
+        readAt,
+        sentAt,
+        toStatus,
+      }) => {
+        assert.equal(actorUserId, USER_ID);
+
+        if (notificationId === NOTIFICATION_ID) {
+          assert.equal(fromStatus, NOTIFICATION_STATUS.QUEUED);
+          assert.equal(toStatus, NOTIFICATION_STATUS.SENT);
+          assert.equal(readAt, null);
+          assert.match(sentAt, /\d{4}-\d{2}-\d{2}T/);
+
+          return {
+            ...notifications.get(notificationId),
+            sent_at: sentAt,
+            status: toStatus,
+          };
+        }
+
+        if (notificationId === BROADCAST_NOTIFICATION_ID) {
+          assert.equal(fromStatus, NOTIFICATION_STATUS.READ);
+          assert.equal(toStatus, NOTIFICATION_STATUS.SENT);
+          assert.equal(readAt, null);
+          assert.equal(sentAt, null);
+
+          return {
+            ...notifications.get(notificationId),
+            status: toStatus,
+          };
+        }
+
+        return null;
+      },
+    },
+  });
+
+  const queuedToSent = await service.updateAdminNotificationStatus({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['notification.manage'],
+      },
+      userId: USER_ID,
+    },
+    notificationId: NOTIFICATION_ID,
+    status: NOTIFICATION_STATUS.SENT,
+  });
+
+  assert.equal(queuedToSent.status, NOTIFICATION_STATUS.SENT);
+  assert.ok(queuedToSent.sent_at);
+
+  const sameStatus = await service.updateAdminNotificationStatus({
+    auth: {
+      role: 'admin',
+      tokenPayload: {
+        permissions: ['notification.manage'],
+      },
+      userId: USER_ID,
+    },
+    notificationId: NOTIFICATION_ID,
+    status: NOTIFICATION_STATUS.QUEUED,
+  });
+
+  assert.equal(sameStatus.status, NOTIFICATION_STATUS.QUEUED);
+  assert.equal(sameStatus.id, NOTIFICATION_ID);
+
+  const readOverride = await service.updateAdminNotificationStatus({
+    auth: {
+      role: 'system_admin',
+      tokenPayload: {
+        permissions: ['notification.manage'],
+      },
+      userId: USER_ID,
+    },
+    notificationId: BROADCAST_NOTIFICATION_ID,
+    status: NOTIFICATION_STATUS.SENT,
+  });
+
+  assert.equal(readOverride.status, NOTIFICATION_STATUS.SENT);
+  assert.equal(readOverride.is_broadcast, true);
+
+  await assert.rejects(
+    () => service.updateAdminNotificationStatus({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.manage'],
+        },
+        userId: USER_ID,
+      },
+      notificationId: BROADCAST_NOTIFICATION_ID,
+      status: NOTIFICATION_STATUS.SENT,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.INVALID_STATE_TRANSITION);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.updateAdminNotificationStatus({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.broadcast'],
+        },
+        userId: USER_ID,
+      },
+      notificationId: NOTIFICATION_ID,
+      status: NOTIFICATION_STATUS.SENT,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.updateAdminNotificationStatus({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['notification.manage'],
+        },
+        userId: USER_ID,
+      },
+      notificationId: 'not-a-uuid',
+      status: NOTIFICATION_STATUS.SENT,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
       return true;
     },
   );
@@ -847,6 +1151,150 @@ test('DELETE /api/notifications/{notification_id} deletes owned user-specific no
       deleted: true,
       id: NOTIFICATION_ID,
     });
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/admin/notifications returns admin notification list and blocks disallowed roles', async () => {
+  const server = app.listen(0);
+
+  notificationService.listAdminNotifications = async ({ auth, query }) => {
+    assert.equal(auth.role, 'admin');
+    assert.equal(auth.userId, USER_ID);
+    assert.deepEqual(auth.tokenPayload.permissions, ['notification.manage']);
+    assert.equal(query.type, NOTIFICATION_TYPE.SYSTEM);
+    assert.equal(query.status, NOTIFICATION_STATUS.FAILED);
+
+    return {
+      items: [
+        {
+          body: 'System maintenance tonight.',
+          created_at: '2026-07-01T10:00:00.000Z',
+          id: BROADCAST_NOTIFICATION_ID,
+          is_broadcast: true,
+          read_at: null,
+          recipient: null,
+          related_entity_id: null,
+          related_entity_name: null,
+          sent_at: '2026-07-01T09:50:00.000Z',
+          status: NOTIFICATION_STATUS.FAILED,
+          title: 'Maintenance failed',
+          type: NOTIFICATION_TYPE.SYSTEM,
+        },
+      ],
+      meta: {
+        has_next: false,
+        limit: 20,
+        page: 1,
+        total: 1,
+        total_pages: 1,
+      },
+    };
+  };
+
+  try {
+    const okResponse = await request(server, `${apiPrefix}/admin/notifications?type=system&status=failed`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['notification.manage'],
+          roleCode: 'admin',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(okResponse.statusCode, 200);
+    assert.equal(okResponse.body.success, true);
+    assert.equal(okResponse.body.data.length, 1);
+    assert.equal(okResponse.body.data[0].is_broadcast, true);
+    assert.equal(okResponse.body.meta.total, 1);
+
+    const forbiddenResponse = await request(server, `${apiPrefix}/admin/notifications`, {
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['notification.manage'],
+          roleCode: 'staff',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('PATCH /api/admin/notifications/{notification_id}/status updates notification status and blocks disallowed roles', async () => {
+  const server = app.listen(0);
+
+  notificationService.updateAdminNotificationStatus = async ({
+    auth,
+    notificationId,
+    status,
+  }) => {
+    assert.equal(auth.role, 'admin');
+    assert.equal(auth.userId, USER_ID);
+    assert.deepEqual(auth.tokenPayload.permissions, ['notification.manage']);
+    assert.equal(notificationId, NOTIFICATION_ID);
+    assert.equal(status, NOTIFICATION_STATUS.SENT);
+
+    return {
+      body: 'Queued notice',
+      created_at: '2026-07-01T09:00:00.000Z',
+      id: NOTIFICATION_ID,
+      is_broadcast: false,
+      read_at: null,
+      related_entity_id: null,
+      related_entity_name: null,
+      sent_at: '2026-07-01T09:05:00.000Z',
+      status: NOTIFICATION_STATUS.SENT,
+      title: 'Queued',
+      type: NOTIFICATION_TYPE.SYSTEM,
+      user_id: USER_ID,
+    };
+  };
+
+  try {
+    const okResponse = await request(server, `${apiPrefix}/admin/notifications/${NOTIFICATION_ID}/status`, {
+      body: {
+        status: NOTIFICATION_STATUS.SENT,
+      },
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['notification.manage'],
+          roleCode: 'admin',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(okResponse.statusCode, 200);
+    assert.equal(okResponse.body.success, true);
+    assert.equal(okResponse.body.data.status, NOTIFICATION_STATUS.SENT);
+    assert.equal(okResponse.body.data.id, NOTIFICATION_ID);
+
+    const forbiddenResponse = await request(server, `${apiPrefix}/admin/notifications/${NOTIFICATION_ID}/status`, {
+      body: {
+        status: NOTIFICATION_STATUS.SENT,
+      },
+      headers: {
+        Authorization: `Bearer ${createAccessToken({
+          permissions: ['notification.manage'],
+          roleCode: 'staff',
+          userId: USER_ID,
+        })}`,
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(forbiddenResponse.statusCode, 403);
+    assert.equal(forbiddenResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
   } finally {
     server.close();
   }
