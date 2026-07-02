@@ -24,6 +24,18 @@ const listAdminMailTemplates = async (req, res) => {
   });
 };
 
+const getAdminMailStats = async (req, res) => {
+  const data = await emailLogService.getAdminMailStats({
+    auth: req.auth,
+    query: req.query,
+  });
+
+  res.success({
+    data,
+    message: 'Mail stats fetched successfully',
+  });
+};
+
 const getAdminEmailLogDetail = async (req, res) => {
   const data = await emailLogService.getAdminEmailLogDetail({
     auth: req.auth,
@@ -50,6 +62,7 @@ const resendAdminEmailLog = async (req, res) => {
 
 module.exports = {
   getAdminEmailLogDetail,
+  getAdminMailStats,
   listAdminMailTemplates,
   listAdminEmailLogs,
   resendAdminEmailLog,
