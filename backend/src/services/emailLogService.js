@@ -2,6 +2,7 @@ const {
   API_ERROR_CODES,
   EMAIL_STATUS_VALUES,
 } = require('../constants/domainConstraints');
+const { SYSTEM_EMAIL_TEMPLATES } = require('../constants/emailTemplates');
 const {
   apiPrefix,
   backendUrl,
@@ -237,6 +238,25 @@ const ensureAdminEmailLogReadAccess = (auth) => {
   return actor;
 };
 
+const ensureAdminMailTemplateReadAccess = (auth) => {
+  const actor = normalizeAuth(auth);
+
+  if (!actor.userId || !ADMIN_ALLOWED_ROLES.includes(actor.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(actor);
+
+  if (
+    !permissionCodes.includes('email_log.read') &&
+    !permissionCodes.includes('email.send')
+  ) {
+    throw buildForbiddenError();
+  }
+
+  return actor;
+};
+
 const ensureAdminEmailLogResendAccess = (auth) => {
   const actor = normalizeAuth(auth);
 
@@ -388,6 +408,13 @@ const sanitizeAdminEmailLogResendResult = ({
 }) => ({
   ...sanitizeAdminEmailLogDetail(emailLog),
   source_email_log_id: sourceEmailLogId,
+});
+
+const sanitizeMailTemplateMetadata = (template) => ({
+  description: template.description,
+  display_name: template.display_name,
+  required_variables: [...template.required_variables],
+  template_code: template.code,
 });
 
 const buildVerificationLinks = (token) => {
@@ -681,6 +708,21 @@ const createEmailLogService = ({
     };
   };
 
+  const listAdminMailTemplates = async ({
+    auth,
+  } = {}) => {
+    ensureAdminMailTemplateReadAccess(auth);
+
+    if (!Array.isArray(SYSTEM_EMAIL_TEMPLATES)) {
+      throw new AppError('System email templates are not configured', {
+        code: API_ERROR_CODES.INTERNAL_ERROR,
+        statusCode: 500,
+      });
+    }
+
+    return SYSTEM_EMAIL_TEMPLATES.map(sanitizeMailTemplateMetadata);
+  };
+
   const getAdminEmailLogDetail = async ({
     auth,
     emailLogId,
@@ -771,6 +813,7 @@ const createEmailLogService = ({
 
   return {
     getAdminEmailLogDetail,
+    listAdminMailTemplates,
     listAdminEmailLogs,
     resendAdminEmailLog,
   };
