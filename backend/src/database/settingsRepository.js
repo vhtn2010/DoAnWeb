@@ -3,6 +3,7 @@ const { query: defaultQuery, withTransaction } = require('./client');
 const PUBLIC_SETTINGS_TABLE_SCHEMA = 'public';
 const PUBLIC_SETTINGS_TABLE_NAME = 'settings_store';
 const PUBLIC_SETTINGS_UPDATE_ACTION = 'settings.public.update';
+const DIRECT_PAYMENT_SETTINGS_UPDATE_ACTION = 'settings.direct_payment.update';
 const KEY_COLUMN_CANDIDATES = Object.freeze([
   'setting_key',
   'key',
@@ -29,6 +30,12 @@ const PUBLIC_ROW_KEY_CANDIDATES = Object.freeze([
   'website_public',
   'site_public',
 ]);
+const DIRECT_PAYMENT_ROW_KEY_CANDIDATES = Object.freeze([
+  'direct_payment',
+  'direct-payment',
+  'payment_direct',
+  'payment_methods_direct',
+]);
 const PUBLIC_FIELD_NAMES = Object.freeze([
   'site_name',
   'logo_url',
@@ -44,6 +51,10 @@ const ADMIN_PUBLIC_FIELD_NAMES = Object.freeze([
   'seo_title',
   'seo_description',
   'footer_text',
+]);
+const DIRECT_PAYMENT_FIELD_NAMES = Object.freeze([
+  'hotline',
+  'methods',
 ]);
 const CREATED_AT_COLUMN_CANDIDATES = Object.freeze([
   'created_at',
@@ -167,6 +178,7 @@ const buildQueryPlan = (
   {
     fieldNames = PUBLIC_FIELD_NAMES,
     includeCtid = false,
+    rowKeyCandidates = PUBLIC_ROW_KEY_CANDIDATES,
   } = {},
 ) => {
   const availableColumns = new Set(columns.map((column) => column.column_name));
@@ -234,7 +246,7 @@ const buildQueryPlan = (
       text: `SELECT ${selectClause} FROM ${PUBLIC_SETTINGS_TABLE_SCHEMA}.${PUBLIC_SETTINGS_TABLE_NAME} WHERE LOWER(${quoteIdentifier(
         keyColumn,
       )}::text) = ANY($1::text[])${orderByClause} LIMIT 1`,
-      values: [PUBLIC_ROW_KEY_CANDIDATES],
+      values: [rowKeyCandidates],
     };
   }
 
@@ -339,11 +351,13 @@ const createSettingsRepository = ({
     fieldNames = PUBLIC_FIELD_NAMES,
     includeCtid = false,
     queryExecutor = query,
+    rowKeyCandidates = PUBLIC_ROW_KEY_CANDIDATES,
   } = {}) => {
     const columns = await loadColumns(queryExecutor);
     const plan = buildQueryPlan(columns, {
       fieldNames,
       includeCtid,
+      rowKeyCandidates,
     });
     const settingsResult = await executeQuery(queryExecutor, plan.text, plan.values);
     const row = settingsResult.rows?.[0];
@@ -397,6 +411,19 @@ const createSettingsRepository = ({
     };
   };
 
+  const getDirectPaymentSettings = async () => {
+    const result = await readSettingsRecord({
+      fieldNames: DIRECT_PAYMENT_FIELD_NAMES,
+      rowKeyCandidates: DIRECT_PAYMENT_ROW_KEY_CANDIDATES,
+    });
+
+    return {
+      exists: result.exists,
+      metadata: result.metadata,
+      settings: result.settings,
+    };
+  };
+
   const listPermissionCodesByRoleId = async (roleId) => {
     const result = await query(
       `
@@ -419,6 +446,7 @@ const createSettingsRepository = ({
   const buildUpsertAssignments = ({
     actorUserId,
     plan,
+    rowKeyCandidates = PUBLIC_ROW_KEY_CANDIDATES,
     settings,
   }) => {
     const assignments = [];
@@ -428,7 +456,7 @@ const createSettingsRepository = ({
 
     if (plan.keyColumn) {
       insertColumns.push(plan.keyColumn);
-      params.push(PUBLIC_ROW_KEY_CANDIDATES[0]);
+      params.push(rowKeyCandidates[0]);
       insertValues.push(buildPayloadValueExpression(
         plan.columnMap.get(plan.keyColumn),
         params.length,
@@ -492,10 +520,14 @@ const createSettingsRepository = ({
     };
   };
 
-  const saveAdminPublicSettings = async ({
+  const saveScopedSettings = ({
     actorUserId,
     changedFields,
+    fieldNames,
     ipAddress,
+    logAction,
+    logMetadata,
+    rowKeyCandidates,
     settings,
     userAgent,
   } = {}) =>
@@ -507,9 +539,10 @@ const createSettingsRepository = ({
       }
 
       const record = await readSettingsRecord({
-        fieldNames: ADMIN_PUBLIC_FIELD_NAMES,
+        fieldNames,
         includeCtid: true,
         queryExecutor: client,
+        rowKeyCandidates,
       });
       const {
         assignments,
@@ -519,6 +552,7 @@ const createSettingsRepository = ({
       } = buildUpsertAssignments({
         actorUserId,
         plan: record.plan,
+        rowKeyCandidates,
         settings,
       });
 
@@ -537,7 +571,7 @@ const createSettingsRepository = ({
               WHERE LOWER(${quoteIdentifier(record.plan.keyColumn)}::text) = ANY($${params.length + 1}::text[])
               RETURNING *
             `,
-            [...params, PUBLIC_ROW_KEY_CANDIDATES],
+            [...params, rowKeyCandidates],
           );
         } else {
           saveResult = await client.query(
@@ -573,7 +607,7 @@ const createSettingsRepository = ({
       const savedRow = saveResult.rows[0];
       const savedSettings = extractPublicSettings({
         availableColumns: record.plan.availableColumns,
-        fieldNames: ADMIN_PUBLIC_FIELD_NAMES,
+        fieldNames,
         payloadColumn: record.plan.payloadColumn,
         row: savedRow,
       });
@@ -599,14 +633,14 @@ const createSettingsRepository = ({
         `,
         [
           actorUserId || null,
-          PUBLIC_SETTINGS_UPDATE_ACTION,
+          logAction,
           'settings',
           savedRow?.id || null,
           ipAddress || null,
           userAgent || null,
           JSON.stringify({
             changed_fields: Array.isArray(changedFields) ? changedFields : [],
-            scope: 'public',
+            ...(logMetadata || {}),
           }),
         ],
       );
@@ -617,16 +651,65 @@ const createSettingsRepository = ({
       };
     });
 
+  const saveAdminPublicSettings = async ({
+    actorUserId,
+    changedFields,
+    ipAddress,
+    settings,
+    userAgent,
+  } = {}) =>
+    saveScopedSettings({
+      actorUserId,
+      changedFields,
+      fieldNames: ADMIN_PUBLIC_FIELD_NAMES,
+      ipAddress,
+      logAction: PUBLIC_SETTINGS_UPDATE_ACTION,
+      logMetadata: {
+        scope: 'public',
+      },
+      rowKeyCandidates: PUBLIC_ROW_KEY_CANDIDATES,
+      settings,
+      userAgent,
+    });
+
+  const saveDirectPaymentSettings = async ({
+    actorUserId,
+    changedMethodCodes,
+    ipAddress,
+    settings,
+    userAgent,
+  } = {}) =>
+    saveScopedSettings({
+      actorUserId,
+      changedFields: changedMethodCodes,
+      fieldNames: DIRECT_PAYMENT_FIELD_NAMES,
+      ipAddress,
+      logAction: DIRECT_PAYMENT_SETTINGS_UPDATE_ACTION,
+      logMetadata: {
+        method_codes: Array.isArray(changedMethodCodes)
+          ? changedMethodCodes
+          : [],
+        scope: 'direct_payment',
+      },
+      rowKeyCandidates: DIRECT_PAYMENT_ROW_KEY_CANDIDATES,
+      settings,
+      userAgent,
+    });
+
   return {
     getAdminPublicSettings,
+    getDirectPaymentSettings,
     getPublicSettings,
     listPermissionCodesByRoleId,
     saveAdminPublicSettings,
+    saveDirectPaymentSettings,
   };
 };
 
 module.exports = {
   ADMIN_PUBLIC_FIELD_NAMES,
+  DIRECT_PAYMENT_FIELD_NAMES,
+  DIRECT_PAYMENT_SETTINGS_UPDATE_ACTION,
   PUBLIC_FIELD_NAMES,
   PUBLIC_SETTINGS_UPDATE_ACTION,
   createSettingsRepository,

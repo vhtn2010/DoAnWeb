@@ -32,7 +32,7 @@ const customerPaymentWriteRateLimit = createRateLimit({
 router.get(
   '/payment-methods/direct',
   publicPaymentMethodRateLimit,
-  getDirectPaymentMethods,
+  asyncHandler(getDirectPaymentMethods),
 );
 
 router.post(
