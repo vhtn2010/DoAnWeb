@@ -1,7 +1,14 @@
-const { query } = require('./client');
+const {
+  API_ERROR_CODES,
+  DOMAIN_CONSTRAINTS,
+  EMAIL_STATUS,
+} = require('../constants/domainConstraints');
+const AppError = require('../utils/AppError');
+const { query, withTransaction } = require('./client');
 
 const createEmailLogRepository = ({
   queryImpl = query,
+  withTransactionImpl = withTransaction,
 } = {}) => {
   const listAdminEmailLogs = async ({
     limit,
@@ -105,9 +112,247 @@ const createEmailLogRepository = ({
     return result.rows[0] || null;
   };
 
+  const getUserEmailContextById = async (userId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          email,
+          full_name,
+          status,
+          password_hash,
+          email_verified_at,
+          deleted_at
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [userId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getBookingEmailContextById = async (bookingId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          user_id,
+          booking_code,
+          contact_name,
+          contact_email,
+          status,
+          subtotal_amount,
+          discount_amount,
+          total_amount,
+          currency
+        FROM bookings
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [bookingId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const listBookingItemsByBookingId = async (bookingId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          id,
+          service_type,
+          title_snapshot,
+          quantity,
+          start_at,
+          end_at
+        FROM booking_items
+        WHERE booking_id = $1
+        ORDER BY created_at ASC, id ASC
+      `,
+      [bookingId],
+    );
+
+    return result.rows;
+  };
+
+  const createResendEmailLog = async ({
+    actorUserId,
+    bookingId,
+    sourceEmailLogId,
+    subject,
+    templateCode,
+    toEmail,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const emailLogResult = await client.query(
+        `
+          INSERT INTO email_logs (
+            user_id,
+            booking_id,
+            to_email,
+            subject,
+            template_code,
+            status,
+            provider,
+            provider_message_id,
+            error_message,
+            sent_at,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, NULL, NOW())
+          RETURNING
+            id,
+            user_id,
+            booking_id,
+            to_email,
+            subject,
+            template_code,
+            status,
+            provider,
+            provider_message_id,
+            error_message,
+            sent_at,
+            created_at
+        `,
+        [
+          userId || null,
+          bookingId || null,
+          toEmail,
+          subject,
+          templateCode,
+          EMAIL_STATUS.QUEUED,
+          DOMAIN_CONSTRAINTS.emailProvider,
+        ],
+      );
+
+      await client.query(
+        `
+          INSERT INTO user_logs (
+            user_id,
+            action,
+            entity_name,
+            entity_id,
+            metadata,
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `,
+        [
+          actorUserId || null,
+          'admin.email_log.resend',
+          'email_log',
+          sourceEmailLogId,
+          {
+            resend_email_log_id: emailLogResult.rows[0].id,
+            template_code: templateCode,
+            to_email: toEmail,
+          },
+        ],
+      );
+
+      return emailLogResult.rows[0];
+    });
+
+  const markEmailLogSent = async ({
+    emailLogId,
+    messageId,
+    sentAt,
+  }) => {
+    const result = await queryImpl(
+      `
+        UPDATE email_logs
+        SET
+          status = $2,
+          provider_message_id = $3,
+          error_message = NULL,
+          sent_at = $4
+        WHERE id = $1
+        RETURNING
+          id,
+          user_id,
+          booking_id,
+          to_email,
+          subject,
+          template_code,
+          status,
+          provider,
+          provider_message_id,
+          error_message,
+          sent_at,
+          created_at
+      `,
+      [
+        emailLogId,
+        EMAIL_STATUS.SENT,
+        messageId || null,
+        sentAt,
+      ],
+    );
+
+    if (result.rowCount !== 1) {
+      throw new AppError('Email log not found', {
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        statusCode: 404,
+      });
+    }
+
+    return result.rows[0];
+  };
+
+  const markEmailLogFailed = async ({
+    emailLogId,
+    errorMessage,
+  }) => {
+    const result = await queryImpl(
+      `
+        UPDATE email_logs
+        SET
+          status = $2,
+          error_message = $3
+        WHERE id = $1
+        RETURNING
+          id,
+          user_id,
+          booking_id,
+          to_email,
+          subject,
+          template_code,
+          status,
+          provider,
+          provider_message_id,
+          error_message,
+          sent_at,
+          created_at
+      `,
+      [
+        emailLogId,
+        EMAIL_STATUS.FAILED,
+        errorMessage || 'Unknown email provider error',
+      ],
+    );
+
+    if (result.rowCount !== 1) {
+      throw new AppError('Email log not found', {
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        statusCode: 404,
+      });
+    }
+
+    return result.rows[0];
+  };
+
   return {
+    createResendEmailLog,
     getAdminEmailLogById,
+    getBookingEmailContextById,
+    getUserEmailContextById,
     listAdminEmailLogs,
+    listBookingItemsByBookingId,
+    markEmailLogFailed,
+    markEmailLogSent,
   };
 };
 

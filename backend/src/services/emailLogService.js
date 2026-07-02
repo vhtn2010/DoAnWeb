@@ -2,23 +2,61 @@ const {
   API_ERROR_CODES,
   EMAIL_STATUS_VALUES,
 } = require('../constants/domainConstraints');
+const {
+  apiPrefix,
+  backendUrl,
+  frontendUrl,
+} = require('../config');
+const {
+  emailVerification,
+  passwordReset,
+} = require('../config/auth');
 const { createEmailLogRepository } = require('../database/emailLogRepository');
 const AppError = require('../utils/AppError');
+const {
+  AUTH_RESET_PASSWORD_TEMPLATE_CODE,
+  AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+  AUTH_VERIFY_EMAIL_TEMPLATE_CODE,
+  buildResetPasswordEmail,
+  buildVerificationEmail,
+} = require('./authService');
+const { sendEmail } = require('./sendgridService');
+const { createEmailVerificationToken } = require('../utils/emailVerificationToken');
+const {
+  buildPasswordVersion,
+  createResetPasswordToken,
+} = require('../utils/resetPasswordToken');
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
+const DEFAULT_CURRENCY = 'VND';
 const MAX_LIMIT = 100;
 const MAX_EMAIL_QUERY_LENGTH = 255;
 const MAX_TEMPLATE_CODE_LENGTH = 100;
+const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TEMPLATE_CODE_PATTERN = /^[A-Z0-9_:-]+$/i;
 const EMAIL_QUERY_PATTERN = /^[A-Z0-9@._+-]+$/i;
+const BOOKING_CONFIRMATION_RESEND_TEMPLATE_CODE =
+  'BOOKING_CONFIRMATION_RESEND';
+const ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE = 'ADMIN_USER_VERIFY_EMAIL';
+const ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = 'ADMIN_RESEND_VERIFY_EMAIL';
 const ADMIN_ALLOWED_ROLES = Object.freeze([
   'staff',
   'admin',
   'system_admin',
 ]);
+const VERIFICATION_TEMPLATE_CODE_MAP = Object.freeze({
+  [ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE]:
+    ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+  [ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE]:
+    ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+  [AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE]:
+    AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+  [AUTH_VERIFY_EMAIL_TEMPLATE_CODE]:
+    AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE,
+});
 
 const buildAppError = ({
   code,
@@ -59,12 +97,33 @@ const buildResourceNotFoundError = (message = 'Resource not found') =>
     statusCode: 404,
   });
 
+const normalizeWhitespace = (value) =>
+  String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const roundMoney = (value) => {
+  if (value == null) {
+    return 0;
+  }
+
+  return Number(Number(value).toFixed(2));
+};
+
 const parseUuid = (field, value) => {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value.trim())) {
     throw buildValidationError(field, `${field} must be a valid UUID`);
   }
 
   return value.trim();
+};
+
+const parseEmailAddress = (field, value) => {
+  if (typeof value !== 'string' || !EMAIL_ADDRESS_REGEX.test(value.trim())) {
+    throw buildValidationError(field, `${field} must be a valid email address`);
+  }
+
+  return value.trim().toLowerCase();
 };
 
 const parsePositiveInteger = ({
@@ -172,6 +231,25 @@ const ensureAdminEmailLogReadAccess = (auth) => {
   const permissionCodes = normalizePermissionCodes(actor);
 
   if (!permissionCodes.includes('email_log.read')) {
+    throw buildForbiddenError();
+  }
+
+  return actor;
+};
+
+const ensureAdminEmailLogResendAccess = (auth) => {
+  const actor = normalizeAuth(auth);
+
+  if (!actor.userId || !ADMIN_ALLOWED_ROLES.includes(actor.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(actor);
+
+  if (
+    !permissionCodes.includes('email.resend') &&
+    !permissionCodes.includes('email.send')
+  ) {
     throw buildForbiddenError();
   }
 
@@ -304,9 +382,280 @@ const sanitizeAdminEmailLogDetail = (row) => ({
   to_email: row.to_email,
 });
 
+const sanitizeAdminEmailLogResendResult = ({
+  sourceEmailLogId,
+  emailLog,
+}) => ({
+  ...sanitizeAdminEmailLogDetail(emailLog),
+  source_email_log_id: sourceEmailLogId,
+});
+
+const buildVerificationLinks = (token) => {
+  const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
+  const normalizedBackendUrl = backendUrl.replace(/\/$/, '');
+
+  return {
+    apiVerifyUrl: `${normalizedBackendUrl}${apiPrefix}/auth/verify-email`,
+    verificationUrl: `${normalizedFrontendUrl}/verify-email?token=${encodeURIComponent(token)}`,
+  };
+};
+
+const buildResetPasswordLinks = (token) => {
+  const normalizedFrontendUrl = frontendUrl.replace(/\/$/, '');
+  const normalizedBackendUrl = backendUrl.replace(/\/$/, '');
+
+  return {
+    apiResetUrl: `${normalizedBackendUrl}${apiPrefix}/auth/reset-password`,
+    resetUrl: `${normalizedFrontendUrl}/reset-password?token=${encodeURIComponent(token)}`,
+  };
+};
+
+const buildBookingConfirmationResendEmail = ({
+  booking,
+  items,
+}) => {
+  const contactName = booking.contact_name || 'Quy khach';
+  const itemLinesText = items.length === 0
+    ? '- Khong co dich vu dinh kem'
+    : items.map((item, index) => {
+      const schedule = [
+        item.start_at ? `bat dau: ${item.start_at}` : null,
+        item.end_at ? `ket thuc: ${item.end_at}` : null,
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+      return `${index + 1}. ${item.title_snapshot} (${item.service_type}) - SL ${item.quantity}${schedule ? ` - ${schedule}` : ''}`;
+    }).join('\n');
+  const itemLinesHtml = items.length === 0
+    ? '<li>Khong co dich vu dinh kem</li>'
+    : items.map((item) => {
+      const schedule = [
+        item.start_at ? `Bat dau: ${item.start_at}` : null,
+        item.end_at ? `Ket thuc: ${item.end_at}` : null,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      return `<li><strong>${item.title_snapshot}</strong> (${item.service_type}) - SL ${item.quantity}${schedule ? ` - ${schedule}` : ''}</li>`;
+    }).join('');
+
+  return {
+    html: [
+      `<p>Xin chao ${contactName},</p>`,
+      `<p>Chung toi gui lai email xac nhan booking <strong>${booking.booking_code}</strong>.</p>`,
+      `<p>Trang thai booking hien tai: <strong>${booking.status}</strong></p>`,
+      '<p>Danh sach dich vu:</p>',
+      `<ul>${itemLinesHtml}</ul>`,
+      `<p>Tam tinh: ${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}</p>`,
+      `<p>Giam gia: ${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}</p>`,
+      `<p>Tong thanh toan: <strong>${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}</strong></p>`,
+      '<p>Neu can ho tro them, vui long lien he bo phan CSKH.</p>',
+    ].join(''),
+    subject: `Booking ${booking.booking_code} - Gui lai email xac nhan`,
+    text: [
+      `Xin chao ${contactName},`,
+      `Chung toi gui lai email xac nhan booking ${booking.booking_code}.`,
+      `Trang thai booking: ${booking.status}`,
+      'Danh sach dich vu:',
+      itemLinesText,
+      `Tam tinh: ${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      `Giam gia: ${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      `Tong thanh toan: ${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      'Neu can ho tro them, vui long lien he bo phan CSKH.',
+    ].join('\n'),
+  };
+};
+
 const createEmailLogService = ({
   repository = createEmailLogRepository(),
+  createEmailVerificationTokenImpl = createEmailVerificationToken,
+  createResetPasswordTokenImpl = createResetPasswordToken,
+  now = () => new Date(),
+  sendEmailImpl = sendEmail,
 } = {}) => {
+  const renderBookingResendEmail = async ({
+    emailLog,
+    sourceEmailLogId,
+  }) => {
+    if (!emailLog.booking_id) {
+      throw buildValidationError(
+        'booking_id',
+        'booking_id is required to resend this email template',
+      );
+    }
+
+    const booking = await repository.getBookingEmailContextById(emailLog.booking_id);
+
+    if (!booking) {
+      throw buildResourceNotFoundError('Booking not found for this email log');
+    }
+
+    const items = await repository.listBookingItemsByBookingId(emailLog.booking_id);
+    const emailContent = buildBookingConfirmationResendEmail({
+      booking,
+      items,
+    });
+
+    return {
+      bookingId: booking.id,
+      payload: emailContent,
+      recipientName: normalizeWhitespace(booking.contact_name) || undefined,
+      sourceEmailLogId,
+      templateCode: BOOKING_CONFIRMATION_RESEND_TEMPLATE_CODE,
+      toEmail: emailLog.to_email,
+      userId: emailLog.user_id || booking.user_id || null,
+    };
+  };
+
+  const renderVerificationResendEmail = async ({
+    emailLog,
+    resendTemplateCode,
+    sourceEmailLogId,
+  }) => {
+    if (!emailLog.user_id) {
+      throw buildValidationError(
+        'user_id',
+        'user_id is required to resend this email template',
+      );
+    }
+
+    const user = await repository.getUserEmailContextById(emailLog.user_id);
+
+    if (!user || user.deleted_at) {
+      throw buildResourceNotFoundError('User not found for this email log');
+    }
+
+    const currentEmail = parseEmailAddress('user.email', user.email);
+
+    if (currentEmail !== emailLog.to_email) {
+      throw buildValidationError(
+        'to_email',
+        'Current user email no longer matches the original recipient',
+      );
+    }
+
+    if (user.email_verified_at != null) {
+      throw buildValidationError(
+        'template_code',
+        'Verification email can no longer be resent for a verified user',
+      );
+    }
+
+    const token = createEmailVerificationTokenImpl({
+      email: user.email,
+      userId: user.id,
+    });
+    const { apiVerifyUrl, verificationUrl } = buildVerificationLinks(token);
+    const emailContent = buildVerificationEmail({
+      apiVerifyUrl,
+      expiresInMinutes: emailVerification.expiresInMinutes,
+      fullName: user.full_name || 'ban',
+      token,
+      verificationUrl,
+    });
+
+    return {
+      bookingId: emailLog.booking_id || null,
+      payload: emailContent,
+      recipientName: normalizeWhitespace(user.full_name) || undefined,
+      sourceEmailLogId,
+      templateCode: resendTemplateCode,
+      toEmail: currentEmail,
+      userId: user.id,
+    };
+  };
+
+  const renderResetPasswordResendEmail = async ({
+    emailLog,
+    sourceEmailLogId,
+  }) => {
+    if (!emailLog.user_id) {
+      throw buildValidationError(
+        'user_id',
+        'user_id is required to resend this email template',
+      );
+    }
+
+    const user = await repository.getUserEmailContextById(emailLog.user_id);
+
+    if (!user || user.deleted_at) {
+      throw buildResourceNotFoundError('User not found for this email log');
+    }
+
+    const currentEmail = parseEmailAddress('user.email', user.email);
+
+    if (currentEmail !== emailLog.to_email) {
+      throw buildValidationError(
+        'to_email',
+        'Current user email no longer matches the original recipient',
+      );
+    }
+
+    if (!user.password_hash) {
+      throw buildValidationError(
+        'template_code',
+        'Current user data is not sufficient to render this email again',
+      );
+    }
+
+    const token = createResetPasswordTokenImpl({
+      email: user.email,
+      passwordVersion: buildPasswordVersion(user.password_hash),
+      userId: user.id,
+    });
+    const { apiResetUrl, resetUrl } = buildResetPasswordLinks(token);
+    const emailContent = buildResetPasswordEmail({
+      apiResetUrl,
+      expiresInMinutes: passwordReset.expiresInMinutes,
+      fullName: user.full_name || 'ban',
+      resetUrl,
+      token,
+    });
+
+    return {
+      bookingId: emailLog.booking_id || null,
+      payload: emailContent,
+      recipientName: normalizeWhitespace(user.full_name) || undefined,
+      sourceEmailLogId,
+      templateCode: AUTH_RESET_PASSWORD_TEMPLATE_CODE,
+      toEmail: currentEmail,
+      userId: user.id,
+    };
+  };
+
+  const resolveResendEmailContext = async ({
+    emailLog,
+    sourceEmailLogId,
+  }) => {
+    if (emailLog.template_code === BOOKING_CONFIRMATION_RESEND_TEMPLATE_CODE) {
+      return renderBookingResendEmail({
+        emailLog,
+        sourceEmailLogId,
+      });
+    }
+
+    if (VERIFICATION_TEMPLATE_CODE_MAP[emailLog.template_code]) {
+      return renderVerificationResendEmail({
+        emailLog,
+        resendTemplateCode: VERIFICATION_TEMPLATE_CODE_MAP[emailLog.template_code],
+        sourceEmailLogId,
+      });
+    }
+
+    if (emailLog.template_code === AUTH_RESET_PASSWORD_TEMPLATE_CODE) {
+      return renderResetPasswordResendEmail({
+        emailLog,
+        sourceEmailLogId,
+      });
+    }
+
+    throw buildValidationError(
+      'template_code',
+      'template_code is not supported for resend',
+    );
+  };
+
   const listAdminEmailLogs = async ({
     auth,
     query,
@@ -347,9 +696,83 @@ const createEmailLogService = ({
     return sanitizeAdminEmailLogDetail(emailLog);
   };
 
+  const resendAdminEmailLog = async ({
+    auth,
+    emailLogId,
+  } = {}) => {
+    const actor = ensureAdminEmailLogResendAccess(auth);
+    const parsedEmailLogId = parseUuid('email_log_id', emailLogId);
+    const emailLog = await repository.getAdminEmailLogById(parsedEmailLogId);
+
+    if (!emailLog) {
+      throw buildResourceNotFoundError('Email log not found');
+    }
+
+    const sourceToEmail = parseEmailAddress('to_email', emailLog.to_email);
+    const sourceTemplateCode = parseOptionalTemplateCode(emailLog.template_code);
+
+    if (!sourceTemplateCode) {
+      throw buildValidationError(
+        'template_code',
+        'template_code is required to resend this email',
+      );
+    }
+
+    const resendContext = await resolveResendEmailContext({
+      emailLog: {
+        ...emailLog,
+        template_code: sourceTemplateCode,
+        to_email: sourceToEmail,
+      },
+      sourceEmailLogId: parsedEmailLogId,
+    });
+    const queuedEmailLog = await repository.createResendEmailLog({
+      actorUserId: actor.userId,
+      bookingId: resendContext.bookingId,
+      sourceEmailLogId: parsedEmailLogId,
+      subject: resendContext.payload.subject,
+      templateCode: resendContext.templateCode,
+      toEmail: resendContext.toEmail,
+      userId: resendContext.userId,
+    });
+
+    try {
+      const sendResult = await sendEmailImpl({
+        html: resendContext.payload.html,
+        subject: resendContext.payload.subject,
+        text: resendContext.payload.text,
+        to: {
+          email: resendContext.toEmail,
+          name: resendContext.recipientName,
+        },
+      });
+      const sentEmailLog = await repository.markEmailLogSent({
+        emailLogId: queuedEmailLog.id,
+        messageId: sendResult?.messageId || null,
+        sentAt: now(),
+      });
+
+      return sanitizeAdminEmailLogResendResult({
+        emailLog: sentEmailLog,
+        sourceEmailLogId: parsedEmailLogId,
+      });
+    } catch (error) {
+      await repository.markEmailLogFailed({
+        emailLogId: queuedEmailLog.id,
+        errorMessage: error?.message || 'Unknown email provider error',
+      });
+
+      throw new AppError('Failed to resend email', {
+        code: API_ERROR_CODES.INTERNAL_ERROR,
+        statusCode: 500,
+      });
+    }
+  };
+
   return {
     getAdminEmailLogDetail,
     listAdminEmailLogs,
+    resendAdminEmailLog,
   };
 };
 
