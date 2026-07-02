@@ -8,6 +8,12 @@ const {
   listCustomerBookingPayments,
   uploadCustomerPaymentProof,
 } = require('../controllers/paymentController');
+const {
+  cancelCustomerRefundRequest,
+  createCustomerRefundRequest,
+  getCustomerRefundDetail,
+  listCustomerBookingRefunds,
+} = require('../controllers/refundController');
 const asyncHandler = require('../middleware/asyncHandler');
 const { authRequired } = require('../middleware/authSession');
 const createRateLimit = require('../middleware/rateLimit');
@@ -55,6 +61,34 @@ router.post(
   authRequired({ allowedRoles: ['customer'] }),
   customerPaymentWriteRateLimit,
   asyncHandler(cancelCustomerPayment),
+);
+
+router.post(
+  '/bookings/:booking_id/refunds',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerPaymentWriteRateLimit,
+  asyncHandler(createCustomerRefundRequest),
+);
+
+router.get(
+  '/bookings/:booking_id/refunds',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerPaymentReadRateLimit,
+  asyncHandler(listCustomerBookingRefunds),
+);
+
+router.get(
+  '/refunds/:refund_id',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerPaymentReadRateLimit,
+  asyncHandler(getCustomerRefundDetail),
+);
+
+router.post(
+  '/refunds/:refund_id/cancel',
+  authRequired({ allowedRoles: ['customer'] }),
+  customerPaymentWriteRateLimit,
+  asyncHandler(cancelCustomerRefundRequest),
 );
 
 router.post(
