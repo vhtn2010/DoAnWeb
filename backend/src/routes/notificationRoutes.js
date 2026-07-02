@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  broadcastAdminNotification,
   deleteMyNotification,
   getUnreadNotificationCount,
   getMyNotificationDetail,
@@ -8,6 +9,7 @@ const {
   markAllMyNotificationsRead,
   markMyNotificationRead,
   markMyNotificationsBulkRead,
+  sendAdminNotificationToUser,
   updateAdminNotificationStatus,
 } = require('../controllers/notificationController');
 const {
@@ -41,6 +43,13 @@ const adminNotificationStatusRateLimit = createRateLimiter({
   storeKey: 'admin-notification-status',
   windowMs: 60 * 1000,
 });
+const adminNotificationDispatchRateLimit = createRateLimiter({
+  keyGenerator: (req) => req.auth?.userId || req.ip || 'anonymous',
+  maxRequests: 20,
+  message: 'Too many admin notification dispatch requests. Please try again later.',
+  storeKey: 'admin-notification-dispatch',
+  windowMs: 60 * 1000,
+});
 
 const allowedRoles = ['customer', 'staff', 'admin', 'system_admin'];
 
@@ -50,6 +59,22 @@ router.get(
   requireAdminRoles(['admin', 'system_admin']),
   adminNotificationCatalogRateLimit,
   asyncHandler(listAdminNotifications),
+);
+
+router.post(
+  '/admin/notifications/broadcast',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminNotificationDispatchRateLimit,
+  asyncHandler(broadcastAdminNotification),
+);
+
+router.post(
+  '/admin/notifications/users/:user_id',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminNotificationDispatchRateLimit,
+  asyncHandler(sendAdminNotificationToUser),
 );
 
 router.patch(

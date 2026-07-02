@@ -2,7 +2,9 @@ const {
   API_ERROR_CODES,
   NOTIFICATION_STATUS,
   NOTIFICATION_STATUS_VALUES,
+  NOTIFICATION_TYPE,
   NOTIFICATION_TYPE_VALUES,
+  USER_STATUS,
 } = require('../constants/domainConstraints');
 const { createNotificationRepository } = require('../database/notificationRepository');
 const AppError = require('../utils/AppError');
@@ -24,6 +26,24 @@ const ADMIN_ALLOWED_ROLES = Object.freeze([
   'admin',
   'system_admin',
 ]);
+const ADMIN_DISPATCH_ALLOWED_PERMISSION_CODES = Object.freeze([
+  'notification.broadcast',
+  'notification.manage',
+]);
+const BROADCAST_TARGET_VALUES = Object.freeze([
+  'all',
+  'customers',
+  'staff',
+  'admins',
+]);
+const DISPATCH_ALLOWED_RELATED_ENTITY_VALUES = Object.freeze([
+  'booking',
+  'payment',
+  'promotion',
+  'support_ticket',
+]);
+const MAX_BODY_LENGTH = 5000;
+const MAX_TITLE_LENGTH = 255;
 const NOTIFICATION_STATUS_TRANSITIONS = Object.freeze({
   [NOTIFICATION_STATUS.QUEUED]: Object.freeze([
     NOTIFICATION_STATUS.SENT,
@@ -151,6 +171,31 @@ const buildPaginationMeta = ({
   };
 };
 
+const parseRequiredString = ({
+  field,
+  maxLength,
+  value,
+}) => {
+  if (typeof value !== 'string') {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    throw buildValidationError(field, `${field} is required`);
+  }
+
+  if (normalizedValue.length > maxLength) {
+    throw buildValidationError(
+      field,
+      `${field} must be less than or equal to ${maxLength} characters`,
+    );
+  }
+
+  return normalizedValue;
+};
+
 const normalizeAuth = (auth) => ({
   roleCode: auth?.roleCode || null,
   role: auth?.role || auth?.roleCode || null,
@@ -210,6 +255,25 @@ const ensureAdminNotificationCatalogAccess = (auth) => {
   return actor;
 };
 
+const ensureAdminNotificationDispatchAccess = (auth) => {
+  const actor = normalizeAuth(auth);
+
+  if (!actor.userId || !ADMIN_ALLOWED_ROLES.includes(actor.role)) {
+    throw buildForbiddenError();
+  }
+
+  const permissionCodes = normalizePermissionCodes(actor);
+  const hasPermission = ADMIN_DISPATCH_ALLOWED_PERMISSION_CODES.some((code) =>
+    permissionCodes.includes(code),
+  );
+
+  if (!hasPermission) {
+    throw buildForbiddenError();
+  }
+
+  return actor;
+};
+
 const ensureAdminNotificationStatusAccess = (auth) => {
   const actor = normalizeAuth(auth);
 
@@ -224,6 +288,121 @@ const ensureAdminNotificationStatusAccess = (auth) => {
   }
 
   return actor;
+};
+
+const parseOptionalRelatedEntity = (body = {}) => {
+  const nestedRelatedEntity =
+    body.related_entity &&
+    typeof body.related_entity === 'object' &&
+    !Array.isArray(body.related_entity)
+      ? body.related_entity
+      : null;
+
+  const relatedEntityName = nestedRelatedEntity
+    ? nestedRelatedEntity.name
+    : body.related_entity_name;
+  const relatedEntityId = nestedRelatedEntity
+    ? nestedRelatedEntity.id
+    : body.related_entity_id;
+
+  if ((relatedEntityName == null || relatedEntityName === '') && (relatedEntityId == null || relatedEntityId === '')) {
+    return {
+      relatedEntityId: null,
+      relatedEntityName: null,
+    };
+  }
+
+  if (typeof relatedEntityName !== 'string' || !relatedEntityName.trim()) {
+    throw buildValidationError(
+      'related_entity_name',
+      'related_entity_name is required when related_entity_id is provided',
+    );
+  }
+
+  const normalizedRelatedEntityName = relatedEntityName.trim();
+
+  if (!DISPATCH_ALLOWED_RELATED_ENTITY_VALUES.includes(normalizedRelatedEntityName)) {
+    throw buildValidationError(
+      'related_entity_name',
+      `related_entity_name must be one of: ${DISPATCH_ALLOWED_RELATED_ENTITY_VALUES.join(', ')}`,
+    );
+  }
+
+  if (typeof relatedEntityId !== 'string' || !relatedEntityId.trim()) {
+    throw buildValidationError(
+      'related_entity_id',
+      'related_entity_id is required when related_entity_name is provided',
+    );
+  }
+
+  return {
+    relatedEntityId: parseUuid('related_entity_id', relatedEntityId),
+    relatedEntityName: normalizedRelatedEntityName,
+  };
+};
+
+const parseDispatchBodyBase = (body = {}) => {
+  const normalizedBody =
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? body
+      : {};
+
+  if (Object.prototype.hasOwnProperty.call(normalizedBody, 'status')) {
+    throw buildValidationError('status', 'status is not allowed in this endpoint');
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalizedBody, 'read_at')) {
+    throw buildValidationError('read_at', 'read_at is not allowed in this endpoint');
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalizedBody, 'sent_at')) {
+    throw buildValidationError('sent_at', 'sent_at is not allowed in this endpoint');
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalizedBody, 'user_id')) {
+    throw buildValidationError('user_id', 'user_id is not allowed in this endpoint');
+  }
+
+  return {
+    body: parseRequiredString({
+      field: 'body',
+      maxLength: MAX_BODY_LENGTH,
+      value: normalizedBody.body,
+    }),
+    title: parseRequiredString({
+      field: 'title',
+      maxLength: MAX_TITLE_LENGTH,
+      value: normalizedBody.title,
+    }),
+    type: parseOptionalEnum({
+      field: 'type',
+      label: NOTIFICATION_TYPE_VALUES,
+      value: normalizedBody.type,
+      values: NOTIFICATION_TYPE_VALUES,
+    }) || (() => {
+      throw buildValidationError('type', 'type is required');
+    })(),
+    ...parseOptionalRelatedEntity(normalizedBody),
+  };
+};
+
+const parseBroadcastDispatchBody = (body = {}) => {
+  const baseBody = parseDispatchBodyBase(body);
+  const target = parseOptionalEnum({
+    field: 'target',
+    label: BROADCAST_TARGET_VALUES,
+    value: body?.target,
+    values: BROADCAST_TARGET_VALUES,
+  });
+
+  if (!target) {
+    throw buildValidationError('target', 'target is required');
+  }
+
+  return {
+    ...baseBody,
+    target,
+  };
 };
 
 const parseInboxListQuery = (query = {}) => ({
@@ -376,6 +555,22 @@ const sanitizeAdminNotificationStatusResult = (row) => ({
   user_id: row.user_id,
 });
 
+const sanitizeAdminNotificationDispatchResult = (row, extra = {}) => ({
+  body: row.body,
+  created_at: row.created_at,
+  id: row.id,
+  is_broadcast: row.user_id == null,
+  read_at: row.read_at,
+  related_entity_id: row.related_entity_id,
+  related_entity_name: row.related_entity_name,
+  sent_at: row.sent_at,
+  status: row.status,
+  title: row.title,
+  type: row.type,
+  user_id: row.user_id,
+  ...extra,
+});
+
 const createNotificationService = ({
   repository = createNotificationRepository(),
 } = {}) => {
@@ -420,6 +615,77 @@ const createNotificationService = ({
     }
 
     return sanitizeNotificationDeleteResult(parsedNotificationId);
+  };
+
+  const broadcastAdminNotification = async ({
+    auth,
+    body,
+    context,
+  } = {}) => {
+    const actor = ensureAdminNotificationDispatchAccess(auth);
+    const parsedBody = parseBroadcastDispatchBody(body || {});
+    const notification = await repository.createBroadcastNotification({
+      actorUserId: actor.userId,
+      body: parsedBody.body,
+      ipAddress: context?.ipAddress || null,
+      readAt: null,
+      relatedEntityId: parsedBody.relatedEntityId,
+      relatedEntityName: parsedBody.relatedEntityName,
+      sentAt: null,
+      status: NOTIFICATION_STATUS.QUEUED,
+      target: parsedBody.target,
+      title: parsedBody.title,
+      type: parsedBody.type,
+      userAgent: context?.userAgent || null,
+    });
+
+    return sanitizeAdminNotificationDispatchResult(notification, {
+      created_count: 1,
+      target: parsedBody.target,
+    });
+  };
+
+  const sendAdminNotificationToUser = async ({
+    auth,
+    body,
+    context,
+    userId,
+  } = {}) => {
+    const actor = ensureAdminNotificationDispatchAccess(auth);
+    const parsedUserId = parseUuid('user_id', userId);
+    const parsedBody = parseDispatchBodyBase(body || {});
+    const recipient = await repository.getDispatchUserById(parsedUserId);
+
+    if (!recipient) {
+      throw buildResourceNotFoundError('User not found');
+    }
+
+    if (recipient.deleted_at != null || recipient.status !== USER_STATUS.ACTIVE) {
+      throw buildValidationError('user_id', 'user_id must reference an active user');
+    }
+
+    const notification = await repository.createUserNotification({
+      actorUserId: actor.userId,
+      body: parsedBody.body,
+      ipAddress: context?.ipAddress || null,
+      readAt: null,
+      recipientUserId: parsedUserId,
+      relatedEntityId: parsedBody.relatedEntityId,
+      relatedEntityName: parsedBody.relatedEntityName,
+      sentAt: null,
+      status: NOTIFICATION_STATUS.QUEUED,
+      title: parsedBody.title,
+      type: parsedBody.type,
+      userAgent: context?.userAgent || null,
+    });
+
+    return sanitizeAdminNotificationDispatchResult(notification, {
+      recipient: {
+        email: recipient.email,
+        id: recipient.id,
+        name: recipient.full_name,
+      },
+    });
   };
 
   const updateAdminNotificationStatus = async ({
@@ -614,6 +880,7 @@ const createNotificationService = ({
   };
 
   return {
+    broadcastAdminNotification,
     deleteMyNotification,
     getUnreadNotificationCount,
     getMyNotificationDetail,
@@ -622,6 +889,7 @@ const createNotificationService = ({
     markAllMyNotificationsRead,
     markMyNotificationRead,
     markMyNotificationsBulkRead,
+    sendAdminNotificationToUser,
     updateAdminNotificationStatus,
   };
 };
