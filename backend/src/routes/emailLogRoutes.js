@@ -55,14 +55,6 @@ router.get(
 );
 
 router.get(
-  '/admin/mail/templatess',
-  requireAdminAuth,
-  requireAdminRoles(['staff', 'admin', 'system_admin']),
-  adminMailTemplateRateLimit,
-  asyncHandler(listAdminMailTemplates),
-);
-
-router.get(
   '/admin/mail/stats',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
