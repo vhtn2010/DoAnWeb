@@ -7,8 +7,8 @@ const setCacheHeaders = (res, seconds) => {
   );
 };
 
-const getDirectPaymentMethods = (req, res) => {
-  const data = paymentService.getDirectPaymentMethods();
+const getDirectPaymentMethods = async (req, res) => {
+  const data = await paymentService.getDirectPaymentMethods();
 
   setCacheHeaders(res, paymentService.DIRECT_PAYMENT_CACHE_SECONDS);
   res.success({

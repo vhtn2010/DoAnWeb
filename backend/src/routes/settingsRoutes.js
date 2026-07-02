@@ -1,7 +1,9 @@
 const express = require('express');
 const {
+  getAdminDirectPaymentSettings,
   getAdminPublicSettings,
   getPublicSettings,
+  updateAdminDirectPaymentSettings,
   updateAdminPublicSettings,
 } = require('../controllers/settingsController');
 const { authRequired } = require('../middleware/authSession');
@@ -12,6 +14,10 @@ const PUBLIC_SETTINGS_RATE_LIMIT_STORE_KEY = 'settings-public-read';
 const ADMIN_PUBLIC_SETTINGS_RATE_LIMIT_STORE_KEY = 'admin-settings-public-read';
 const ADMIN_PUBLIC_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY =
   'admin-settings-public-update';
+const ADMIN_DIRECT_PAYMENT_SETTINGS_RATE_LIMIT_STORE_KEY =
+  'admin-settings-direct-payment-read';
+const ADMIN_DIRECT_PAYMENT_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY =
+  'admin-settings-direct-payment-update';
 
 const router = express.Router();
 const publicSettingsRateLimit = createRateLimiter({
@@ -27,6 +33,16 @@ const adminPublicSettingsRateLimit = createRateLimiter({
 const adminPublicSettingsUpdateRateLimit = createRateLimiter({
   maxRequests: 60,
   storeKey: ADMIN_PUBLIC_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY,
+  windowMs: 60 * 1000,
+});
+const adminDirectPaymentSettingsRateLimit = createRateLimiter({
+  maxRequests: 120,
+  storeKey: ADMIN_DIRECT_PAYMENT_SETTINGS_RATE_LIMIT_STORE_KEY,
+  windowMs: 60 * 1000,
+});
+const adminDirectPaymentSettingsUpdateRateLimit = createRateLimiter({
+  maxRequests: 60,
+  storeKey: ADMIN_DIRECT_PAYMENT_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY,
   windowMs: 60 * 1000,
 });
 
@@ -54,6 +70,24 @@ router.patch(
   asyncHandler(updateAdminPublicSettings),
 );
 
+router.get(
+  '/admin/settings/direct-payment',
+  authRequired({
+    allowedRoles: ['admin', 'system_admin'],
+  }),
+  adminDirectPaymentSettingsRateLimit,
+  asyncHandler(getAdminDirectPaymentSettings),
+);
+
+router.patch(
+  '/admin/settings/direct-payment',
+  authRequired({
+    allowedRoles: ['admin', 'system_admin'],
+  }),
+  adminDirectPaymentSettingsUpdateRateLimit,
+  asyncHandler(updateAdminDirectPaymentSettings),
+);
+
 module.exports = router;
 module.exports.PUBLIC_SETTINGS_RATE_LIMIT_STORE_KEY =
   PUBLIC_SETTINGS_RATE_LIMIT_STORE_KEY;
@@ -61,3 +95,7 @@ module.exports.ADMIN_PUBLIC_SETTINGS_RATE_LIMIT_STORE_KEY =
   ADMIN_PUBLIC_SETTINGS_RATE_LIMIT_STORE_KEY;
 module.exports.ADMIN_PUBLIC_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY =
   ADMIN_PUBLIC_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY;
+module.exports.ADMIN_DIRECT_PAYMENT_SETTINGS_RATE_LIMIT_STORE_KEY =
+  ADMIN_DIRECT_PAYMENT_SETTINGS_RATE_LIMIT_STORE_KEY;
+module.exports.ADMIN_DIRECT_PAYMENT_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY =
+  ADMIN_DIRECT_PAYMENT_SETTINGS_UPDATE_RATE_LIMIT_STORE_KEY;
