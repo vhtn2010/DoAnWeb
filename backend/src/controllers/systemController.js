@@ -1,4 +1,5 @@
 const systemService = require('../services/systemService');
+const adminSystemStatsService = require('../services/adminSystemStatsService');
 
 const getHealth = (req, res) => {
   res.success({
@@ -33,7 +34,20 @@ const getVersion = (req, res) => {
   });
 };
 
+const getAdminSystemStats = async (req, res) => {
+  const data = await adminSystemStatsService.getSystemStats({
+    auth: req.auth,
+    query: req.query,
+  });
+
+  res.success({
+    data,
+    message: 'System stats retrieved successfully',
+  });
+};
+
 module.exports = {
+  getAdminSystemStats,
   getHealth,
   getLiveness,
   getReadiness,
