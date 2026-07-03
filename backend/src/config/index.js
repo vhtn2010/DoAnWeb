@@ -39,6 +39,12 @@ const apiPrefix = process.env.API_PREFIX || '/api';
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
 const corsOrigin = process.env.CORS_ORIGIN || frontendUrl;
+const enableDemoRoutes = process.env.ENABLE_DEMO_ROUTES == null
+  ? !isProduction
+  : isTruthy(process.env.ENABLE_DEMO_ROUTES);
+const enableSupabaseTestRoute = process.env.ENABLE_SUPABASE_TEST_ROUTE == null
+  ? !isProduction
+  : isTruthy(process.env.ENABLE_SUPABASE_TEST_ROUTE);
 
 const supabase = {
   url: process.env.SUPABASE_URL || null,
@@ -151,6 +157,8 @@ module.exports = {
   cloudinary,
   corsOrigin,
   directPayment,
+  enableDemoRoutes,
+  enableSupabaseTestRoute,
   env,
   frontendUrl,
   isProduction,

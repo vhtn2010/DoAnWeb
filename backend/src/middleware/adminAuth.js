@@ -1,6 +1,17 @@
+const { isTest } = require('../config');
 const {
   API_ERROR_CODES,
+  USER_STATUS,
 } = require('../constants/domainConstraints');
+const { isDatabaseConfigured } = require('../database/config');
+const {
+  buildResolvedTokenPayload,
+  extractPermissionCodes,
+  extractUserIdFromPayload,
+  normalizeRole,
+  normalizeScopeServiceIds,
+} = require('./authContext');
+const authService = require('../services/authService');
 const AppError = require('../utils/AppError');
 const { verifyHs256Token } = require('../utils/jwt');
 
@@ -36,31 +47,34 @@ const extractBearerToken = (authorization) => {
   return token.trim();
 };
 
-const normalizeRole = (payload) => {
-  const role =
-    payload?.role_code ||
-    payload?.roleCode ||
-    payload?.role ||
-    null;
+const buildLegacyTestAuthContext = (tokenPayload) => {
+  const roleCode = normalizeRole(tokenPayload);
+  const userId = extractUserIdFromPayload(tokenPayload);
 
-  return typeof role === 'string'
-    ? role.trim().toLowerCase()
-    : null;
+  return {
+    permissions: extractPermissionCodes(tokenPayload),
+    roleCode,
+    tokenId: tokenPayload?.jti || null,
+    user: {
+      email: tokenPayload?.email || null,
+      full_name: tokenPayload?.full_name || null,
+      id: userId,
+      role_code: roleCode,
+      status: USER_STATUS.ACTIVE,
+    },
+    userId,
+  };
 };
 
-const normalizeScopeServiceIds = (payload) => {
-  const scope =
-    payload?.service_scope_ids ||
-    payload?.serviceScopeIds ||
-    payload?.scope?.service_ids ||
-    null;
+const resolveAdminAuthContext = async (tokenPayload) => {
+  if (isTest && !isDatabaseConfigured()) {
+    return buildLegacyTestAuthContext(tokenPayload);
+  }
 
-  return Array.isArray(scope)
-    ? scope.filter((value) => typeof value === 'string' && value.trim())
-    : null;
+  return authService.resolveAuthenticatedUser(tokenPayload);
 };
 
-const requireAdminAuth = (req, res, next) => {
+const requireAdminAuth = async (req, res, next) => {
   const token = extractBearerToken(req.headers.authorization);
   const secret = process.env.JWT_ACCESS_SECRET;
 
@@ -76,25 +90,25 @@ const requireAdminAuth = (req, res, next) => {
     return;
   }
 
-  const role = normalizeRole(verification.payload);
+  try {
+    const authContext = await resolveAdminAuthContext(verification.payload);
+    const role = authContext.roleCode;
 
-  if (!role || !ADMIN_ROLE_VALUES.includes(role)) {
-    next(buildForbiddenError());
-    return;
+    if (!role || !ADMIN_ROLE_VALUES.includes(role)) {
+      next(buildForbiddenError());
+      return;
+    }
+
+    req.auth = {
+      role,
+      serviceScopeIds: normalizeScopeServiceIds(verification.payload),
+      tokenPayload: buildResolvedTokenPayload(verification.payload, authContext),
+      userId: authContext.userId,
+    };
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  req.auth = {
-    role,
-    serviceScopeIds: normalizeScopeServiceIds(verification.payload),
-    tokenPayload: verification.payload,
-    userId:
-      verification.payload.sub ||
-      verification.payload.user_id ||
-      verification.payload.userId ||
-      verification.payload.id ||
-      null,
-  };
-  next();
 };
 
 const requireAdminRoles = (roles) => (req, res, next) => {
