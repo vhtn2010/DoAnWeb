@@ -29,6 +29,9 @@ const createService = (options = {}) =>
     hashEmailVerificationTokenImpl: options.hashEmailVerificationTokenImpl,
     hashSessionTokenImpl: options.hashSessionTokenImpl,
     now: options.now || (() => fixedNow),
+    schedulePostCommitTaskImpl:
+      options.schedulePostCommitTaskImpl ||
+      (async (task) => task()),
     sendEmailImpl:
       options.sendEmailImpl ||
       (async () => ({
@@ -191,7 +194,7 @@ test('forgotPassword sends reset email and writes safe logs for eligible users',
 
   assert.equal(insertUserLogQuery.params[1], AUTH_FORGOT_PASSWORD_REQUESTED_ACTION);
   assert.equal(forgotMetadata.email, 'customer@example.com');
-  assert.equal(forgotMetadata.outcome, 'reset_email_sent');
+  assert.equal(forgotMetadata.outcome, 'reset_email_queued');
   assert.equal(forgotMetadata.status, USER_STATUS.ACTIVE);
   assert.equal(Object.hasOwn(forgotMetadata, 'token'), false);
   assert.equal(Object.hasOwn(forgotMetadata, 'reset_token'), false);

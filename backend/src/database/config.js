@@ -15,7 +15,7 @@ const shouldAutoMigrate = () => {
   }
 
   if (process.env.DB_AUTO_MIGRATE == null) {
-    return true;
+    return !isProduction;
   }
 
   return isTruthy(process.env.DB_AUTO_MIGRATE);
@@ -37,6 +37,25 @@ const shouldUseSsl = (databaseUrl) => {
   return isTruthy(process.env.DB_SSL);
 };
 
+const shouldRejectUnauthorized = () => {
+  if (process.env.DB_SSL_REJECT_UNAUTHORIZED == null) {
+    return true;
+  }
+
+  return isTruthy(process.env.DB_SSL_REJECT_UNAUTHORIZED);
+};
+
+const resolveSslCa = () => {
+  if (typeof process.env.DB_SSL_CA !== 'string') {
+    return null;
+  }
+
+  const normalizedValue = process.env.DB_SSL_CA.trim();
+  return normalizedValue
+    ? normalizedValue.replace(/\\n/g, '\n')
+    : null;
+};
+
 const getDatabaseConfig = () => {
   const connectionString = resolveDatabaseUrl();
 
@@ -50,8 +69,14 @@ const getDatabaseConfig = () => {
 
   if (shouldUseSsl(connectionString)) {
     config.ssl = {
-      rejectUnauthorized: false,
+      rejectUnauthorized: shouldRejectUnauthorized(),
     };
+
+    const ca = resolveSslCa();
+
+    if (ca) {
+      config.ssl.ca = ca;
+    }
   }
 
   return config;
