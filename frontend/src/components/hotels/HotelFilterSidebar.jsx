@@ -1,20 +1,8 @@
-const priceOptions = [
-  { value: 'under-2m', label: 'Dưới 2 triệu' },
-  { value: '2-5m', label: '2 - 5 triệu' },
-  { value: 'over-5m', label: 'Trên 5 triệu' },
-]
-
-const durationOptions = [
-  { value: '1-3', label: '1 - 3 ngày' },
-  { value: '4-7', label: '4 - 7 ngày' },
-  { value: 'other', label: 'Khác' },
-]
-
-const starOptions = [
-  { value: '5', label: '5 sao' },
-  { value: '4', label: '4 sao' },
-  { value: '3', label: '3 sao' },
-]
+import {
+  HOTEL_DURATION_FILTER_OPTIONS,
+  HOTEL_PRICE_FILTER_OPTIONS,
+  HOTEL_STAR_FILTER_OPTIONS,
+} from '../../constants/hotels.js'
 
 function FilterIcon() {
   return (
@@ -74,21 +62,21 @@ function HotelFilterSidebar({ filters, onApply, onLocationChange, onToggleFilter
       </div>
 
       <FilterCheckboxGroup
-        options={priceOptions}
+        options={HOTEL_PRICE_FILTER_OPTIONS}
         selectedValues={filters.priceRanges}
         title="Mức giá"
         onToggle={(value) => onToggleFilter('priceRanges', value)}
       />
 
       <FilterCheckboxGroup
-        options={durationOptions}
+        options={HOTEL_DURATION_FILTER_OPTIONS}
         selectedValues={filters.durations}
         title="Thời gian"
         onToggle={(value) => onToggleFilter('durations', value)}
       />
 
       <FilterCheckboxGroup
-        options={starOptions}
+        options={HOTEL_STAR_FILTER_OPTIONS}
         selectedValues={filters.starRatings}
         title="Số sao khách sạn"
         onToggle={(value) => onToggleFilter('starRatings', value)}
