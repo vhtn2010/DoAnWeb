@@ -39,6 +39,9 @@ const createService = (options = {}) =>
       options.hashSessionTokenImpl ||
       hashSessionToken,
     now: options.now || (() => fixedNow),
+    schedulePostCommitTaskImpl:
+      options.schedulePostCommitTaskImpl ||
+      (async (task) => task()),
     sendEmailImpl: options.sendEmailImpl,
     verifyEmailVerificationTokenImpl:
       options.verifyEmailVerificationTokenImpl,
@@ -586,6 +589,15 @@ test('resolveAuthenticatedUser rejects access tokens issued before email change'
           };
         }
 
+        if (sql.includes('FROM role_permissions rp')) {
+          return {
+            rowCount: 1,
+            rows: [
+              { code: 'booking.read_self' },
+            ],
+          };
+        }
+
         throw new Error(`Unexpected SQL in test: ${sql}`);
       },
     },
@@ -603,5 +615,96 @@ test('resolveAuthenticatedUser rejects access tokens issued before email change'
     (error) =>
       error.code === API_ERROR_CODES.AUTH_TOKEN_EXPIRED &&
       error.statusCode === 401,
+  );
+});
+
+test('resolveAuthenticatedUser loads current permissions and blocks non-active accounts', async () => {
+  const activeService = createService({
+    client: {
+      query: async (sql) => {
+        if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                email: 'customer@example.com',
+                full_name: 'Nguyen Van A',
+                id: 'user-1',
+                password_hash: 'hashed-password',
+                role_code: 'customer',
+                role_id: 'role-customer-1',
+                status: USER_STATUS.ACTIVE,
+              },
+            ],
+          };
+        }
+
+        if (sql.includes('FROM role_permissions rp')) {
+          return {
+            rowCount: 2,
+            rows: [
+              { code: 'booking.create' },
+              { code: 'booking.read_self' },
+            ],
+          };
+        }
+
+        throw new Error(`Unexpected SQL in test: ${sql}`);
+      },
+    },
+  });
+
+  const authContext = await activeService.resolveAuthenticatedUser({
+    emlv: buildEmailVersion('customer@example.com'),
+    jti: 'access-jti-1',
+    pwdv: buildPasswordVersion('hashed-password'),
+    role_code: 'customer',
+    sub: 'user-1',
+  });
+
+  assert.deepEqual(authContext.permissions, [
+    'booking.create',
+    'booking.read_self',
+  ]);
+  assert.equal(authContext.roleCode, 'customer');
+  assert.equal(authContext.userId, 'user-1');
+
+  const suspendedService = createService({
+    client: {
+      query: async (sql) => {
+        if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                email: 'customer@example.com',
+                full_name: 'Nguyen Van A',
+                id: 'user-1',
+                password_hash: 'hashed-password',
+                role_code: 'customer',
+                role_id: 'role-customer-1',
+                status: USER_STATUS.SUSPENDED,
+              },
+            ],
+          };
+        }
+
+        throw new Error(`Unexpected SQL in test: ${sql}`);
+      },
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      suspendedService.resolveAuthenticatedUser({
+        emlv: buildEmailVersion('customer@example.com'),
+        jti: 'access-jti-1',
+        pwdv: buildPasswordVersion('hashed-password'),
+        role_code: 'customer',
+        sub: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
   );
 });
