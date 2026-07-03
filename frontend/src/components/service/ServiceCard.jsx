@@ -61,9 +61,11 @@ function StarIcon() {
 }
 
 function ServiceCard({ service }) {
+  const detailPath = service.detail_path ?? `/services/${service.slug}`
+
   return (
     <article className="service-card">
-      <Link className="service-card__media-link" to={`/services/${service.slug}`}>
+      <Link className="service-card__media-link" to={detailPath}>
         <img
           alt={service.title}
           className="service-card__image"
@@ -97,7 +99,7 @@ function ServiceCard({ service }) {
 
         <p className="service-card__location">{service.location_text}</p>
         <h2 className="service-card__title">
-          <Link className="service-card__title-link" to={`/services/${service.slug}`}>
+          <Link className="service-card__title-link" to={detailPath}>
             {service.title}
           </Link>
         </h2>
@@ -109,7 +111,7 @@ function ServiceCard({ service }) {
             <span className="service-card__price-new">{formatCurrency(service.sale_price)}</span>
           </div>
 
-          <Link className="service-card__action" to={`/services/${service.slug}`}>
+          <Link className="service-card__action" to={detailPath}>
             Đặt ngay
           </Link>
         </div>

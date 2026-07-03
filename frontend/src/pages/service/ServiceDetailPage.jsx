@@ -1,14 +1,9 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import ServiceRecommendationCard from '../../components/service/ServiceRecommendationCard.jsx'
-import { getMockServiceBySlug, getRecommendedServices } from '../../data/mockServices.js'
+import useTourServiceDetail from '../../hooks/useTourServiceDetail.js'
 
 function formatCurrency(value) {
   return `${new Intl.NumberFormat('vi-VN').format(value)}đ`
-}
-
-function getLeadLocation(locationText) {
-  return locationText.split(',')[0].trim()
 }
 
 function StarIcon() {
@@ -147,91 +142,93 @@ function renderStars(ratingValue) {
 }
 
 function ServiceDetailPage() {
-  const { slug } = useParams()
-  const service = getMockServiceBySlug(slug)
-  const details = service.details
-  const recommendedServices = getRecommendedServices(service.slug, 3)
-
-  const [selectedImage, setSelectedImage] = useState(service.gallery_images[0] ?? service.image_url)
-  const [departureDate, setDepartureDate] = useState(details.departure_dates[0] ?? '')
-  const [adultCount, setAdultCount] = useState(2)
-  const [childCount, setChildCount] = useState(0)
-  const [isFavorite, setIsFavorite] = useState(false)
-  const [isShared, setIsShared] = useState(false)
-  const [bookingMessage, setBookingMessage] = useState('')
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
-  }, [slug])
-
-  useEffect(() => {
-    setSelectedImage(service.gallery_images[0] ?? service.image_url)
-    setDepartureDate(details.departure_dates[0] ?? '')
-    setAdultCount(2)
-    setChildCount(0)
-    setIsFavorite(false)
-    setIsShared(false)
-    setBookingMessage('')
-  }, [service.slug, service.gallery_images, service.image_url, details.departure_dates])
-
-  const childUnitPrice = Math.round(service.sale_price * 0.7)
-  const adultTotal = adultCount * service.sale_price
-  const childTotal = childCount * childUnitPrice
-  const totalPrice = adultTotal + childTotal
-  const leadLocation = getLeadLocation(service.location_text)
-
-  async function handleShareClick() {
-    if (typeof window !== 'undefined' && navigator?.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(window.location.href)
-      } catch {
-        // Keep the mocked share state even when clipboard is unavailable.
-      }
-    }
-
-    setIsShared(true)
-    setBookingMessage('Liên kết tour đã được sao chép ở chế độ mô phỏng.')
-  }
-
-  function handleBookNow() {
-    setBookingMessage('Yêu cầu giữ chỗ đã được ghi nhận ở chế độ mô phỏng.')
-  }
+  const {
+    adultCount,
+    adultTotal,
+    bookingMessage,
+    breadcrumbHomePath,
+    breadcrumbListPath,
+    childCount,
+    childTotal,
+    departureDate,
+    errorMessage,
+    handleBookNow,
+    handleShareClick,
+    infoItems,
+    isFavorite,
+    isLoading,
+    isShared,
+    leadLocation,
+    recommendedServices,
+    selectedImage,
+    service,
+    setAdultCount,
+    setChildCount,
+    setDepartureDate,
+    setIsFavorite,
+    setSelectedImage,
+    totalPrice,
+  } = useTourServiceDetail()
 
   function handleImageError(event) {
-    if (event.currentTarget.src !== service.image_url) {
+    if (service && event.currentTarget.src !== service.image_url) {
       event.currentTarget.src = service.image_url
     }
   }
 
-  const infoItems = [
-    {
-      label: 'Thời gian',
-      value: service.duration_text,
-      icon: <ClockIcon />,
-    },
-    {
-      label: 'Phương tiện',
-      value: service.transport_text,
-      icon: <TransportIcon />,
-    },
-    {
-      label: 'Loại tour',
-      value: service.tour_type,
-      icon: <TourTypeIcon />,
-    },
-  ]
+  if (errorMessage && !service && !isLoading) {
+    return (
+      <div className="service-detail-page">
+        <div className="service-detail-page__shell">
+          <nav aria-label="Breadcrumb" className="service-detail-page__breadcrumb">
+            <Link className="service-detail-page__breadcrumb-link" to={breadcrumbHomePath}>
+              Trang chủ
+            </Link>
+            <span aria-hidden="true">›</span>
+            <Link className="service-detail-page__breadcrumb-link" to={breadcrumbListPath}>
+              Danh sách Tour
+            </Link>
+          </nav>
+
+          <section className="service-detail-section">
+            <div className="service-detail-section__header">
+              <span className="service-detail-section__eyebrow">Không khả dụng</span>
+              <h1 className="service-detail-section__title">Không tìm thấy tour</h1>
+            </div>
+            <p className="service-detail-page__description">{errorMessage}</p>
+          </section>
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoading || !service) {
+    return (
+      <div className="service-detail-page">
+        <div className="service-detail-page__shell">
+          <section className="service-detail-section">
+            <div className="service-detail-section__header">
+              <span className="service-detail-section__eyebrow">Đang tải</span>
+              <h1 className="service-detail-section__title">Chi tiết tour đang được chuẩn bị</h1>
+            </div>
+            <p className="service-detail-page__description">
+              Dữ liệu đang được đọc từ mock adapter theo API-ready pattern.
+            </p>
+          </section>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="service-detail-page">
       <div className="service-detail-page__shell">
         <nav aria-label="Breadcrumb" className="service-detail-page__breadcrumb">
-          <Link className="service-detail-page__breadcrumb-link" to="/">
+          <Link className="service-detail-page__breadcrumb-link" to={breadcrumbHomePath}>
             Trang chủ
           </Link>
           <span aria-hidden="true">›</span>
-          <Link className="service-detail-page__breadcrumb-link" to="/services">
+          <Link className="service-detail-page__breadcrumb-link" to={breadcrumbListPath}>
             Danh sách Tour
           </Link>
           <span aria-hidden="true">›</span>
@@ -318,7 +315,11 @@ function ServiceDetailPage() {
             <section className="service-detail-strip">
               {infoItems.map((item) => (
                 <div className="service-detail-strip__item" key={item.label}>
-                  <span className="service-detail-strip__icon">{item.icon}</span>
+                  <span className="service-detail-strip__icon">
+                    {item.label === 'Thời gian' ? <ClockIcon /> : null}
+                    {item.label === 'Phương tiện' ? <TransportIcon /> : null}
+                    {item.label === 'Loại tour' ? <TourTypeIcon /> : null}
+                  </span>
                   <div>
                     <p className="service-detail-strip__label">{item.label}</p>
                     <p className="service-detail-strip__value">{item.value}</p>
@@ -345,7 +346,7 @@ function ServiceDetailPage() {
               </div>
 
               <div className="service-detail-timeline">
-                {details.itinerary.map((day) => (
+                {service.details.itinerary.map((day) => (
                   <article className="service-detail-day" key={day.day_number}>
                     <div className="service-detail-day__marker">
                       <span>{day.day_number}</span>
@@ -379,7 +380,7 @@ function ServiceDetailPage() {
                 </div>
 
                 <ul className="service-detail-inclusions__list">
-                  {details.included_services.map((item) => (
+                  {service.details.included_services.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -394,7 +395,7 @@ function ServiceDetailPage() {
                 </div>
 
                 <ul className="service-detail-inclusions__list">
-                  {details.excluded_services.map((item) => (
+                  {service.details.excluded_services.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -408,7 +409,7 @@ function ServiceDetailPage() {
               </div>
 
               <ul className="service-detail-terms">
-                {details.terms.map((item) => (
+                {service.details.terms.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -492,7 +493,7 @@ function ServiceDetailPage() {
                 <label className="service-detail-booking__field">
                   <span>Ngày khởi hành</span>
                   <select value={departureDate} onChange={(event) => setDepartureDate(event.target.value)}>
-                    {details.departure_dates.map((dateOption) => (
+                    {service.details.departure_dates.map((dateOption) => (
                       <option key={dateOption} value={dateOption}>
                         {dateOption}
                       </option>
