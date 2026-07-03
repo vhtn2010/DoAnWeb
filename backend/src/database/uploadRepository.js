@@ -69,8 +69,33 @@ const createUploadRepository = ({
     return result.rows[0] || null;
   };
 
+  const findLatestUploadLogByPublicId = async ({
+    action,
+    publicId,
+  } = {}) => {
+    const result = await query(
+      `
+        SELECT
+          id,
+          user_id,
+          action,
+          metadata,
+          created_at
+        FROM user_logs
+        WHERE action = $1
+          AND metadata ->> 'public_id' = $2
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+      `,
+      [action, publicId],
+    );
+
+    return result.rows[0] || null;
+  };
+
   return {
     findServiceImageByPublicId,
+    findLatestUploadLogByPublicId,
     insertUserLog,
     listPermissionCodesByRoleId,
   };
