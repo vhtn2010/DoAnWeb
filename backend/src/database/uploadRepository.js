@@ -52,7 +52,25 @@ const createUploadRepository = ({
       ],
     );
 
+  const findServiceImageByPublicId = async (publicId) => {
+    const result = await query(
+      `
+        SELECT
+          id,
+          service_id,
+          cloudinary_public_id
+        FROM service_images
+        WHERE cloudinary_public_id = $1
+        LIMIT 1
+      `,
+      [publicId],
+    );
+
+    return result.rows[0] || null;
+  };
+
   return {
+    findServiceImageByPublicId,
     insertUserLog,
     listPermissionCodesByRoleId,
   };

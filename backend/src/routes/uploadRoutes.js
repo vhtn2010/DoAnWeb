@@ -1,10 +1,14 @@
 const express = require('express');
-const { createUploadSignature } = require('../controllers/uploadController');
+const {
+  createUploadSignature,
+  deleteCloudinaryUpload,
+} = require('../controllers/uploadController');
 const { authRequired } = require('../middleware/authSession');
 const asyncHandler = require('../middleware/asyncHandler');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
 const UPLOAD_SIGNATURE_RATE_LIMIT_STORE_KEY = 'upload-signature';
+const UPLOAD_CLOUDINARY_DELETE_RATE_LIMIT_STORE_KEY = 'upload-cloudinary-delete';
 
 const router = express.Router();
 const uploadSignatureRateLimit = createRateLimiter({
@@ -13,6 +17,14 @@ const uploadSignatureRateLimit = createRateLimiter({
   maxRequests: 10,
   message: 'Too many upload signature requests. Please try again later.',
   storeKey: UPLOAD_SIGNATURE_RATE_LIMIT_STORE_KEY,
+  windowMs: 60 * 1000,
+});
+const uploadCloudinaryDeleteRateLimit = createRateLimiter({
+  keyGenerator: (req) =>
+    req.auth?.userId ? `${req.auth.userId}:${req.ip}` : (req.ip || 'anonymous'),
+  maxRequests: 10,
+  message: 'Too many Cloudinary delete requests. Please try again later.',
+  storeKey: UPLOAD_CLOUDINARY_DELETE_RATE_LIMIT_STORE_KEY,
   windowMs: 60 * 1000,
 });
 
@@ -24,7 +36,17 @@ router.post(
   uploadSignatureRateLimit,
   asyncHandler(createUploadSignature),
 );
+router.delete(
+  '/uploads/cloudinary',
+  authRequired({
+    allowedRoles: ['staff', 'admin', 'system_admin'],
+  }),
+  uploadCloudinaryDeleteRateLimit,
+  asyncHandler(deleteCloudinaryUpload),
+);
 
 module.exports = router;
 module.exports.UPLOAD_SIGNATURE_RATE_LIMIT_STORE_KEY =
   UPLOAD_SIGNATURE_RATE_LIMIT_STORE_KEY;
+module.exports.UPLOAD_CLOUDINARY_DELETE_RATE_LIMIT_STORE_KEY =
+  UPLOAD_CLOUDINARY_DELETE_RATE_LIMIT_STORE_KEY;
