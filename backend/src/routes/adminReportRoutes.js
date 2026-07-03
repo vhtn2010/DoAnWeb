@@ -1,5 +1,7 @@
 const express = require('express');
 const {
+  downloadAdminReportFile,
+  exportAdminReport,
   getAdminBookingReport,
   getAdminPaymentReport,
   getAdminRevenueReport,
@@ -19,6 +21,13 @@ const adminReportRateLimit = createRateLimiter({
   maxRequests: 60,
   message: 'Too many report requests. Please try again later.',
   storeKey: 'admin-report',
+  windowMs: 60 * 1000,
+});
+const adminReportExportRateLimit = createRateLimiter({
+  keyGenerator: (req) => req.auth?.userId || req.ip || 'anonymous',
+  maxRequests: 10,
+  message: 'Too many report export requests. Please try again later.',
+  storeKey: 'admin-report-export',
   windowMs: 60 * 1000,
 });
 
@@ -54,4 +63,21 @@ router.get(
   asyncHandler(getAdminPaymentReport),
 );
 
+router.post(
+  '/admin/reports/export',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminReportExportRateLimit,
+  asyncHandler(exportAdminReport),
+);
+
+router.get(
+  '/admin/reports/files/:file_name',
+  requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
+  adminReportRateLimit,
+  asyncHandler(downloadAdminReportFile),
+);
+
 module.exports = router;
+module.exports.ADMIN_REPORT_EXPORT_RATE_LIMIT_STORE_KEY = 'admin-report-export';
