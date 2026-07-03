@@ -511,6 +511,29 @@ select {
   font-weight: 700;
 }
 
+.cart-list-card__retry {
+  margin-top: 18px;
+  min-height: 42px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(214, 40, 40, 0.1);
+  color: var(--color-brand-primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.cart-list-card__retry:hover,
+.cart-list-card__retry:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  background: rgba(214, 40, 40, 0.16);
+}
+
 .cart-item-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
