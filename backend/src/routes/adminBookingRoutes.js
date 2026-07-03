@@ -1,0 +1,113 @@
+const express = require('express');
+const {
+  cancelAdminBooking,
+  completeAdminBooking,
+  confirmAdminBooking,
+  expireAdminBooking,
+  getAdminBookingDetail,
+  getAdminBookingStatusHistory,
+  listAdminBookings,
+  resendAdminBookingConfirmationEmail,
+  updateAdminBookingItemStatus,
+  updateAdminBookingItemTravellerInfo,
+  updateAdminBookingStatus,
+} = require('../controllers/adminBookingController');
+const {
+  requireAdminAuth,
+} = require('../middleware/adminAuth');
+const asyncHandler = require('../middleware/asyncHandler');
+const { createRateLimiter } = require('../middleware/rateLimit');
+
+const router = express.Router();
+const adminBookingRateLimit = createRateLimiter({
+  maxRequests: 120,
+  storeKey: 'admin-booking-catalog',
+  windowMs: 60 * 1000,
+});
+const adminBookingCommunicationRateLimit = createRateLimiter({
+  keyGenerator: (req) =>
+    `admin-booking-resend:${req.auth?.userId || 'anonymous'}:${req.params?.booking_id || 'unknown'}:${req.ip || 'anonymous'}`,
+  maxRequests: 3,
+  message: 'Too many booking confirmation email resend attempts. Please try again later.',
+  storeKey: 'admin-booking-resend-confirmation-email',
+  windowMs: 15 * 60 * 1000,
+});
+
+router.get(
+  '/admin/bookings',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(listAdminBookings),
+);
+
+router.get(
+  '/admin/bookings/:booking_id',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(getAdminBookingDetail),
+);
+
+router.get(
+  '/admin/bookings/:booking_id/status-history',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(getAdminBookingStatusHistory),
+);
+
+router.patch(
+  '/admin/bookings/:booking_id/status',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(updateAdminBookingStatus),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/confirm',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(confirmAdminBooking),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/complete',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(completeAdminBooking),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/cancel',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(cancelAdminBooking),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/expire',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(expireAdminBooking),
+);
+
+router.post(
+  '/admin/bookings/:booking_id/resend-confirmation-email',
+  requireAdminAuth,
+  adminBookingCommunicationRateLimit,
+  asyncHandler(resendAdminBookingConfirmationEmail),
+);
+
+router.patch(
+  '/admin/booking-items/:booking_item_id/status',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(updateAdminBookingItemStatus),
+);
+
+router.patch(
+  '/admin/booking-items/:booking_item_id/traveller-info',
+  requireAdminAuth,
+  adminBookingRateLimit,
+  asyncHandler(updateAdminBookingItemTravellerInfo),
+);
+
+module.exports = router;
