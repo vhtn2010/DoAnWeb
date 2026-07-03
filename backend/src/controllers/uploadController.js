@@ -1,4 +1,5 @@
 const uploadSignatureService = require('../services/uploadSignatureService');
+const uploadCompleteService = require('../services/uploadCompleteService');
 const uploadDeleteService = require('../services/uploadDeleteService');
 const uploadUsageService = require('../services/uploadUsageService');
 
@@ -13,6 +14,20 @@ const createUploadSignature = async (req, res) => {
   res.success({
     data,
     message: 'Upload signature generated successfully',
+  });
+};
+
+const completeUpload = async (req, res) => {
+  const data = await uploadCompleteService.completeUpload({
+    auth: req.auth,
+    body: req.body,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  res.success({
+    data,
+    message: 'Upload completed successfully',
   });
 };
 
@@ -46,6 +61,7 @@ const getAdminUploadUsage = async (req, res) => {
 };
 
 module.exports = {
+  completeUpload,
   createUploadSignature,
   deleteCloudinaryUpload,
   getAdminUploadUsage,
