@@ -22,6 +22,7 @@
     "helmet": "^8.2.0",
     "morgan": "^1.11.0",
     "pg": "^8.22.0",
+    "redis": "^4.7.0",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
