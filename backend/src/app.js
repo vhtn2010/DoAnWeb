@@ -3,11 +3,37 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { apiPrefix, corsOrigin, isTest } = require('./config');
+const { createSwaggerRouter, removeSwaggerCsp } = require('./docs/swagger');
 const apiResponse = require('./middleware/apiResponse');
 const asyncHandler = require('./middleware/asyncHandler');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
+const authRoutes = require('./routes/authRoutes');
+const adminBookingRoutes = require('./routes/adminBookingRoutes');
+const adminServiceCatalogRoutes = require('./routes/adminServiceCatalogRoutes');
+const adminRoleRoutes = require('./routes/adminRoleRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');
+const adminPermissionRoutes = require('./routes/adminPermissionRoutes');
+const adminPromotionRoutes = require('./routes/adminPromotionRoutes');
+const adminPaymentRoutes = require('./routes/adminPaymentRoutes');
+const adminRefundRoutes = require('./routes/adminRefundRoutes');
+const adminVoucherRoutes = require('./routes/adminVoucherRoutes');
+const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
+const adminAuditLogRoutes = require('./routes/adminAuditLogRoutes');
+const adminReportRoutes = require('./routes/adminReportRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const lookupRoutes = require('./routes/lookupRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const promotionRoutes = require('./routes/promotionRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const voucherRoutes = require('./routes/voucherRoutes');
 const systemRoutes = require('./routes/systemRoutes');
+const supportRoutes = require('./routes/supportRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const emailLogRoutes = require('./routes/emailLogRoutes');
 const {
   isSupabaseConfigured,
   testSupabaseConnection,
@@ -32,7 +58,35 @@ if (!isTest) {
   app.use(morgan('dev'));
 }
 
+app.use('/swagger-ui', removeSwaggerCsp, createSwaggerRouter());
+app.use(`${apiPrefix}/docs`, removeSwaggerCsp, createSwaggerRouter());
+
 app.use(apiPrefix, systemRoutes);
+app.use(apiPrefix, authRoutes);
+app.use(apiPrefix, adminBookingRoutes);
+app.use(apiPrefix, adminServiceCatalogRoutes);
+app.use(apiPrefix, adminUserRoutes);
+app.use(apiPrefix, adminRoleRoutes);
+app.use(apiPrefix, adminPermissionRoutes);
+app.use(apiPrefix, adminPromotionRoutes);
+app.use(apiPrefix, adminPaymentRoutes);
+app.use(apiPrefix, adminRefundRoutes);
+app.use(apiPrefix, adminVoucherRoutes);
+app.use(apiPrefix, adminDashboardRoutes);
+app.use(apiPrefix, adminAuditLogRoutes);
+app.use(apiPrefix, adminReportRoutes);
+app.use(apiPrefix, profileRoutes);
+app.use(apiPrefix, lookupRoutes);
+app.use(apiPrefix, bookingRoutes);
+app.use(apiPrefix, cartRoutes);
+app.use(apiPrefix, paymentRoutes);
+app.use(apiPrefix, promotionRoutes);
+app.use(apiPrefix, settingsRoutes);
+app.use(apiPrefix, uploadRoutes);
+app.use(apiPrefix, voucherRoutes);
+app.use(apiPrefix, supportRoutes);
+app.use(apiPrefix, notificationRoutes);
+app.use(apiPrefix, emailLogRoutes);
 
 app.get(`${apiPrefix}/tours`, (req, res) => {
   res.success({
