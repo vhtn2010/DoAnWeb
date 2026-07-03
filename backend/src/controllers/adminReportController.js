@@ -1,4 +1,5 @@
 const adminReportService = require('../services/adminReportService');
+const adminReportExportService = require('../services/adminReportExportService');
 
 const getAdminRevenueReport = async (req, res) => {
   const data = await adminReportService.getRevenueReport({
@@ -48,7 +49,37 @@ const getAdminPaymentReport = async (req, res) => {
   });
 };
 
+const exportAdminReport = async (req, res) => {
+  const data = await adminReportExportService.exportReport({
+    auth: req.auth,
+    body: req.body,
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+
+  res.success({
+    data,
+    message: 'Report exported successfully',
+  });
+};
+
+const downloadAdminReportFile = async (req, res) => {
+  const file = await adminReportExportService.getLocalExportFile({
+    auth: req.auth,
+    fileName: req.params.file_name,
+  });
+
+  res.setHeader('Content-Type', file.mimeType);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${file.fileName}"`,
+  );
+  res.sendFile(file.absolutePath);
+};
+
 module.exports = {
+  downloadAdminReportFile,
+  exportAdminReport,
   getAdminBookingReport,
   getAdminPaymentReport,
   getAdminRevenueReport,
