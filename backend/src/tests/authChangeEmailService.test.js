@@ -26,6 +26,9 @@ const createService = (options = {}) =>
     hashEmailVerificationTokenImpl: options.hashEmailVerificationTokenImpl,
     hashSessionTokenImpl: options.hashSessionTokenImpl,
     now: options.now || (() => fixedNow),
+    schedulePostCommitTaskImpl:
+      options.schedulePostCommitTaskImpl ||
+      (async (task) => task()),
     sendEmailImpl:
       options.sendEmailImpl ||
       (async () => ({
@@ -139,7 +142,7 @@ test('changeEmailRequest sends confirmation to new email and does not update use
     data: {
       acknowledged: true,
     },
-    message: 'Change email confirmation has been sent.',
+    message: 'Change email confirmation has been queued for delivery.',
   });
 
   const insertEmailLogQuery = queries.find((entry) =>
@@ -159,7 +162,7 @@ test('changeEmailRequest sends confirmation to new email and does not update use
   assert.equal(insertUserLogQuery.params[1], AUTH_CHANGE_EMAIL_REQUESTED_ACTION);
   assert.equal(requestMetadata.current_email, 'current@example.com');
   assert.equal(requestMetadata.new_email, 'new@example.com');
-  assert.equal(requestMetadata.outcome, 'confirmation_sent');
+  assert.equal(requestMetadata.outcome, 'confirmation_queued');
   assert.equal(requestMetadata.sessions_revoked, false);
   assert.equal(capturedEmailPayload.to.email, 'new@example.com');
   assert.match(capturedEmailPayload.text, /change-email-token/);

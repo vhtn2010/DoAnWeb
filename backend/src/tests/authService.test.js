@@ -30,6 +30,9 @@ const createService = (options = {}) =>
       options.hashEmailVerificationTokenImpl ||
       hashEmailVerificationToken,
     now: options.now || (() => fixedNow),
+    schedulePostCommitTaskImpl:
+      options.schedulePostCommitTaskImpl ||
+      (async (task) => task()),
     sendEmailImpl:
       options.sendEmailImpl ||
       (async () => ({
@@ -648,7 +651,7 @@ test('resendVerification sends a fresh verification email for pending accounts',
   const resendMetadata = JSON.parse(insertUserLogQuery.params[6]);
 
   assert.equal(resendMetadata.email, 'customer@example.com');
-  assert.equal(resendMetadata.outcome, 'sent');
+  assert.equal(resendMetadata.outcome, 'queued');
   assert.equal(resendMetadata.status, USER_STATUS.PENDING_VERIFICATION);
   assert.equal(resendMetadata.verification_token_hash, tokenHash);
   assert.equal(capturedEmailPayload.to.email, 'customer@example.com');

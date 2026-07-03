@@ -3,6 +3,7 @@ const {
   apiPrefix,
   backendUrl,
   frontendUrl,
+  sendgrid,
 } = require('../config');
 const {
   changeEmail,
@@ -152,6 +153,16 @@ const compactObject = (value) =>
   Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== undefined),
   );
+
+const runDeferredTask = (task) => {
+  setImmediate(() => {
+    Promise.resolve()
+      .then(task)
+      .catch((error) => {
+        console.error('[authService] Deferred task failed', error);
+      });
+  });
+};
 
 const normalizeRegisterPayload = (payload = {}) => {
   const details = [];
@@ -784,6 +795,28 @@ const markEmailLogSent = async (
     ],
   );
 
+const markEmailLogFailed = async (
+  client,
+  {
+    emailLogId,
+    errorMessage,
+  },
+) =>
+  client.query(
+    `
+      UPDATE email_logs
+      SET
+        status = $2,
+        error_message = $3
+      WHERE id = $1
+    `,
+    [
+      emailLogId,
+      EMAIL_STATUS.FAILED,
+      errorMessage || 'Unknown email provider error',
+    ],
+  );
+
 const loadUserByEmail = async (client, email, { forUpdate = false } = {}) => {
   const result = await client.query(
     `
@@ -902,17 +935,55 @@ const createAuthService = ({
   hashSessionTokenImpl = hashSessionToken,
   now = () => new Date(),
   sendEmailImpl = sendEmail,
+  schedulePostCommitTaskImpl = runDeferredTask,
   verifyChangeEmailTokenImpl = verifyChangeEmailToken,
   verifyEmailVerificationTokenImpl = verifyEmailVerificationToken,
   verifyResetPasswordTokenImpl = verifyResetPasswordToken,
   verifyRefreshTokenImpl = verifyRefreshToken,
   withTransactionImpl = withTransaction,
+  isEmailDeliveryConfiguredImpl = () => (
+    sendEmailImpl !== sendEmail || sendgrid.isConfigured
+  ),
 } = {}) => {
+  const dispatchQueuedEmail = ({
+    emailLogId,
+    emailPayload,
+  }) => {
+    Promise.resolve(
+      schedulePostCommitTaskImpl(async () => {
+        try {
+          const sendResult = await sendEmailImpl(emailPayload);
+
+          await withTransactionImpl(async (client) => {
+            await markEmailLogSent(client, {
+              emailLogId,
+              messageId: sendResult.messageId,
+              sentAt: now(),
+            });
+          });
+        } catch (error) {
+          await withTransactionImpl(async (client) => {
+            await markEmailLogFailed(client, {
+              emailLogId,
+              errorMessage: error?.message || 'Unknown email provider error',
+            });
+          });
+        }
+      }),
+    ).catch((error) => {
+      console.error('[authService] Failed to schedule deferred email', error);
+    });
+  };
+
   const register = async (payload, context = {}) => {
     const input = normalizeRegisterPayload(payload);
 
+    if (!isEmailDeliveryConfiguredImpl()) {
+      throw createInternalError('Email verification service is not configured');
+    }
+
     try {
-      return await withTransactionImpl(async (client) => {
+      const result = await withTransactionImpl(async (client) => {
         const existingUser = await loadUserByEmail(client, input.email);
 
         if (existingUser) {
@@ -984,26 +1055,10 @@ const createAuthService = ({
           toEmail: user.email,
           userId: user.id,
         });
-        const sendResult = await sendEmailImpl({
-          html: emailContent.html,
-          subject: emailContent.subject,
-          text: emailContent.text,
-          to: {
-            email: user.email,
-            name: user.full_name,
-          },
-        });
-        const sentAt = now();
-
-        await markEmailLogSent(client, {
-          emailLogId: emailLogResult.rows[0].id,
-          messageId: sendResult.messageId,
-          sentAt,
-        });
 
         await insertUserLog(client, {
           action: AUTH_REGISTER_ACTION,
-          createdAt: sentAt,
+          createdAt,
           entityId: user.id,
           ipAddress: context.ipAddress,
           metadata: {
@@ -1016,17 +1071,27 @@ const createAuthService = ({
           userId: user.id,
         });
 
-        return mapRegisteredUser(user);
+        return {
+          deferredEmail: {
+            emailLogId: emailLogResult.rows[0].id,
+            emailPayload: {
+              html: emailContent.html,
+              subject: emailContent.subject,
+              text: emailContent.text,
+              to: {
+                email: user.email,
+                name: user.full_name,
+              },
+            },
+          },
+          user: mapRegisteredUser(user),
+        };
       });
+
+      dispatchQueuedEmail(result.deferredEmail);
+
+      return result.user;
     } catch (error) {
-      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
-        throw createInternalError('Email verification service is not configured');
-      }
-
-      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
-        throw createInternalError('Failed to send verification email');
-      }
-
       if (isUniqueViolation(error)) {
         throw createDuplicateEmailError();
       }
@@ -1297,7 +1362,14 @@ const createAuthService = ({
         throw createAccessTokenInvalidError();
       }
 
+      if (user.status !== USER_STATUS.ACTIVE) {
+        throw createForbiddenStatusError(user.status, 'access this resource');
+      }
+
+      const permissions = await loadPermissionsByRoleId(client, user.role_id);
+
       return {
+        permissions,
         roleCode: user.role_code,
         tokenId: tokenPayload.jti,
         user,
@@ -1339,8 +1411,12 @@ const createAuthService = ({
   const changeEmailRequest = async (payload, context = {}) => {
     const input = normalizeChangeEmailRequestPayload(payload);
 
+    if (!isEmailDeliveryConfiguredImpl()) {
+      throw createInternalError('Change email service is not configured');
+    }
+
     try {
-      return await withTransactionImpl(async (client) => {
+      const result = await withTransactionImpl(async (client) => {
         const user = await loadUserById(client, context.userId, {
           forUpdate: true,
         });
@@ -1390,32 +1466,16 @@ const createAuthService = ({
           toEmail: input.newEmail,
           userId: user.id,
         });
-        const sendResult = await sendEmailImpl({
-          html: emailContent.html,
-          subject: emailContent.subject,
-          text: emailContent.text,
-          to: {
-            email: input.newEmail,
-            name: user.full_name,
-          },
-        });
-        const sentAt = now();
-
-        await markEmailLogSent(client, {
-          emailLogId: emailLogResult.rows[0].id,
-          messageId: sendResult.messageId,
-          sentAt,
-        });
 
         await insertUserLog(client, {
           action: AUTH_CHANGE_EMAIL_REQUESTED_ACTION,
-          createdAt: sentAt,
+          createdAt,
           entityId: user.id,
           ipAddress: context.ipAddress,
           metadata: buildChangeEmailAuditMetadata({
             currentEmail: user.email,
             newEmail: input.newEmail,
-            outcome: 'confirmation_sent',
+            outcome: 'confirmation_queued',
             sessionsRevoked: false,
             status: user.status,
           }),
@@ -1424,21 +1484,31 @@ const createAuthService = ({
         });
 
         return {
-          data: {
-            acknowledged: true,
+          deferredEmail: {
+            emailLogId: emailLogResult.rows[0].id,
+            emailPayload: {
+              html: emailContent.html,
+              subject: emailContent.subject,
+              text: emailContent.text,
+              to: {
+                email: input.newEmail,
+                name: user.full_name,
+              },
+            },
           },
-          message: 'Change email confirmation has been sent.',
+          response: {
+            data: {
+              acknowledged: true,
+            },
+            message: 'Change email confirmation has been queued for delivery.',
+          },
         };
       });
+
+      dispatchQueuedEmail(result.deferredEmail);
+
+      return result.response;
     } catch (error) {
-      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
-        throw createInternalError('Change email service is not configured');
-      }
-
-      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
-        throw createInternalError('Failed to send change email confirmation');
-      }
-
       if (isUniqueViolation(error)) {
         throw createDuplicateEmailError();
       }
@@ -1551,7 +1621,7 @@ const createAuthService = ({
     const input = normalizeForgotPasswordPayload(payload);
 
     try {
-      return await withTransactionImpl(async (client) => {
+      const result = await withTransactionImpl(async (client) => {
         const user = await loadUserByEmail(client, input.email, {
           forUpdate: true,
         });
@@ -1564,7 +1634,9 @@ const createAuthService = ({
         };
 
         if (!user) {
-          return genericResponse;
+          return {
+            response: genericResponse,
+          };
         }
 
         const createdAt = now();
@@ -1584,7 +1656,13 @@ const createAuthService = ({
             userId: user.id,
           });
 
-          return genericResponse;
+          return {
+            response: genericResponse,
+          };
+        }
+
+        if (!isEmailDeliveryConfiguredImpl()) {
+          throw createInternalError('Password reset email service is not configured');
         }
 
         const token = createResetPasswordTokenImpl({
@@ -1607,48 +1685,44 @@ const createAuthService = ({
           toEmail: user.email,
           userId: user.id,
         });
-        const sendResult = await sendEmailImpl({
-          html: emailContent.html,
-          subject: emailContent.subject,
-          text: emailContent.text,
-          to: {
-            email: user.email,
-            name: user.full_name,
-          },
-        });
-        const sentAt = now();
-
-        await markEmailLogSent(client, {
-          emailLogId: emailLogResult.rows[0].id,
-          messageId: sendResult.messageId,
-          sentAt,
-        });
 
         await insertUserLog(client, {
           action: AUTH_FORGOT_PASSWORD_REQUESTED_ACTION,
-          createdAt: sentAt,
+          createdAt,
           entityId: user.id,
           ipAddress: context.ipAddress,
           metadata: {
             email: user.email,
-            outcome: 'reset_email_sent',
+            outcome: 'reset_email_queued',
             status: user.status,
           },
           userAgent: context.userAgent,
           userId: user.id,
         });
 
-        return genericResponse;
+        return {
+          deferredEmail: {
+            emailLogId: emailLogResult.rows[0].id,
+            emailPayload: {
+              html: emailContent.html,
+              subject: emailContent.subject,
+              text: emailContent.text,
+              to: {
+                email: user.email,
+                name: user.full_name,
+              },
+            },
+          },
+          response: genericResponse,
+        };
       });
+
+      if (result?.deferredEmail) {
+        dispatchQueuedEmail(result.deferredEmail);
+      }
+
+      return result.response;
     } catch (error) {
-      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
-        throw createInternalError('Password reset email service is not configured');
-      }
-
-      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
-        throw createInternalError('Failed to send password reset email');
-      }
-
       throw error;
     }
   };
@@ -1883,7 +1957,7 @@ const createAuthService = ({
     const input = normalizeResendVerificationPayload(payload);
 
     try {
-      return await withTransactionImpl(async (client) => {
+      const result = await withTransactionImpl(async (client) => {
         const userResult = await client.query(
           `
             SELECT id, email, full_name, status
@@ -1903,7 +1977,9 @@ const createAuthService = ({
         };
 
         if (userResult.rowCount === 0) {
-          return genericResponse;
+          return {
+            response: genericResponse,
+          };
         }
 
         const user = userResult.rows[0];
@@ -1924,7 +2000,13 @@ const createAuthService = ({
             userId: user.id,
           });
 
-          return genericResponse;
+          return {
+            response: genericResponse,
+          };
+        }
+
+        if (!isEmailDeliveryConfiguredImpl()) {
+          throw createInternalError('Email verification service is not configured');
         }
 
         const token = createEmailVerificationTokenImpl({
@@ -1947,31 +2029,15 @@ const createAuthService = ({
           toEmail: user.email,
           userId: user.id,
         });
-        const sendResult = await sendEmailImpl({
-          html: emailContent.html,
-          subject: emailContent.subject,
-          text: emailContent.text,
-          to: {
-            email: user.email,
-            name: user.full_name,
-          },
-        });
-        const sentAt = now();
-
-        await markEmailLogSent(client, {
-          emailLogId: emailLogResult.rows[0].id,
-          messageId: sendResult.messageId,
-          sentAt,
-        });
 
         await insertUserLog(client, {
           action: AUTH_RESEND_VERIFICATION_ACTION,
-          createdAt: sentAt,
+          createdAt,
           entityId: user.id,
           ipAddress: context.ipAddress,
           metadata: buildVerificationTokenAuditMetadata({
             email: user.email,
-            outcome: 'sent',
+            outcome: 'queued',
             status: user.status,
             tokenHash,
           }),
@@ -1979,17 +2045,29 @@ const createAuthService = ({
           userId: user.id,
         });
 
-        return genericResponse;
+        return {
+          deferredEmail: {
+            emailLogId: emailLogResult.rows[0].id,
+            emailPayload: {
+              html: emailContent.html,
+              subject: emailContent.subject,
+              text: emailContent.text,
+              to: {
+                email: user.email,
+                name: user.full_name,
+              },
+            },
+          },
+          response: genericResponse,
+        };
       });
+
+      if (result?.deferredEmail) {
+        dispatchQueuedEmail(result.deferredEmail);
+      }
+
+      return result.response;
     } catch (error) {
-      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
-        throw createInternalError('Email verification service is not configured');
-      }
-
-      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
-        throw createInternalError('Failed to send verification email');
-      }
-
       throw error;
     }
   };
