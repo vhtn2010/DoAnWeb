@@ -45,10 +45,8 @@ const attachHiddenAuthProperty = (target, key, value) => {
 const buildRequestAuth = (authContext, tokenPayload) => {
   const requestAuth = {
     role: authContext.roleCode,
-    roleCode: authContext.roleCode,
     serviceScopeIds: normalizeScopeServiceIds(tokenPayload),
-    tokenId: authContext.tokenId,
-    user: authContext.user,
+    tokenPayload: buildResolvedTokenPayload(tokenPayload, authContext),
     userId: authContext.userId,
   };
 
@@ -61,8 +59,18 @@ const buildRequestAuth = (authContext, tokenPayload) => {
   );
   attachHiddenAuthProperty(
     requestAuth,
-    'tokenPayload',
-    buildResolvedTokenPayload(tokenPayload, authContext),
+    'roleCode',
+    authContext.roleCode,
+  );
+  attachHiddenAuthProperty(
+    requestAuth,
+    'tokenId',
+    authContext.tokenId,
+  );
+  attachHiddenAuthProperty(
+    requestAuth,
+    'user',
+    authContext.user,
   );
 
   return requestAuth;

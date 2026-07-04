@@ -1355,7 +1355,12 @@ test('adminRefundService.markRefundSuccess validates idempotency, state, over-re
         payment_status: 'success',
         status: 'approved',
       }),
-      markRefundSuccess: async () => null,
+      markRefundSuccess: async () => ({
+        refund: {
+          id: REFUND_ID,
+        },
+        transitionApplied: false,
+      }),
     },
   });
 
