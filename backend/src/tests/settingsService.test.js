@@ -120,6 +120,34 @@ test('settingsService caches public settings and supports invalidation', async (
   assert.equal(thirdRead.site_name, 'Second config');
 });
 
+test('settingsService.getPublicSettings falls back to defaults when settings_store is unavailable', async () => {
+  const service = settingsService.createSettingsService({
+    directPaymentConfig: {
+      hotline: '1900 8080',
+    },
+    repository: {
+      getPublicSettings: async () => {
+        throw new Error('settings_store is not available');
+      },
+    },
+    sendgridConfig: {
+      fromEmail: 'support@netviet.test',
+      fromName: 'Net Viet Travel Demo',
+    },
+  });
+
+  assert.deepEqual(await service.getPublicSettings(), {
+    address: null,
+    business_hours: null,
+    business_info_public: null,
+    hotline: '1900 8080',
+    logo_url: null,
+    site_name: 'Net Viet Travel Demo',
+    social_links: {},
+    support_email: 'support@netviet.test',
+  });
+});
+
 test('settingsService returns INTERNAL_ERROR when repository fails', async () => {
   const service = settingsService.createSettingsService({
     repository: {

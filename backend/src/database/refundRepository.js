@@ -150,6 +150,13 @@ const getRefundByIdWithBooking = async (refundId) => {
   return result.rows[0] || null;
 };
 
+const setLocalConfig = async (db, key, value) => {
+  await db.query('SELECT set_config($1, $2, TRUE)', [
+    key,
+    value == null ? '' : String(value),
+  ]);
+};
+
 const findRefundByIdempotencyKey = async ({
   bookingId,
   idempotencyKey,
@@ -186,26 +193,6 @@ const findRefundByIdempotencyKey = async ({
   );
 
   return result.rows[0] || null;
-};
-
-const insertBookingStatusHistory = async (
-  db,
-  { bookingId, changedBy, fromStatus, reason, toStatus },
-) => {
-  await db.query(
-    `
-      INSERT INTO booking_status_histories (
-        booking_id,
-        from_status,
-        to_status,
-        reason,
-        changed_by,
-        created_at
-      )
-      VALUES ($1, $2, $3, $4, $5, NOW())
-    `,
-    [bookingId, fromStatus, toStatus, reason, changedBy],
-  );
 };
 
 const insertUserLog = async (
@@ -335,6 +322,13 @@ const createRefundRequest = async ({
     let bookingStatus = booking.status;
 
     if (nextBookingStatus && nextBookingStatus !== booking.status) {
+      await setLocalConfig(db, 'app.current_user_id', actorUserId);
+      await setLocalConfig(
+        db,
+        'app.status_change_reason',
+        'Customer requested manual refund',
+      );
+
       await db.query(
         `
           UPDATE bookings
@@ -343,14 +337,6 @@ const createRefundRequest = async ({
         `,
         [booking.id, nextBookingStatus],
       );
-
-      await insertBookingStatusHistory(db, {
-        bookingId: booking.id,
-        changedBy: actorUserId,
-        fromStatus: booking.status,
-        reason: 'Customer requested manual refund',
-        toStatus: nextBookingStatus,
-      });
 
       bookingStatus = nextBookingStatus;
     }

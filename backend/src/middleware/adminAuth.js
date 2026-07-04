@@ -33,6 +33,41 @@ const buildForbiddenError = (message = 'You do not have permission to access thi
     statusCode: 403,
   });
 
+const attachHiddenAuthProperty = (target, key, value) => {
+  Object.defineProperty(target, key, {
+    configurable: true,
+    enumerable: false,
+    value,
+    writable: true,
+  });
+};
+
+const buildRequestAuth = (authContext, tokenPayload) => {
+  const requestAuth = {
+    role: authContext.roleCode,
+    roleCode: authContext.roleCode,
+    serviceScopeIds: normalizeScopeServiceIds(tokenPayload),
+    tokenId: authContext.tokenId,
+    user: authContext.user,
+    userId: authContext.userId,
+  };
+
+  attachHiddenAuthProperty(
+    requestAuth,
+    'permissions',
+    Array.isArray(authContext.permissions)
+      ? authContext.permissions
+      : [],
+  );
+  attachHiddenAuthProperty(
+    requestAuth,
+    'tokenPayload',
+    buildResolvedTokenPayload(tokenPayload, authContext),
+  );
+
+  return requestAuth;
+};
+
 const extractBearerToken = (authorization) => {
   if (typeof authorization !== 'string') {
     return null;
@@ -99,12 +134,7 @@ const requireAdminAuth = async (req, res, next) => {
       return;
     }
 
-    req.auth = {
-      role,
-      serviceScopeIds: normalizeScopeServiceIds(verification.payload),
-      tokenPayload: buildResolvedTokenPayload(verification.payload, authContext),
-      userId: authContext.userId,
-    };
+    req.auth = buildRequestAuth(authContext, verification.payload);
     next();
   } catch (error) {
     next(error);
@@ -112,12 +142,14 @@ const requireAdminAuth = async (req, res, next) => {
 };
 
 const requireAdminRoles = (roles) => (req, res, next) => {
-  if (!req.auth?.role) {
+  const roleCode = req.auth?.roleCode || req.auth?.role;
+
+  if (!roleCode) {
     next(buildAuthError('Access token is missing or expired'));
     return;
   }
 
-  if (!Array.isArray(roles) || !roles.includes(req.auth.role)) {
+  if (!Array.isArray(roles) || !roles.includes(roleCode)) {
     next(buildForbiddenError());
     return;
   }

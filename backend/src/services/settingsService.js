@@ -1,6 +1,9 @@
 const { directPayment, sendgrid } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
-const { createSettingsRepository } = require('../database/settingsRepository');
+const {
+  createSettingsRepository,
+  isSettingsStorageUnavailableError,
+} = require('../database/settingsRepository');
 const AppError = require('../utils/AppError');
 
 const PUBLIC_SETTINGS_CACHE_SECONDS = 5 * 60;
@@ -238,6 +241,15 @@ const createSettingsService = ({
 
       return sanitizedSettings;
     } catch (error) {
+      if (isSettingsStorageUnavailableError(error)) {
+        const fallbackSettings = sanitizePublicSettings(defaults, defaults);
+        publicSettingsCache = fallbackSettings;
+        publicSettingsCacheExpiresAt =
+          now + PUBLIC_SETTINGS_CACHE_SECONDS * 1000;
+
+        return fallbackSettings;
+      }
+
       throw buildInternalError();
     }
   };

@@ -96,6 +96,26 @@ test('adminDirectPaymentSettingsService.getDirectPaymentSettings returns disable
   });
 });
 
+test('adminDirectPaymentSettingsService.getDirectPaymentSettings falls back to defaults when storage is unavailable', async () => {
+  const service = createAdminDirectPaymentSettingsService({
+    repository: {
+      getDirectPaymentSettings: async () => {
+        throw new Error('settings_store is not available');
+      },
+      listPermissionCodesByRoleId: async () => ['settings.read'],
+    },
+  });
+
+  const result = await service.getDirectPaymentSettings({
+    auth: createAuthContext(),
+  });
+
+  assert.equal(result.updated_at, null);
+  assert.equal(result.updated_by, null);
+  assert.equal(result.methods.length, 3);
+  assert.equal(result.methods.every((entry) => entry.enabled === false), true);
+});
+
 test('adminDirectPaymentSettingsService rejects duplicate codes and gateway-like config', async () => {
   const service = createAdminDirectPaymentSettingsService({
     repository: {
@@ -288,4 +308,29 @@ test('adminDirectPaymentSettingsService updates settings, logs changed codes, an
   assert.equal(result.updated_by, 'sys-admin-1');
   assert.equal(result.methods[0].code, 'cash_at_office');
   assert.equal(result.methods[0].enabled, true);
+});
+
+test('adminDirectPaymentSettingsService.updateDirectPaymentSettings returns SETTINGS_STORAGE_UNAVAILABLE when storage is missing', async () => {
+  const service = createAdminDirectPaymentSettingsService({
+    repository: {
+      getDirectPaymentSettings: async () => {
+        throw new Error('settings_store is not available');
+      },
+      listPermissionCodesByRoleId: async () => ['settings.update'],
+    },
+  });
+
+  await assert.rejects(
+    service.updateDirectPaymentSettings({
+      auth: createAuthContext(),
+      body: {
+        methods: [],
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, 'SETTINGS_STORAGE_UNAVAILABLE');
+      assert.equal(error.statusCode, 503);
+      return true;
+    },
+  );
 });
