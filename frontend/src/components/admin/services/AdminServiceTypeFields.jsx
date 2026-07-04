@@ -1,8 +1,8 @@
 import {
-  adminCabinClassOptions,
-  adminSeatClassOptions,
-  adminTransportTypeOptions,
-} from '../../../data/mockAdminServices.js'
+  ADMIN_CABIN_CLASS_OPTIONS,
+  ADMIN_SEAT_CLASS_OPTIONS,
+  ADMIN_TRANSPORT_TYPE_OPTIONS,
+} from '../../../constants/adminServices.js'
 
 const detailFieldLabels = {
   departure_location: 'Điểm khởi hành',
@@ -152,7 +152,7 @@ function AdminServiceTypeFields({ details, errors, onDetailChange, serviceType }
           error={errors['details.transport_type']}
           label="transport_type"
           name="transport_type"
-          options={adminTransportTypeOptions}
+          options={ADMIN_TRANSPORT_TYPE_OPTIONS}
           value={details.transport_type}
           onChange={onDetailChange}
         />
@@ -313,7 +313,7 @@ function AdminServiceTypeFields({ details, errors, onDetailChange, serviceType }
           error={errors['details.cabin_class']}
           label="cabin_class"
           name="cabin_class"
-          options={adminCabinClassOptions}
+          options={ADMIN_CABIN_CLASS_OPTIONS}
           value={details.cabin_class}
           onChange={onDetailChange}
         />
@@ -389,7 +389,7 @@ function AdminServiceTypeFields({ details, errors, onDetailChange, serviceType }
           error={errors['details.seat_class']}
           label="seat_class"
           name="seat_class"
-          options={adminSeatClassOptions}
+          options={ADMIN_SEAT_CLASS_OPTIONS}
           value={details.seat_class}
           onChange={onDetailChange}
         />
