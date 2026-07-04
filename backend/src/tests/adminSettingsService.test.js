@@ -109,6 +109,30 @@ test('adminSettingsService.getPublicSettings accepts system_setting.manage and r
   });
 });
 
+test('adminSettingsService.getPublicSettings falls back to defaults when settings storage is unavailable', async () => {
+  const service = createAdminSettingsService({
+    repository: {
+      getAdminPublicSettings: async () => {
+        throw new Error('settings_store is not available');
+      },
+      listPermissionCodesByRoleId: async () => ['settings.read'],
+    },
+    sendgridConfig: {
+      fromEmail: 'support@netviet.test',
+      fromName: 'Net Viet Travel Demo',
+    },
+  });
+
+  const result = await service.getPublicSettings({
+    auth: createAuthContext(),
+  });
+
+  assert.equal(result.site_name, 'Net Viet Travel Demo');
+  assert.equal(result.support_email, 'support@netviet.test');
+  assert.equal(result.updated_at, null);
+  assert.equal(result.updated_by, null);
+});
+
 test('adminSettingsService.updatePublicSettings rejects unknown fields and forbidden nested data', async () => {
   const service = createAdminSettingsService({
     repository: {
@@ -242,4 +266,29 @@ test('adminSettingsService.updatePublicSettings merges partial update, writes sa
   assert.equal(result.support_email, 'support@netviet.test');
   assert.equal(result.updated_at, '2026-07-02T04:00:00.000Z');
   assert.equal(result.updated_by, 'sys-admin-1');
+});
+
+test('adminSettingsService.updatePublicSettings returns SETTINGS_STORAGE_UNAVAILABLE when storage is missing', async () => {
+  const service = createAdminSettingsService({
+    repository: {
+      getAdminPublicSettings: async () => {
+        throw new Error('settings_store is not available');
+      },
+      listPermissionCodesByRoleId: async () => ['settings.update'],
+    },
+  });
+
+  await assert.rejects(
+    service.updatePublicSettings({
+      auth: createAuthContext(),
+      body: {
+        site_name: 'New Site Name',
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, 'SETTINGS_STORAGE_UNAVAILABLE');
+      assert.equal(error.statusCode, 503);
+      return true;
+    },
+  );
 });

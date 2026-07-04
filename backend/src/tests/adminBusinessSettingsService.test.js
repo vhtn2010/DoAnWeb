@@ -51,6 +51,25 @@ test('adminBusinessSettingsService.getBusinessSettings returns safe defaults whe
   });
 });
 
+test('adminBusinessSettingsService.getBusinessSettings falls back to defaults when storage is unavailable', async () => {
+  const service = createAdminBusinessSettingsService({
+    repository: {
+      getBusinessSettings: async () => {
+        throw new Error('settings_store is not available');
+      },
+      listPermissionCodesByRoleId: async () => ['settings.read'],
+    },
+  });
+
+  const result = await service.getBusinessSettings({
+    auth: createAuthContext(),
+  });
+
+  assert.equal(result.company_name, null);
+  assert.equal(result.updated_at, null);
+  assert.equal(result.updated_by, null);
+});
+
 test('adminBusinessSettingsService.updateBusinessSettings rejects unknown fields and invalid formats', async () => {
   const service = createAdminBusinessSettingsService({
     repository: {
@@ -188,5 +207,30 @@ test('adminBusinessSettingsService.updateBusinessSettings merges partial update,
   assert.equal(
     result.invoice_note,
     'Xuat hoa don trong vong 3 ngay lam viec.',
+  );
+});
+
+test('adminBusinessSettingsService.updateBusinessSettings returns SETTINGS_STORAGE_UNAVAILABLE when storage is missing', async () => {
+  const service = createAdminBusinessSettingsService({
+    repository: {
+      getBusinessSettings: async () => {
+        throw new Error('settings_store is not available');
+      },
+      listPermissionCodesByRoleId: async () => ['settings.update'],
+    },
+  });
+
+  await assert.rejects(
+    service.updateBusinessSettings({
+      auth: createAuthContext(),
+      body: {
+        company_name: 'Net Viet Travel',
+      },
+    }),
+    (error) => {
+      assert.equal(error.code, 'SETTINGS_STORAGE_UNAVAILABLE');
+      assert.equal(error.statusCode, 503);
+      return true;
+    },
   );
 });

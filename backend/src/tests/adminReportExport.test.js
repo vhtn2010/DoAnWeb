@@ -9,6 +9,7 @@ const app = require('../app');
 const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const { clearRateLimitStore } = require('../middleware/rateLimit');
+const authService = require('../services/authService');
 const adminReportExportService = require('../services/adminReportExportService');
 const {
   ADMIN_REPORT_EXPORT_RATE_LIMIT_STORE_KEY,
@@ -16,6 +17,7 @@ const {
 
 const USER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const TEST_ACCESS_SECRET = 'test-admin-report-export-secret';
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalExportReport = adminReportExportService.exportReport;
 
 const request = (server, path, options = {}) =>
@@ -98,13 +100,34 @@ const createAccessToken = (payload, secret = TEST_ACCESS_SECRET) => {
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
+const createAuthContext = ({
+  permissions = [],
+  roleCode = 'admin',
+  userId = USER_ID,
+} = {}) => ({
+  permissions,
+  roleCode,
+  tokenId: 'access-jti-1',
+  user: {
+    email: `${userId}@example.com`,
+    id: userId,
+    password_hash: '$2b$10$hash',
+    role_code: roleCode,
+    role_id: 'role-1',
+    status: 'active',
+  },
+  userId,
+});
+
 test.beforeEach(() => {
   clearRateLimitStore(ADMIN_REPORT_EXPORT_RATE_LIMIT_STORE_KEY);
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminReportExportService.exportReport = originalExportReport;
 });
 
 test.afterEach(() => {
   clearRateLimitStore(ADMIN_REPORT_EXPORT_RATE_LIMIT_STORE_KEY);
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminReportExportService.exportReport = originalExportReport;
 });
 
@@ -325,6 +348,13 @@ test('POST /api/admin/reports/export enforces auth, permission, validation, and 
   const previousSecret = process.env.JWT_ACCESS_SECRET;
   process.env.JWT_ACCESS_SECRET = TEST_ACCESS_SECRET;
   const server = app.listen(0);
+
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions: tokenPayload.permissions || [],
+      roleCode: tokenPayload.roleCode,
+      userId: tokenPayload.userId,
+    });
 
   adminReportExportService.exportReport = async ({
     auth,

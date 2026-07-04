@@ -793,20 +793,6 @@ const createPaymentService = ({
       throw buildForbiddenError('You do not have permission to access this booking');
     }
 
-    const idempotentPayment = await repository.findDirectPaymentByIdempotencyKey({
-      bookingId: parsedBookingId,
-      idempotencyKey,
-      userId: auth.userId,
-    });
-
-    if (idempotentPayment) {
-      return {
-        created: false,
-        payment: sanitizePaymentDetail(idempotentPayment),
-        reused: 'idempotency',
-      };
-    }
-
     if (!isDirectPaymentMethodEnabled(parsedBody.paymentMethod, activeDirectPaymentConfig)) {
       throw buildValidationError(
         'payment_method',
@@ -827,25 +813,7 @@ const createPaymentService = ({
     }
 
     const amount = roundMoney(booking.total_amount);
-
-    if (amount <= 0) {
-      throw buildInvalidStateTransitionError(
-        'Booking no longer requires direct payment',
-      );
-    }
-
-    const pendingPayment =
-      await repository.findLatestPendingDirectPaymentByBookingId(parsedBookingId);
-
-    if (pendingPayment) {
-      return {
-        created: false,
-        payment: sanitizePaymentDetail(pendingPayment),
-        reused: 'pending',
-      };
-    }
-
-    const createdPayment = await repository.createDirectPayment({
+    const result = await repository.createDirectPayment({
       actorUserId: auth.userId,
       amount,
       bookingCode: booking.booking_code,
@@ -861,9 +829,9 @@ const createPaymentService = ({
     });
 
     return {
-      created: true,
-      payment: sanitizePaymentDetail(createdPayment),
-      reused: null,
+      created: result.created,
+      payment: sanitizePaymentDetail(result.payment),
+      reused: result.reused,
     };
   };
 

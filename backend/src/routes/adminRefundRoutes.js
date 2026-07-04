@@ -9,7 +9,10 @@ const {
   rejectAdminRefund,
   updateAdminRefundNote,
 } = require('../controllers/adminRefundController');
-const { requireAdminAuth } = require('../middleware/adminAuth');
+const {
+  requireAdminAuth,
+  requireAdminPermissions,
+} = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
@@ -28,6 +31,7 @@ const adminRefundProcessRateLimit = createRateLimiter({
 router.get(
   '/admin/refunds',
   requireAdminAuth,
+  requireAdminPermissions(['refund.read_all'], { allowWhenMissing: true }),
   adminRefundRateLimit,
   asyncHandler(listAdminRefunds),
 );
@@ -35,6 +39,7 @@ router.get(
 router.get(
   '/admin/refunds/:refund_id',
   requireAdminAuth,
+  requireAdminPermissions(['refund.read_all'], { allowWhenMissing: true }),
   adminRefundRateLimit,
   asyncHandler(getAdminRefundDetail),
 );
@@ -42,6 +47,7 @@ router.get(
 router.post(
   '/admin/refunds/:refund_id/approve',
   requireAdminAuth,
+  requireAdminPermissions(['refund.approve']),
   adminRefundProcessRateLimit,
   asyncHandler(approveAdminRefund),
 );
@@ -49,6 +55,7 @@ router.post(
 router.post(
   '/admin/refunds/:refund_id/reject',
   requireAdminAuth,
+  requireAdminPermissions(['refund.reject']),
   adminRefundProcessRateLimit,
   asyncHandler(rejectAdminRefund),
 );
@@ -56,6 +63,7 @@ router.post(
 router.post(
   '/admin/refunds/:refund_id/mark-processing',
   requireAdminAuth,
+  requireAdminPermissions(['refund.process']),
   adminRefundProcessRateLimit,
   asyncHandler(markAdminRefundProcessing),
 );
@@ -63,6 +71,7 @@ router.post(
 router.post(
   '/admin/refunds/:refund_id/mark-success',
   requireAdminAuth,
+  requireAdminPermissions(['refund.process']),
   adminRefundProcessRateLimit,
   asyncHandler(markAdminRefundSuccess),
 );
@@ -70,6 +79,7 @@ router.post(
 router.post(
   '/admin/refunds/:refund_id/mark-failed',
   requireAdminAuth,
+  requireAdminPermissions(['refund.process']),
   adminRefundProcessRateLimit,
   asyncHandler(markAdminRefundFailed),
 );
@@ -77,6 +87,7 @@ router.post(
 router.patch(
   '/admin/refunds/:refund_id/note',
   requireAdminAuth,
+  requireAdminPermissions(['refund.process', 'refund.approve', 'refund.reject']),
   adminRefundProcessRateLimit,
   asyncHandler(updateAdminRefundNote),
 );

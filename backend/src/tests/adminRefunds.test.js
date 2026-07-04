@@ -11,12 +11,14 @@ const { apiPrefix } = require('../config');
 const {
   API_ERROR_CODES,
 } = require('../constants/domainConstraints');
+const authService = require('../services/authService');
 const adminRefundService = require('../services/adminRefundService');
 
 const REFUND_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const BOOKING_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const PAYMENT_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const PAYMENT_ID_2 = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetRefundDetail = adminRefundService.getRefundDetail;
 const originalListRefunds = adminRefundService.listRefunds;
 const originalApproveRefund = adminRefundService.approveRefund;
@@ -87,7 +89,27 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
+const createAuthContext = ({
+  permissions = [],
+  roleCode = 'admin',
+  userId = 'admin-user-1',
+} = {}) => ({
+  permissions,
+  roleCode,
+  tokenId: 'access-jti-1',
+  user: {
+    email: `${userId}@example.com`,
+    id: userId,
+    password_hash: '$2b$10$hash',
+    role_code: roleCode,
+    role_id: 'role-1',
+    status: 'active',
+  },
+  userId,
+});
+
 test.afterEach(() => {
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminRefundService.approveRefund = originalApproveRefund;
   adminRefundService.getRefundDetail = originalGetRefundDetail;
   adminRefundService.listRefunds = originalListRefunds;
@@ -461,6 +483,27 @@ test('adminRefundService.getRefundDetail rejects invalid UUID and missing refund
 test('adminRefundService.approveRefund validates permission, idempotency, state, and approved amount rules', async () => {
   const service = adminRefundService.createAdminRefundService({
     repository: {
+      approveRefund: async ({ idempotencyKey, refund }) => {
+        assert.equal(idempotencyKey, 'approve-key-1');
+        assert.equal(refund.id, REFUND_ID);
+
+        return {
+          refund: {
+            amount: '200000',
+            booking_id: BOOKING_ID,
+            booking_status: 'paid',
+            id: REFUND_ID,
+            payment_amount: '500000',
+            payment_id: PAYMENT_ID,
+            payment_status: 'success',
+            raw_response: {},
+            refund_code: 'RF202607020001',
+            status: 'approved',
+          },
+          reused: 'idempotency',
+          transitionApplied: true,
+        };
+      },
       getBookingItemsByBookingId: async () => [],
       getRefundById: async ({ refundId }) => {
         assert.equal(refundId, REFUND_ID);
@@ -477,11 +520,6 @@ test('adminRefundService.approveRefund validates permission, idempotency, state,
           refund_code: 'RF202607020001',
           status: 'approved',
         };
-      },
-      hasApproveLogByIdempotencyKey: async ({ idempotencyKey, refundId }) => {
-        assert.equal(idempotencyKey, 'approve-key-1');
-        assert.equal(refundId, REFUND_ID);
-        return true;
       },
       sumOtherActiveRefundAmountsByPaymentId: async () => 0,
     },
@@ -506,10 +544,30 @@ test('adminRefundService.approveRefund validates permission, idempotency, state,
 
   assert.equal(replayResult.status, 'approved');
 
+  await assert.rejects(
+    () => service.approveRefund({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['refund.approve'],
+        },
+        userId: 'admin-user-1',
+      },
+      body: {
+        approved_amount: 200000,
+      },
+      headers: {},
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
   const noPermissionService = adminRefundService.createAdminRefundService({
     repository: {
       getRefundById: async () => null,
-      hasApproveLogByIdempotencyKey: async () => false,
     },
   });
 
@@ -573,7 +631,6 @@ test('adminRefundService.approveRefund validates permission, idempotency, state,
         refund_code: 'RF202607020001',
         status: 'requested',
       }),
-      hasApproveLogByIdempotencyKey: async () => false,
       sumOtherActiveRefundAmountsByPaymentId: async () => 100000,
     },
   });
@@ -680,7 +737,6 @@ test('adminRefundService.approveRefund approves a requested refund and maps admi
           status: 'requested',
         };
       },
-      hasApproveLogByIdempotencyKey: async () => false,
       sumOtherActiveRefundAmountsByPaymentId: async ({ excludedRefundId, paymentId }) => {
         assert.equal(excludedRefundId, REFUND_ID);
         assert.equal(paymentId, PAYMENT_ID);
@@ -1073,11 +1129,6 @@ test('adminRefundService.markRefundSuccess validates idempotency, state, over-re
           status: 'processing',
         };
       },
-      hasMarkSuccessLogByIdempotencyKey: async ({ idempotencyKey, refundId }) => {
-        assert.equal(idempotencyKey, 'refund-success-key');
-        assert.equal(refundId, REFUND_ID);
-        return false;
-      },
       markRefundSuccess: async (payload) => {
         capturedMarkSuccessPayload = payload;
 
@@ -1168,6 +1219,28 @@ test('adminRefundService.markRefundSuccess validates idempotency, state, over-re
   assert.equal(result.payment.status, 'refunded');
   assert.equal(result.booking.status, 'refunded');
 
+  await assert.rejects(
+    () => service.markRefundSuccess({
+      auth: {
+        role: 'staff',
+        serviceScopeIds: ['service-1'],
+        tokenPayload: {
+          permissions: ['refund.process'],
+        },
+        userId: 'staff-user-4',
+      },
+      body: {
+        processed_at: '2026-07-04T02:00:00.000Z',
+      },
+      headers: {},
+      refund_id: REFUND_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
   const replayService = adminRefundService.createAdminRefundService({
     repository: {
       getRefundById: async () => ({
@@ -1184,7 +1257,24 @@ test('adminRefundService.markRefundSuccess validates idempotency, state, over-re
         refund_code: 'RF202607020001',
         status: 'success',
       }),
-      hasMarkSuccessLogByIdempotencyKey: async () => true,
+      markRefundSuccess: async () => ({
+        refund: {
+          amount: '200000',
+          booking_id: BOOKING_ID,
+          booking_status: 'refunded',
+          id: REFUND_ID,
+          payment_amount: '500000',
+          payment_id: PAYMENT_ID,
+          payment_status: 'refunded',
+          processed_at: '2026-07-04T02:00:00.000Z',
+          provider_refund_id: 'BANK-REF-001',
+          raw_response: {},
+          refund_code: 'RF202607020001',
+          status: 'success',
+        },
+        reused: 'idempotency',
+        transitionApplied: true,
+      }),
     },
   });
 
@@ -1221,7 +1311,6 @@ test('adminRefundService.markRefundSuccess validates idempotency, state, over-re
         refund_code: 'RF202607020001',
         status: 'processing',
       }),
-      hasMarkSuccessLogByIdempotencyKey: async () => false,
       markRefundSuccess: async () => ({
         overRefund: true,
         refund: {
@@ -1266,8 +1355,12 @@ test('adminRefundService.markRefundSuccess validates idempotency, state, over-re
         payment_status: 'success',
         status: 'approved',
       }),
-      hasMarkSuccessLogByIdempotencyKey: async () => false,
-      markRefundSuccess: async () => null,
+      markRefundSuccess: async () => ({
+        refund: {
+          id: REFUND_ID,
+        },
+        transitionApplied: false,
+      }),
     },
   });
 
@@ -1582,6 +1675,12 @@ test('GET /api/admin/refunds returns 403 for customer role', async () => {
     roleCode: 'customer',
     userId: 'customer-user-1',
   });
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      permissions: [],
+      roleCode: 'customer',
+      userId: 'customer-user-1',
+    });
 
   try {
     const response = await request(server, `${apiPrefix}/admin/refunds`, {
@@ -1608,6 +1707,13 @@ test('GET /api/admin/refunds returns list payload with meta for authorized staff
     userId: 'staff-user-1',
   });
   let capturedContext;
+
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions: tokenPayload.permissions || [],
+      roleCode: tokenPayload.roleCode,
+      userId: tokenPayload.userId,
+    });
 
   adminRefundService.listRefunds = async (context) => {
     capturedContext = context;
@@ -1694,6 +1800,13 @@ test('GET /api/admin/refunds/{refund_id} returns detail payload for authorized a
     userId: 'admin-user-1',
   });
 
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions: tokenPayload.permissions || [],
+      roleCode: tokenPayload.roleCode,
+      userId: tokenPayload.userId,
+    });
+
   adminRefundService.getRefundDetail = async (context) => {
     assert.equal(context.auth.role, 'admin');
     assert.equal(context.refund_id, REFUND_ID);
@@ -1779,6 +1892,13 @@ test('admin refund process routes forward auth, body, and headers to service met
   let capturedMarkSuccessContext;
   let capturedRejectContext;
   let capturedUpdateNoteContext;
+
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions: tokenPayload.permissions || [],
+      roleCode: tokenPayload.roleCode,
+      userId: tokenPayload.userId,
+    });
 
   adminRefundService.approveRefund = async (context) => {
     capturedApproveContext = context;

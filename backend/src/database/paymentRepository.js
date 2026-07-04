@@ -8,8 +8,27 @@ const createPaymentRepository = ({
   getPoolImpl = getPool,
   queryImpl = query,
 } = {}) => {
-  const getBookingById = async (bookingId) => {
-    const result = await queryImpl(
+  const executeQuery = (executor, text, params) =>
+    typeof executor === 'function'
+      ? executor(text, params)
+      : executor.query(text, params);
+
+  const setLocalConfig = async (client, key, value) => {
+    await client.query('SELECT set_config($1, $2, TRUE)', [
+      key,
+      value == null ? '' : String(value),
+    ]);
+  };
+
+  const acquireTransactionLock = async (client, key) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [key]);
+  };
+
+  const getBookingByIdWithExecutor = async (executor, bookingId, {
+    forUpdate = false,
+  } = {}) => {
+    const result = await executeQuery(
+      executor,
       `
         SELECT
           id,
@@ -24,12 +43,16 @@ const createPaymentRepository = ({
         FROM bookings
         WHERE id = $1
         LIMIT 1
+        ${forUpdate ? 'FOR UPDATE' : ''}
       `,
       [bookingId],
     );
 
     return result.rows[0] || null;
   };
+
+  const getBookingById = async (bookingId) =>
+    getBookingByIdWithExecutor(queryImpl, bookingId);
 
   const listPaymentsByBookingId = async (bookingId) => {
     const result = await queryImpl(
@@ -94,12 +117,13 @@ const createPaymentRepository = ({
     return result.rows[0] || null;
   };
 
-  const findDirectPaymentByIdempotencyKey = async ({
+  const findDirectPaymentByIdempotencyKeyWithExecutor = async (executor, {
     bookingId,
     idempotencyKey,
     userId,
   }) => {
-    const result = await queryImpl(
+    const result = await executeQuery(
+      executor,
       `
         SELECT
           p.id,
@@ -132,8 +156,22 @@ const createPaymentRepository = ({
     return result.rows[0] || null;
   };
 
-  const findLatestPendingDirectPaymentByBookingId = async (bookingId) => {
-    const result = await queryImpl(
+  const findDirectPaymentByIdempotencyKey = async ({
+    bookingId,
+    idempotencyKey,
+    userId,
+  }) => findDirectPaymentByIdempotencyKeyWithExecutor(queryImpl, {
+    bookingId,
+    idempotencyKey,
+    userId,
+  });
+
+  const findLatestPendingDirectPaymentByBookingIdWithExecutor = async (
+    executor,
+    bookingId,
+  ) => {
+    const result = await executeQuery(
+      executor,
       `
         SELECT
           id,
@@ -162,6 +200,9 @@ const createPaymentRepository = ({
     return result.rows[0] || null;
   };
 
+  const findLatestPendingDirectPaymentByBookingId = async (bookingId) =>
+    findLatestPendingDirectPaymentByBookingIdWithExecutor(queryImpl, bookingId);
+
   const createDirectPayment = async ({
     actorUserId,
     amount,
@@ -181,6 +222,90 @@ const createPaymentRepository = ({
 
     try {
       await client.query('BEGIN');
+      await setLocalConfig(client, 'app.current_user_id', actorUserId);
+      await acquireTransactionLock(
+        client,
+        `payment:create:${actorUserId}:${bookingId}:${idempotencyKey}`,
+      );
+
+      const currentBooking = await getBookingByIdWithExecutor(
+        client.query.bind(client),
+        bookingId,
+        { forUpdate: true },
+      );
+
+      if (!currentBooking) {
+        throw new AppError('Booking not found', {
+          code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+          statusCode: 404,
+        });
+      }
+
+      if (currentBooking.user_id !== actorUserId) {
+        throw new AppError('You do not have permission to access this booking', {
+          code: API_ERROR_CODES.FORBIDDEN,
+          statusCode: 403,
+        });
+      }
+
+      const existingPayment = await findDirectPaymentByIdempotencyKeyWithExecutor(
+        client.query.bind(client),
+        {
+          bookingId,
+          idempotencyKey,
+          userId: actorUserId,
+        },
+      );
+
+      if (existingPayment) {
+        await client.query('COMMIT');
+
+        return {
+          created: false,
+          payment: existingPayment,
+          reused: 'idempotency',
+        };
+      }
+
+      if (currentBooking.status !== 'pending_payment') {
+        throw new AppError('Booking state no longer allows direct payment creation', {
+          code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+          statusCode: 400,
+        });
+      }
+
+      if (currentBooking.expires_at) {
+        const expiresAt = new Date(currentBooking.expires_at);
+
+        if (!Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now()) {
+          throw new AppError('Booking payment window has expired', {
+            code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+            statusCode: 400,
+          });
+        }
+      }
+
+      if (Number(currentBooking.total_amount) <= 0) {
+        throw new AppError('Booking no longer requires direct payment', {
+          code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
+          statusCode: 400,
+        });
+      }
+
+      const pendingPayment = await findLatestPendingDirectPaymentByBookingIdWithExecutor(
+        client.query.bind(client),
+        bookingId,
+      );
+
+      if (pendingPayment) {
+        await client.query('COMMIT');
+
+        return {
+          created: false,
+          payment: pendingPayment,
+          reused: 'pending',
+        };
+      }
 
       const paymentResult = await client.query(
         `
@@ -269,7 +394,11 @@ const createPaymentRepository = ({
 
       await client.query('COMMIT');
 
-      return createdPayment;
+      return {
+        created: true,
+        payment: createdPayment,
+        reused: null,
+      };
     } catch (error) {
       await client.query('ROLLBACK');
 

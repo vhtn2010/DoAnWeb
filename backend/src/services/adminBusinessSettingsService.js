@@ -1,5 +1,8 @@
 const { API_ERROR_CODES, USER_STATUS } = require('../constants/domainConstraints');
-const { createSettingsRepository } = require('../database/settingsRepository');
+const {
+  createSettingsRepository,
+  isSettingsStorageUnavailableError,
+} = require('../database/settingsRepository');
 const AppError = require('../utils/AppError');
 
 const ADMIN_ALLOWED_ROLE_CODES = Object.freeze([
@@ -53,6 +56,12 @@ const buildInternalError = () =>
   new AppError('Internal server error', {
     code: API_ERROR_CODES.INTERNAL_ERROR,
     statusCode: 500,
+  });
+
+const buildSettingsStorageUnavailableError = () =>
+  new AppError('Settings storage is not configured', {
+    code: API_ERROR_CODES.SETTINGS_STORAGE_UNAVAILABLE,
+    statusCode: 503,
   });
 
 const normalizeOptionalString = (value) => {
@@ -499,7 +508,24 @@ const createAdminBusinessSettingsService = ({
 
       ensurePermission(permissionCodes, ['settings.read', 'system_setting.manage']);
 
-      const record = await repository.getBusinessSettings();
+      let record;
+
+      try {
+        record = await repository.getBusinessSettings();
+      } catch (error) {
+        if (!isSettingsStorageUnavailableError(error)) {
+          throw error;
+        }
+
+        record = {
+          metadata: {
+            updated_at: null,
+            updated_by: null,
+          },
+          settings: null,
+        };
+      }
+
       const settings = sanitizeStoredBusinessSettings({
         input: record.settings || buildDefaultBusinessSettings(),
         strict: false,
@@ -538,7 +564,18 @@ const createAdminBusinessSettingsService = ({
       ]);
 
       const patch = parseUpdateBody(body || {});
-      const currentRecord = await repository.getBusinessSettings();
+      let currentRecord;
+
+      try {
+        currentRecord = await repository.getBusinessSettings();
+      } catch (error) {
+        if (!isSettingsStorageUnavailableError(error)) {
+          throw error;
+        }
+
+        throw buildSettingsStorageUnavailableError();
+      }
+
       const currentSettings = sanitizeStoredBusinessSettings({
         input: currentRecord.settings || buildDefaultBusinessSettings(),
         strict: false,
@@ -577,6 +614,10 @@ const createAdminBusinessSettingsService = ({
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
+      }
+
+      if (isSettingsStorageUnavailableError(error)) {
+        throw buildSettingsStorageUnavailableError();
       }
 
       throw buildInternalError();
