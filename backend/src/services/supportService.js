@@ -1148,7 +1148,7 @@ const ensureAdminSupportEmailAccess = (auth) => {
     throw buildForbiddenError();
   }
 
-  if (hasAnyPermission(auth, ['email.send', 'support.reply'])) {
+  if (hasAnyPermission(auth, ['email.send'])) {
     return;
   }
 

@@ -291,17 +291,21 @@ test('emailLogService.listAdminMailTemplates returns fixed safe metadata for aut
     false,
   );
 
-  const emailSendPermissionResult = await service.listAdminMailTemplates({
-    auth: {
-      role: 'admin',
-      tokenPayload: {
-        permissions: ['email.send'],
+  await assert.rejects(
+    () => service.listAdminMailTemplates({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['email.send'],
+        },
+        userId: USER_ID,
       },
-      userId: USER_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
     },
-  });
-
-  assert.equal(emailSendPermissionResult.length, result.length);
+  );
 
   await assert.rejects(
     () => service.listAdminMailTemplates({
@@ -421,7 +425,7 @@ test('emailLogService.getAdminMailStats validates range, aggregates status and t
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['email_log.read'],
+          permissions: ['report.read'],
         },
         userId: USER_ID,
       },
@@ -440,7 +444,7 @@ test('emailLogService.getAdminMailStats validates range, aggregates status and t
       auth: {
         role: 'system_admin',
         tokenPayload: {
-          permissions: ['dashboard.read'],
+          permissions: ['report.read'],
         },
         userId: USER_ID,
       },
@@ -460,7 +464,7 @@ test('emailLogService.getAdminMailStats validates range, aggregates status and t
       auth: {
         role: 'system_admin',
         tokenPayload: {
-          permissions: ['dashboard.read'],
+          permissions: ['report.read'],
         },
         userId: USER_ID,
       },
@@ -744,7 +748,7 @@ test('emailLogService.resendAdminEmailLog regenerates verification emails with a
     auth: {
       role: 'system_admin',
       tokenPayload: {
-        permissions: ['email.send'],
+        permissions: ['email.resend'],
       },
       userId: USER_ID,
     },
