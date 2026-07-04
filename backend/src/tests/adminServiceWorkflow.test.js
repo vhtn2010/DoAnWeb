@@ -9,7 +9,9 @@ process.env.JWT_ACCESS_SECRET = 'test-admin-secret';
 const app = require('../app');
 const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const authService = require('../services/authService');
 const adminServiceWorkflowService = require('../services/adminServiceWorkflowService');
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -72,6 +74,41 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
 
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
+
+const createAuthContext = ({
+  permissions = [],
+  roleCode = 'admin',
+  userId = 'admin-user-1',
+} = {}) => ({
+  permissions,
+  roleCode,
+  tokenId: 'access-jti-1',
+  user: {
+    email: `${userId}@example.com`,
+    id: userId,
+    password_hash: '$2b$10$hash',
+    role_code: roleCode,
+    role_id: 'role-1',
+    status: 'active',
+  },
+  userId,
+});
+
+test.beforeEach(() => {
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions:
+        tokenPayload.permissions ||
+        tokenPayload.permission_codes ||
+        [],
+      roleCode: tokenPayload.roleCode || tokenPayload.role || 'admin',
+      userId: tokenPayload.userId || tokenPayload.sub || 'admin-user-1',
+    });
+});
+
+test.afterEach(() => {
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+});
 
 test('adminServiceWorkflowService.submitReview only allows draft services with complete detail', async () => {
   let updateCall = null;

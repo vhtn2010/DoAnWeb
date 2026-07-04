@@ -1,5 +1,8 @@
 const { API_ERROR_CODES, USER_STATUS } = require('../constants/domainConstraints');
-const { createSettingsRepository } = require('../database/settingsRepository');
+const {
+  createSettingsRepository,
+  isSettingsStorageUnavailableError,
+} = require('../database/settingsRepository');
 const paymentService = require('./paymentService');
 const AppError = require('../utils/AppError');
 
@@ -84,6 +87,12 @@ const buildInternalError = () =>
   new AppError('Internal server error', {
     code: API_ERROR_CODES.INTERNAL_ERROR,
     statusCode: 500,
+  });
+
+const buildSettingsStorageUnavailableError = () =>
+  new AppError('Settings storage is not configured', {
+    code: API_ERROR_CODES.SETTINGS_STORAGE_UNAVAILABLE,
+    statusCode: 503,
   });
 
 const normalizeOptionalString = (value) => {
@@ -700,7 +709,23 @@ const createAdminDirectPaymentSettingsService = ({
 
       ensurePermission(permissionCodes, ['settings.read', 'system_setting.manage']);
 
-      const record = await repository.getDirectPaymentSettings();
+      let record;
+
+      try {
+        record = await repository.getDirectPaymentSettings();
+      } catch (error) {
+        if (!isSettingsStorageUnavailableError(error)) {
+          throw error;
+        }
+
+        record = {
+          metadata: {
+            updated_at: null,
+            updated_by: null,
+          },
+          settings: null,
+        };
+      }
 
       return {
         methods: toAdminMethodArray(record.settings || {}),
@@ -735,7 +760,18 @@ const createAdminDirectPaymentSettingsService = ({
       ]);
 
       const parsedBody = parseUpdateBody(body || {});
-      const currentRecord = await repository.getDirectPaymentSettings();
+      let currentRecord;
+
+      try {
+        currentRecord = await repository.getDirectPaymentSettings();
+      } catch (error) {
+        if (!isSettingsStorageUnavailableError(error)) {
+          throw error;
+        }
+
+        throw buildSettingsStorageUnavailableError();
+      }
+
       const currentMethods = toAdminMethodArray(currentRecord.settings || {});
       const changedMethodCodes = calculateChangedMethodCodes(
         currentMethods,
@@ -762,6 +798,10 @@ const createAdminDirectPaymentSettingsService = ({
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
+      }
+
+      if (isSettingsStorageUnavailableError(error)) {
+        throw buildSettingsStorageUnavailableError();
       }
 
       throw buildInternalError();

@@ -283,25 +283,6 @@ const createRefundService = ({
       );
     }
 
-    const existingRefund = await repository.findRefundByIdempotencyKey({
-      bookingId: parsedBookingId,
-      idempotencyKey,
-      userId: auth.userId,
-    });
-
-    if (existingRefund) {
-      return {
-        booking: {
-          booking_code: booking.booking_code,
-          id: booking.id,
-          status: booking.status,
-        },
-        created: false,
-        refund: sanitizeRefund(existingRefund),
-        reused: 'idempotency',
-      };
-    }
-
     const payment = await repository.getPaymentById(paymentId);
 
     if (!payment || payment.booking_id !== booking.id) {
@@ -327,6 +308,7 @@ const createRefundService = ({
 
     const nextBookingStatus =
       booking.status === BOOKING_STATUS.PAID ||
+      booking.status === BOOKING_STATUS.CONFIRMED ||
       booking.status === BOOKING_STATUS.COMPLETED
         ? BOOKING_STATUS.REFUND_PENDING
         : null;
@@ -347,9 +329,9 @@ const createRefundService = ({
         id: createdRefund.booking.id,
         status: createdRefund.booking.status,
       },
-      created: true,
+      created: createdRefund.reused == null,
       refund: sanitizeRefund(createdRefund.refund),
-      reused: null,
+      reused: createdRefund.reused || null,
     };
   };
 

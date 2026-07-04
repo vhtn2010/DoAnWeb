@@ -74,14 +74,6 @@ const buildResourceNotFoundError = (message = 'Resource not found') =>
     statusCode: 404,
   });
 
-const buildDuplicateError = (field, message) =>
-  buildAppError({
-    code: API_ERROR_CODES.DUPLICATE_RESOURCE,
-    field,
-    message,
-    statusCode: 409,
-  });
-
 const buildInvalidStateTransitionError = (message) =>
   new AppError(message || 'The requested booking state transition is not allowed', {
     code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
@@ -275,11 +267,14 @@ const parseContactPhone = (value) => {
   return phone;
 };
 
-const parseIdempotencyKey = (headers = {}) => {
+const parseRequiredIdempotencyKey = (headers = {}) => {
   const value = headers[IDEMPOTENCY_KEY_HEADER] ?? headers[IDEMPOTENCY_KEY_HEADER.toLowerCase()];
 
   if (value == null || value === '') {
-    return null;
+    throw buildValidationError(
+      IDEMPOTENCY_KEY_HEADER,
+      `${IDEMPOTENCY_KEY_HEADER} is required`,
+    );
   }
 
   if (Array.isArray(value)) {
@@ -299,7 +294,10 @@ const parseIdempotencyKey = (headers = {}) => {
   const normalized = value.trim();
 
   if (!normalized) {
-    return null;
+    throw buildValidationError(
+      IDEMPOTENCY_KEY_HEADER,
+      `${IDEMPOTENCY_KEY_HEADER} is required`,
+    );
   }
 
   if (normalized.length > 255) {
@@ -1209,21 +1207,7 @@ const createBookingService = ({
     validateCustomerAuth(auth);
 
     const parsedBody = parseBody(body || {});
-    const idempotencyKey = parseIdempotencyKey(headers);
-
-    if (idempotencyKey) {
-      const existingBooking = await repository.findBookingByIdempotencyKey({
-        idempotencyKey,
-        userId: auth.userId,
-      });
-
-      if (existingBooking) {
-        throw buildDuplicateError(
-          IDEMPOTENCY_KEY_HEADER,
-          'A booking has already been created for this Idempotency-Key',
-        );
-      }
-    }
+    const idempotencyKey = parseRequiredIdempotencyKey(headers);
 
     const cart = await repository.getCartById(parsedBody.cartId);
 

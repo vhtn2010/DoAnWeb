@@ -13,11 +13,13 @@ const {
   BOOKING_STATUS,
   PAYMENT_STATUS,
 } = require('../constants/domainConstraints');
+const authService = require('../services/authService');
 const adminPaymentService = require('../services/adminPaymentService');
 
 const PAYMENT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const PAYMENT_ID_2 = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const BOOKING_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetPaymentDetail = adminPaymentService.getPaymentDetail;
 const originalGetPaymentProof = adminPaymentService.getPaymentProof;
 const originalListPayments = adminPaymentService.listPayments;
@@ -88,7 +90,27 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
+const createAuthContext = ({
+  permissions = [],
+  roleCode = 'admin',
+  userId = 'admin-user-1',
+} = {}) => ({
+  permissions,
+  roleCode,
+  tokenId: 'access-jti-1',
+  user: {
+    email: `${userId}@example.com`,
+    id: userId,
+    password_hash: '$2b$10$hash',
+    role_code: roleCode,
+    role_id: 'role-1',
+    status: 'active',
+  },
+  userId,
+});
+
 test.afterEach(() => {
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminPaymentService.confirmPayment = originalConfirmPayment;
   adminPaymentService.expirePayment = originalExpirePayment;
   adminPaymentService.getPaymentDetail = originalGetPaymentDetail;
@@ -433,9 +455,6 @@ test('adminPaymentService.getPaymentDetail and getPaymentProof handle missing pa
 test('adminPaymentService.confirmPayment validates idempotency, permission, state, and amount rules', async () => {
   const service = adminPaymentService.createAdminPaymentService({
     repository: {
-      confirmPayment: async () => {
-        throw new Error('confirmPayment should not be called');
-      },
       getPaymentById: async (paymentId) => {
         assert.equal(paymentId, PAYMENT_ID);
 
@@ -470,10 +489,43 @@ test('adminPaymentService.confirmPayment validates idempotency, permission, stat
           updated_at: '2026-07-02T08:00:00.000Z',
         };
       },
-      hasPaymentConfirmLogByIdempotencyKey: async ({ idempotencyKey, paymentId }) => {
+      confirmPayment: async ({ idempotencyKey, paymentId }) => {
         assert.equal(idempotencyKey, 'confirm-key-1');
         assert.equal(paymentId, PAYMENT_ID);
-        return true;
+        return {
+          payment: {
+            amount: '4880000',
+            booking_code: 'BK202607020001',
+            booking_created_at: '2026-07-01T12:00:00.000Z',
+            booking_currency: 'VND',
+            booking_expires_at: '2026-07-03T01:00:00.000Z',
+            booking_id: BOOKING_ID,
+            booking_status: BOOKING_STATUS.PENDING_PAYMENT,
+            booking_total_amount: '4880000',
+            created_at: '2026-07-02T01:00:00.000Z',
+            currency: 'VND',
+            customer_email: 'customer@example.com',
+            customer_full_name: 'Nguyen Van A',
+            customer_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            customer_phone: '0909000000',
+            expired_at: '2026-07-03T01:00:00.000Z',
+            id: PAYMENT_ID,
+            paid_at: '2026-07-02T08:00:00.000Z',
+            payment_code: 'PAY202607020001',
+            payment_method: 'manual_bank_transfer',
+            provider: 'direct',
+            raw_response: {
+              confirmation: {
+                received_amount: 4880000,
+                received_at: '2026-07-02T08:00:00.000Z',
+              },
+            },
+            status: PAYMENT_STATUS.SUCCESS,
+            updated_at: '2026-07-02T08:00:00.000Z',
+          },
+          reused: 'idempotency',
+          transitionApplied: true,
+        };
       },
     },
   });
@@ -506,10 +558,32 @@ test('adminPaymentService.confirmPayment validates idempotency, permission, stat
     received_at: '2026-07-02T08:00:00.000Z',
   });
 
+  await assert.rejects(
+    () => service.confirmPayment({
+      auth: {
+        role: 'staff',
+        tokenPayload: {
+          permissions: ['payment.confirm'],
+        },
+        userId: 'staff-user-1',
+      },
+      body: {
+        next_booking_status: 'paid',
+        received_amount: 4880000,
+        received_at: '2026-07-02T08:00:00.000Z',
+      },
+      headers: {},
+      payment_id: PAYMENT_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+
   const noPermissionService = adminPaymentService.createAdminPaymentService({
     repository: {
       getPaymentById: async () => null,
-      hasPaymentConfirmLogByIdempotencyKey: async () => false,
     },
   });
 
@@ -547,7 +621,6 @@ test('adminPaymentService.confirmPayment validates idempotency, permission, stat
         provider: 'direct',
         status: PAYMENT_STATUS.PENDING,
       }),
-      hasPaymentConfirmLogByIdempotencyKey: async () => false,
     },
   });
 
@@ -585,7 +658,12 @@ test('adminPaymentService.confirmPayment validates idempotency, permission, stat
         provider: 'direct',
         status: PAYMENT_STATUS.RECONCILED,
       }),
-      hasPaymentConfirmLogByIdempotencyKey: async () => false,
+      confirmPayment: async () => ({
+        alreadyConfirmed: true,
+        payment: {
+          id: PAYMENT_ID,
+        },
+      }),
     },
   });
 
@@ -685,7 +763,6 @@ test('adminPaymentService.confirmPayment confirms a pending direct payment and m
         raw_response: {},
         status: PAYMENT_STATUS.PENDING,
       }),
-      hasPaymentConfirmLogByIdempotencyKey: async () => false,
     },
   });
 
@@ -1042,6 +1119,12 @@ test('GET /api/admin/payments returns 403 for customer role', async () => {
     roleCode: 'customer',
     userId: 'customer-user-1',
   });
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      permissions: [],
+      roleCode: 'customer',
+      userId: 'customer-user-1',
+    });
 
   try {
     const response = await request(server, `${apiPrefix}/admin/payments`, {
@@ -1067,6 +1150,13 @@ test('GET /api/admin/payments returns list payload with meta for authorized staf
     userId: 'staff-user-1',
   });
   let capturedContext;
+
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions: tokenPayload.permissions || [],
+      roleCode: tokenPayload.roleCode,
+      userId: tokenPayload.userId,
+    });
 
   adminPaymentService.listPayments = async (context) => {
     capturedContext = context;
@@ -1157,6 +1247,13 @@ test('GET /api/admin/payments/{payment_id} and /proof return detail payloads and
     roleCode: 'staff',
     userId: 'staff-user-2',
   });
+
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions: tokenPayload.permissions || [],
+      roleCode: tokenPayload.roleCode,
+      userId: tokenPayload.userId,
+    });
 
   adminPaymentService.getPaymentDetail = async (context) => {
     assert.equal(context.auth.role, 'admin');
@@ -1270,6 +1367,13 @@ test('admin payment process routes forward auth, body, and headers to service me
     reconcile: null,
     reject: null,
   };
+
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions: tokenPayload.permissions || [],
+      roleCode: tokenPayload.roleCode,
+      userId: tokenPayload.userId,
+    });
 
   adminPaymentService.confirmPayment = async (context) => {
     captured.confirm = context;

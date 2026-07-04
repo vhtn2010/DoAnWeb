@@ -33,6 +33,80 @@ const buildForbiddenError = (message = 'You do not have permission to access thi
     statusCode: 403,
   });
 
+const attachHiddenAuthProperty = (target, key, value) => {
+  Object.defineProperty(target, key, {
+    configurable: true,
+    enumerable: false,
+    value,
+    writable: true,
+  });
+};
+
+const buildRequestAuth = (authContext, tokenPayload) => {
+  const requestAuth = {
+    role: authContext.roleCode,
+    serviceScopeIds: normalizeScopeServiceIds(tokenPayload),
+    tokenPayload: buildResolvedTokenPayload(tokenPayload, authContext),
+    userId: authContext.userId,
+  };
+
+  attachHiddenAuthProperty(
+    requestAuth,
+    'permissions',
+    Array.isArray(authContext.permissions)
+      ? authContext.permissions
+      : [],
+  );
+  attachHiddenAuthProperty(
+    requestAuth,
+    'roleCode',
+    authContext.roleCode,
+  );
+  attachHiddenAuthProperty(
+    requestAuth,
+    'tokenId',
+    authContext.tokenId,
+  );
+  attachHiddenAuthProperty(
+    requestAuth,
+    'user',
+    authContext.user,
+  );
+
+  return requestAuth;
+};
+
+const normalizePermissionCodes = (req) => {
+  const permissionSources = [
+    req.auth?.permissions,
+    req.auth?.tokenPayload?.permission_codes,
+    req.auth?.tokenPayload?.permissionCodes,
+    req.auth?.tokenPayload?.permissions,
+  ];
+
+  for (const source of permissionSources) {
+    if (!Array.isArray(source)) {
+      continue;
+    }
+
+    return source
+      .map((entry) => {
+        if (typeof entry === 'string') {
+          return entry.trim();
+        }
+
+        if (entry && typeof entry === 'object' && typeof entry.code === 'string') {
+          return entry.code.trim();
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
 const extractBearerToken = (authorization) => {
   if (typeof authorization !== 'string') {
     return null;
@@ -99,12 +173,7 @@ const requireAdminAuth = async (req, res, next) => {
       return;
     }
 
-    req.auth = {
-      role,
-      serviceScopeIds: normalizeScopeServiceIds(verification.payload),
-      tokenPayload: buildResolvedTokenPayload(verification.payload, authContext),
-      userId: authContext.userId,
-    };
+    req.auth = buildRequestAuth(authContext, verification.payload);
     next();
   } catch (error) {
     next(error);
@@ -112,12 +181,14 @@ const requireAdminAuth = async (req, res, next) => {
 };
 
 const requireAdminRoles = (roles) => (req, res, next) => {
-  if (!req.auth?.role) {
+  const roleCode = req.auth?.roleCode || req.auth?.role;
+
+  if (!roleCode) {
     next(buildAuthError('Access token is missing or expired'));
     return;
   }
 
-  if (!Array.isArray(roles) || !roles.includes(req.auth.role)) {
+  if (!Array.isArray(roles) || !roles.includes(roleCode)) {
     next(buildForbiddenError());
     return;
   }
@@ -125,8 +196,42 @@ const requireAdminRoles = (roles) => (req, res, next) => {
   next();
 };
 
+const requireAdminPermissions = (requiredPermissions, {
+  allowWhenMissing = false,
+} = {}) => (req, res, next) => {
+  const roleCode = req.auth?.roleCode || req.auth?.role;
+
+  if (!roleCode) {
+    next(buildAuthError('Access token is missing or expired'));
+    return;
+  }
+
+  if (!ADMIN_ROLE_VALUES.includes(roleCode)) {
+    next(buildForbiddenError());
+    return;
+  }
+
+  const permissionCodes = normalizePermissionCodes(req);
+
+  if (permissionCodes.length === 0 && allowWhenMissing) {
+    next();
+    return;
+  }
+
+  if (
+    Array.isArray(requiredPermissions) &&
+    requiredPermissions.some((code) => permissionCodes.includes(code))
+  ) {
+    next();
+    return;
+  }
+
+  next(buildForbiddenError());
+};
+
 module.exports = {
   ADMIN_ROLE_VALUES,
   requireAdminAuth,
+  requireAdminPermissions,
   requireAdminRoles,
 };
