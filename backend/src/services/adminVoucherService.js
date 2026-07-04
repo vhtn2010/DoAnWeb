@@ -26,7 +26,6 @@ const VOUCHER_CREATE_PERMISSION = 'voucher.create';
 const VOUCHER_READ_PERMISSION = 'voucher.read_all';
 const VOUCHER_UPDATE_PERMISSIONS = Object.freeze([
   'voucher.update',
-  'voucher.change_status',
 ]);
 const VOUCHER_UPDATE_PERMISSION = 'voucher.update';
 const VOUCHER_DELETE_PERMISSION = 'voucher.delete';

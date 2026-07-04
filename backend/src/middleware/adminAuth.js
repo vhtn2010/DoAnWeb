@@ -77,34 +77,23 @@ const buildRequestAuth = (authContext, tokenPayload) => {
 };
 
 const normalizePermissionCodes = (req) => {
-  const permissionSources = [
-    req.auth?.permissions,
-    req.auth?.tokenPayload?.permission_codes,
-    req.auth?.tokenPayload?.permissionCodes,
-    req.auth?.tokenPayload?.permissions,
-  ];
-
-  for (const source of permissionSources) {
-    if (!Array.isArray(source)) {
-      continue;
-    }
-
-    return source
-      .map((entry) => {
-        if (typeof entry === 'string') {
-          return entry.trim();
-        }
-
-        if (entry && typeof entry === 'object' && typeof entry.code === 'string') {
-          return entry.code.trim();
-        }
-
-        return null;
-      })
-      .filter(Boolean);
+  if (!Array.isArray(req.auth?.permissions)) {
+    return [];
   }
 
-  return [];
+  return req.auth.permissions
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return entry.trim();
+      }
+
+      if (entry && typeof entry === 'object' && typeof entry.code === 'string') {
+        return entry.code.trim();
+      }
+
+      return null;
+    })
+    .filter(Boolean);
 };
 
 const extractBearerToken = (authorization) => {
@@ -196,9 +185,7 @@ const requireAdminRoles = (roles) => (req, res, next) => {
   next();
 };
 
-const requireAdminPermissions = (requiredPermissions, {
-  allowWhenMissing = false,
-} = {}) => (req, res, next) => {
+const requireAdminPermissions = (requiredPermissions) => (req, res, next) => {
   const roleCode = req.auth?.roleCode || req.auth?.role;
 
   if (!roleCode) {
@@ -212,11 +199,6 @@ const requireAdminPermissions = (requiredPermissions, {
   }
 
   const permissionCodes = normalizePermissionCodes(req);
-
-  if (permissionCodes.length === 0 && allowWhenMissing) {
-    next();
-    return;
-  }
 
   if (
     Array.isArray(requiredPermissions) &&

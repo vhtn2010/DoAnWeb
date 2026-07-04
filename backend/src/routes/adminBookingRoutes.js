@@ -14,6 +14,7 @@ const {
 } = require('../controllers/adminBookingController');
 const {
   requireAdminAuth,
+  requireAdminPermissions,
 } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { createRateLimiter } = require('../middleware/rateLimit');
@@ -36,6 +37,7 @@ const adminBookingCommunicationRateLimit = createRateLimiter({
 router.get(
   '/admin/bookings',
   requireAdminAuth,
+  requireAdminPermissions(['booking.read_all']),
   adminBookingRateLimit,
   asyncHandler(listAdminBookings),
 );
@@ -43,6 +45,7 @@ router.get(
 router.get(
   '/admin/bookings/:booking_id',
   requireAdminAuth,
+  requireAdminPermissions(['booking.read_all']),
   adminBookingRateLimit,
   asyncHandler(getAdminBookingDetail),
 );
@@ -50,6 +53,7 @@ router.get(
 router.get(
   '/admin/bookings/:booking_id/status-history',
   requireAdminAuth,
+  requireAdminPermissions(['booking.read_all']),
   adminBookingRateLimit,
   asyncHandler(getAdminBookingStatusHistory),
 );
@@ -57,6 +61,7 @@ router.get(
 router.patch(
   '/admin/bookings/:booking_id/status',
   requireAdminAuth,
+  requireAdminPermissions(['booking.update_status']),
   adminBookingRateLimit,
   asyncHandler(updateAdminBookingStatus),
 );
@@ -64,6 +69,7 @@ router.patch(
 router.post(
   '/admin/bookings/:booking_id/confirm',
   requireAdminAuth,
+  requireAdminPermissions(['booking.update_status']),
   adminBookingRateLimit,
   asyncHandler(confirmAdminBooking),
 );
@@ -71,6 +77,7 @@ router.post(
 router.post(
   '/admin/bookings/:booking_id/complete',
   requireAdminAuth,
+  requireAdminPermissions(['booking.update_status']),
   adminBookingRateLimit,
   asyncHandler(completeAdminBooking),
 );
@@ -78,6 +85,7 @@ router.post(
 router.post(
   '/admin/bookings/:booking_id/cancel',
   requireAdminAuth,
+  requireAdminPermissions(['booking.cancel']),
   adminBookingRateLimit,
   asyncHandler(cancelAdminBooking),
 );
@@ -85,6 +93,7 @@ router.post(
 router.post(
   '/admin/bookings/:booking_id/expire',
   requireAdminAuth,
+  requireAdminPermissions(['booking.update_status']),
   adminBookingRateLimit,
   asyncHandler(expireAdminBooking),
 );
@@ -92,6 +101,7 @@ router.post(
 router.post(
   '/admin/bookings/:booking_id/resend-confirmation-email',
   requireAdminAuth,
+  requireAdminPermissions(['email.resend']),
   adminBookingCommunicationRateLimit,
   asyncHandler(resendAdminBookingConfirmationEmail),
 );
@@ -99,6 +109,7 @@ router.post(
 router.patch(
   '/admin/booking-items/:booking_item_id/status',
   requireAdminAuth,
+  requireAdminPermissions(['booking.update_status']),
   adminBookingRateLimit,
   asyncHandler(updateAdminBookingItemStatus),
 );
@@ -106,6 +117,7 @@ router.patch(
 router.patch(
   '/admin/booking-items/:booking_item_id/traveller-info',
   requireAdminAuth,
+  requireAdminPermissions(['booking.update_status']),
   adminBookingRateLimit,
   asyncHandler(updateAdminBookingItemTravellerInfo),
 );

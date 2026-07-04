@@ -22,9 +22,11 @@ const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalUpdateMyBookingContact = bookingService.updateMyBookingContact;
 
 const createAuthContext = ({
+  permissions = ['booking.read_self'],
   roleCode = 'customer',
   userId = CUSTOMER_ID,
 } = {}) => ({
+  permissions: roleCode === 'customer' ? permissions : [],
   roleCode,
   tokenId: 'access-jti-contact-1',
   user: {

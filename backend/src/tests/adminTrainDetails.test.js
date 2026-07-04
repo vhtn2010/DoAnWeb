@@ -349,6 +349,7 @@ test('POST /api/admin/services/{service_id}/train-details returns 201 for create
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.create'],
     role_code: 'admin',
     sub: 'admin-1',
   });
@@ -405,6 +406,7 @@ test('PATCH /api/admin/train-details/{train_detail_id} returns updated detail', 
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role_code: 'admin',
     sub: 'admin-1',
   });
@@ -482,6 +484,7 @@ test('DELETE /api/admin/train-details/{train_detail_id} blocks staff and allows 
   const successServer = app.listen(0);
   const adminToken = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.delete'],
     role: 'admin',
     sub: 'admin-1',
   });

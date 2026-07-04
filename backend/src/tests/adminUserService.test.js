@@ -1230,7 +1230,7 @@ test('resendVerificationEmail queues email and writes audit log for pending user
       if (sql.includes('FROM role_permissions rp')) {
         return {
           rowCount: 1,
-          rows: [{ code: 'email.send' }],
+          rows: [{ code: 'email.resend' }],
         };
       }
 
@@ -1351,7 +1351,7 @@ test('resendVerificationEmail rejects non-pending target status', async () => {
           if (sql.includes('FROM role_permissions rp')) {
             return {
               rowCount: 1,
-              rows: [{ code: 'user.update_status' }],
+              rows: [{ code: 'email.resend' }],
             };
           }
 
@@ -1515,7 +1515,7 @@ test('changeUserRole updates role_id, returns permissions, and writes audit log'
         return {
           rowCount: 2,
           rows: [
-            { code: 'booking.manage' },
+            { code: 'booking.read_all' },
             { code: 'user.read_all' },
           ],
         };
@@ -1553,7 +1553,7 @@ test('changeUserRole updates role_id, returns permissions, and writes audit log'
     to_role: 'admin',
   });
   assert.deepEqual(result.permissions, [
-    'booking.manage',
+    'booking.read_all',
     'user.read_all',
   ]);
   assert.equal(result.role.code, 'admin');

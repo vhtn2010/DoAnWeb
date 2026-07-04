@@ -25,9 +25,11 @@ const originalGetMyBookingStatusHistory = bookingService.getMyBookingStatusHisto
 const originalListMyBookings = bookingService.listMyBookings;
 
 const createAuthContext = ({
+  permissions = ['booking.read_self'],
   roleCode = 'customer',
   userId = CUSTOMER_ID,
 } = {}) => ({
+  permissions: roleCode === 'customer' ? permissions : [],
   roleCode,
   tokenId: 'access-jti-1',
   user: {
