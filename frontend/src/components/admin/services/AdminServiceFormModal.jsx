@@ -1,16 +1,17 @@
 import { useEffect, useId, useState } from 'react'
 import AdminServiceTypeFields from './AdminServiceTypeFields.jsx'
 import {
-  adminServiceFormStatusOptions,
-  adminServiceFormTypeOptions,
-  buildServicePayloadFromForm,
+  ADMIN_SERVICE_FORM_STATUS_OPTIONS,
+  ADMIN_SERVICE_FORM_TYPE_OPTIONS,
+} from '../../../constants/adminServices.js'
+import {
   createServiceDetailDefaults,
   getAdminRoleLabel,
   getAdminServiceStatusLabel,
   getAdminServiceTypeLabel,
   getInitialServiceFormValues,
   slugifyServiceTitle,
-} from '../../../data/mockAdminServices.js'
+} from '../../../mappers/adminServiceMappers.js'
 
 function validateServiceForm(values) {
   const errors = {}
@@ -214,15 +215,7 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
 
     setErrors({})
 
-    const payload = buildServicePayloadFromForm(formValues, {
-      currentRole,
-      existingService: service,
-      mode,
-      submitIntent,
-    })
-
-    // TODO: replace local state update with POST/PATCH /admin/services in API integration phase.
-    onSave(payload, submitIntent)
+    onSave(formValues, submitIntent)
   }
 
   return (
@@ -348,7 +341,7 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
                   value={formValues.service_type}
                   onChange={handleCommonChange}
                 >
-                  {adminServiceFormTypeOptions.map((option) => (
+                  {ADMIN_SERVICE_FORM_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -482,7 +475,7 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
                   value={formValues.status}
                   onChange={handleCommonChange}
                 >
-                  {adminServiceFormStatusOptions.map((option) => (
+                  {ADMIN_SERVICE_FORM_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>

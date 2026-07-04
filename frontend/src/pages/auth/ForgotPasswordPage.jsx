@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import useForgotPasswordForm from '../../hooks/useForgotPasswordForm.js'
 import './authTemplate.css'
 
 function MailIcon() {
@@ -112,14 +112,22 @@ function EyeIcon({ visible }) {
 }
 
 function ForgotPasswordPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [acceptedTerms, setAcceptedTerms] = useState(false)
-  const [sentCode, setSentCode] = useState(false)
-
-  const handleSubmit = (event) => {
-    event.preventDefault()
-  }
+  const {
+    errors,
+    feedbackMessage,
+    feedbackTone,
+    formValues,
+    handleFieldChange,
+    handleSendCode,
+    handleSubmit,
+    isSendingCode,
+    isSubmitting,
+    sentCode,
+    setShowConfirmPassword,
+    setShowPassword,
+    showConfirmPassword,
+    showPassword,
+  } = useForgotPasswordForm()
 
   return (
     <section className="auth-forgot-page">
@@ -139,60 +147,84 @@ function ForgotPasswordPage() {
           </div>
         </header>
 
-        <form className="auth-forgot-form" onSubmit={handleSubmit}>
+        <form className="auth-forgot-form" noValidate onSubmit={handleSubmit}>
           <label className="auth-forgot-form__field" htmlFor="forgot-password-email">
             <span className="auth-forgot-form__label">Địa chỉ Email</span>
-            <div className="auth-forgot-form__control auth-forgot-form__control--email">
+            <div
+              className={`auth-forgot-form__control auth-forgot-form__control--email${
+                errors.email ? ' auth-forgot-form__control--error' : ''
+              }`}
+            >
               <span aria-hidden="true" className="auth-forgot-form__icon">
                 <MailIcon />
               </span>
               <input
                 autoComplete="email"
+                aria-invalid={Boolean(errors.email)}
                 className="auth-forgot-form__input"
                 id="forgot-password-email"
                 name="email"
                 placeholder="example@gmail.com"
                 type="email"
+                value={formValues.email}
+                onChange={handleFieldChange}
               />
               <button
                 className={`auth-forgot-form__inline-button${sentCode ? ' auth-forgot-form__inline-button--sent' : ''}`}
+                disabled={isSendingCode}
                 type="button"
-                onClick={() => setSentCode(true)}
+                onClick={handleSendCode}
               >
-                {sentCode ? 'Đã gửi' : 'Gửi mã'}
+                {isSendingCode ? 'Đang gửi...' : sentCode ? 'Đã gửi' : 'Gửi mã'}
               </button>
             </div>
+            {errors.email ? <p className="auth-form__field-error">{errors.email}</p> : null}
           </label>
 
           <label className="auth-forgot-form__field" htmlFor="forgot-password-code">
             <span className="auth-forgot-form__label">Mã xác nhận</span>
-            <div className="auth-forgot-form__control">
+            <div
+              className={`auth-forgot-form__control${
+                errors.otp_code ? ' auth-forgot-form__control--error' : ''
+              }`}
+            >
               <span aria-hidden="true" className="auth-forgot-form__icon">
                 <CodeIcon />
               </span>
               <input
+                aria-invalid={Boolean(errors.otp_code)}
                 className="auth-forgot-form__input"
                 id="forgot-password-code"
-                name="verificationCode"
+                name="otp_code"
                 placeholder="1234"
                 type="text"
+                value={formValues.otp_code}
+                onChange={handleFieldChange}
               />
             </div>
+            {errors.otp_code ? <p className="auth-form__field-error">{errors.otp_code}</p> : null}
           </label>
 
           <label className="auth-forgot-form__field" htmlFor="forgot-password-new-password">
             <span className="auth-forgot-form__label">Mật khẩu mới</span>
-            <div className="auth-forgot-form__control">
+            <div
+              className={`auth-forgot-form__control${
+                errors.new_password ? ' auth-forgot-form__control--error' : ''
+              }`}
+            >
               <span aria-hidden="true" className="auth-forgot-form__icon">
                 <LockIcon />
               </span>
               <input
                 autoComplete="new-password"
+                aria-invalid={Boolean(errors.new_password)}
                 className="auth-forgot-form__input"
                 id="forgot-password-new-password"
-                name="newPassword"
+                name="new_password"
                 placeholder="••••••••"
                 type={showPassword ? 'text' : 'password'}
+                value={formValues.new_password}
+                onChange={handleFieldChange}
               />
               <button
                 aria-label={showPassword ? 'Ẩn mật khẩu mới' : 'Hiện mật khẩu mới'}
@@ -203,21 +235,31 @@ function ForgotPasswordPage() {
                 <EyeIcon visible={showPassword} />
               </button>
             </div>
+            {errors.new_password ? (
+              <p className="auth-form__field-error">{errors.new_password}</p>
+            ) : null}
           </label>
 
           <label className="auth-forgot-form__field" htmlFor="forgot-password-confirm-password">
             <span className="auth-forgot-form__label">Nhập lại mật khẩu mới</span>
-            <div className="auth-forgot-form__control">
+            <div
+              className={`auth-forgot-form__control${
+                errors.confirm_password ? ' auth-forgot-form__control--error' : ''
+              }`}
+            >
               <span aria-hidden="true" className="auth-forgot-form__icon">
                 <LockIcon />
               </span>
               <input
                 autoComplete="new-password"
+                aria-invalid={Boolean(errors.confirm_password)}
                 className="auth-forgot-form__input"
                 id="forgot-password-confirm-password"
-                name="confirmPassword"
+                name="confirm_password"
                 placeholder="••••••••"
                 type={showConfirmPassword ? 'text' : 'password'}
+                value={formValues.confirm_password}
+                onChange={handleFieldChange}
               />
               <button
                 aria-label={
@@ -232,28 +274,41 @@ function ForgotPasswordPage() {
                 <EyeIcon visible={showConfirmPassword} />
               </button>
             </div>
+            {errors.confirm_password ? (
+              <p className="auth-form__field-error">{errors.confirm_password}</p>
+            ) : null}
           </label>
 
           <label className="auth-forgot-form__agreement" htmlFor="forgot-password-agreement">
             <input
-              checked={acceptedTerms}
+              checked={formValues.accepted_terms}
               id="forgot-password-agreement"
-              name="agreement"
+              name="accepted_terms"
               type="checkbox"
-              onChange={(event) => setAcceptedTerms(event.target.checked)}
+              onChange={handleFieldChange}
             />
             <span>
               Tôi đồng ý với <a href="#">Điều khoản</a> & <a href="#">Chính sách bảo mật</a> của
               Nét Việt.
             </span>
           </label>
+          {errors.accepted_terms ? (
+            <p className="auth-form__field-error">{errors.accepted_terms}</p>
+          ) : null}
+
+          {feedbackMessage ? (
+            <p className={`auth-form__feedback auth-form__feedback--${feedbackTone}`}>
+              {feedbackMessage}
+            </p>
+          ) : null}
 
           <div className="auth-forgot-form__actions">
             <button
               className="auth-forgot-form__button auth-forgot-form__button--primary"
+              disabled={isSubmitting}
               type="submit"
             >
-              Hoàn tất thay đổi
+              {isSubmitting ? 'Đang xử lý...' : 'Hoàn tất thay đổi'}
             </button>
             <Link
               className="auth-forgot-form__button auth-forgot-form__button--secondary"

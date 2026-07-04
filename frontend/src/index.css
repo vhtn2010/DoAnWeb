@@ -511,6 +511,29 @@ select {
   font-weight: 700;
 }
 
+.cart-list-card__retry {
+  margin-top: 18px;
+  min-height: 42px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(214, 40, 40, 0.1);
+  color: var(--color-brand-primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.cart-list-card__retry:hover,
+.cart-list-card__retry:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  background: rgba(214, 40, 40, 0.16);
+}
+
 .cart-item-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -3891,6 +3914,11 @@ select {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.admin-dashboard-page__filter:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .admin-dashboard-page__metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3920,6 +3948,54 @@ select {
   background: rgba(255, 255, 255, 0.88);
   box-shadow: 0 32px 64px rgba(1, 0, 0, 0.05);
   backdrop-filter: blur(14px);
+}
+
+.admin-dashboard-page__status-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+}
+
+.admin-dashboard-page__status-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-dashboard-page__status-message {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.admin-dashboard-page__status-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.admin-dashboard-page__retry-button {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(214, 40, 40, 0.1);
+  color: var(--color-brand-primary);
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.admin-dashboard-page__retry-button:hover,
+.admin-dashboard-page__retry-button:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  background: rgba(214, 40, 40, 0.16);
 }
 
 .admin-dashboard-section-heading {
@@ -4499,6 +4575,15 @@ select {
 
   .admin-dashboard-page__metrics {
     grid-template-columns: 1fr;
+  }
+
+  .admin-dashboard-page__status-card {
+    flex-direction: column;
+  }
+
+  .admin-dashboard-page__status-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .admin-dashboard-page__side-stack {

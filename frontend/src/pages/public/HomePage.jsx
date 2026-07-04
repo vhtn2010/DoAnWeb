@@ -1,300 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-
-const destinationServices = [
-  {
-    service_type: 'tour',
-    title: 'Đà Nẵng',
-    slug: 'da-nang',
-    short_description: 'Thành phố của những cây cầu & bãi biển quyến rũ.',
-    location_text: 'Đà Nẵng',
-    base_price: 0,
-    sale_price: 0,
-    image_url: '/assets/template/home/v39_1669.png',
-    badge_text: 'HOT DESTINATION',
-    size: 'tall',
-  },
-  {
-    service_type: 'tour',
-    title: 'Sapa',
-    slug: 'sapa',
-    short_description: 'Sương mù & Ruộng bậc thang.',
-    location_text: 'Sapa',
-    base_price: 0,
-    sale_price: 0,
-    image_url: '/assets/template/home/v39_1679.png',
-    size: 'small',
-  },
-  {
-    service_type: 'tour',
-    title: 'Ninh Bình',
-    slug: 'ninh-binh',
-    short_description: 'Hạ Long trên cạn.',
-    location_text: 'Ninh Bình',
-    base_price: 0,
-    sale_price: 0,
-    image_url: '/assets/template/home/v39_1685.png',
-    size: 'small',
-  },
-  {
-    service_type: 'hotel',
-    title: 'Phú Quốc',
-    slug: 'phu-quoc',
-    short_description: 'Thiên đường nghỉ dưỡng nhiệt đới.',
-    location_text: 'Phú Quốc',
-    base_price: 0,
-    sale_price: 0,
-    image_url: '/assets/template/home/v39_1693.png',
-    size: 'wide',
-  },
-]
-
-const flashSaleServices = [
-  {
-    service_type: 'hotel',
-    title: 'Heritage Hotel Da Lat',
-    slug: 'heritage-hotel-da-lat',
-    short_description: 'Trải nghiệm không gian Đông Dương cổ điển giữa lòng Đà Lạt.',
-    location_text: 'Đà Lạt',
-    base_price: 4080000,
-    sale_price: 2450000,
-    image_url: '/assets/template/home/v1_107.png',
-    discount_percent: 40,
-    price_unit: '/đêm',
-  },
-  {
-    service_type: 'hotel',
-    title: 'Amanoi Resort Nha Trang',
-    slug: 'amanoi-resort-nha-trang',
-    short_description: 'Đỉnh cao của sự riêng tư và sang trọng bậc nhất Việt Nam.',
-    location_text: 'Nha Trang',
-    base_price: 18770000,
-    sale_price: 12200000,
-    image_url: '/assets/template/home/v1_122.png',
-    discount_percent: 35,
-    price_unit: '/đêm',
-  },
-  {
-    service_type: 'combo',
-    title: 'Combo Gourmet Hoi An',
-    slug: 'combo-gourmet-hoi-an',
-    short_description: 'Thưởng thức tinh hoa ẩm thực phố Hội trên thuyền rồng.',
-    location_text: 'Hội An',
-    base_price: 2400000,
-    sale_price: 1800000,
-    image_url: '/assets/template/home/v1_137.png',
-    discount_percent: 25,
-    price_unit: '/khách',
-  },
-]
-
-const vietnamProvinceOptions = [
-  'Hà Nội',
-  'Huế',
-  'Hải Phòng',
-  'Đà Nẵng',
-  'TP. Hồ Chí Minh',
-  'Cần Thơ',
-  'Cao Bằng',
-  'Tuyên Quang',
-  'Lào Cai',
-  'Thái Nguyên',
-  'Phú Thọ',
-  'Bắc Ninh',
-  'Hưng Yên',
-  'Ninh Bình',
-  'Quảng Trị',
-  'Quảng Ngãi',
-  'Gia Lai',
-  'Khánh Hòa',
-  'Lâm Đồng',
-  'Đắk Lắk',
-  'Đồng Nai',
-  'Tây Ninh',
-  'Vĩnh Long',
-  'Đồng Tháp',
-  'Cà Mau',
-  'An Giang',
-  'Điện Biên',
-  'Lai Châu',
-  'Sơn La',
-  'Lạng Sơn',
-  'Quảng Ninh',
-  'Thanh Hóa',
-  'Nghệ An',
-  'Hà Tĩnh',
-]
-
-const searchFieldOptions = [
-  {
-    key: 'from',
-    label: 'ĐIỂM KHỞI HÀNH',
-    icon: 'departure',
-    options: vietnamProvinceOptions,  
-  },
-
-  {
-    key: 'to',
-    label: 'ĐIỂM ĐẾN',
-    icon: 'destination',
-    options: vietnamProvinceOptions,
-  },
-]
-
-const weekdayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN']
-
-const filterGroups = [
-  {
-    key: 'airline',
-    label: 'Hãng hàng không',
-    options: ['Vietnam Airlines', 'Vietjet Air', 'Bamboo Airways'],
-  },
-  {
-    key: 'tour',
-    label: 'Tour',
-    options: ['Tour miền Bắc', 'Tour miền Trung', 'Tour miền Nam'],
-  },
-  {
-    key: 'hotel',
-    label: 'Khách sạn',
-    options: ['3 sao', '4 sao', '5 sao'],
-  },
-  {
-    key: 'train',
-    label: 'Vé tàu',
-    options: ['Ghế cứng','Ghế mềm', 'Giường nằm', 'Khoang VIP'],
-  },
-]
-
-const sortOptions = ['Giá rẻ nhất', 'Giá cao nhất', 'Mới nhất', 'Phổ biến nhất']
-
-const sortQueryMap = {
-  'Giá rẻ nhất': 'price_asc',
-  'Giá cao nhất': 'price_desc',
-  'Mới nhất': 'newest',
-  'Phổ biến nhất': 'popular',
-}
-
-const coreValues = [
-  {
-    icon: 'shield',
-    tone: 'red',
-    title: 'Chất lượng 5 Sao',
-    description:
-      'Mọi dịch vụ từ khách sạn đến vận chuyển đều đạt tiêu chuẩn cao nhất.',
-  },
-  {
-    icon: 'gem',
-    tone: 'gold',
-    title: 'Trải nghiệm độc bản',
-    description:
-      'Các hành trình được thiết kế riêng tư, mang đậm bản sắc văn hóa địa phương.',
-  },
-  {
-    icon: 'support',
-    tone: 'red',
-    title: 'Hỗ trợ 24/7',
-    description:
-      'Đội ngũ chuyên gia luôn sẵn sàng đồng hành cùng bạn trên mọi nẻo đường.',
-  },
-]
-
-const initialSearchState = {
-  from: 'TP. Hồ Chí Minh (SGN)',
-  to: 'Hà Nội (HAN)',
-  startDate: createDate(2026, 6, 1),
-  endDate: createDate(2026, 6, 2),
-  sort: 'Giá rẻ nhất',
-  filters: {
-    airline: '',
-    tour: '',
-    hotel: '',
-    train: '',
-  },
-}
-
-function formatCurrency(value) {
-  return `${new Intl.NumberFormat('vi-VN').format(value)}đ`
-}
-
-function createDate(year, monthIndex, day) {
-  return new Date(year, monthIndex, day)
-}
-
-function addMonths(date, offset) {
-  return createDate(date.getFullYear(), date.getMonth() + offset, 1)
-}
-
-function compareDates(firstDate, secondDate) {
-  const first = createDate(
-    firstDate.getFullYear(),
-    firstDate.getMonth(),
-    firstDate.getDate()
-  ).getTime()
-  const second = createDate(
-    secondDate.getFullYear(),
-    secondDate.getMonth(),
-    secondDate.getDate()
-  ).getTime()
-
-  if (first === second) {
-    return 0
-  }
-
-  return first > second ? 1 : -1
-}
-
-function isSameDay(firstDate, secondDate) {
-  return compareDates(firstDate, secondDate) === 0
-}
-
-function formatDateDisplay(date) {
-  return `${String(date.getDate()).padStart(2, '0')} thg ${date.getMonth() + 1} ${date.getFullYear()}`
-}
-
-function formatDateRangeDisplay(startDate, endDate) {
-  return `${formatDateDisplay(startDate)} - ${formatDateDisplay(endDate)}`
-}
-
-function formatMonthLabel(date) {
-  return `tháng ${date.getMonth() + 1} năm ${date.getFullYear()}`
-}
-
-function formatQueryDate(date) {
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-
-  return `${date.getFullYear()}-${month}-${day}`
-}
-
-function slugifyQueryValue(value) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase()
-}
-
-function getMonthDays(monthDate) {
-  const firstDayOfMonth = createDate(monthDate.getFullYear(), monthDate.getMonth(), 1)
-  const startOffset = firstDayOfMonth.getDay() === 0 ? 6 : firstDayOfMonth.getDay() - 1
-  const gridStartDate = createDate(
-    firstDayOfMonth.getFullYear(),
-    firstDayOfMonth.getMonth(),
-    1 - startOffset
-  )
-
-  return Array.from({ length: 42 }, (_, index) =>
-    createDate(
-      gridStartDate.getFullYear(),
-      gridStartDate.getMonth(),
-      gridStartDate.getDate() + index
-    )
-  )
-}
+import { Link } from 'react-router-dom'
+import useHomePage from '../../hooks/useHomePage.js'
 
 function ChevronIcon({ isOpen }) {
   return (
@@ -461,7 +166,7 @@ function DestinationCard({ service }) {
   )
 }
 
-function FlashSaleCard({ service }) {
+function FlashSaleCard({ formatCurrency, service, serviceListPath }) {
   return (
     <article className="home-offer-card">
       <div className="home-offer-card__image-frame">
@@ -483,7 +188,7 @@ function FlashSaleCard({ service }) {
             </span>
           </div>
 
-          <Link className="home-offer-card__action" to="/services">
+          <Link className="home-offer-card__action" to={serviceListPath}>
             Đặt Ngay
           </Link>
         </div>
@@ -493,137 +198,44 @@ function FlashSaleCard({ service }) {
 }
 
 function HomePage() {
-  const navigate = useNavigate()
-  const searchCardRef = useRef(null)
-  const [searchState, setSearchState] = useState(initialSearchState)
-  const [calendarSelection, setCalendarSelection] = useState({
-    startDate: initialSearchState.startDate,
-    endDate: initialSearchState.endDate,
-  })
-  const [openMenu, setOpenMenu] = useState(null)
-  const [visibleMonth, setVisibleMonth] = useState(createDate(2026, 6, 1))
-
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (!searchCardRef.current?.contains(event.target)) {
-        setOpenMenu(null)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-    }
-  }, [])
-
-  function toggleMenu(menuKey) {
-    setOpenMenu((currentMenu) => (currentMenu === menuKey ? null : menuKey))
-  }
-
-  function handleFieldSelect(fieldKey, value) {
-    setSearchState((currentState) => ({
-      ...currentState,
-      [fieldKey]: value,
-    }))
-    setOpenMenu(null)
-  }
-
-  function handleDateFieldToggle() {
-    if (openMenu === 'date') {
-      setOpenMenu(null)
-      return
-    }
-
-    setCalendarSelection({
-      startDate: searchState.startDate,
-      endDate: searchState.endDate,
-    })
-    setVisibleMonth(createDate(searchState.startDate.getFullYear(), searchState.startDate.getMonth(), 1))
-    setOpenMenu('date')
-  }
-
-  function handleDateSelect(date) {
-    const currentSelection = calendarSelection
-    let nextSelection
-
-    if (!currentSelection.startDate || currentSelection.endDate) {
-      nextSelection = {
-        startDate: date,
-        endDate: null,
-      }
-      setCalendarSelection(nextSelection)
-      return
-    }
-
-    if (compareDates(date, currentSelection.startDate) < 0) {
-      nextSelection = {
-        startDate: date,
-        endDate: null,
-      }
-      setCalendarSelection(nextSelection)
-      return
-    }
-
-    nextSelection = {
-      startDate: currentSelection.startDate,
-      endDate: date,
-    }
-
-    setCalendarSelection(nextSelection)
-    setSearchState((currentState) => ({
-      ...currentState,
-      startDate: nextSelection.startDate,
-      endDate: nextSelection.endDate,
-    }))
-    setOpenMenu(null)
-  }
-
-  function handleFilterSelect(filterKey, value) {
-    setSearchState((currentState) => ({
-      ...currentState,
-      filters: {
-        ...currentState.filters,
-        [filterKey]: currentState.filters[filterKey] === value ? '' : value,
-      },
-    }))
-    setOpenMenu(null)
-  }
-
-  function handleSortSelect(value) {
-    setSearchState((currentState) => ({
-      ...currentState,
-      sort: value,
-    }))
-    setOpenMenu(null)
-  }
-
-  function handleSearch() {
-    const params = new URLSearchParams({
-      from: slugifyQueryValue(searchState.from),
-      to: slugifyQueryValue(searchState.to),
-      start: formatQueryDate(searchState.startDate),
-      end: formatQueryDate(searchState.endDate),
-      sort: sortQueryMap[searchState.sort] ?? slugifyQueryValue(searchState.sort),
-    })
-
-    Object.entries(searchState.filters).forEach(([key, value]) => {
-      if (value) {
-        params.set(key, slugifyQueryValue(value))
-      }
-    })
-
-    setOpenMenu(null)
-    navigate(`/services?${params.toString()}`)
-  }
-
-  const displayedDateRange = formatDateRangeDisplay(searchState.startDate, searchState.endDate)
-  const calendarPreview = calendarSelection.endDate
-    ? formatDateRangeDisplay(calendarSelection.startDate, calendarSelection.endDate)
-    : calendarSelection.startDate
-      ? `${formatDateDisplay(calendarSelection.startDate)} - Chọn ngày về`
-      : displayedDateRange
-  const visibleMonths = [visibleMonth, addMonths(visibleMonth, 1)]
+  const {
+    calendarSelection,
+    calendarPreview,
+    compareDates,
+    destinations,
+    displayedDateRange,
+    errorMessage,
+    feedbackMessage,
+    flashSaleMeta,
+    flashSaleServices,
+    formatCurrency,
+    formatMonthLabel,
+    getMonthDays,
+    handleDateFieldToggle,
+    handleDateSelect,
+    handleFieldSelect,
+    handleFilterSelect,
+    handleRetry,
+    handleSearch,
+    handleSortSelect,
+    hero,
+    heroCtaPath,
+    isSameDay,
+    loading,
+    openMenu,
+    searchCardRef,
+    searchFieldOptions,
+    searchState,
+    serviceListPath,
+    showNextMonth,
+    showPreviousMonth,
+    sortOptions,
+    toggleMenu,
+    valueProps,
+    visibleMonths,
+    weekdayLabels,
+    filterGroups,
+  } = useHomePage()
 
   return (
     <div className="home-page">
@@ -631,25 +243,22 @@ function HomePage() {
         <div className="home-hero__content">
           <div className="home-hero__copy">
             <div className="home-hero__title-group">
-              <span className="home-hero__title-leading">Khám phá</span>
-              <span className="home-hero__title-script">Việt Nam</span>
+              <span className="home-hero__title-leading">{hero.title_leading}</span>
+              <span className="home-hero__title-script">{hero.title_script}</span>
             </div>
 
-            <p className="home-hero__description">
-              Hành trình di sản cao cấp, kết nối tinh hoa văn hóa truyền thống với
-              những trải nghiệm nghỉ dưỡng xa hoa nhất.
-            </p>
+            <p className="home-hero__description">{hero.description}</p>
 
-            <Link className="home-hero__cta" to="/services">
-              Bắt đầu hành trình
+            <Link className="home-hero__cta" to={heroCtaPath}>
+              {hero.cta_label}
             </Link>
           </div>
 
           <div className="home-hero__art">
             <img
-              alt="Nét Việt Travel collage"
+              alt={hero.art_image_alt}
               className="home-hero__art-image"
-              src="/assets/template/home/v39_1982.png"
+              src={hero.art_image_url}
             />
           </div>
         </div>
@@ -737,7 +346,7 @@ function HomePage() {
                         aria-label="Tháng trước"
                         className="home-search-card__calendar-nav-button"
                         type="button"
-                        onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))}
+                        onClick={showPreviousMonth}
                       >
                         <MonthNavIcon direction="left" />
                       </button>
@@ -745,7 +354,7 @@ function HomePage() {
                         aria-label="Tháng sau"
                         className="home-search-card__calendar-nav-button"
                         type="button"
-                        onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))}
+                        onClick={showNextMonth}
                       >
                         <MonthNavIcon direction="right" />
                       </button>
@@ -926,6 +535,29 @@ function HomePage() {
               </div>
             </div>
           </div>
+
+          {loading ? (
+            <div className="home-search-card__calendar-footer" role="status">
+              <span className="home-search-card__calendar-helper">
+                Đang tải dữ liệu trang chủ từ mock adapter...
+              </span>
+            </div>
+          ) : null}
+
+          {errorMessage ? (
+            <div className="home-search-card__calendar-footer" role="alert">
+              <span className="home-search-card__calendar-helper">{errorMessage}</span>
+              <button className="home-search-card__chip" type="button" onClick={handleRetry}>
+                Thử lại
+              </button>
+            </div>
+          ) : null}
+
+          {feedbackMessage ? (
+            <div className="home-search-card__calendar-footer" role="status">
+              <span className="home-search-card__calendar-helper">{feedbackMessage}</span>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -940,7 +572,7 @@ function HomePage() {
         </div>
 
         <div className="home-destinations-grid">
-          {destinationServices.map((service) => (
+          {destinations.map((service) => (
             <DestinationCard key={service.slug} service={service} />
           ))}
         </div>
@@ -963,23 +595,28 @@ function HomePage() {
 
           <div className="home-flash-sale__timer">
             <div className="home-flash-sale__timer-unit">
-              <span className="home-flash-sale__timer-value">02</span>
-              <span className="home-flash-sale__timer-label">NGÀY</span>
+              <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.days}</span>
+              <span className="home-flash-sale__timer-label">{flashSaleMeta.day_label}</span>
             </div>
             <div className="home-flash-sale__timer-unit">
-              <span className="home-flash-sale__timer-value">14</span>
-              <span className="home-flash-sale__timer-label">GIỜ</span>
+              <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.hours}</span>
+              <span className="home-flash-sale__timer-label">{flashSaleMeta.hour_label}</span>
             </div>
             <div className="home-flash-sale__timer-unit">
-              <span className="home-flash-sale__timer-value">45</span>
-              <span className="home-flash-sale__timer-label">PHÚT</span>
+              <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.minutes}</span>
+              <span className="home-flash-sale__timer-label">{flashSaleMeta.minute_label}</span>
             </div>
           </div>
         </div>
 
         <div className="home-flash-sale__offers">
           {flashSaleServices.map((service) => (
-            <FlashSaleCard key={service.slug} service={service} />
+            <FlashSaleCard
+              formatCurrency={formatCurrency}
+              key={service.slug}
+              service={service}
+              serviceListPath={serviceListPath}
+            />
           ))}
         </div>
       </section>
@@ -1002,7 +639,7 @@ function HomePage() {
           </div>
 
           <div className="home-values__list">
-            {coreValues.map((item) => (
+            {valueProps.map((item) => (
               <article className="home-values__item" key={item.title}>
                 <CoreValueIcon type={item.icon} tone={item.tone} />
                 <div className="home-values__copy">
