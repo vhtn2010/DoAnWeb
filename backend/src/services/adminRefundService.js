@@ -94,10 +94,6 @@ const ensureReadAllAccess = (auth) => {
 
   const permissionCodes = normalizePermissionCodes(auth);
 
-  if (permissionCodes.length === 0) {
-    return;
-  }
-
   if (permissionCodes.includes('refund.read_all')) {
     return;
   }
@@ -112,10 +108,6 @@ const ensureApproveAccess = (auth) => {
 
   const permissionCodes = normalizePermissionCodes(auth);
 
-  if (permissionCodes.length === 0) {
-    return;
-  }
-
   if (permissionCodes.includes('refund.approve')) {
     return;
   }
@@ -129,10 +121,6 @@ const ensureRejectAccess = (auth) => {
   }
 
   const permissionCodes = normalizePermissionCodes(auth);
-
-  if (permissionCodes.length === 0) {
-    return;
-  }
 
   if (permissionCodes.includes('refund.reject')) {
     return;

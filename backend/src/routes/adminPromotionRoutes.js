@@ -1,8 +1,5 @@
 const express = require('express');
 const {
-  API_ERROR_CODES,
-} = require('../constants/domainConstraints');
-const {
   changeAdminPromotionStatus,
   createAdminPromotion,
   deleteAdminPromotion,
@@ -11,25 +8,10 @@ const {
   listAdminPromotions,
   updateAdminPromotion,
 } = require('../controllers/adminPromotionController');
-const { authRequired } = require('../middleware/authSession');
+const { authRequired, requirePermissions } = require('../middleware/authSession');
 const asyncHandler = require('../middleware/asyncHandler');
-const AppError = require('../utils/AppError');
 
 const router = express.Router();
-
-const requirePromotionDeleteRoles = (req, res, next) => {
-  if (['admin', 'system_admin'].includes(req.auth?.roleCode)) {
-    next();
-    return;
-  }
-
-  next(
-    new AppError('Forbidden', {
-      code: API_ERROR_CODES.FORBIDDEN,
-      statusCode: 403,
-    }),
-  );
-};
 
 router.use(
   '/admin/promotions',
@@ -38,27 +20,31 @@ router.use(
   }),
 );
 
-router.get('/admin/promotions', asyncHandler(listAdminPromotions));
-router.post('/admin/promotions', asyncHandler(createAdminPromotion));
+router.get('/admin/promotions', requirePermissions(['promotion.read']), asyncHandler(listAdminPromotions));
+router.post('/admin/promotions', requirePermissions(['promotion.create']), asyncHandler(createAdminPromotion));
 router.get(
   '/admin/promotions/:promotionId/vouchers',
+  requirePermissions(['promotion.read']),
   asyncHandler(getAdminPromotionVouchers),
 );
 router.get(
   '/admin/promotions/:promotionId',
+  requirePermissions(['promotion.read']),
   asyncHandler(getAdminPromotionDetail),
 );
 router.patch(
   '/admin/promotions/:promotionId',
+  requirePermissions(['promotion.update']),
   asyncHandler(updateAdminPromotion),
 );
 router.patch(
   '/admin/promotions/:promotionId/status',
+  requirePermissions(['promotion.change_status']),
   asyncHandler(changeAdminPromotionStatus),
 );
 router.delete(
   '/admin/promotions/:promotionId',
-  requirePromotionDeleteRoles,
+  requirePermissions(['promotion.delete']),
   asyncHandler(deleteAdminPromotion),
 );
 

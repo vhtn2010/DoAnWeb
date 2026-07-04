@@ -6,6 +6,7 @@ const {
 } = require('../controllers/adminDashboardController');
 const {
   requireAdminAuth,
+  requireAdminPermissions,
   requireAdminRoles,
 } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -25,6 +26,7 @@ router.get(
   '/admin/dashboard/overview',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['dashboard.read']),
   adminDashboardRateLimit,
   asyncHandler(getAdminDashboardOverview),
 );
@@ -33,6 +35,7 @@ router.get(
   '/admin/dashboard/charts/revenue',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['dashboard.read']),
   adminDashboardRateLimit,
   asyncHandler(getAdminDashboardRevenueChart),
 );
@@ -41,6 +44,7 @@ router.get(
   '/admin/dashboard/charts/bookings',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['dashboard.read']),
   adminDashboardRateLimit,
   asyncHandler(getAdminDashboardBookingChart),
 );

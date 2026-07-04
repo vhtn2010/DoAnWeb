@@ -5,6 +5,7 @@ const {
 } = require('../controllers/adminAuditLogController');
 const {
   requireAdminAuth,
+  requireAdminPermissions,
   requireAdminRoles,
 } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -23,6 +24,7 @@ router.get(
   '/admin/audit-logs',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['audit.read']),
   adminAuditLogRateLimit,
   asyncHandler(listAdminAuditLogs),
 );
@@ -31,6 +33,7 @@ router.get(
   '/admin/audit-logs/:log_id',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['audit.read']),
   adminAuditLogRateLimit,
   asyncHandler(getAdminAuditLogDetail),
 );

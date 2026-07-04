@@ -15,7 +15,10 @@ const {
   listCustomerBookingRefunds,
 } = require('../controllers/refundController');
 const asyncHandler = require('../middleware/asyncHandler');
-const { authRequired } = require('../middleware/authSession');
+const {
+  authRequired,
+  requirePermissions,
+} = require('../middleware/authSession');
 const createRateLimit = require('../middleware/rateLimit');
 
 const router = express.Router();
@@ -38,6 +41,7 @@ router.get(
 router.post(
   '/bookings/:booking_id/direct-payments',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['payment.create_direct']),
   customerPaymentWriteRateLimit,
   asyncHandler(createCustomerDirectPayment),
 );
@@ -45,6 +49,7 @@ router.post(
 router.get(
   '/bookings/:booking_id/payments',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['payment.read_self']),
   customerPaymentReadRateLimit,
   asyncHandler(listCustomerBookingPayments),
 );
@@ -52,6 +57,7 @@ router.get(
 router.get(
   '/payments/:payment_id',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['payment.read_self']),
   customerPaymentReadRateLimit,
   asyncHandler(getCustomerPaymentDetail),
 );
@@ -59,6 +65,7 @@ router.get(
 router.post(
   '/payments/:payment_id/cancel',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['payment.create_direct']),
   customerPaymentWriteRateLimit,
   asyncHandler(cancelCustomerPayment),
 );
@@ -66,6 +73,7 @@ router.post(
 router.post(
   '/bookings/:booking_id/refunds',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['refund.request']),
   customerPaymentWriteRateLimit,
   asyncHandler(createCustomerRefundRequest),
 );
@@ -73,6 +81,7 @@ router.post(
 router.get(
   '/bookings/:booking_id/refunds',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['refund.read_self']),
   customerPaymentReadRateLimit,
   asyncHandler(listCustomerBookingRefunds),
 );
@@ -80,6 +89,7 @@ router.get(
 router.get(
   '/refunds/:refund_id',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['refund.read_self']),
   customerPaymentReadRateLimit,
   asyncHandler(getCustomerRefundDetail),
 );
@@ -87,6 +97,7 @@ router.get(
 router.post(
   '/refunds/:refund_id/cancel',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['refund.read_self']),
   customerPaymentWriteRateLimit,
   asyncHandler(cancelCustomerRefundRequest),
 );
@@ -94,6 +105,7 @@ router.post(
 router.post(
   '/payments/:payment_id/proof',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['payment.create_direct']),
   customerPaymentWriteRateLimit,
   asyncHandler(uploadCustomerPaymentProof),
 );
@@ -101,6 +113,7 @@ router.post(
 router.get(
   '/payments/:payment_id/proof',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['payment.read_self']),
   customerPaymentReadRateLimit,
   asyncHandler(getCustomerPaymentProof),
 );

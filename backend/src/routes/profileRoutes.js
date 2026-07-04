@@ -8,7 +8,7 @@ const {
   updateMeAvatar,
   updateMePassword,
 } = require('../controllers/profileController');
-const { authRequired } = require('../middleware/authSession');
+const { authRequired, requirePermissions } = require('../middleware/authSession');
 const asyncHandler = require('../middleware/asyncHandler');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
@@ -28,6 +28,7 @@ router.get(
   authRequired({
     allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
   }),
+  requirePermissions(['profile.read_self']),
   asyncHandler(getMe),
 );
 router.get(
@@ -35,6 +36,7 @@ router.get(
   authRequired({
     allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
   }),
+  requirePermissions(['profile.read_self']),
   asyncHandler(getMyLogs),
 );
 router.patch(
@@ -42,6 +44,7 @@ router.patch(
   authRequired({
     allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
   }),
+  requirePermissions(['profile.update_self']),
   asyncHandler(updateMe),
 );
 router.patch(
@@ -49,6 +52,7 @@ router.patch(
   authRequired({
     allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
   }),
+  requirePermissions(['profile.update_self']),
   asyncHandler(updateMeAvatar),
 );
 router.patch(
@@ -56,6 +60,7 @@ router.patch(
   authRequired({
     allowedRoles: ['customer', 'staff', 'admin', 'system_admin'],
   }),
+  requirePermissions(['profile.change_password']),
   changePasswordRateLimiter,
   asyncHandler(updateMePassword),
 );

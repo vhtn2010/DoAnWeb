@@ -565,6 +565,7 @@ test('POST /api/bookings/{booking_id}/refunds requires a customer token', async 
 test('customer refund routes return the expected payloads for create, list, detail, and cancel', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['refund.request', 'refund.read_self'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: {
@@ -768,6 +769,7 @@ test('customer refund routes return the expected payloads for create, list, deta
 test('customer refund routes block non-customer roles with 403', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: [],
     roleCode: 'admin',
     tokenId: 'token-admin',
     user: { id: OTHER_USER_ID, role_code: 'admin' },

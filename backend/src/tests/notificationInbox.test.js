@@ -38,9 +38,11 @@ const originalSendAdminNotificationToUser = notificationService.sendAdminNotific
 const originalUpdateAdminNotificationStatus = notificationService.updateAdminNotificationStatus;
 
 const createAuthContext = ({
+  permissions = ['notification.read_self'],
   roleCode = 'customer',
   userId = USER_ID,
 } = {}) => ({
+  permissions: roleCode === 'guest' ? [] : permissions,
   roleCode,
   tokenId: 'access-jti-1',
   user: {
@@ -50,6 +52,24 @@ const createAuthContext = ({
   },
   userId,
 });
+
+const createAdminAuthResolver = () => async (tokenPayload) =>
+  createAuthContext({
+    permissions:
+      tokenPayload.permissions ||
+      tokenPayload.permission_codes ||
+      [],
+    roleCode:
+      tokenPayload.roleCode ||
+      tokenPayload.role_code ||
+      tokenPayload.role ||
+      'admin',
+    userId:
+      tokenPayload.userId ||
+      tokenPayload.user_id ||
+      tokenPayload.sub ||
+      USER_ID,
+  });
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -1432,6 +1452,7 @@ test('DELETE /api/notifications/{notification_id} deletes owned user-specific no
 
 test('GET /api/admin/notifications returns admin notification list and blocks disallowed roles', async () => {
   const server = app.listen(0);
+  authService.resolveAuthenticatedUser = createAdminAuthResolver();
 
   notificationService.listAdminNotifications = async ({ auth, query }) => {
     assert.equal(auth.role, 'admin');
@@ -1505,6 +1526,7 @@ test('GET /api/admin/notifications returns admin notification list and blocks di
 
 test('POST /api/admin/notifications/broadcast and /users/{user_id} create notifications and block staff', async () => {
   const server = app.listen(0);
+  authService.resolveAuthenticatedUser = createAdminAuthResolver();
 
   notificationService.broadcastAdminNotification = async ({ auth, body }) => {
     assert.equal(auth.role, 'admin');
@@ -1638,6 +1660,7 @@ test('POST /api/admin/notifications/broadcast and /users/{user_id} create notifi
 
 test('PATCH /api/admin/notifications/{notification_id}/status updates notification status and blocks disallowed roles', async () => {
   const server = app.listen(0);
+  authService.resolveAuthenticatedUser = createAdminAuthResolver();
 
   notificationService.updateAdminNotificationStatus = async ({
     auth,

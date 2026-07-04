@@ -405,6 +405,7 @@ test('POST /api/payments/{payment_id}/proof and GET /api/payments/{payment_id}/p
 test('POST /api/payments/{payment_id}/proof returns uploaded proof and GET returns proof or null', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['payment.create_direct', 'payment.read_self'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: { id: CUSTOMER_ID, role_code: 'customer' },

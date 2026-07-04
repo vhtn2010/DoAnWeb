@@ -15,7 +15,6 @@ const UPLOAD_USAGE_ALLOWED_ROLES = Object.freeze([
 const UPLOAD_USAGE_CACHE_TTL_MS = 5 * 60 * 1000;
 const UPLOAD_USAGE_REQUIRED_PERMISSION_CODES = Object.freeze([
   'dashboard.read',
-  'system_setting.manage',
 ]);
 
 let uploadUsageCache = null;
