@@ -23,6 +23,86 @@ const createAdminBookingRepository = ({
     ]);
   };
 
+  const listConfirmedInventoryItemsForUpdate = async (client, bookingId) => {
+    const result = await client.query(
+      `
+        SELECT
+          id,
+          service_type,
+          reference_id,
+          quantity,
+          status
+        FROM booking_items
+        WHERE booking_id = $1
+          AND status = 'confirmed'
+          AND reference_id IS NOT NULL
+        FOR UPDATE
+      `,
+      [bookingId],
+    );
+
+    return result.rows;
+  };
+
+  const restoreInventoryForItems = async (client, items) => {
+    for (const item of items) {
+      if (!item.reference_id) {
+        continue;
+      }
+
+      if (item.service_type === 'hotel' || item.service_type === 'room') {
+        await client.query(
+          `
+            UPDATE room_types
+            SET available_rooms = available_rooms + $2
+            WHERE id = $1
+          `,
+          [item.reference_id, item.quantity],
+        );
+        continue;
+      }
+
+      if (item.service_type === 'flight') {
+        await client.query(
+          `
+            UPDATE flight_details
+            SET seats_available = seats_available + $2
+            WHERE id = $1
+          `,
+          [item.reference_id, item.quantity],
+        );
+        continue;
+      }
+
+      if (item.service_type === 'train') {
+        await client.query(
+          `
+            UPDATE train_details
+            SET seats_available = seats_available + $2
+            WHERE id = $1
+          `,
+          [item.reference_id, item.quantity],
+        );
+      }
+    }
+  };
+
+  const getLatestRefundPendingTransition = async (client, bookingId) => {
+    const result = await client.query(
+      `
+        SELECT from_status
+        FROM booking_status_histories
+        WHERE booking_id = $1
+          AND to_status = 'refund_pending'
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+      `,
+      [bookingId],
+    );
+
+    return result.rows[0] || null;
+  };
+
   const transitionBookingStatusWithItems = async ({
     actorUserId,
     bookingId,
@@ -36,6 +116,23 @@ const createAdminBookingRepository = ({
     withTransactionImpl(async (client) => {
       await setLocalConfig(client, 'app.current_user_id', actorUserId);
       await setLocalConfig(client, 'app.status_change_reason', reason);
+      let shouldRestoreInventory = false;
+
+      if (fromStatus === 'confirmed' && ['cancelled', 'refunded'].includes(toStatus)) {
+        shouldRestoreInventory = true;
+      }
+
+      if (fromStatus === 'refund_pending' && toStatus === 'refunded') {
+        const latestRefundPendingTransition = await getLatestRefundPendingTransition(
+          client,
+          bookingId,
+        );
+        shouldRestoreInventory = latestRefundPendingTransition?.from_status === 'confirmed';
+      }
+
+      const inventoryItems = shouldRestoreInventory
+        ? await listConfirmedInventoryItemsForUpdate(client, bookingId)
+        : [];
 
       const bookingResult = await client.query(
         `
@@ -56,6 +153,10 @@ const createAdminBookingRepository = ({
 
       if (bookingResult.rowCount !== 1) {
         throw createInvalidStateTransitionError();
+      }
+
+      if (shouldRestoreInventory && inventoryItems.length > 0) {
+        await restoreInventoryForItems(client, inventoryItems);
       }
 
       if (itemStatusTo && itemStatusFrom.length > 0) {

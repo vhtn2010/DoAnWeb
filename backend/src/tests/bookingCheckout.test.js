@@ -144,7 +144,6 @@ test('bookingService.checkout creates a pending_payment booking from an active c
           })),
         };
       },
-      findBookingByIdempotencyKey: async () => null,
       getCartById: async (cartId) => {
         assert.equal(cartId, CART_ID);
 
@@ -299,7 +298,6 @@ test('bookingService.checkout rejects a non-active or foreign cart', async () =>
       }),
     },
     repository: {
-      findBookingByIdempotencyKey: async () => null,
       getCartById: async () => ({
         id: CART_ID,
         status: 'active',
@@ -339,7 +337,6 @@ test('bookingService.checkout returns CART_EMPTY when cart has no items', async 
       }),
     },
     repository: {
-      findBookingByIdempotencyKey: async () => null,
       getCartById: async () => ({
         id: CART_ID,
         status: 'active',
@@ -388,7 +385,6 @@ test('bookingService.checkout returns CART_ITEM_NOT_AVAILABLE when availability 
       }),
     },
     repository: {
-      findBookingByIdempotencyKey: async () => null,
       getCartById: async () => ({
         id: CART_ID,
         status: 'active',
@@ -451,7 +447,6 @@ test('bookingService.checkout rejects expired vouchers', async () => {
       }),
     },
     repository: {
-      findBookingByIdempotencyKey: async () => null,
       getCartById: async () => ({
         id: CART_ID,
         status: 'active',
@@ -517,37 +512,105 @@ test('bookingService.checkout rejects expired vouchers', async () => {
   );
 });
 
-test('bookingService.checkout replays the same booking for a duplicate idempotency key', async () => {
+test('bookingService.checkout requires Idempotency-Key', async () => {
   const service = bookingService.createBookingService({
     repository: {
-      findBookingByIdempotencyKey: async () => ({
+      createCheckout: async () => {
+        throw new Error('createCheckout should not be called');
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.checkout({
+      auth: {
+        role: 'customer',
+        userId: CUSTOMER_ID,
+      },
+      body: {
+        cart_id: CART_ID,
         contact_email: 'customer@example.com',
         contact_name: 'Nguyen Van A',
-        contact_phone: '+84901234567',
+      },
+      headers: {},
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+});
+
+test('bookingService.checkout returns the repository replay result for a duplicate idempotency key', async () => {
+  const service = bookingService.createBookingService({
+    availabilityService: {
+      getServiceAvailability: async () => ({
+        available: true,
+        available_quantity: 1,
         currency: 'VND',
-        discount_amount: 0,
-        booking_code: 'BK20260630AAAA',
-        expires_at: '2026-07-01T01:00:00.000Z',
-        id: 'booking-1',
-        note: null,
-        status: 'pending_payment',
-        subtotal_amount: 1000000,
+        issues: [],
         total_amount: 1000000,
-        voucher_id: null,
+        unit_price: 1000000,
       }),
-      listBookingItemsByBookingId: async () => ([
+    },
+    repository: {
+      createCheckout: async () => ({
+        booking: {
+          contact_email: 'customer@example.com',
+          contact_name: 'Nguyen Van A',
+          contact_phone: '+84901234567',
+          currency: 'VND',
+          discount_amount: 0,
+          booking_code: 'BK20260630AAAA',
+          expires_at: '2026-07-01T01:00:00.000Z',
+          id: 'booking-1',
+          note: null,
+          status: 'pending_payment',
+          subtotal_amount: 1000000,
+          total_amount: 1000000,
+          voucher_id: null,
+        },
+        items: [
+          {
+            end_at: '2026-07-11T00:00:00.000Z',
+            id: 'booking-item-1',
+            quantity: 1,
+            reference_id: null,
+            service_id: TOUR_SERVICE_ID,
+            service_type: 'tour',
+            start_at: '2026-07-10T00:00:00.000Z',
+            status: 'pending',
+            title_snapshot: 'Tour Da Nang',
+            total_amount: 1000000,
+            unit_price: 1000000,
+          },
+        ],
+      }),
+      getCartById: async () => ({
+        id: CART_ID,
+        status: 'active',
+        user_id: CUSTOMER_ID,
+      }),
+      getPublicServiceById: async () => ({
+        currency: 'VND',
+        id: TOUR_SERVICE_ID,
+        provider_name: 'Net Viet Travel',
+        service_code: 'TOUR001',
+        service_type: 'tour',
+        title: 'Tour Da Nang',
+      }),
+      listCartItemsByCartId: async () => ([
         {
+          created_at: '2026-06-30T01:00:00.000Z',
           end_at: '2026-07-11T00:00:00.000Z',
-          id: 'booking-item-1',
+          id: CART_ITEM_1_ID,
+          options: null,
           quantity: 1,
           reference_id: null,
           service_id: TOUR_SERVICE_ID,
           service_type: 'tour',
           start_at: '2026-07-10T00:00:00.000Z',
-          status: 'pending',
-          title_snapshot: 'Tour Da Nang',
-          total_amount: 1000000,
-          unit_price: 1000000,
+          unit_price_snapshot: '1000000',
         },
       ]),
     },
