@@ -165,7 +165,7 @@ const createAdminBookingRepository = ({
             UPDATE booking_items
             SET status = $2
             WHERE booking_id = $1
-              AND status = ANY($3::text[])
+              AND status = ANY($3::booking_item_status[])
           `,
           [bookingId, itemStatusTo, itemStatusFrom],
         );

@@ -532,6 +532,13 @@ test('DELETE /api/admin/promotions/:promotionId blocks staff and allows admin', 
 
   authService.resolveAuthenticatedUser = async () =>
     createAuthContext({
+      permissions: [
+        'promotion.read',
+        'promotion.create',
+        'promotion.update',
+        'promotion.delete',
+        'promotion.change_status',
+      ],
       roleCode: 'staff',
       userId: 'staff-user-4',
     });

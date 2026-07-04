@@ -733,6 +733,7 @@ test('deletePromotion is idempotent for already cancelled promotion', async () =
   const result = await service.deletePromotion({
     actor: {
       permissions: ['promotion.delete'],
+      role_code: 'admin',
     },
     actorUserId: '11111111-1111-4111-8111-111111111111',
     payload: {
@@ -746,6 +747,35 @@ test('deletePromotion is idempotent for already cancelled promotion', async () =
     queries.some((entry) => entry.sql.includes('UPDATE promotions')),
     false,
   );
+});
+
+test('deletePromotion rejects staff even with delete permission', async () => {
+  let transactionStarted = false;
+  const service = createAdminPromotionService({
+    withTransactionImpl: async () => {
+      transactionStarted = true;
+      throw new Error('deletePromotion should reject before starting a transaction');
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.deletePromotion({
+        actor: {
+          permissions: ['promotion.delete'],
+          role_code: 'staff',
+        },
+        actorUserId: '11111111-1111-4111-8111-111111111111',
+        payload: {
+          reason: 'No longer valid',
+        },
+        promotionId: '22222222-2222-4222-8222-222222222222',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+  assert.equal(transactionStarted, false);
 });
 
 test('changePromotionStatus rejects invalid transition from cancelled to active', async () => {
