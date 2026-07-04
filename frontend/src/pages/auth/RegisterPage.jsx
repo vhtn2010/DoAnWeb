@@ -1,10 +1,17 @@
 import { Link } from 'react-router-dom'
+import useRegisterForm from '../../hooks/useRegisterForm.js'
 import './authTemplate.css'
 
 function RegisterPage() {
-  const handleSubmit = (event) => {
-    event.preventDefault()
-  }
+  const {
+    errors,
+    feedbackMessage,
+    feedbackTone,
+    formValues,
+    handleFieldChange,
+    handleSubmit,
+    isSubmitting,
+  } = useRegisterForm()
 
   return (
     <section className="auth-register-page">
@@ -25,62 +32,103 @@ function RegisterPage() {
           </div>
         </header>
 
-        <form className="auth-template-form" onSubmit={handleSubmit}>
+        <form className="auth-template-form" noValidate onSubmit={handleSubmit}>
           <label className="auth-template-form__field" htmlFor="register-full-name">
             <span className="auth-template-form__label">Họ và tên (*)</span>
             <input
               autoComplete="name"
-              className="auth-template-form__input"
+              aria-invalid={Boolean(errors.full_name)}
+              className={`auth-template-form__input${
+                errors.full_name ? ' auth-template-form__input--error' : ''
+              }`}
               id="register-full-name"
-              name="fullName"
+              name="full_name"
               placeholder="Nhập họ và tên"
               type="text"
+              value={formValues.full_name}
+              onChange={handleFieldChange}
             />
+            {errors.full_name ? <p className="auth-form__field-error">{errors.full_name}</p> : null}
           </label>
 
           <label className="auth-template-form__field" htmlFor="register-email">
             <span className="auth-template-form__label">Địa chỉ Email</span>
             <input
               autoComplete="email"
-              className="auth-template-form__input"
+              aria-invalid={Boolean(errors.email)}
+              className={`auth-template-form__input${
+                errors.email ? ' auth-template-form__input--error' : ''
+              }`}
               id="register-email"
               name="email"
               placeholder="email@netviet.travel"
               type="email"
+              value={formValues.email}
+              onChange={handleFieldChange}
             />
+            {errors.email ? <p className="auth-form__field-error">{errors.email}</p> : null}
           </label>
 
           <label className="auth-template-form__field" htmlFor="register-password">
             <span className="auth-template-form__label">Mật khẩu</span>
             <input
               autoComplete="new-password"
-              className="auth-template-form__input"
+              aria-invalid={Boolean(errors.password)}
+              className={`auth-template-form__input${
+                errors.password ? ' auth-template-form__input--error' : ''
+              }`}
               id="register-password"
               name="password"
               placeholder="Nhập mật khẩu"
               type="password"
+              value={formValues.password}
+              onChange={handleFieldChange}
             />
+            {errors.password ? <p className="auth-form__field-error">{errors.password}</p> : null}
           </label>
 
           <label className="auth-template-form__field" htmlFor="register-password-confirm">
             <span className="auth-template-form__label">Nhập lại mật khẩu</span>
             <input
               autoComplete="new-password"
-              className="auth-template-form__input"
+              aria-invalid={Boolean(errors.confirm_password)}
+              className={`auth-template-form__input${
+                errors.confirm_password ? ' auth-template-form__input--error' : ''
+              }`}
               id="register-password-confirm"
-              name="confirmPassword"
+              name="confirm_password"
               placeholder="Nhập lại mật khẩu"
               type="password"
+              value={formValues.confirm_password}
+              onChange={handleFieldChange}
             />
+            {errors.confirm_password ? (
+              <p className="auth-form__field-error">{errors.confirm_password}</p>
+            ) : null}
           </label>
 
           <label className="auth-template-form__agreement" htmlFor="register-agreement">
-            <input id="register-agreement" name="agreement" type="checkbox" />
+            <input
+              checked={formValues.accepted_terms}
+              id="register-agreement"
+              name="accepted_terms"
+              type="checkbox"
+              onChange={handleFieldChange}
+            />
             <span>Tôi đồng ý với Điều khoản & Chính sách bảo mật của Nét Việt.</span>
           </label>
+          {errors.accepted_terms ? (
+            <p className="auth-form__field-error">{errors.accepted_terms}</p>
+          ) : null}
 
-          <button className="auth-template-form__button" type="submit">
-            Đăng ký tài khoản
+          {feedbackMessage ? (
+            <p className={`auth-form__feedback auth-form__feedback--${feedbackTone}`}>
+              {feedbackMessage}
+            </p>
+          ) : null}
+
+          <button className="auth-template-form__button" disabled={isSubmitting} type="submit">
+            {isSubmitting ? 'Đang xử lý...' : 'Đăng ký tài khoản'}
           </button>
         </form>
 
