@@ -44,6 +44,9 @@ router.patch(
 );
 router.delete(
   '/admin/promotions/:promotionId',
+  authRequired({
+    allowedRoles: ['admin', 'system_admin'],
+  }),
   requirePermissions(['promotion.delete']),
   asyncHandler(deleteAdminPromotion),
 );

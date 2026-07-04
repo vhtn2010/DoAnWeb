@@ -36,6 +36,9 @@ router.post(
 );
 router.delete(
   '/admin/vouchers/:voucherId',
+  authRequired({
+    allowedRoles: ['admin', 'system_admin'],
+  }),
   requirePermissions(['voucher.delete']),
   asyncHandler(deleteAdminVoucher),
 );

@@ -361,8 +361,8 @@ test('adminDashboardRepository overview and revenue SQL keep required status fil
 
   assert.match(captured[0].sql, /p\.status IN \('success', 'reconciled'\)/);
   assert.match(captured[0].sql, /r\.status = 'success'/);
-  assert.match(captured[0].sql, /p\.status = ANY\(\$3::text\[\]\)/);
-  assert.match(captured[0].sql, /r\.status = ANY\(\$4::text\[\]\)/);
+  assert.match(captured[0].sql, /p\.status = ANY\(\$3::payment_status\[\]\)/);
+  assert.match(captured[0].sql, /r\.status = ANY\(\$4::refund_status\[\]\)/);
   assert.match(captured[1].sql, /DATE_TRUNC\('week', TIMEZONE\(\$1, p\.paid_at\)\)/);
   assert.match(captured[1].sql, /WHERE r\.status = 'success'/);
 });
