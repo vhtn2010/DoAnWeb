@@ -376,6 +376,7 @@ test('GET /api/admin/hotels/{hotel_service_id}/rooms returns room list for staff
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.read_all'],
     role: 'staff',
     sub: 'staff-1',
   });
@@ -423,6 +424,7 @@ test('POST /api/admin/hotels/{hotel_service_id}/rooms returns 201 for created ro
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.create'],
     role_code: 'admin',
     sub: 'admin-1',
   });
@@ -475,6 +477,7 @@ test('PATCH /api/admin/rooms/{room_type_id} returns updated room', async () => {
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role_code: 'admin',
     sub: 'admin-1',
   });
@@ -553,6 +556,7 @@ test('DELETE /api/admin/rooms/{room_type_id} blocks staff and allows admin', asy
   const successServer = app.listen(0);
   const adminToken = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.delete'],
     role: 'admin',
     sub: 'admin-1',
   });

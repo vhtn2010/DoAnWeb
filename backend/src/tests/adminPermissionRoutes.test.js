@@ -19,9 +19,11 @@ const originalReplaceRolePermissions =
   adminPermissionService.replaceRolePermissions;
 
 const createAuthContext = ({
+  permissions = ['permission.read', 'role_permission.update'],
   roleCode = 'admin',
   userId = 'admin-user-1',
 } = {}) => ({
+  permissions,
   roleCode,
   tokenId: 'access-jti-1',
   user: {

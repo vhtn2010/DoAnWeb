@@ -1092,14 +1092,7 @@ const ensureAdminSupportReadAccess = (auth) => {
 
   const permissionCodes = normalizePermissionCodes(auth);
 
-  if (permissionCodes.length === 0) {
-    return;
-  }
-
-  if (
-    permissionCodes.includes('support.read_all') ||
-    permissionCodes.includes('support.manage')
-  ) {
+  if (permissionCodes.includes('support.read_all')) {
     return;
   }
 
@@ -1119,14 +1112,7 @@ const canReadInternalNotes = (auth) => {
     return true;
   }
 
-  if (auth?.role !== 'staff') {
-    return false;
-  }
-
-  return hasAnyPermission(auth, [
-    'support.read_internal_notes',
-    'support.manage',
-  ]);
+  return false;
 };
 
 const ensureAdminSupportAssignAccess = (auth) => {
@@ -1135,10 +1121,7 @@ const ensureAdminSupportAssignAccess = (auth) => {
   }
 
   if (
-    hasAnyPermission(auth, [
-      'support.assign',
-      'support.manage',
-    ])
+    hasAnyPermission(auth, ['support.assign'])
   ) {
     return;
   }
@@ -1152,10 +1135,7 @@ const ensureAdminSupportReplyAccess = (auth) => {
   }
 
   if (
-    hasAnyPermission(auth, [
-      'support.reply',
-      'support.manage',
-    ])
+    hasAnyPermission(auth, ['support.reply'])
   ) {
     return;
   }
@@ -1168,7 +1148,7 @@ const ensureAdminSupportEmailAccess = (auth) => {
     throw buildForbiddenError();
   }
 
-  if (hasAnyPermission(auth, ['email.send', 'support.reply'])) {
+  if (hasAnyPermission(auth, ['email.send'])) {
     return;
   }
 
@@ -1181,10 +1161,7 @@ const ensureAdminSupportCloseAccess = (auth) => {
   }
 
   if (
-    hasAnyPermission(auth, [
-      'support.close',
-      'support.manage',
-    ])
+    hasAnyPermission(auth, ['support.close'])
   ) {
     return;
   }
@@ -1198,10 +1175,7 @@ const ensureAdminSupportManageAccess = (auth) => {
   }
 
   if (
-    hasAnyPermission(auth, [
-      'support.manage',
-      'support.mark_spam',
-    ])
+    hasAnyPermission(auth, ['support.close'])
   ) {
     return;
   }

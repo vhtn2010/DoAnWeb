@@ -707,7 +707,7 @@ const createAdminDirectPaymentSettingsService = ({
         await repository.listPermissionCodesByRoleId(auth.user.role_id),
       );
 
-      ensurePermission(permissionCodes, ['settings.read', 'system_setting.manage']);
+      ensurePermission(permissionCodes, ['settings.read']);
 
       let record;
 
@@ -756,7 +756,6 @@ const createAdminDirectPaymentSettingsService = ({
 
       ensurePermission(permissionCodes, [
         'settings.update',
-        'system_setting.manage',
       ]);
 
       const parsedBody = parseUpdateBody(body || {});

@@ -10,7 +10,7 @@ const {
   resendAdminUserVerificationEmail,
   updateAdminUser,
 } = require('../controllers/adminUserController');
-const { authRequired } = require('../middleware/authSession');
+const { authRequired, requirePermissions } = require('../middleware/authSession');
 const asyncHandler = require('../middleware/asyncHandler');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
@@ -32,22 +32,24 @@ router.use(
   }),
 );
 
-router.post('/admin/users', asyncHandler(createAdminUser));
-router.get('/admin/users', asyncHandler(listAdminUsers));
-router.get('/admin/users/:userId/logs', asyncHandler(getAdminUserLogs));
-router.get('/admin/users/:userId', asyncHandler(getAdminUserDetail));
-router.patch('/admin/users/:userId', asyncHandler(updateAdminUser));
+router.post('/admin/users', requirePermissions(['user.create']), asyncHandler(createAdminUser));
+router.get('/admin/users', requirePermissions(['user.read_all']), asyncHandler(listAdminUsers));
+router.get('/admin/users/:userId/logs', requirePermissions(['user.read_all']), asyncHandler(getAdminUserLogs));
+router.get('/admin/users/:userId', requirePermissions(['user.read_all']), asyncHandler(getAdminUserDetail));
+router.patch('/admin/users/:userId', requirePermissions(['user.update']), asyncHandler(updateAdminUser));
 router.patch(
   '/admin/users/:userId/role',
   authRequired({
     allowedRoles: ['system_admin'],
   }),
+  requirePermissions(['user.change_role']),
   asyncHandler(changeAdminUserRole),
 );
-router.patch('/admin/users/:userId/status', asyncHandler(changeAdminUserStatus));
-router.delete('/admin/users/:userId', asyncHandler(deleteAdminUser));
+router.patch('/admin/users/:userId/status', requirePermissions(['user.change_status']), asyncHandler(changeAdminUserStatus));
+router.delete('/admin/users/:userId', requirePermissions(['user.delete']), asyncHandler(deleteAdminUser));
 router.post(
   '/admin/users/:userId/resend-verification-email',
+  requirePermissions(['email.resend']),
   resendVerificationRateLimiter,
   asyncHandler(resendAdminUserVerificationEmail),
 );

@@ -49,7 +49,7 @@ test('adminSettingsService.getPublicSettings rejects inactive admin users', asyn
   );
 });
 
-test('adminSettingsService.getPublicSettings accepts system_setting.manage and returns sanitized admin payload', async () => {
+test('adminSettingsService.getPublicSettings accepts settings.read and returns sanitized admin payload', async () => {
   const service = createAdminSettingsService({
     repository: {
       getAdminPublicSettings: async () => ({
@@ -80,7 +80,7 @@ test('adminSettingsService.getPublicSettings accepts system_setting.manage and r
           support_email: 'support@netviet.test',
         },
       }),
-      listPermissionCodesByRoleId: async () => ['system_setting.manage'],
+      listPermissionCodesByRoleId: async () => ['settings.read'],
     },
   });
 

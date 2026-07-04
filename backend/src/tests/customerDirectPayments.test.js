@@ -685,6 +685,7 @@ test('POST /api/bookings/{booking_id}/direct-payments requires a customer token'
 test('POST /api/bookings/{booking_id}/direct-payments returns 201 for a created customer direct payment', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['payment.create_direct', 'payment.read_self'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: { id: CUSTOMER_ID, role_code: 'customer' },
@@ -762,6 +763,7 @@ test('POST /api/bookings/{booking_id}/direct-payments returns 201 for a created 
 test('GET /api/bookings/{booking_id}/payments, GET /api/payments/{payment_id}, and POST /api/payments/{payment_id}/cancel return customer payment payloads', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['payment.create_direct', 'payment.read_self'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: { id: CUSTOMER_ID, role_code: 'customer' },

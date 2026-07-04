@@ -276,13 +276,8 @@ const ensureAdminBookingReadAccess = (auth) => {
 
   const permissionCodes = normalizePermissionCodes(auth);
 
-  if (permissionCodes.length === 0) {
-    return;
-  }
-
   if (
-    permissionCodes.includes('booking.read_all') ||
-    permissionCodes.includes('booking.manage')
+    permissionCodes.includes('booking.read_all')
   ) {
     return;
   }
@@ -300,8 +295,7 @@ const ensureAdminBookingStatusAccess = (auth) => {
   const permissionCodes = normalizePermissionCodes(auth);
 
   if (
-    permissionCodes.includes('booking.update_status') ||
-    permissionCodes.includes('booking.manage')
+    permissionCodes.includes('booking.update_status')
   ) {
     return;
   }
@@ -316,13 +310,7 @@ const ensureAdminBookingConfirmAccess = (auth) => {
     throw buildForbiddenError();
   }
 
-  if (
-    hasAnyPermission(auth, [
-      'booking.confirm',
-      'booking.update_status',
-      'booking.manage',
-    ])
-  ) {
+  if (hasAnyPermission(auth, ['booking.update_status'])) {
     return;
   }
 
@@ -336,13 +324,7 @@ const ensureAdminBookingCompleteAccess = (auth) => {
     throw buildForbiddenError();
   }
 
-  if (
-    hasAnyPermission(auth, [
-      'booking.complete',
-      'booking.update_status',
-      'booking.manage',
-    ])
-  ) {
+  if (hasAnyPermission(auth, ['booking.update_status'])) {
     return;
   }
 
@@ -356,13 +338,7 @@ const ensureAdminBookingCancelAccess = (auth) => {
     throw buildForbiddenError();
   }
 
-  if (
-    hasAnyPermission(auth, [
-      'booking.cancel',
-      'booking.update_status',
-      'booking.manage',
-    ])
-  ) {
+  if (hasAnyPermission(auth, ['booking.cancel'])) {
     return;
   }
 
@@ -376,13 +352,7 @@ const ensureAdminBookingExpireAccess = (auth) => {
     throw buildForbiddenError();
   }
 
-  if (
-    hasAnyPermission(auth, [
-      'booking.expire',
-      'booking.update_status',
-      'booking.manage',
-    ])
-  ) {
+  if (hasAnyPermission(auth, ['booking.update_status'])) {
     return;
   }
 
@@ -399,7 +369,6 @@ const ensureAdminBookingItemStatusAccess = (auth) => {
   if (
     hasAnyPermission(auth, [
       'booking.update_status',
-      'booking.manage',
     ])
   ) {
     return;
@@ -415,13 +384,7 @@ const ensureAdminBookingItemTravellerAccess = (auth) => {
     throw buildForbiddenError();
   }
 
-  if (
-    hasAnyPermission(auth, [
-      'booking.update_status',
-      'booking.update_item',
-      'booking.manage',
-    ])
-  ) {
+  if (hasAnyPermission(auth, ['booking.update_status'])) {
     return;
   }
 
@@ -435,13 +398,7 @@ const ensureAdminBookingCommunicationAccess = (auth) => {
     throw buildForbiddenError();
   }
 
-  if (
-    hasAnyPermission(auth, [
-      'email.resend',
-      'email.send',
-      'booking.export',
-    ])
-  ) {
+  if (hasAnyPermission(auth, ['email.resend'])) {
     return;
   }
 

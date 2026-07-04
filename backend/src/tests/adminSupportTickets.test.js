@@ -8,6 +8,7 @@ process.env.JWT_ACCESS_SECRET = 'test-admin-support-secret';
 const app = require('../app');
 const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const authService = require('../services/authService');
 const supportService = require('../services/supportService');
 const {
   clearSupportManualEmailRateLimitStore,
@@ -23,6 +24,7 @@ const REPLY_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const BOOKING_ID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const SERVICE_ID = '11111111-1111-4111-8111-111111111111';
 
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalAssignAdminTicket = supportService.assignAdminTicket;
 const originalCloseAdminTicket = supportService.closeAdminTicket;
 const originalGetAdminTicketDetail = supportService.getAdminTicketDetail;
@@ -79,7 +81,43 @@ const request = (server, path, options = {}) =>
     req.end(body);
   });
 
+const createAdminAuthResolver = () => async (tokenPayload) => ({
+  permissions:
+    tokenPayload.permissions ||
+    tokenPayload.permission_codes ||
+    [],
+  roleCode:
+    tokenPayload.roleCode ||
+    tokenPayload.role_code ||
+    tokenPayload.role ||
+    'admin',
+  serviceScopeIds:
+    tokenPayload.serviceScopeIds ||
+    tokenPayload.service_scope_ids ||
+    null,
+  tokenId: tokenPayload.jti || 'admin-support-jti-1',
+  user: {
+    email: `${tokenPayload.userId || tokenPayload.user_id || tokenPayload.sub || ADMIN_ID}@example.com`,
+    id: tokenPayload.userId || tokenPayload.user_id || tokenPayload.sub || ADMIN_ID,
+    role_code:
+      tokenPayload.roleCode ||
+      tokenPayload.role_code ||
+      tokenPayload.role ||
+      'admin',
+  },
+  userId:
+    tokenPayload.userId ||
+    tokenPayload.user_id ||
+    tokenPayload.sub ||
+    ADMIN_ID,
+});
+
+test.beforeEach(() => {
+  authService.resolveAuthenticatedUser = createAdminAuthResolver();
+});
+
 test.afterEach(() => {
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   supportService.assignAdminTicket = originalAssignAdminTicket;
   supportService.closeAdminTicket = originalCloseAdminTicket;
   supportService.getAdminTicketDetail = originalGetAdminTicketDetail;
@@ -943,7 +981,7 @@ test('supportService.markAdminTicketAsSpam requires manage permission and suppor
     auth: {
       role: 'system_admin',
       tokenPayload: {
-        permissions: ['support.manage'],
+        permissions: ['support.close'],
       },
       userId: ADMIN_ID,
     },
@@ -979,7 +1017,7 @@ test('supportService.markAdminTicketAsSpam requires manage permission and suppor
     auth: {
       role: 'admin',
       tokenPayload: {
-        permissions: ['support.manage'],
+        permissions: ['support.close'],
       },
       userId: ADMIN_ID,
     },
@@ -1003,7 +1041,7 @@ test('supportService.markAdminTicketAsSpam requires manage permission and suppor
       auth: {
         role: 'staff',
         tokenPayload: {
-          permissions: ['support.close'],
+          permissions: ['support.reply'],
         },
         userId: STAFF_ID,
       },
@@ -1876,7 +1914,7 @@ test('POST /admin/support/tickets/{ticket_id}/send-emails uses the same manual s
         },
         headers: {
           Authorization: `Bearer ${createAccessToken({
-            permissions: ['support.reply'],
+            permissions: ['email.send'],
             roleCode: 'staff',
             userId: STAFF_ID,
           })}`,
@@ -2020,7 +2058,7 @@ test('POST /admin/support/tickets/{ticket_id}/mark-spam returns spam result and 
         },
         headers: {
           Authorization: `Bearer ${createAccessToken({
-            permissions: ['support.manage'],
+            permissions: ['support.close'],
             roleCode: 'system_admin',
             userId: ADMIN_ID,
           })}`,
@@ -2042,7 +2080,7 @@ test('POST /admin/support/tickets/{ticket_id}/mark-spam returns spam result and 
         },
         headers: {
           Authorization: `Bearer ${createAccessToken({
-            permissions: ['support.manage'],
+            permissions: ['support.close'],
             roleCode: 'customer',
             userId: '99999999-9999-4999-8999-999999999999',
           })}`,

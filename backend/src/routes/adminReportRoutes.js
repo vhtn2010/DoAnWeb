@@ -36,7 +36,7 @@ router.get(
   '/admin/reports/revenue',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
-  requireAdminPermissions(['report.read', 'report.export']),
+  requireAdminPermissions(['report.read']),
   adminReportRateLimit,
   asyncHandler(getAdminRevenueReport),
 );
@@ -45,7 +45,7 @@ router.get(
   '/admin/reports/bookings',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
-  requireAdminPermissions(['report.read', 'report.export']),
+  requireAdminPermissions(['report.read']),
   adminReportRateLimit,
   asyncHandler(getAdminBookingReport),
 );
@@ -54,7 +54,7 @@ router.get(
   '/admin/reports/services',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
-  requireAdminPermissions(['report.read', 'report.export']),
+  requireAdminPermissions(['report.read']),
   adminReportRateLimit,
   asyncHandler(getAdminServiceReport),
 );
@@ -63,7 +63,7 @@ router.get(
   '/admin/reports/payments',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
-  requireAdminPermissions(['report.read', 'report.export']),
+  requireAdminPermissions(['report.read']),
   adminReportRateLimit,
   asyncHandler(getAdminPaymentReport),
 );
@@ -81,7 +81,7 @@ router.get(
   '/admin/reports/files/:file_name',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
-  requireAdminPermissions(['report.read', 'report.export']),
+  requireAdminPermissions(['report.export']),
   adminReportRateLimit,
   asyncHandler(downloadAdminReportFile),
 );

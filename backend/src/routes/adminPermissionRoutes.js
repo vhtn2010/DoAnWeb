@@ -3,7 +3,7 @@ const {
   listAdminPermissions,
   replaceAdminRolePermissions,
 } = require('../controllers/adminPermissionController');
-const { authRequired } = require('../middleware/authSession');
+const { authRequired, requirePermissions } = require('../middleware/authSession');
 const asyncHandler = require('../middleware/asyncHandler');
 
 const router = express.Router();
@@ -13,6 +13,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['permission.read']),
   asyncHandler(listAdminPermissions),
 );
 
@@ -21,6 +22,7 @@ router.put(
   authRequired({
     allowedRoles: ['system_admin'],
   }),
+  requirePermissions(['role_permission.update']),
   asyncHandler(replaceAdminRolePermissions),
 );
 

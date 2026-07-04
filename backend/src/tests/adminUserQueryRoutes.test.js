@@ -27,9 +27,20 @@ const originalResendVerificationEmail =
 const originalUpdateUser = adminUserService.updateUser;
 
 const createAuthContext = ({
+  permissions = [
+    'user.read_all',
+    'user.create',
+    'user.update',
+    'user.delete',
+    'user.change_status',
+    'user.change_role',
+    'email.send',
+    'email.resend',
+  ],
   roleCode = 'admin',
   userId = 'admin-user-1',
 } = {}) => ({
+  permissions,
   roleCode,
   tokenId: 'access-jti-1',
   user: {
@@ -580,7 +591,7 @@ test('PATCH /api/admin/users/:userId/role returns updated role result for system
 
     return {
       id: '11111111-1111-4111-8111-111111111111',
-      permissions: ['booking.manage', 'user.read_all'],
+      permissions: ['booking.read_all', 'user.read_all'],
       role: {
         code: 'admin',
         id: '22222222-2222-4222-8222-222222222222',
@@ -614,7 +625,7 @@ test('PATCH /api/admin/users/:userId/role returns updated role result for system
     assert.equal(response.body.message, 'User role updated successfully');
     assert.equal(response.body.data.role.code, 'admin');
     assert.deepEqual(response.body.data.permissions, [
-      'booking.manage',
+      'booking.read_all',
       'user.read_all',
     ]);
     assert.equal(capturedContext.userId, '11111111-1111-4111-8111-111111111111');

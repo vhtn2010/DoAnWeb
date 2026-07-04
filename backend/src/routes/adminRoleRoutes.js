@@ -6,7 +6,7 @@ const {
   listAdminRoles,
   updateAdminRole,
 } = require('../controllers/adminRoleController');
-const { authRequired } = require('../middleware/authSession');
+const { authRequired, requirePermissions } = require('../middleware/authSession');
 const asyncHandler = require('../middleware/asyncHandler');
 
 const router = express.Router();
@@ -16,6 +16,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['role.read']),
   asyncHandler(listAdminRoles),
 );
 
@@ -24,6 +25,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['role.read']),
   asyncHandler(getAdminRoleDetail),
 );
 
@@ -32,6 +34,7 @@ router.post(
   authRequired({
     allowedRoles: ['system_admin'],
   }),
+  requirePermissions(['role.create']),
   asyncHandler(createAdminRole),
 );
 
@@ -40,6 +43,7 @@ router.patch(
   authRequired({
     allowedRoles: ['system_admin'],
   }),
+  requirePermissions(['role.update']),
   asyncHandler(updateAdminRole),
 );
 
@@ -48,6 +52,7 @@ router.delete(
   authRequired({
     allowedRoles: ['system_admin'],
   }),
+  requirePermissions(['role.delete']),
   asyncHandler(deleteAdminRole),
 );
 
