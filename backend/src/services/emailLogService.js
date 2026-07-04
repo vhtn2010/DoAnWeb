@@ -304,10 +304,7 @@ const ensureAdminMailTemplateReadAccess = (auth) => {
 
   const permissionCodes = normalizePermissionCodes(actor);
 
-  if (
-    !permissionCodes.includes('email_log.read') &&
-    !permissionCodes.includes('email.send')
-  ) {
+  if (!permissionCodes.includes('email_log.read')) {
     throw buildForbiddenError();
   }
 
@@ -323,11 +320,7 @@ const ensureAdminMailStatsReadAccess = (auth) => {
 
   const permissionCodes = normalizePermissionCodes(actor);
 
-  if (
-    !permissionCodes.includes('dashboard.read') &&
-    !permissionCodes.includes('report.read') &&
-    !permissionCodes.includes('email_log.read')
-  ) {
+  if (!permissionCodes.includes('report.read')) {
     throw buildForbiddenError();
   }
 
@@ -343,10 +336,7 @@ const ensureAdminEmailLogResendAccess = (auth) => {
 
   const permissionCodes = normalizePermissionCodes(actor);
 
-  if (
-    !permissionCodes.includes('email.resend') &&
-    !permissionCodes.includes('email.send')
-  ) {
+  if (!permissionCodes.includes('email.resend')) {
     throw buildForbiddenError();
   }
 

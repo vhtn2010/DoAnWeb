@@ -12,6 +12,7 @@ const {
   EMAIL_STATUS,
 } = require('../constants/domainConstraints');
 const { clearRateLimitStore } = require('../middleware/rateLimit');
+const authService = require('../services/authService');
 const emailLogService = require('../services/emailLogService');
 const { createAccessToken } = require('../utils/sessionToken');
 
@@ -19,11 +20,43 @@ const EMAIL_LOG_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const USER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const BOOKING_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetAdminEmailLogDetail = emailLogService.getAdminEmailLogDetail;
 const originalGetAdminMailStats = emailLogService.getAdminMailStats;
 const originalListAdminMailTemplates = emailLogService.listAdminMailTemplates;
 const originalListAdminEmailLogs = emailLogService.listAdminEmailLogs;
 const originalResendAdminEmailLog = emailLogService.resendAdminEmailLog;
+
+const createAdminAuthResolver = () => async (tokenPayload) => ({
+  permissions:
+    tokenPayload.permissions ||
+    tokenPayload.permission_codes ||
+    [],
+  roleCode:
+    tokenPayload.roleCode ||
+    tokenPayload.role_code ||
+    tokenPayload.role ||
+    'admin',
+  serviceScopeIds:
+    tokenPayload.serviceScopeIds ||
+    tokenPayload.service_scope_ids ||
+    null,
+  tokenId: tokenPayload.jti || 'email-log-jti-1',
+  user: {
+    email: `${tokenPayload.userId || tokenPayload.user_id || tokenPayload.sub || USER_ID}@example.com`,
+    id: tokenPayload.userId || tokenPayload.user_id || tokenPayload.sub || USER_ID,
+    role_code:
+      tokenPayload.roleCode ||
+      tokenPayload.role_code ||
+      tokenPayload.role ||
+      'admin',
+  },
+  userId:
+    tokenPayload.userId ||
+    tokenPayload.user_id ||
+    tokenPayload.sub ||
+    USER_ID,
+});
 
 const request = (server, path, options = {}) =>
   new Promise((resolve, reject) => {
@@ -72,6 +105,7 @@ test.beforeEach(() => {
   clearRateLimitStore('admin-mail-template-catalog');
   clearRateLimitStore('admin-mail-stats');
   clearRateLimitStore('admin-email-log-resend');
+  authService.resolveAuthenticatedUser = createAdminAuthResolver();
   emailLogService.clearMailStatsCache();
   emailLogService.getAdminEmailLogDetail = originalGetAdminEmailLogDetail;
   emailLogService.getAdminMailStats = originalGetAdminMailStats;
@@ -85,6 +119,7 @@ test.afterEach(() => {
   clearRateLimitStore('admin-mail-template-catalog');
   clearRateLimitStore('admin-mail-stats');
   clearRateLimitStore('admin-email-log-resend');
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   emailLogService.clearMailStatsCache();
   emailLogService.getAdminEmailLogDetail = originalGetAdminEmailLogDetail;
   emailLogService.getAdminMailStats = originalGetAdminMailStats;
@@ -256,17 +291,21 @@ test('emailLogService.listAdminMailTemplates returns fixed safe metadata for aut
     false,
   );
 
-  const emailSendPermissionResult = await service.listAdminMailTemplates({
-    auth: {
-      role: 'admin',
-      tokenPayload: {
-        permissions: ['email.send'],
+  await assert.rejects(
+    () => service.listAdminMailTemplates({
+      auth: {
+        role: 'admin',
+        tokenPayload: {
+          permissions: ['email.send'],
+        },
+        userId: USER_ID,
       },
-      userId: USER_ID,
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
+      return true;
     },
-  });
-
-  assert.equal(emailSendPermissionResult.length, result.length);
+  );
 
   await assert.rejects(
     () => service.listAdminMailTemplates({
@@ -386,7 +425,7 @@ test('emailLogService.getAdminMailStats validates range, aggregates status and t
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['email_log.read'],
+          permissions: ['report.read'],
         },
         userId: USER_ID,
       },
@@ -405,7 +444,7 @@ test('emailLogService.getAdminMailStats validates range, aggregates status and t
       auth: {
         role: 'system_admin',
         tokenPayload: {
-          permissions: ['dashboard.read'],
+          permissions: ['report.read'],
         },
         userId: USER_ID,
       },
@@ -425,7 +464,7 @@ test('emailLogService.getAdminMailStats validates range, aggregates status and t
       auth: {
         role: 'system_admin',
         tokenPayload: {
-          permissions: ['dashboard.read'],
+          permissions: ['report.read'],
         },
         userId: USER_ID,
       },
@@ -709,7 +748,7 @@ test('emailLogService.resendAdminEmailLog regenerates verification emails with a
     auth: {
       role: 'system_admin',
       tokenPayload: {
-        permissions: ['email.send'],
+        permissions: ['email.resend'],
       },
       userId: USER_ID,
     },
@@ -860,12 +899,12 @@ test('GET /api/admin/mail/stats returns aggregate stats for admin roles and bloc
   }
 });
 
-test('GET /api/admin/mail/stats validates date query and allows system_admin permission fallback', async () => {
+test('GET /api/admin/mail/stats validates date query and requires report.read', async () => {
   const server = app.listen(0);
 
   emailLogService.getAdminMailStats = async ({ auth, query }) => {
     assert.equal(auth.role, 'system_admin');
-    assert.deepEqual(auth.tokenPayload.permissions, ['dashboard.read']);
+    assert.deepEqual(auth.tokenPayload.permissions, ['report.read']);
     assert.equal(query.from, '2026-07-01T00:00:00.000Z');
     assert.equal(query.to, undefined);
 
@@ -895,7 +934,7 @@ test('GET /api/admin/mail/stats validates date query and allows system_admin per
     const okResponse = await request(server, `${apiPrefix}/admin/mail/stats?from=2026-07-01T00:00:00.000Z`, {
       headers: {
         Authorization: `Bearer ${createAccessToken({
-          permissions: ['dashboard.read'],
+          permissions: ['report.read'],
           roleCode: 'system_admin',
           userId: USER_ID,
         })}`,
@@ -912,7 +951,7 @@ test('GET /api/admin/mail/stats validates date query and allows system_admin per
     const validationResponse = await request(server, `${apiPrefix}/admin/mail/stats?from=not-a-date`, {
       headers: {
         Authorization: `Bearer ${createAccessToken({
-          permissions: ['email_log.read'],
+          permissions: ['report.read'],
           roleCode: 'admin',
           userId: USER_ID,
         })}`,

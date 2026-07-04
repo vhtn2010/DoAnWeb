@@ -76,11 +76,15 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
 };
 
 const createAuthContext = ({
-  permissions = [],
+  permissions,
   roleCode = 'admin',
   userId = 'admin-user-1',
 } = {}) => ({
-  permissions,
+  permissions:
+    permissions == null &&
+    ['staff', 'admin', 'system_admin'].includes(roleCode)
+      ? ['service.inventory_update']
+      : (permissions || []),
   roleCode,
   tokenId: 'access-jti-1',
   user: {
@@ -99,9 +103,12 @@ test.beforeEach(() => {
     createAuthContext({
       permissions:
         tokenPayload.permissions ||
-        tokenPayload.permission_codes ||
-        [],
-      roleCode: tokenPayload.roleCode || tokenPayload.role || 'admin',
+        tokenPayload.permission_codes,
+      roleCode:
+        tokenPayload.roleCode ||
+        tokenPayload.role_code ||
+        tokenPayload.role ||
+        'admin',
       userId: tokenPayload.userId || tokenPayload.sub || 'admin-user-1',
     });
 });
@@ -304,6 +311,7 @@ test('PATCH /api/admin/services/{service_id}/inventory returns updated inventory
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.inventory_update'],
     role: 'staff',
     sub: 'staff-1',
   });
@@ -315,6 +323,7 @@ test('PATCH /api/admin/services/{service_id}/inventory returns updated inventory
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
+          permissions: ['service.inventory_update'],
           role: 'staff',
           sub: 'staff-1',
         },

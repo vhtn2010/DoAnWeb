@@ -11,7 +11,10 @@ const {
   updateMyBookingContact,
 } = require('../controllers/bookingController');
 const asyncHandler = require('../middleware/asyncHandler');
-const { authRequired } = require('../middleware/authSession');
+const {
+  authRequired,
+  requirePermissions,
+} = require('../middleware/authSession');
 const createRateLimit = require('../middleware/rateLimit');
 
 const router = express.Router();
@@ -27,6 +30,7 @@ const customerBookingReadRateLimit = createRateLimit({
 router.get(
   '/bookings',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.read_self']),
   customerBookingReadRateLimit,
   asyncHandler(listMyBookings),
 );
@@ -34,6 +38,7 @@ router.get(
 router.get(
   '/bookings/:booking_id',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.read_self']),
   customerBookingReadRateLimit,
   asyncHandler(getMyBookingDetail),
 );
@@ -41,6 +46,7 @@ router.get(
 router.get(
   '/bookings/:booking_id/items',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.read_self']),
   customerBookingReadRateLimit,
   asyncHandler(getMyBookingItems),
 );
@@ -48,6 +54,7 @@ router.get(
 router.get(
   '/bookings/:booking_id/status-history',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.read_self']),
   customerBookingReadRateLimit,
   asyncHandler(getMyBookingStatusHistory),
 );
@@ -55,6 +62,7 @@ router.get(
 router.get(
   '/bookings/:booking_id/invoice',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.read_self']),
   customerBookingReadRateLimit,
   asyncHandler(getMyBookingInvoice),
 );
@@ -62,6 +70,7 @@ router.get(
 router.get(
   '/bookings/:booking_id/download-summary',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.read_self']),
   customerBookingReadRateLimit,
   asyncHandler(downloadMyBookingSummary),
 );
@@ -69,6 +78,7 @@ router.get(
 router.post(
   '/bookings/:booking_id/cancel-request',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.cancel']),
   customerCheckoutRateLimit,
   asyncHandler(requestBookingCancellation),
 );
@@ -76,6 +86,7 @@ router.post(
 router.patch(
   '/bookings/:booking_id/contact',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.read_self']),
   customerCheckoutRateLimit,
   asyncHandler(updateMyBookingContact),
 );
@@ -83,6 +94,7 @@ router.patch(
 router.post(
   '/bookings/checkout',
   authRequired({ allowedRoles: ['customer'] }),
+  requirePermissions(['booking.create']),
   customerCheckoutRateLimit,
   asyncHandler(checkoutBooking),
 );

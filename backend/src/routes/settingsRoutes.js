@@ -73,7 +73,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
-  requirePermissions(['settings.read', 'system_setting.manage']),
+  requirePermissions(['settings.read']),
   adminPublicSettingsRateLimit,
   asyncHandler(getAdminPublicSettings),
 );
@@ -83,7 +83,7 @@ router.patch(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
-  requirePermissions(['settings.update', 'system_setting.manage']),
+  requirePermissions(['settings.update']),
   adminPublicSettingsUpdateRateLimit,
   asyncHandler(updateAdminPublicSettings),
 );
@@ -93,7 +93,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
-  requirePermissions(['settings.read', 'system_setting.manage']),
+  requirePermissions(['settings.read']),
   adminDirectPaymentSettingsRateLimit,
   asyncHandler(getAdminDirectPaymentSettings),
 );
@@ -103,7 +103,7 @@ router.patch(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
-  requirePermissions(['settings.update', 'system_setting.manage']),
+  requirePermissions(['settings.update']),
   adminDirectPaymentSettingsUpdateRateLimit,
   asyncHandler(updateAdminDirectPaymentSettings),
 );
@@ -113,7 +113,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
-  requirePermissions(['settings.read', 'system_setting.manage']),
+  requirePermissions(['settings.read']),
   adminBusinessSettingsRateLimit,
   asyncHandler(getAdminBusinessSettings),
 );
@@ -123,7 +123,7 @@ router.patch(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
-  requirePermissions(['settings.update', 'system_setting.manage']),
+  requirePermissions(['settings.update']),
   adminBusinessSettingsUpdateRateLimit,
   asyncHandler(updateAdminBusinessSettings),
 );

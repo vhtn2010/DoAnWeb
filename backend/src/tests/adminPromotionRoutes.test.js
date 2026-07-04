@@ -22,9 +22,26 @@ const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalUpdatePromotion = adminPromotionService.updatePromotion;
 
 const createAuthContext = ({
+  permissions,
   roleCode = 'admin',
   userId = 'admin-user-1',
 } = {}) => ({
+  permissions: permissions || (
+    roleCode === 'staff'
+      ? [
+          'promotion.read',
+          'promotion.create',
+          'promotion.update',
+          'promotion.change_status',
+        ]
+      : [
+          'promotion.read',
+          'promotion.create',
+          'promotion.update',
+          'promotion.delete',
+          'promotion.change_status',
+        ]
+  ),
   roleCode,
   tokenId: 'access-jti-admin-promotion-1',
   user: {

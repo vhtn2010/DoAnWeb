@@ -719,6 +719,7 @@ test('POST /bookings/checkout returns 201 with the checkout payload', async () =
   const originalCheckout = bookingService.checkout;
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['booking.create'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: { id: CUSTOMER_ID, role_code: 'customer' },

@@ -22,9 +22,11 @@ const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalRequestBookingCancellation = bookingService.requestBookingCancellation;
 
 const createAuthContext = ({
+  permissions = ['booking.cancel'],
   roleCode = 'customer',
   userId = CUSTOMER_ID,
 } = {}) => ({
+  permissions: roleCode === 'customer' ? permissions : [],
   roleCode,
   tokenId: 'access-jti-cancel-1',
   user: {

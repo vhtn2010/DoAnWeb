@@ -31,7 +31,7 @@ const adminPaymentProcessRateLimit = createRateLimiter({
 router.get(
   '/admin/payments',
   requireAdminAuth,
-  requireAdminPermissions(['payment.read_all'], { allowWhenMissing: true }),
+  requireAdminPermissions(['payment.read_all']),
   adminPaymentRateLimit,
   asyncHandler(listAdminPayments),
 );
@@ -39,7 +39,7 @@ router.get(
 router.get(
   '/admin/payments/:payment_id',
   requireAdminAuth,
-  requireAdminPermissions(['payment.read_all'], { allowWhenMissing: true }),
+  requireAdminPermissions(['payment.read_all']),
   adminPaymentRateLimit,
   asyncHandler(getAdminPaymentDetail),
 );
@@ -47,7 +47,7 @@ router.get(
 router.get(
   '/admin/payments/:payment_id/proof',
   requireAdminAuth,
-  requireAdminPermissions(['payment.read_all', 'payment.confirm'], { allowWhenMissing: true }),
+  requireAdminPermissions(['payment.read_all', 'payment.confirm']),
   adminPaymentRateLimit,
   asyncHandler(getAdminPaymentProof),
 );

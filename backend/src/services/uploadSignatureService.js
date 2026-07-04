@@ -28,23 +28,17 @@ const PERMISSION_GROUPS = Object.freeze({
     'payment.confirm',
     'payment.reject',
     'payment.reconcile',
-    'system_setting.manage',
   ]),
   reports: Object.freeze([
     'report.read',
     'dashboard.read',
-    'system_setting.manage',
   ]),
   services: Object.freeze([
     'service.update',
     'service.create',
-    'service.manage',
-    'booking.manage',
-    'system_setting.manage',
   ]),
   systemAssets: Object.freeze([
     'settings.update',
-    'system_setting.manage',
   ]),
 });
 const FOLDER_POLICIES = Object.freeze({

@@ -21,9 +21,11 @@ const originalUpdateRole = adminRoleService.updateRole;
 const originalDeleteRole = adminRoleService.deleteRole;
 
 const createAuthContext = ({
+  permissions = ['role.read', 'role.create', 'role.update', 'role.delete'],
   roleCode = 'admin',
   userId = 'admin-user-1',
 } = {}) => ({
+  permissions,
   roleCode,
   tokenId: 'access-jti-1',
   user: {

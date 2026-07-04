@@ -752,7 +752,7 @@ test('changeVoucherStatus rejects activation when voucher is expired', async () 
     () =>
       service.changeVoucherStatus({
         actor: {
-          permissions: ['voucher.change_status'],
+          permissions: ['voucher.update'],
         },
         actorUserId: 'admin-2',
         payload: {
@@ -859,7 +859,7 @@ test('changeVoucherStatus updates voucher status and writes user log', async () 
 
   const result = await service.changeVoucherStatus({
     actor: {
-      permissions: ['voucher.change_status'],
+      permissions: ['voucher.update'],
     },
     actorUserId: 'admin-3',
     ipAddress: '127.0.0.1',

@@ -76,13 +76,41 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
+const getDefaultPermissionsForRole = (roleCode) => {
+  switch (roleCode) {
+    case 'staff':
+      return [
+        'service.read_all',
+        'service.create',
+        'service.update',
+        'service.inventory_update',
+      ];
+    case 'admin':
+    case 'system_admin':
+      return [
+        'service.read_all',
+        'service.create',
+        'service.update',
+        'service.delete',
+        'service.approve',
+        'service.hide',
+        'service.inventory_update',
+      ];
+    default:
+      return [];
+  }
+};
+
 const createAuthContext = ({
-  permissions = [],
+  permissions,
   roleCode = 'admin',
   serviceScopeIds = [],
   userId = 'admin-user-1',
 } = {}) => ({
-  permissions,
+  permissions:
+    permissions == null
+      ? getDefaultPermissionsForRole(roleCode)
+      : permissions,
   roleCode,
   serviceScopeIds,
   tokenId: 'access-jti-1',
@@ -102,9 +130,12 @@ test.beforeEach(() => {
     createAuthContext({
       permissions:
         tokenPayload.permissions ||
-        tokenPayload.permission_codes ||
-        [],
-      roleCode: tokenPayload.roleCode || tokenPayload.role || 'admin',
+        tokenPayload.permission_codes,
+      roleCode:
+        tokenPayload.roleCode ||
+        tokenPayload.role_code ||
+        tokenPayload.role ||
+        'admin',
       serviceScopeIds:
         tokenPayload.serviceScopeIds ||
         tokenPayload.service_scope_ids ||
@@ -668,6 +699,7 @@ test('GET /api/admin/services returns admin catalog list with filters and meta',
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.read_all'],
     role: 'staff',
     service_scope_ids: ['service-1'],
     sub: 'staff-1',
@@ -680,6 +712,7 @@ test('GET /api/admin/services returns admin catalog list with filters and meta',
         serviceScopeIds: ['service-1'],
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
+          permissions: ['service.read_all'],
           role: 'staff',
           service_scope_ids: ['service-1'],
           sub: 'staff-1',
@@ -752,6 +785,7 @@ test('POST /api/admin/services returns 201 with created service detail', async (
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.create'],
     role: 'staff',
     sub: 'staff-1',
   });
@@ -763,6 +797,7 @@ test('POST /api/admin/services returns 201 with created service detail', async (
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
+          permissions: ['service.create'],
           role: 'staff',
           sub: 'staff-1',
         },
@@ -824,6 +859,7 @@ test('PATCH /api/admin/services/{service_id} returns updated service detail', as
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role_code: 'admin',
     sub: 'admin-1',
   });
@@ -835,6 +871,7 @@ test('PATCH /api/admin/services/{service_id} returns updated service detail', as
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
+          permissions: ['service.update'],
           role_code: 'admin',
           sub: 'admin-1',
         },
@@ -915,6 +952,7 @@ test('DELETE /api/admin/services/{service_id} returns soft delete result for adm
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.delete'],
     role: 'system_admin',
     sub: 'sys-1',
   });
@@ -926,6 +964,7 @@ test('DELETE /api/admin/services/{service_id} returns soft delete result for adm
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
+          permissions: ['service.delete'],
           role: 'system_admin',
           sub: 'sys-1',
         },
@@ -974,6 +1013,7 @@ test('GET /api/admin/services/{service_id} validates UUID and returns detail for
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.read_all'],
     role_code: 'admin',
     sub: 'admin-1',
   });
@@ -985,6 +1025,7 @@ test('GET /api/admin/services/{service_id} validates UUID and returns detail for
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
+          permissions: ['service.read_all'],
           role_code: 'admin',
           sub: 'admin-1',
         },
@@ -1031,6 +1072,7 @@ test('GET /api/admin/services/{service_id} validates bad UUID before service loo
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.read_all'],
     role_code: 'admin',
     sub: 'admin-1',
   });
