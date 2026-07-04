@@ -317,7 +317,9 @@ test('bookingService.checkout rejects a non-active or foreign cart', async () =>
         contact_email: 'customer@example.com',
         contact_name: 'Nguyen Van A',
       },
-      headers: {},
+      headers: {
+        'idempotency-key': 'checkout-empty-1',
+      },
     }),
     (error) => {
       assert.equal(error.code, API_ERROR_CODES.FORBIDDEN);
@@ -357,7 +359,9 @@ test('bookingService.checkout returns CART_EMPTY when cart has no items', async 
         contact_email: 'customer@example.com',
         contact_name: 'Nguyen Van A',
       },
-      headers: {},
+      headers: {
+        'idempotency-key': 'checkout-unavailable-1',
+      },
     }),
     (error) => {
       assert.equal(error.code, API_ERROR_CODES.CART_EMPTY);
@@ -403,11 +407,14 @@ test('bookingService.checkout returns CART_ITEM_NOT_AVAILABLE when availability 
       listCartItemsByCartId: async () => [
         {
           id: CART_ITEM_2_ID,
-          options: null,
+          options: {
+            adults: 2,
+          },
           quantity: 1,
           reference_id: ROOM_TYPE_ID,
           service_id: HOTEL_SERVICE_ID,
           service_type: 'hotel',
+          end_at: '2026-08-03T12:00:00.000Z',
           start_at: '2026-08-01T14:00:00.000Z',
         },
       ],
@@ -425,7 +432,9 @@ test('bookingService.checkout returns CART_ITEM_NOT_AVAILABLE when availability 
         contact_email: 'customer@example.com',
         contact_name: 'Nguyen Van A',
       },
-      headers: {},
+      headers: {
+        'idempotency-key': 'checkout-unavailable-1',
+      },
     }),
     (error) => {
       assert.equal(error.code, API_ERROR_CODES.CART_ITEM_NOT_AVAILABLE);
@@ -502,7 +511,9 @@ test('bookingService.checkout rejects expired vouchers', async () => {
         contact_name: 'Nguyen Van A',
         voucher_code: 'OLD',
       },
-      headers: {},
+      headers: {
+        'idempotency-key': 'checkout-voucher-1',
+      },
     }),
     (error) => {
       assert.equal(error.code, API_ERROR_CODES.VOUCHER_EXPIRED);

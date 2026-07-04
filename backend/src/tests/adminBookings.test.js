@@ -13,10 +13,12 @@ const {
   BOOKING_ITEM_STATUS,
   BOOKING_STATUS,
 } = require('../constants/domainConstraints');
+const authService = require('../services/authService');
 const adminBookingService = require('../services/adminBookingService');
 
 const BOOKING_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const BOOKING_ITEM_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalCancelBooking = adminBookingService.cancelBooking;
 const originalGetBookingDetail = adminBookingService.getBookingDetail;
 const originalGetBookingStatusHistory =
@@ -94,7 +96,45 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
+const createAuthContext = ({
+  permissions = [],
+  roleCode = 'admin',
+  serviceScopeIds = [],
+  userId = 'admin-user-1',
+} = {}) => ({
+  permissions,
+  roleCode,
+  serviceScopeIds,
+  tokenId: 'access-jti-1',
+  user: {
+    email: `${userId}@example.com`,
+    id: userId,
+    password_hash: '$2b$10$hash',
+    role_code: roleCode,
+    role_id: 'role-1',
+    status: 'active',
+  },
+  userId,
+});
+
+test.beforeEach(() => {
+  authService.resolveAuthenticatedUser = async (tokenPayload) =>
+    createAuthContext({
+      permissions:
+        tokenPayload.permissions ||
+        tokenPayload.permission_codes ||
+        [],
+      roleCode: tokenPayload.roleCode || tokenPayload.role || 'admin',
+      serviceScopeIds:
+        tokenPayload.serviceScopeIds ||
+        tokenPayload.service_scope_ids ||
+        [],
+      userId: tokenPayload.userId || tokenPayload.sub || 'admin-user-1',
+    });
+});
+
 test.afterEach(() => {
+  authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   adminBookingService.cancelBooking = originalCancelBooking;
   adminBookingService.completeBooking = originalCompleteBooking;
   adminBookingService.confirmBooking = originalConfirmBooking;

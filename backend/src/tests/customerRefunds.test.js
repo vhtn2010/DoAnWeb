@@ -214,6 +214,8 @@ test('refundService.createCustomerRefundRequest reuses the previous refund for t
         id: PAYMENT_ID,
         status: 'success',
       }),
+      listBookingItemsByBookingId: async () => [],
+      sumActiveRefundAmountByPaymentId: async () => 0,
     },
   });
 

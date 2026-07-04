@@ -658,6 +658,12 @@ test('adminPaymentService.confirmPayment validates idempotency, permission, stat
         provider: 'direct',
         status: PAYMENT_STATUS.RECONCILED,
       }),
+      confirmPayment: async () => ({
+        alreadyConfirmed: true,
+        payment: {
+          id: PAYMENT_ID,
+        },
+      }),
     },
   });
 
