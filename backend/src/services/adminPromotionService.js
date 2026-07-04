@@ -24,7 +24,6 @@ const PROMOTION_READ_PERMISSION = 'promotion.read';
 const VOUCHER_READ_ALL_PERMISSION = 'voucher.read_all';
 const PROMOTION_STATUS_CHANGE_PERMISSIONS = Object.freeze([
   'promotion.change_status',
-  PROMOTION_UPDATE_PERMISSION,
 ]);
 const CREATE_ACTION = 'promotion.create';
 const UPDATE_ACTION = 'promotion.update';

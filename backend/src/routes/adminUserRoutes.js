@@ -49,7 +49,7 @@ router.patch('/admin/users/:userId/status', requirePermissions(['user.change_sta
 router.delete('/admin/users/:userId', requirePermissions(['user.delete']), asyncHandler(deleteAdminUser));
 router.post(
   '/admin/users/:userId/resend-verification-email',
-  requirePermissions(['email.resend', 'email.send']),
+  requirePermissions(['email.resend']),
   resendVerificationRateLimiter,
   asyncHandler(resendAdminUserVerificationEmail),
 );

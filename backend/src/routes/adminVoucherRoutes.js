@@ -31,7 +31,7 @@ router.patch(
 );
 router.post(
   '/admin/vouchers/:voucherId/duplicate',
-  requirePermissions(['voucher.create', 'voucher.update']),
+  requirePermissions(['voucher.create']),
   asyncHandler(duplicateAdminVoucher),
 );
 router.delete(

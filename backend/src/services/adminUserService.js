@@ -1031,11 +1031,7 @@ const ensureActorCanResendVerificationEmail = (actor, permissions) => {
     throw createForbiddenError('Only admin users can resend verification emails');
   }
 
-  if (
-    !permissions.includes('email.send') &&
-    !permissions.includes('email.resend') &&
-    !permissions.includes('user.change_status')
-  ) {
+  if (!permissions.includes('email.resend')) {
     throw createForbiddenError(
       'You do not have permission to resend verification emails',
     );

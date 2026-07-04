@@ -775,7 +775,7 @@ test('changePromotionStatus rejects invalid transition from cancelled to active'
     () =>
       service.changePromotionStatus({
         actor: {
-          permissions: ['promotion.update'],
+          permissions: ['promotion.change_status'],
         },
         actorUserId: '11111111-1111-4111-8111-111111111111',
         payload: {
@@ -846,7 +846,7 @@ test('changePromotionStatus updates status and writes audit log', async () => {
 
   const result = await service.changePromotionStatus({
     actor: {
-      permissions: ['promotion.update'],
+      permissions: ['promotion.change_status'],
     },
     actorUserId: '11111111-1111-4111-8111-111111111111',
     payload: {

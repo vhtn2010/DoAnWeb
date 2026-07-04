@@ -1230,7 +1230,7 @@ test('resendVerificationEmail queues email and writes audit log for pending user
       if (sql.includes('FROM role_permissions rp')) {
         return {
           rowCount: 1,
-          rows: [{ code: 'email.send' }],
+          rows: [{ code: 'email.resend' }],
         };
       }
 
@@ -1351,7 +1351,7 @@ test('resendVerificationEmail rejects non-pending target status', async () => {
           if (sql.includes('FROM role_permissions rp')) {
             return {
               rowCount: 1,
-              rows: [{ code: 'user.change_status' }],
+              rows: [{ code: 'email.resend' }],
             };
           }
 

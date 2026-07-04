@@ -122,10 +122,7 @@ const ensureDownloadAccess = (auth) => {
 
   const permissions = normalizePermissionCodes(actor);
 
-  if (
-    permissions.includes(REPORT_EXPORT_REQUIRED_PERMISSION) ||
-    permissions.includes('report.read')
-  ) {
+  if (permissions.includes(REPORT_EXPORT_REQUIRED_PERMISSION)) {
     return actor;
   }
 
