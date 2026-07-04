@@ -195,6 +195,16 @@ const compactObject = (value) =>
     Object.entries(value).filter(([, entry]) => entry !== undefined),
   );
 
+const runDeferredTask = (task) => {
+  setImmediate(() => {
+    Promise.resolve()
+      .then(task)
+      .catch((error) => {
+        console.error('[adminUserService] Deferred task failed', error);
+      });
+  });
+};
+
 const isUniqueViolation = (error) =>
   error?.code === '23505' || error?.constraint === 'users_email_key';
 
@@ -922,6 +932,28 @@ const markEmailLogSent = async (
     ],
   );
 
+const markEmailLogFailed = async (
+  client,
+  {
+    emailLogId,
+    errorMessage,
+  },
+) =>
+  client.query(
+    `
+      UPDATE email_logs
+      SET
+        status = $2,
+        error_message = $3
+      WHERE id = $1
+    `,
+    [
+      emailLogId,
+      EMAIL_STATUS.FAILED,
+      errorMessage || 'Unknown email provider error',
+    ],
+  );
+
 const ensureActorCanCreateRole = (actor, targetRole) => {
   if (targetRole.code === CUSTOMER_ROLE_CODE) {
     throw createForbiddenError(
@@ -1068,9 +1100,40 @@ const createAdminUserService = ({
   hashEmailVerificationTokenImpl = hashEmailVerificationToken,
   now = () => new Date(),
   queryImpl = query,
+  schedulePostCommitTaskImpl = runDeferredTask,
   sendEmailImpl = sendEmail,
   withTransactionImpl = withTransaction,
 } = {}) => {
+  const dispatchQueuedEmail = ({
+    emailLogId,
+    emailPayload,
+  }) => {
+    Promise.resolve(
+      schedulePostCommitTaskImpl(async () => {
+        try {
+          const sendResult = await sendEmailImpl(emailPayload);
+
+          await withTransactionImpl(async (client) => {
+            await markEmailLogSent(client, {
+              emailLogId,
+              messageId: sendResult.messageId,
+              sentAt: now(),
+            });
+          });
+        } catch (error) {
+          await withTransactionImpl(async (client) => {
+            await markEmailLogFailed(client, {
+              emailLogId,
+              errorMessage: error?.message || 'Unknown email provider error',
+            });
+          });
+        }
+      }),
+    ).catch((error) => {
+      console.error('[adminUserService] Failed to schedule deferred email', error);
+    });
+  };
+
   const getUsers = async ({ query: rawQuery }) => {
     const filters = normalizeListUsersQuery(rawQuery);
 
@@ -1244,7 +1307,7 @@ const createAdminUserService = ({
     const input = normalizeCreateUserPayload(payload);
 
     try {
-      return await withTransactionImpl(async (client) => {
+      const result = await withTransactionImpl(async (client) => {
         const actor = await loadActorById(client.query.bind(client), actorUserId);
         const existingUser = await loadUserByEmail(
           client.query.bind(client),
@@ -1331,26 +1394,10 @@ const createAdminUserService = ({
           toEmail: createdUser.email,
           userId: createdUser.id,
         });
-        const sendResult = await sendEmailImpl({
-          html: emailContent.html,
-          subject: emailContent.subject,
-          text: emailContent.text,
-          to: {
-            email: createdUser.email,
-            name: createdUser.full_name,
-          },
-        });
-        const sentAt = now();
-
-        await markEmailLogSent(client, {
-          emailLogId: emailLogResult.rows[0].id,
-          messageId: sendResult.messageId,
-          sentAt,
-        });
 
         await insertUserLog(client, {
           action: ADMIN_USER_CREATE_ACTION,
-          createdAt: sentAt,
+          createdAt,
           entityId: createdUser.id,
           ipAddress,
           metadata: {
@@ -1365,17 +1412,27 @@ const createAdminUserService = ({
           userAgent,
         });
 
-        return mapAdminUser(createdUser);
+        return {
+          deferredEmail: {
+            emailLogId: emailLogResult.rows[0].id,
+            emailPayload: {
+              html: emailContent.html,
+              subject: emailContent.subject,
+              text: emailContent.text,
+              to: {
+                email: createdUser.email,
+                name: createdUser.full_name,
+              },
+            },
+          },
+          user: mapAdminUser(createdUser),
+        };
       });
+
+      dispatchQueuedEmail(result.deferredEmail);
+
+      return result.user;
     } catch (error) {
-      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
-        throw createInternalError('Email verification service is not configured');
-      }
-
-      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
-        throw createInternalError('Failed to send verification email');
-      }
-
       if (isUniqueViolation(error)) {
         throw createDuplicateEmailError();
       }
@@ -1672,7 +1729,7 @@ const createAdminUserService = ({
     userId,
   }) => {
     try {
-      return await withTransactionImpl(async (client) => {
+      const result = await withTransactionImpl(async (client) => {
         const normalizedUserId = normalizeUserId(userId);
         const actor = await loadActorById(
           client.query.bind(client),
@@ -1728,26 +1785,10 @@ const createAdminUserService = ({
           toEmail: normalizedEmail,
           userId: targetUser.id,
         });
-        const sendResult = await sendEmailImpl({
-          html: emailContent.html,
-          subject: emailContent.subject,
-          text: emailContent.text,
-          to: {
-            email: normalizedEmail,
-            name: targetUser.full_name,
-          },
-        });
-        const sentAt = now();
-
-        await markEmailLogSent(client, {
-          emailLogId: emailLogResult.rows[0].id,
-          messageId: sendResult.messageId,
-          sentAt,
-        });
 
         await insertUserLog(client, {
           action: ADMIN_USER_RESEND_VERIFICATION_ACTION,
-          createdAt: sentAt,
+          createdAt,
           entityId: normalizedUserId,
           ipAddress,
           metadata: buildLifecycleAuditMetadata({
@@ -1763,20 +1804,30 @@ const createAdminUserService = ({
         });
 
         return {
-          email: normalizedEmail,
-          request_status: 'resent',
-          status: targetUser.status,
+          deferredEmail: {
+            emailLogId: emailLogResult.rows[0].id,
+            emailPayload: {
+              html: emailContent.html,
+              subject: emailContent.subject,
+              text: emailContent.text,
+              to: {
+                email: normalizedEmail,
+                name: targetUser.full_name,
+              },
+            },
+          },
+          response: {
+            email: normalizedEmail,
+            request_status: 'resent',
+            status: targetUser.status,
+          },
         };
       });
+
+      dispatchQueuedEmail(result.deferredEmail);
+
+      return result.response;
     } catch (error) {
-      if (error.code === API_ERROR_CODES.SENDGRID_NOT_CONFIGURED) {
-        throw createInternalError('Email verification service is not configured');
-      }
-
-      if (error.code === API_ERROR_CODES.SENDGRID_SEND_FAILED) {
-        throw createInternalError('Failed to send verification email');
-      }
-
       throw error;
     }
   };

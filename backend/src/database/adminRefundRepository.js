@@ -365,6 +365,23 @@ const createAdminRefundRepository = ({
     );
   };
 
+  const acquireTransactionLock = async (client, key) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [key]);
+  };
+
+  const lockActiveRefundRowsByPaymentId = async (client, paymentId) => {
+    await client.query(
+      `
+        SELECT id
+        FROM refunds
+        WHERE payment_id = $1
+          AND status = ANY($2::text[])
+        FOR UPDATE
+      `,
+      [paymentId, ACTIVE_REFUND_STATUSES],
+    );
+  };
+
   const transitionBookingStatus = async (client, {
     actorUserId,
     bookingId,
@@ -566,6 +583,69 @@ const createAdminRefundRepository = ({
     );
   };
 
+  const listConfirmedInventoryItemsForUpdate = async (client, bookingId) => {
+    const result = await client.query(
+      `
+        SELECT
+          id,
+          service_type,
+          reference_id,
+          quantity
+        FROM booking_items
+        WHERE booking_id = $1
+          AND status = 'confirmed'
+          AND reference_id IS NOT NULL
+        FOR UPDATE
+      `,
+      [bookingId],
+    );
+
+    return result.rows;
+  };
+
+  const restoreInventoryForItems = async (client, items) => {
+    for (const item of items) {
+      if (!item.reference_id) {
+        continue;
+      }
+
+      if (item.service_type === 'hotel' || item.service_type === 'room') {
+        await client.query(
+          `
+            UPDATE room_types
+            SET available_rooms = available_rooms + $2
+            WHERE id = $1
+          `,
+          [item.reference_id, item.quantity],
+        );
+        continue;
+      }
+
+      if (item.service_type === 'flight') {
+        await client.query(
+          `
+            UPDATE flight_details
+            SET seats_available = seats_available + $2
+            WHERE id = $1
+          `,
+          [item.reference_id, item.quantity],
+        );
+        continue;
+      }
+
+      if (item.service_type === 'train') {
+        await client.query(
+          `
+            UPDATE train_details
+            SET seats_available = seats_available + $2
+            WHERE id = $1
+          `,
+          [item.reference_id, item.quantity],
+        );
+      }
+    }
+  };
+
   const resolveNextBookingRefundStatus = ({
     bookingStatus,
     isFullRefund,
@@ -595,13 +675,75 @@ const createAdminRefundRepository = ({
     refund,
   }) =>
     withTransactionImpl(async (client) => {
-      const currentRefund = await selectRefundById(client, {
-        allowedServiceIds: null,
-        refundId: refund.id,
-      });
+      await acquireTransactionLock(
+        client,
+        `refund:approve:${actorUserId}:${refund.id}:${idempotencyKey}`,
+      );
+      const lockedContext = await lockRefundContext(client, refund.id);
+      const currentRefund = lockedContext?.refund || null;
 
       if (!currentRefund) {
         return null;
+      }
+
+      await lockActiveRefundRowsByPaymentId(client, currentRefund.payment_id);
+
+      const replayResult = await client.query(
+        `
+          SELECT 1
+          FROM user_logs
+          WHERE entity_name = 'refund'
+            AND entity_id = $1
+            AND action = 'refund.approve'
+            AND metadata ->> 'idempotency_key' = $2
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        [refund.id, idempotencyKey],
+      );
+
+      if (replayResult.rowCount > 0) {
+        return {
+          refund: currentRefund,
+          reused: 'idempotency',
+          transitionApplied: true,
+        };
+      }
+
+      if (approvedAmount > Number(currentRefund.amount)) {
+        return {
+          overApproved: true,
+          refund: currentRefund,
+          transitionApplied: true,
+        };
+      }
+
+      const reservedAmountResult = await client.query(
+        `
+          SELECT COALESCE(SUM(amount), 0)::numeric AS total_reserved
+          FROM refunds
+          WHERE payment_id = $1
+            AND id <> $2
+            AND status = ANY($3::text[])
+        `,
+        [currentRefund.payment_id, refund.id, ACTIVE_REFUND_STATUSES],
+      );
+      const otherReservedAmount = Number(
+        reservedAmountResult.rows[0]?.total_reserved || 0,
+      );
+      const remainingRefundableAmount = Number(
+        (Number(currentRefund.payment_amount) - otherReservedAmount).toFixed(2),
+      );
+
+      if (
+        remainingRefundableAmount <= 0 ||
+        approvedAmount > remainingRefundableAmount
+      ) {
+        return {
+          overApproved: true,
+          refund: currentRefund,
+          transitionApplied: true,
+        };
       }
 
       const nowIso = new Date().toISOString();
@@ -872,6 +1014,10 @@ const createAdminRefundRepository = ({
     refundId,
   }) =>
     withTransactionImpl(async (client) => {
+      await acquireTransactionLock(
+        client,
+        `refund:success:${actorUserId}:${refundId}:${idempotencyKey}`,
+      );
       const lockedContext = await lockRefundContext(client, refundId);
 
       if (!lockedContext?.refund || !lockedContext.payment || !lockedContext.booking) {
@@ -879,6 +1025,31 @@ const createAdminRefundRepository = ({
       }
 
       const currentRefund = lockedContext.refund;
+
+      await lockActiveRefundRowsByPaymentId(client, currentRefund.payment_id);
+
+      const replayResult = await client.query(
+        `
+          SELECT 1
+          FROM user_logs
+          WHERE entity_name = 'refund'
+            AND entity_id = $1
+            AND action = 'refund.mark_success'
+            AND metadata ->> 'idempotency_key' = $2
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        [refundId, idempotencyKey],
+      );
+
+      if (replayResult.rowCount > 0) {
+        return {
+          overRefund: false,
+          refund: currentRefund,
+          reused: 'idempotency',
+          transitionApplied: true,
+        };
+      }
 
       if (currentRefund.status !== 'processing') {
         return {
@@ -970,6 +1141,19 @@ const createAdminRefundRepository = ({
         bookingStatus: currentRefund.booking_status,
         isFullRefund,
       });
+      let shouldRestoreInventory = false;
+
+      if (nextBookingStatus === BOOKING_STATUS.REFUNDED) {
+        if (currentRefund.booking_status === BOOKING_STATUS.REFUND_PENDING) {
+          const latestRefundPendingTransition = await getLatestRefundPendingTransition(
+            client,
+            currentRefund.booking_id,
+          );
+          shouldRestoreInventory = latestRefundPendingTransition?.from_status === 'confirmed';
+        } else if (currentRefund.booking_status === BOOKING_STATUS.CONFIRMED) {
+          shouldRestoreInventory = true;
+        }
+      }
 
       if (nextBookingStatus) {
         await transitionBookingStatus(client, {
@@ -979,6 +1163,14 @@ const createAdminRefundRepository = ({
           reason: 'Admin marked manual refund as successful',
           toStatus: nextBookingStatus,
         });
+      }
+
+      if (shouldRestoreInventory) {
+        const inventoryItems = await listConfirmedInventoryItemsForUpdate(
+          client,
+          currentRefund.booking_id,
+        );
+        await restoreInventoryForItems(client, inventoryItems);
       }
 
       if (isFullRefund) {

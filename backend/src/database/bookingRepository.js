@@ -27,6 +27,22 @@ const createBookingRepository = ({
   getPoolImpl = getPool,
   queryImpl = query,
 } = {}) => {
+  const executeQuery = (executor, text, params) =>
+    typeof executor === 'function'
+      ? executor(text, params)
+      : executor.query(text, params);
+
+  const setLocalConfig = async (client, key, value) => {
+    await client.query('SELECT set_config($1, $2, TRUE)', [
+      key,
+      value == null ? '' : String(value),
+    ]);
+  };
+
+  const acquireTransactionLock = async (client, key) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [key]);
+  };
+
   const getBookingByIdAndUser = async ({
     bookingId,
     userId,
@@ -61,8 +77,9 @@ const createBookingRepository = ({
     return result.rows[0] || null;
   };
 
-  const listBookingItemsByBookingId = async (bookingId) => {
-    const result = await queryImpl(
+  const listBookingItemsByBookingIdWithExecutor = async (executor, bookingId) => {
+    const result = await executeQuery(
+      executor,
       `
         SELECT
           id,
@@ -88,6 +105,9 @@ const createBookingRepository = ({
 
     return result.rows;
   };
+
+  const listBookingItemsByBookingId = async (bookingId) =>
+    listBookingItemsByBookingIdWithExecutor(queryImpl, bookingId);
 
   const listBookingPaymentsByBookingId = async (bookingId) => {
     const result = await queryImpl(
@@ -446,19 +466,30 @@ const createBookingRepository = ({
     return result.rows[0]?.total || 0;
   };
 
-  const findBookingByIdempotencyKey = async ({
+  const findBookingByIdempotencyKeyWithExecutor = async (executor, {
     idempotencyKey,
     userId,
   }) => {
-    const result = await queryImpl(
+    const result = await executeQuery(
+      executor,
       `
         SELECT
           b.id,
           b.booking_code,
+          b.user_id,
           b.status,
+          b.contact_name,
+          b.contact_email,
+          b.contact_phone,
+          b.subtotal_amount,
+          b.discount_amount,
           b.total_amount,
           b.currency,
-          b.expires_at
+          b.voucher_id,
+          b.note,
+          b.expires_at,
+          b.created_at,
+          b.updated_at
         FROM user_logs ul
         INNER JOIN bookings b
           ON b.id = ul.entity_id
@@ -475,6 +506,14 @@ const createBookingRepository = ({
     return result.rows[0] || null;
   };
 
+  const findBookingByIdempotencyKey = async ({
+    idempotencyKey,
+    userId,
+  }) => findBookingByIdempotencyKeyWithExecutor(queryImpl, {
+    idempotencyKey,
+    userId,
+  });
+
   const createCheckout = async ({
     actorUserId,
     booking,
@@ -488,6 +527,47 @@ const createBookingRepository = ({
 
     try {
       await client.query('BEGIN');
+
+      await setLocalConfig(client, 'app.current_user_id', actorUserId);
+      await setLocalConfig(client, 'app.status_change_reason', '');
+
+      if (idempotencyKey) {
+        await acquireTransactionLock(
+          client,
+          `booking:checkout:${actorUserId}:${idempotencyKey}`,
+        );
+
+        const existingBooking = await findBookingByIdempotencyKeyWithExecutor(
+          client.query.bind(client),
+          {
+            idempotencyKey,
+            userId: actorUserId,
+          },
+        );
+
+        if (existingBooking) {
+          const existingItems = await listBookingItemsByBookingIdWithExecutor(
+            client.query.bind(client),
+            existingBooking.id,
+          );
+
+          await client.query('COMMIT');
+
+          return {
+            booking: existingBooking,
+            items: existingItems,
+            reused: 'idempotency',
+          };
+        }
+      }
+
+      if (booking.voucher_id && booking.user_id) {
+        await acquireTransactionLock(
+          client,
+          `voucher:${booking.voucher_id}:user:${booking.user_id}`,
+        );
+      }
+
       const bookingResult = await client.query(
         `
           INSERT INTO bookings (
@@ -603,27 +683,6 @@ const createBookingRepository = ({
         createdItems.push(itemResult.rows[0]);
       }
 
-      await client.query(
-        `
-          INSERT INTO booking_status_histories (
-            booking_id,
-            from_status,
-            to_status,
-            reason,
-            changed_by,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `,
-        [
-          createdBooking.id,
-          null,
-          createdBooking.status,
-          null,
-          actorUserId,
-        ],
-      );
-
       const cartUpdate = await client.query(
         `
           UPDATE carts
@@ -697,6 +756,17 @@ const createBookingRepository = ({
       };
     } catch (error) {
       await client.query('ROLLBACK');
+
+      if (
+        typeof error?.message === 'string' &&
+        (
+          error.message.includes('per-user voucher usage limit') ||
+          error.message.includes('has reached the total usage limit')
+        )
+      ) {
+        throw createVoucherUsageLimitError();
+      }
+
       throw error;
     } finally {
       client.release();
@@ -714,6 +784,9 @@ const createBookingRepository = ({
 
     try {
       await client.query('BEGIN');
+
+      await setLocalConfig(client, 'app.current_user_id', actorUserId);
+      await setLocalConfig(client, 'app.status_change_reason', reason);
 
       const bookingResult = await client.query(
         `
@@ -735,27 +808,6 @@ const createBookingRepository = ({
       if (bookingResult.rowCount !== 1) {
         throw createInvalidStateTransitionError();
       }
-
-      await client.query(
-        `
-          INSERT INTO booking_status_histories (
-            booking_id,
-            from_status,
-            to_status,
-            reason,
-            changed_by,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `,
-        [
-          bookingId,
-          fromStatus,
-          'cancel_requested',
-          reason,
-          actorUserId,
-        ],
-      );
 
       await client.query('COMMIT');
 

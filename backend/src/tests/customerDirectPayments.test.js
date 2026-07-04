@@ -102,27 +102,29 @@ test('paymentService.createCustomerDirectPayment creates a pending direct paymen
         assert.match(payload.paymentCode, /^PAY\d{8}[0-9A-F]{8}$/);
 
         return {
-          amount: '4880000',
-          booking_id: BOOKING_ID,
-          created_at: '2026-07-02T01:00:00.000Z',
-          currency: 'VND',
-          expired_at: '2099-07-03T01:00:00.000Z',
-          id: PAYMENT_ID,
-          paid_at: null,
-          payment_code: 'PAY20260702AAAA1111',
-          payment_method: 'manual_bank_transfer',
-          provider: 'direct',
-          raw_response: {
-            customer_input: {
-              payer_name: 'Nguyen Van A',
+          created: true,
+          payment: {
+            amount: '4880000',
+            booking_id: BOOKING_ID,
+            created_at: '2026-07-02T01:00:00.000Z',
+            currency: 'VND',
+            expired_at: '2099-07-03T01:00:00.000Z',
+            id: PAYMENT_ID,
+            paid_at: null,
+            payment_code: 'PAY20260702AAAA1111',
+            payment_method: 'manual_bank_transfer',
+            provider: 'direct',
+            raw_response: {
+              customer_input: {
+                payer_name: 'Nguyen Van A',
+              },
             },
+            status: 'pending',
+            updated_at: '2026-07-02T01:00:00.000Z',
           },
-          status: 'pending',
-          updated_at: '2026-07-02T01:00:00.000Z',
+          reused: null,
         };
       },
-      findDirectPaymentByIdempotencyKey: async () => null,
-      findLatestPendingDirectPaymentByBookingId: async () => null,
       getBookingById: async (bookingId) => {
         assert.equal(bookingId, BOOKING_ID);
 
@@ -184,28 +186,29 @@ test('paymentService.createCustomerDirectPayment reuses the previous payment for
       },
     },
     repository: {
-      createDirectPayment: async () => {
-        throw new Error('createDirectPayment should not be called');
-      },
-      findDirectPaymentByIdempotencyKey: async ({ bookingId, idempotencyKey, userId }) => {
+      createDirectPayment: async ({ bookingId, idempotencyKey, actorUserId }) => {
         assert.equal(bookingId, BOOKING_ID);
         assert.equal(idempotencyKey, 'dp-001');
-        assert.equal(userId, CUSTOMER_ID);
+        assert.equal(actorUserId, CUSTOMER_ID);
 
         return {
-          amount: '4880000',
-          booking_id: BOOKING_ID,
-          created_at: '2026-07-02T01:00:00.000Z',
-          currency: 'VND',
-          expired_at: '2026-07-03T01:00:00.000Z',
-          id: PAYMENT_ID,
-          paid_at: null,
-          payment_code: 'PAY20260702AAAA1111',
-          payment_method: 'cash_at_office',
-          provider: 'direct',
-          raw_response: {},
-          status: 'pending',
-          updated_at: '2026-07-02T01:00:00.000Z',
+          created: false,
+          payment: {
+            amount: '4880000',
+            booking_id: BOOKING_ID,
+            created_at: '2026-07-02T01:00:00.000Z',
+            currency: 'VND',
+            expired_at: '2026-07-03T01:00:00.000Z',
+            id: PAYMENT_ID,
+            paid_at: null,
+            payment_code: 'PAY20260702AAAA1111',
+            payment_method: 'cash_at_office',
+            provider: 'direct',
+            raw_response: {},
+            status: 'pending',
+            updated_at: '2026-07-02T01:00:00.000Z',
+          },
+          reused: 'idempotency',
         };
       },
       getBookingById: async () => ({
@@ -247,27 +250,27 @@ test('paymentService.createCustomerDirectPayment returns the current pending pay
       },
     },
     repository: {
-      createDirectPayment: async () => {
-        throw new Error('createDirectPayment should not be called');
-      },
-      findDirectPaymentByIdempotencyKey: async () => null,
-      findLatestPendingDirectPaymentByBookingId: async (bookingId) => {
+      createDirectPayment: async ({ bookingId }) => {
         assert.equal(bookingId, BOOKING_ID);
 
         return {
-          amount: '4880000',
-          booking_id: BOOKING_ID,
-          created_at: '2026-07-02T01:00:00.000Z',
-          currency: 'VND',
-          expired_at: '2026-07-03T01:00:00.000Z',
-          id: PAYMENT_ID,
-          paid_at: null,
-          payment_code: 'PAY20260702BBBB2222',
-          payment_method: 'staff_collect',
-          provider: 'direct',
-          raw_response: {},
-          status: 'pending',
-          updated_at: '2026-07-02T01:00:00.000Z',
+          created: false,
+          payment: {
+            amount: '4880000',
+            booking_id: BOOKING_ID,
+            created_at: '2026-07-02T01:00:00.000Z',
+            currency: 'VND',
+            expired_at: '2026-07-03T01:00:00.000Z',
+            id: PAYMENT_ID,
+            paid_at: null,
+            payment_code: 'PAY20260702BBBB2222',
+            payment_method: 'staff_collect',
+            provider: 'direct',
+            raw_response: {},
+            status: 'pending',
+            updated_at: '2026-07-02T01:00:00.000Z',
+          },
+          reused: 'pending',
         };
       },
       getBookingById: async () => ({
@@ -297,6 +300,50 @@ test('paymentService.createCustomerDirectPayment returns the current pending pay
   assert.equal(result.created, false);
   assert.equal(result.reused, 'pending');
   assert.equal(result.payment.payment_code, 'PAY20260702BBBB2222');
+});
+
+test('paymentService.createCustomerDirectPayment requires Idempotency-Key', async () => {
+  const service = paymentService.createPaymentService({
+    directPaymentConfig: {
+      methods: {
+        manual_bank_transfer: {
+          enabled: true,
+        },
+      },
+    },
+    repository: {
+      createDirectPayment: async () => {
+        throw new Error('createDirectPayment should not be called');
+      },
+      getBookingById: async () => ({
+        booking_code: 'BK202607020001',
+        currency: 'VND',
+        expires_at: '2099-07-03T01:00:00.000Z',
+        id: BOOKING_ID,
+        status: 'pending_payment',
+        total_amount: '4880000',
+        user_id: CUSTOMER_ID,
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => service.createCustomerDirectPayment({
+      auth: {
+        role: 'customer',
+        userId: CUSTOMER_ID,
+      },
+      body: {
+        payment_method: 'manual_bank_transfer',
+      },
+      bookingId: BOOKING_ID,
+      headers: {},
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
 });
 
 test('paymentService.createCustomerDirectPayment rejects non-payable bookings, expired bookings, and non-owners', async () => {
@@ -336,7 +383,6 @@ test('paymentService.createCustomerDirectPayment rejects non-payable bookings, e
           user_id: OTHER_USER_ID,
         };
       },
-      findDirectPaymentByIdempotencyKey: async () => null,
     },
   });
 

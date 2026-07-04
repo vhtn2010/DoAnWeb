@@ -1,5 +1,7 @@
 const crypto = require('node:crypto');
+const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const { query, withTransaction } = require('./client');
+const AppError = require('../utils/AppError');
 
 const ACTIVE_REFUND_STATUSES = Object.freeze([
   'requested',
@@ -13,6 +15,16 @@ const buildRefundCode = (now = new Date()) => {
   const randomPart = crypto.randomBytes(4).toString('hex').toUpperCase();
 
   return `RF${datePart}${randomPart}`;
+};
+
+const executeQuery = (executor, text, params = []) => (
+  typeof executor === 'function'
+    ? executor(text, params)
+    : executor.query(text, params)
+);
+
+const acquireTransactionLock = async (db, key) => {
+  await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [key]);
 };
 
 const getBookingById = async (bookingId) => {
@@ -29,6 +41,29 @@ const getBookingById = async (bookingId) => {
       FROM bookings AS b
       WHERE b.id = $1
       LIMIT 1
+    `,
+    [bookingId],
+  );
+
+  return result.rows[0] || null;
+};
+
+const getBookingByIdWithExecutor = async (executor, bookingId, options = {}) => {
+  const result = await executeQuery(
+    executor,
+    `
+      SELECT
+        b.id,
+        b.booking_code,
+        b.user_id,
+        b.status,
+        b.total_amount,
+        b.expires_at,
+        b.updated_at
+      FROM bookings AS b
+      WHERE b.id = $1
+      LIMIT 1
+      ${options.forUpdate ? 'FOR UPDATE' : ''}
     `,
     [bookingId],
   );
@@ -54,6 +89,33 @@ const getPaymentById = async (paymentId) => {
       FROM payments AS p
       WHERE p.id = $1
       LIMIT 1
+    `,
+    [paymentId],
+  );
+
+  return result.rows[0] || null;
+};
+
+const getPaymentByIdWithExecutor = async (executor, paymentId, options = {}) => {
+  const result = await executeQuery(
+    executor,
+    `
+      SELECT
+        p.id,
+        p.booking_id,
+        p.payment_code,
+        p.provider,
+        p.payment_method,
+        p.status,
+        p.amount,
+        p.currency,
+        p.raw_response,
+        p.paid_at,
+        p.created_at
+      FROM payments AS p
+      WHERE p.id = $1
+      LIMIT 1
+      ${options.forUpdate ? 'FOR UPDATE' : ''}
     `,
     [paymentId],
   );
@@ -150,12 +212,20 @@ const getRefundByIdWithBooking = async (refundId) => {
   return result.rows[0] || null;
 };
 
-const findRefundByIdempotencyKey = async ({
+const setLocalConfig = async (db, key, value) => {
+  await db.query('SELECT set_config($1, $2, TRUE)', [
+    key,
+    value == null ? '' : String(value),
+  ]);
+};
+
+const findRefundByIdempotencyKeyWithExecutor = async (executor, {
   bookingId,
   idempotencyKey,
   userId,
 }) => {
-  const result = await query(
+  const result = await executeQuery(
+    executor,
     `
       SELECT
         r.id,
@@ -188,25 +258,15 @@ const findRefundByIdempotencyKey = async ({
   return result.rows[0] || null;
 };
 
-const insertBookingStatusHistory = async (
-  db,
-  { bookingId, changedBy, fromStatus, reason, toStatus },
-) => {
-  await db.query(
-    `
-      INSERT INTO booking_status_histories (
-        booking_id,
-        from_status,
-        to_status,
-        reason,
-        changed_by,
-        created_at
-      )
-      VALUES ($1, $2, $3, $4, $5, NOW())
-    `,
-    [bookingId, fromStatus, toStatus, reason, changedBy],
-  );
-};
+const findRefundByIdempotencyKey = async ({
+  bookingId,
+  idempotencyKey,
+  userId,
+}) => findRefundByIdempotencyKeyWithExecutor(query, {
+  bookingId,
+  idempotencyKey,
+  userId,
+});
 
 const insertUserLog = async (
   db,
@@ -225,6 +285,29 @@ const insertUserLog = async (
       VALUES ($1, $2, $3, $4, $5, NOW())
     `,
     [userId, action, entityName, entityId, metadata || null],
+  );
+};
+
+const insertBookingStatusHistory = async (db, {
+  bookingId,
+  changedBy,
+  fromStatus,
+  reason,
+  toStatus,
+}) => {
+  await db.query(
+    `
+      INSERT INTO booking_status_histories (
+        booking_id,
+        from_status,
+        to_status,
+        reason,
+        changed_by,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, NOW())
+    `,
+    [bookingId, fromStatus, toStatus, reason, changedBy],
   );
 };
 
@@ -261,6 +344,19 @@ const countOtherActiveRefunds = async (db, { bookingId, refundId }) => {
   return Number(result.rows[0]?.total || 0);
 };
 
+const lockActiveRefundsForPayment = async (db, paymentId) => {
+  await db.query(
+    `
+      SELECT id
+      FROM refunds
+      WHERE payment_id = $1
+        AND status = ANY($2::text[])
+      FOR UPDATE
+    `,
+    [paymentId, ACTIVE_REFUND_STATUSES],
+  );
+};
+
 const createRefundRequest = async ({
   actorUserId,
   amount,
@@ -271,6 +367,99 @@ const createRefundRequest = async ({
   reason,
 }) =>
   withTransaction(async (db) => {
+    await acquireTransactionLock(
+      db,
+      `refund:create:${actorUserId}:${booking.id}:${payment.id}:${idempotencyKey}`,
+    );
+
+    const currentBooking = await getBookingByIdWithExecutor(
+      db.query.bind(db),
+      booking.id,
+      { forUpdate: true },
+    );
+
+    if (!currentBooking) {
+      throw new AppError('Booking not found', {
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        statusCode: 404,
+      });
+    }
+
+    if (currentBooking.user_id !== actorUserId) {
+      throw new AppError('You do not have permission to access this booking', {
+        code: API_ERROR_CODES.FORBIDDEN,
+        statusCode: 403,
+      });
+    }
+
+    const existingRefund = await findRefundByIdempotencyKeyWithExecutor(
+      db.query.bind(db),
+      {
+        bookingId: currentBooking.id,
+        idempotencyKey,
+        userId: actorUserId,
+      },
+    );
+
+    if (existingRefund) {
+      return {
+        booking: {
+          ...currentBooking,
+          status: currentBooking.status,
+        },
+        refund: existingRefund,
+        reused: 'idempotency',
+      };
+    }
+
+    const currentPayment = await getPaymentByIdWithExecutor(
+      db.query.bind(db),
+      payment.id,
+      { forUpdate: true },
+    );
+
+    if (!currentPayment || currentPayment.booking_id !== currentBooking.id) {
+      throw new AppError('Payment not found', {
+        code: API_ERROR_CODES.RESOURCE_NOT_FOUND,
+        statusCode: 404,
+      });
+    }
+
+    if (!['success', 'reconciled', 'partially_refunded'].includes(currentPayment.status)) {
+      throw new AppError('Only successful direct payments can be used to request a refund', {
+        code: API_ERROR_CODES.REFUND_NOT_ALLOWED,
+        statusCode: 400,
+      });
+    }
+
+    await lockActiveRefundsForPayment(db, currentPayment.id);
+
+    const reservedAmountResult = await db.query(
+      `
+        SELECT COALESCE(SUM(amount), 0)::numeric AS total_reserved
+        FROM refunds
+        WHERE payment_id = $1
+          AND status = ANY($2::text[])
+      `,
+      [currentPayment.id, ACTIVE_REFUND_STATUSES],
+    );
+    const reservedAmount = Number(
+      reservedAmountResult.rows[0]?.total_reserved || 0,
+    );
+    const remainingRefundableAmount = Number(
+      (Number(currentPayment.amount) - reservedAmount).toFixed(2),
+    );
+
+    if (remainingRefundableAmount <= 0 || amount > remainingRefundableAmount) {
+      throw new AppError(
+        'Requested refund amount exceeds the remaining refundable amount',
+        {
+          code: API_ERROR_CODES.REFUND_NOT_ALLOWED,
+          statusCode: 400,
+        },
+      );
+    }
+
     const refundCode = buildRefundCode();
     const insertResult = await db.query(
       `
@@ -317,8 +506,8 @@ const createRefundRequest = async ({
       `,
       [
         refundCode,
-        booking.id,
-        payment.id,
+        currentBooking.id,
+        currentPayment.id,
         amount,
         reason,
         actorUserId,
@@ -332,25 +521,24 @@ const createRefundRequest = async ({
     );
 
     const refund = insertResult.rows[0];
-    let bookingStatus = booking.status;
+    let bookingStatus = currentBooking.status;
 
-    if (nextBookingStatus && nextBookingStatus !== booking.status) {
+    if (nextBookingStatus && nextBookingStatus !== currentBooking.status) {
+      await setLocalConfig(db, 'app.current_user_id', actorUserId);
+      await setLocalConfig(
+        db,
+        'app.status_change_reason',
+        'Customer requested manual refund',
+      );
+
       await db.query(
         `
           UPDATE bookings
           SET status = $2, updated_at = NOW()
           WHERE id = $1
         `,
-        [booking.id, nextBookingStatus],
+        [currentBooking.id, nextBookingStatus],
       );
-
-      await insertBookingStatusHistory(db, {
-        bookingId: booking.id,
-        changedBy: actorUserId,
-        fromStatus: booking.status,
-        reason: 'Customer requested manual refund',
-        toStatus: nextBookingStatus,
-      });
 
       bookingStatus = nextBookingStatus;
     }
@@ -361,11 +549,11 @@ const createRefundRequest = async ({
       entityName: 'refund',
       metadata: {
         amount,
-        booking_id: booking.id,
+        booking_id: currentBooking.id,
         booking_status_after: bookingStatus,
-        booking_status_before: booking.status,
+        booking_status_before: currentBooking.status,
         idempotency_key: idempotencyKey,
-        payment_id: payment.id,
+        payment_id: currentPayment.id,
         refund_code: refund.refund_code,
       },
       userId: actorUserId,
@@ -373,10 +561,11 @@ const createRefundRequest = async ({
 
     return {
       booking: {
-        ...booking,
+        ...currentBooking,
         status: bookingStatus,
       },
       refund,
+      reused: null,
     };
   });
 
