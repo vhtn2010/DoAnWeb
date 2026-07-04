@@ -5,7 +5,7 @@ import {
   getAdminServiceStatusLabel,
   getAdminServiceTypeLabel,
   getServiceStatusTransition,
-} from '../../../data/mockAdminServices.js'
+} from '../../../mappers/adminServiceMappers.js'
 
 const actionContentMap = {
   submit_review: {

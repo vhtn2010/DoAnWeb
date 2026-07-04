@@ -1,9 +1,15 @@
 import { Link } from 'react-router-dom'
+import useLoginForm from '../../hooks/useLoginForm.js'
 import './authTemplate.css'
 
-function SocialButton({ provider, children }) {
+function SocialButton({ children, disabled, onClick, provider }) {
   return (
-    <button className="auth-login-form__social-button" type="button">
+    <button
+      className="auth-login-form__social-button"
+      disabled={disabled}
+      type="button"
+      onClick={onClick}
+    >
       <span aria-hidden="true" className="auth-login-form__social-icon">
         {children}
       </span>
@@ -13,9 +19,16 @@ function SocialButton({ provider, children }) {
 }
 
 function LoginPage() {
-  const handleSubmit = (event) => {
-    event.preventDefault()
-  }
+  const {
+    errors,
+    feedbackMessage,
+    feedbackTone,
+    formValues,
+    handleFieldChange,
+    handleSocialLogin,
+    handleSubmit,
+    isSubmitting,
+  } = useLoginForm()
 
   return (
     <section className="auth-login-page">
@@ -41,29 +54,41 @@ function LoginPage() {
         </div>
       </header>
 
-      <form className="auth-login-form" onSubmit={handleSubmit}>
+      <form className="auth-login-form" noValidate onSubmit={handleSubmit}>
         <label className="auth-login-form__field" htmlFor="login-email">
           <span className="auth-login-form__label">Địa chỉ Email</span>
           <input
             autoComplete="email"
-            className="auth-login-form__input"
+            aria-invalid={Boolean(errors.email)}
+            className={`auth-login-form__input${
+              errors.email ? ' auth-login-form__input--error' : ''
+            }`}
             id="login-email"
             name="email"
             placeholder="email@netviet.travel"
             type="email"
+            value={formValues.email}
+            onChange={handleFieldChange}
           />
+          {errors.email ? <p className="auth-form__field-error">{errors.email}</p> : null}
         </label>
 
         <label className="auth-login-form__field" htmlFor="login-password">
           <span className="auth-login-form__label">Mật khẩu</span>
           <input
             autoComplete="current-password"
-            className="auth-login-form__input"
+            aria-invalid={Boolean(errors.password)}
+            className={`auth-login-form__input${
+              errors.password ? ' auth-login-form__input--error' : ''
+            }`}
             id="login-password"
             name="password"
             placeholder="Nhập mật khẩu"
             type="password"
+            value={formValues.password}
+            onChange={handleFieldChange}
           />
+          {errors.password ? <p className="auth-form__field-error">{errors.password}</p> : null}
         </label>
 
         <div className="auth-login-form__meta">
@@ -72,8 +97,14 @@ function LoginPage() {
           </Link>
         </div>
 
-        <button className="auth-login-form__submit" type="submit">
-          Đăng nhập
+        {feedbackMessage ? (
+          <p className={`auth-form__feedback auth-form__feedback--${feedbackTone}`}>
+            {feedbackMessage}
+          </p>
+        ) : null}
+
+        <button className="auth-login-form__submit" disabled={isSubmitting} type="submit">
+          {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
       </form>
 
@@ -83,7 +114,11 @@ function LoginPage() {
         </div>
 
         <div className="auth-login-social__actions">
-          <SocialButton provider="Google">
+          <SocialButton
+            disabled={isSubmitting}
+            provider="Google"
+            onClick={() => handleSocialLogin('google')}
+          >
             <svg fill="none" viewBox="0 0 24 24">
               <path
                 d="M20.5 12.3c0-.7-.1-1.3-.2-1.9H12v3.6h4.7a4 4 0 0 1-1.8 2.6v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5Z"
@@ -104,7 +139,11 @@ function LoginPage() {
             </svg>
           </SocialButton>
 
-          <SocialButton provider="Facebook">
+          <SocialButton
+            disabled={isSubmitting}
+            provider="Facebook"
+            onClick={() => handleSocialLogin('facebook')}
+          >
             <svg fill="currentColor" viewBox="0 0 24 24">
               <path d="M13.8 20v-6h2.6l.4-3h-3V9.1c0-.9.3-1.6 1.6-1.6H17V4.8c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4V11H8.3v3h2.5v6h3Z" />
             </svg>
