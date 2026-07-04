@@ -16,6 +16,13 @@ const createAdminBookingRepository = ({
   queryImpl = query,
   withTransactionImpl = withTransaction,
 } = {}) => {
+  const setLocalConfig = async (client, key, value) => {
+    await client.query('SELECT set_config($1, $2, TRUE)', [
+      key,
+      value == null ? '' : String(value),
+    ]);
+  };
+
   const transitionBookingStatusWithItems = async ({
     actorUserId,
     bookingId,
@@ -27,6 +34,9 @@ const createAdminBookingRepository = ({
     toStatus,
   }) =>
     withTransactionImpl(async (client) => {
+      await setLocalConfig(client, 'app.current_user_id', actorUserId);
+      await setLocalConfig(client, 'app.status_change_reason', reason);
+
       const bookingResult = await client.query(
         `
           UPDATE bookings
@@ -59,21 +69,6 @@ const createAdminBookingRepository = ({
           [bookingId, itemStatusTo, itemStatusFrom],
         );
       }
-
-      await client.query(
-        `
-          INSERT INTO booking_status_histories (
-            booking_id,
-            from_status,
-            to_status,
-            reason,
-            changed_by,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `,
-        [bookingId, fromStatus, toStatus, reason, actorUserId],
-      );
 
       await client.query(
         `

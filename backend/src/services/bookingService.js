@@ -74,14 +74,6 @@ const buildResourceNotFoundError = (message = 'Resource not found') =>
     statusCode: 404,
   });
 
-const buildDuplicateError = (field, message) =>
-  buildAppError({
-    code: API_ERROR_CODES.DUPLICATE_RESOURCE,
-    field,
-    message,
-    statusCode: 409,
-  });
-
 const buildInvalidStateTransitionError = (message) =>
   new AppError(message || 'The requested booking state transition is not allowed', {
     code: API_ERROR_CODES.INVALID_STATE_TRANSITION,
@@ -1218,10 +1210,15 @@ const createBookingService = ({
       });
 
       if (existingBooking) {
-        throw buildDuplicateError(
-          IDEMPOTENCY_KEY_HEADER,
-          'A booking has already been created for this Idempotency-Key',
-        );
+        const existingItems =
+          typeof repository.listBookingItemsByBookingId === 'function'
+            ? await repository.listBookingItemsByBookingId(existingBooking.id)
+            : [];
+
+        return sanitizeCheckoutResponse({
+          booking: existingBooking,
+          items: existingItems,
+        });
       }
     }
 

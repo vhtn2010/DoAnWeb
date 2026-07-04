@@ -517,37 +517,61 @@ test('bookingService.checkout rejects expired vouchers', async () => {
   );
 });
 
-test('bookingService.checkout rejects duplicate idempotency keys', async () => {
+test('bookingService.checkout replays the same booking for a duplicate idempotency key', async () => {
   const service = bookingService.createBookingService({
     repository: {
       findBookingByIdempotencyKey: async () => ({
+        contact_email: 'customer@example.com',
+        contact_name: 'Nguyen Van A',
+        contact_phone: '+84901234567',
+        currency: 'VND',
+        discount_amount: 0,
         booking_code: 'BK20260630AAAA',
+        expires_at: '2026-07-01T01:00:00.000Z',
         id: 'booking-1',
+        note: null,
+        status: 'pending_payment',
+        subtotal_amount: 1000000,
+        total_amount: 1000000,
+        voucher_id: null,
       }),
+      listBookingItemsByBookingId: async () => ([
+        {
+          end_at: '2026-07-11T00:00:00.000Z',
+          id: 'booking-item-1',
+          quantity: 1,
+          reference_id: null,
+          service_id: TOUR_SERVICE_ID,
+          service_type: 'tour',
+          start_at: '2026-07-10T00:00:00.000Z',
+          status: 'pending',
+          title_snapshot: 'Tour Da Nang',
+          total_amount: 1000000,
+          unit_price: 1000000,
+        },
+      ]),
     },
   });
 
-  await assert.rejects(
-    () => service.checkout({
-      auth: {
-        role: 'customer',
-        userId: CUSTOMER_ID,
-      },
-      body: {
-        cart_id: CART_ID,
-        contact_email: 'customer@example.com',
-        contact_name: 'Nguyen Van A',
-      },
-      headers: {
-        'idempotency-key': 'checkout-001',
-      },
-    }),
-    (error) => {
-      assert.equal(error.code, API_ERROR_CODES.DUPLICATE_RESOURCE);
-      assert.equal(error.statusCode, 409);
-      return true;
+  const result = await service.checkout({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
     },
-  );
+    body: {
+      cart_id: CART_ID,
+      contact_email: 'customer@example.com',
+      contact_name: 'Nguyen Van A',
+    },
+    headers: {
+      'idempotency-key': 'checkout-001',
+    },
+  });
+
+  assert.equal(result.id, 'booking-1');
+  assert.equal(result.booking_code, 'BK20260630AAAA');
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].id, 'booking-item-1');
 });
 
 test('POST /bookings/checkout requires a customer token', async () => {
