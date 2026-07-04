@@ -832,6 +832,7 @@ test('GET /support/tickets requires customer authentication', async () => {
 test('GET /support/tickets returns paginated customer tickets', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['support.read_self'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: { id: CUSTOMER_ID, role_code: 'customer' },
@@ -893,6 +894,7 @@ test('GET /support/tickets returns paginated customer tickets', async () => {
 test('GET /support/tickets/{ticket_id} returns sanitized detail for the owner', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['support.read_self'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: { id: CUSTOMER_ID, role_code: 'customer' },
@@ -979,6 +981,7 @@ test('POST /support/tickets/{ticket_id}/replies requires customer authentication
 test('POST /support/tickets/{ticket_id}/replies returns 201 for valid customer reply', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['support.reply'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: { id: CUSTOMER_ID, role_code: 'customer' },
@@ -1038,6 +1041,7 @@ test('POST /support/tickets/{ticket_id}/replies returns 201 for valid customer r
 test('POST /support/tickets/{ticket_id}/close returns closed status for customer owner', async () => {
   const server = app.listen(0);
   authService.resolveAuthenticatedUser = async () => ({
+    permissions: ['support.close'],
     roleCode: 'customer',
     tokenId: 'token-customer',
     user: { id: CUSTOMER_ID, role_code: 'customer' },

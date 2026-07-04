@@ -22,9 +22,24 @@ const originalGetVouchers = adminVoucherService.getVouchers;
 const originalUpdateVoucher = adminVoucherService.updateVoucher;
 
 const createAuthContext = ({
+  permissions,
   roleCode = 'admin',
   userId = 'admin-user-1',
 } = {}) => ({
+  permissions: permissions || (
+    roleCode === 'staff'
+      ? [
+          'voucher.read_all',
+          'voucher.create',
+          'voucher.update',
+        ]
+      : [
+          'voucher.read_all',
+          'voucher.create',
+          'voucher.update',
+          'voucher.delete',
+        ]
+  ),
   roleCode,
   tokenId: 'access-jti-admin-voucher-1',
   user: {

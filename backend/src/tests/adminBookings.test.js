@@ -259,6 +259,9 @@ test('adminBookingService.listBookings rejects invalid status and date range', a
   await assert.rejects(
     () => service.listBookings({
       auth: {
+        tokenPayload: {
+          permissions: ['booking.read_all'],
+        },
         role: 'admin',
       },
       query: {
@@ -274,6 +277,9 @@ test('adminBookingService.listBookings rejects invalid status and date range', a
   await assert.rejects(
     () => service.listBookings({
       auth: {
+        tokenPayload: {
+          permissions: ['booking.read_all'],
+        },
         role: 'admin',
       },
       query: {
@@ -698,7 +704,7 @@ test('adminBookingService.confirmBooking only confirms paid bookings with suffic
       role: 'staff',
       serviceScopeIds: ['service-1'],
       tokenPayload: {
-        permissions: ['booking.confirm'],
+        permissions: ['booking.update_status'],
       },
       userId: 'staff-1',
     },
@@ -763,7 +769,7 @@ test('adminBookingService.confirmBooking returns idempotent success for confirme
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['booking.confirm'],
+          permissions: ['booking.update_status'],
         },
         userId: 'admin-1',
       },
@@ -804,7 +810,7 @@ test('adminBookingService.completeBooking only completes in_progress bookings an
     auth: {
       role: 'staff',
       tokenPayload: {
-        permissions: ['booking.complete'],
+        permissions: ['booking.update_status'],
       },
       userId: 'staff-1',
     },
@@ -860,7 +866,7 @@ test('adminBookingService.completeBooking only completes in_progress bookings an
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['booking.complete'],
+          permissions: ['booking.update_status'],
         },
         userId: 'admin-1',
       },
@@ -1553,7 +1559,7 @@ test('POST /api/admin/bookings/{booking_id}/confirm returns confirmed booking fo
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
-    permissions: ['booking.confirm'],
+    permissions: ['booking.update_status'],
     role: 'staff',
     sub: 'staff-1',
   });
@@ -1565,7 +1571,7 @@ test('POST /api/admin/bookings/{booking_id}/confirm returns confirmed booking fo
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
-          permissions: ['booking.confirm'],
+          permissions: ['booking.update_status'],
           role: 'staff',
           sub: 'staff-1',
         },
@@ -1614,7 +1620,7 @@ test('POST /api/admin/bookings/{booking_id}/complete returns completed booking a
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
-    permissions: ['booking.complete'],
+    permissions: ['booking.update_status'],
     role: 'admin',
     sub: 'admin-1',
   });
@@ -1626,7 +1632,7 @@ test('POST /api/admin/bookings/{booking_id}/complete returns completed booking a
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
-          permissions: ['booking.complete'],
+          permissions: ['booking.update_status'],
           role: 'admin',
           sub: 'admin-1',
         },
@@ -2010,7 +2016,7 @@ test('adminBookingService.resendBookingConfirmationEmail validates permission, c
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['booking.export'],
+          permissions: ['email.resend'],
         },
         userId: 'admin-1',
       },
@@ -2377,7 +2383,7 @@ test('adminBookingService.updateBookingItemTravellerInfo validates sensitive fie
       auth: {
         role: 'admin',
         tokenPayload: {
-          permissions: ['booking.update_item'],
+          permissions: ['booking.update_status'],
         },
         userId: 'admin-1',
       },
@@ -2399,7 +2405,7 @@ test('adminBookingService.updateBookingItemTravellerInfo validates sensitive fie
       auth: {
         role: 'staff',
         tokenPayload: {
-          permissions: ['booking.update_item'],
+          permissions: ['booking.update_status'],
         },
         userId: 'staff-1',
       },
@@ -2474,7 +2480,7 @@ test('adminBookingService.updateBookingItemTravellerInfo updates traveller info 
     auth: {
       role: 'admin',
       tokenPayload: {
-        permissions: ['booking.update_item'],
+        permissions: ['booking.update_status'],
       },
       userId: 'admin-1',
     },
@@ -2582,7 +2588,7 @@ test('PATCH /api/admin/booking-items/{booking_item_id}/traveller-info updates tr
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
-    permissions: ['booking.update_item'],
+    permissions: ['booking.update_status'],
     role: 'admin',
     sub: 'admin-1',
   });
@@ -2594,7 +2600,7 @@ test('PATCH /api/admin/booking-items/{booking_item_id}/traveller-info updates tr
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
-          permissions: ['booking.update_item'],
+          permissions: ['booking.update_status'],
           role: 'admin',
           sub: 'admin-1',
         },

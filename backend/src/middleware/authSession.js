@@ -54,34 +54,23 @@ const buildRequestAuth = (authContext, tokenPayload) => {
 };
 
 const normalizePermissionCodes = (req) => {
-  const permissionSources = [
-    req.auth?.permissions,
-    req.auth?.tokenPayload?.permission_codes,
-    req.auth?.tokenPayload?.permissionCodes,
-    req.auth?.tokenPayload?.permissions,
-  ];
-
-  for (const source of permissionSources) {
-    if (!Array.isArray(source)) {
-      continue;
-    }
-
-    return source
-      .map((entry) => {
-        if (typeof entry === 'string') {
-          return entry.trim();
-        }
-
-        if (entry && typeof entry === 'object' && typeof entry.code === 'string') {
-          return entry.code.trim();
-        }
-
-        return null;
-      })
-      .filter(Boolean);
+  if (!Array.isArray(req.auth?.permissions)) {
+    return [];
   }
 
-  return [];
+  return req.auth.permissions
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return entry.trim();
+      }
+
+      if (entry && typeof entry === 'object' && typeof entry.code === 'string') {
+        return entry.code.trim();
+      }
+
+      return null;
+    })
+    .filter(Boolean);
 };
 
 const authRequired = ({ allowedRoles } = {}) => async (req, res, next) => {
@@ -142,9 +131,7 @@ const authOptional = ({ allowedRoles } = {}) => async (req, res, next) => {
   }
 };
 
-const requirePermissions = (requiredPermissions, {
-  allowWhenMissing = false,
-} = {}) => (req, res, next) => {
+const requirePermissions = (requiredPermissions) => (req, res, next) => {
   if (!req.auth?.userId) {
     next(new AppError('Forbidden', {
       code: API_ERROR_CODES.FORBIDDEN,
@@ -154,11 +141,6 @@ const requirePermissions = (requiredPermissions, {
   }
 
   const permissionCodes = normalizePermissionCodes(req);
-
-  if (permissionCodes.length === 0 && allowWhenMissing) {
-    next();
-    return;
-  }
 
   if (
     Array.isArray(requiredPermissions) &&
@@ -174,8 +156,18 @@ const requirePermissions = (requiredPermissions, {
   }));
 };
 
+const requirePermissionsIfAuthenticated = (requiredPermissions) => (req, res, next) => {
+  if (!req.auth?.userId) {
+    next();
+    return;
+  }
+
+  requirePermissions(requiredPermissions)(req, res, next);
+};
+
 module.exports = {
   authOptional,
   authRequired,
   requirePermissions,
+  requirePermissionsIfAuthenticated,
 };

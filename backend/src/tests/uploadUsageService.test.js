@@ -245,7 +245,7 @@ test('uploadUsageService.getUploadUsage normalizes partial provider data and log
       insertUserLog: async (payload) => {
         successLogs.push(payload);
       },
-      listPermissionCodesByRoleId: async () => ['system_setting.manage'],
+      listPermissionCodesByRoleId: async () => ['dashboard.read'],
     },
     usageCacheTtlMs: 0,
   });

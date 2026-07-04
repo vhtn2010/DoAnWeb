@@ -363,18 +363,14 @@ const ensurePermission = (auth, acceptedPermissions, {
 };
 
 const ensureReadAllAccess = (auth) => {
-  ensurePermission(auth, ['payment.read_all'], {
-    allowWhenEmpty: true,
-  });
+  ensurePermission(auth, ['payment.read_all']);
 };
 
 const ensureProofAccess = (auth) => {
   ensurePermission(auth, [
     'payment.read_all',
     'payment.confirm',
-  ], {
-    allowWhenEmpty: true,
-  });
+  ]);
 };
 
 const ensureConfirmAccess = (auth) => {
