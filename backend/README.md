@@ -40,6 +40,7 @@ Bien moi truong lien quan:
 - `DB_AUTO_MIGRATE=true`: bat tu dong migrate khi startup
 - `DB_MIGRATE_STRICT=false`: neu `true`, loi migrate hoac thieu DB config se chan server khoi dong
 - `DB_SSL=true`: bat SSL khi ket noi DB
+- `DB_SSL_REJECT_UNAUTHORIZED=false`: dung cho may dev local khi gap loi `self-signed certificate in certificate chain`; production nen giu `true` va cau hinh `DB_SSL_CA` neu can
 
 Neu muon chay migrate thu cong:
 
