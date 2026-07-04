@@ -23,9 +23,11 @@ const originalGetMyBookingInvoice = bookingService.getMyBookingInvoice;
 const originalDownloadMyBookingSummary = bookingService.downloadMyBookingSummary;
 
 const createAuthContext = ({
+  permissions = ['booking.read_self'],
   roleCode = 'customer',
   userId = CUSTOMER_ID,
 } = {}) => ({
+  permissions: roleCode === 'customer' ? permissions : [],
   roleCode,
   tokenId: 'access-jti-docs-1',
   user: {

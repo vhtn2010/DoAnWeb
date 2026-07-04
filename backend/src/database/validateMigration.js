@@ -158,9 +158,11 @@ const seedMarkers = [
   "'staff'",
   "'admin'",
   "'system_admin'",
-  "'service.read'",
+  "'profile.read_self'",
+  "'service.read_all'",
   "'booking.read_all'",
-  "'notification.broadcast'",
+  "'notification.manage'",
+  "'settings.update'",
 ];
 
 for (const marker of seedMarkers) {

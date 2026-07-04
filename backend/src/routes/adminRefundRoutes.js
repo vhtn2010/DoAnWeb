@@ -31,7 +31,7 @@ const adminRefundProcessRateLimit = createRateLimiter({
 router.get(
   '/admin/refunds',
   requireAdminAuth,
-  requireAdminPermissions(['refund.read_all'], { allowWhenMissing: true }),
+  requireAdminPermissions(['refund.read_all']),
   adminRefundRateLimit,
   asyncHandler(listAdminRefunds),
 );
@@ -39,7 +39,7 @@ router.get(
 router.get(
   '/admin/refunds/:refund_id',
   requireAdminAuth,
-  requireAdminPermissions(['refund.read_all'], { allowWhenMissing: true }),
+  requireAdminPermissions(['refund.read_all']),
   adminRefundRateLimit,
   asyncHandler(getAdminRefundDetail),
 );

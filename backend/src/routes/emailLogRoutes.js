@@ -8,6 +8,7 @@ const {
 } = require('../controllers/emailLogController');
 const {
   requireAdminAuth,
+  requireAdminPermissions,
   requireAdminRoles,
 } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -50,6 +51,7 @@ router.get(
   '/admin/mail/templates',
   requireAdminAuth,
   requireAdminRoles(['staff', 'admin', 'system_admin']),
+  requireAdminPermissions(['email_log.read']),
   adminMailTemplateRateLimit,
   asyncHandler(listAdminMailTemplates),
 );
@@ -58,6 +60,7 @@ router.get(
   '/admin/mail/stats',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['report.read']),
   adminMailStatsRateLimit,
   asyncHandler(getAdminMailStats),
 );
@@ -66,6 +69,7 @@ router.get(
   '/admin/email-logs',
   requireAdminAuth,
   requireAdminRoles(['staff', 'admin', 'system_admin']),
+  requireAdminPermissions(['email_log.read']),
   adminEmailLogCatalogRateLimit,
   asyncHandler(listAdminEmailLogs),
 );
@@ -74,6 +78,7 @@ router.get(
   '/admin/email-logs/:email_log_id',
   requireAdminAuth,
   requireAdminRoles(['staff', 'admin', 'system_admin']),
+  requireAdminPermissions(['email_log.read']),
   adminEmailLogCatalogRateLimit,
   asyncHandler(getAdminEmailLogDetail),
 );
@@ -82,6 +87,7 @@ router.post(
   '/admin/email-logs/:email_log_id/resend',
   requireAdminAuth,
   requireAdminRoles(['staff', 'admin', 'system_admin']),
+  requireAdminPermissions(['email.resend']),
   adminEmailLogResendRateLimit,
   asyncHandler(resendAdminEmailLog),
 );

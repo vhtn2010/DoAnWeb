@@ -261,6 +261,7 @@ test('POST /api/admin/services/{service_id}/images returns 201 with created imag
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role: 'staff',
     sub: 'staff-1',
   });
@@ -309,6 +310,7 @@ test('PATCH /api/admin/services/{service_id}/images/{image_id} returns updated i
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role_code: 'admin',
     sub: 'admin-1',
   });
@@ -353,6 +355,7 @@ test('DELETE /api/admin/services/{service_id}/images/{image_id} returns delete r
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role: 'system_admin',
     sub: 'sys-1',
   });
@@ -391,6 +394,7 @@ test('PUT /api/admin/services/{service_id}/images/reorder returns reordered imag
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role: 'staff',
     sub: 'staff-1',
   });

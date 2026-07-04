@@ -66,6 +66,7 @@ const validateCustomerAuth = (auth) => {
 
 const getPermissionCodes = (auth) => {
   const candidates = [
+    auth?.permissions,
     auth?.user?.permission_codes,
     auth?.user?.permissionCodes,
     auth?.user?.permissions,
@@ -86,10 +87,6 @@ const getPermissionCodes = (auth) => {
 
 const ensureRefundRequestPermission = (auth) => {
   const permissionCodes = getPermissionCodes(auth);
-
-  if (permissionCodes.length === 0) {
-    return;
-  }
 
   if (!permissionCodes.includes(REFUND_REQUEST_PERMISSION)) {
     throw buildForbiddenError('You do not have permission to request refunds');

@@ -14,10 +14,14 @@ const {
 } = require('../controllers/notificationController');
 const {
   requireAdminAuth,
+  requireAdminPermissions,
   requireAdminRoles,
 } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
-const { authRequired } = require('../middleware/authSession');
+const {
+  authRequired,
+  requirePermissions,
+} = require('../middleware/authSession');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
@@ -57,6 +61,7 @@ router.get(
   '/admin/notifications',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['notification.manage']),
   adminNotificationCatalogRateLimit,
   asyncHandler(listAdminNotifications),
 );
@@ -65,6 +70,7 @@ router.post(
   '/admin/notifications/broadcast',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['notification.broadcast']),
   adminNotificationDispatchRateLimit,
   asyncHandler(broadcastAdminNotification),
 );
@@ -73,6 +79,7 @@ router.post(
   '/admin/notifications/users/:user_id',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['notification.manage']),
   adminNotificationDispatchRateLimit,
   asyncHandler(sendAdminNotificationToUser),
 );
@@ -81,6 +88,7 @@ router.patch(
   '/admin/notifications/:notification_id/status',
   requireAdminAuth,
   requireAdminRoles(['admin', 'system_admin']),
+  requireAdminPermissions(['notification.manage']),
   adminNotificationStatusRateLimit,
   asyncHandler(updateAdminNotificationStatus),
 );
@@ -88,6 +96,7 @@ router.patch(
 router.get(
   '/notifications',
   authRequired({ allowedRoles }),
+  requirePermissions(['notification.read_self']),
   notificationReadRateLimit,
   asyncHandler(listMyNotifications),
 );
@@ -95,6 +104,7 @@ router.get(
 router.get(
   '/notifications/unread-count',
   authRequired({ allowedRoles }),
+  requirePermissions(['notification.read_self']),
   notificationReadRateLimit,
   asyncHandler(getUnreadNotificationCount),
 );
@@ -102,6 +112,7 @@ router.get(
 router.patch(
   '/notifications/bulk-read',
   authRequired({ allowedRoles }),
+  requirePermissions(['notification.read_self']),
   notificationReadRateLimit,
   asyncHandler(markMyNotificationsBulkRead),
 );
@@ -109,6 +120,7 @@ router.patch(
 router.patch(
   '/notifications/read-all',
   authRequired({ allowedRoles }),
+  requirePermissions(['notification.read_self']),
   notificationReadRateLimit,
   asyncHandler(markAllMyNotificationsRead),
 );
@@ -116,6 +128,7 @@ router.patch(
 router.patch(
   '/notifications/:notification_id/read',
   authRequired({ allowedRoles }),
+  requirePermissions(['notification.read_self']),
   notificationReadRateLimit,
   asyncHandler(markMyNotificationRead),
 );
@@ -123,6 +136,7 @@ router.patch(
 router.delete(
   '/notifications/:notification_id',
   authRequired({ allowedRoles }),
+  requirePermissions(['notification.read_self']),
   notificationReadRateLimit,
   asyncHandler(deleteMyNotification),
 );
@@ -130,6 +144,7 @@ router.delete(
 router.get(
   '/notifications/:notification_id',
   authRequired({ allowedRoles }),
+  requirePermissions(['notification.read_self']),
   notificationReadRateLimit,
   asyncHandler(getMyNotificationDetail),
 );

@@ -75,12 +75,27 @@ const createAccessToken = (payload, secret = process.env.JWT_ACCESS_SECRET) => {
   return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
+const getDefaultPermissionsForRole = (roleCode) => {
+  switch (roleCode) {
+    case 'staff':
+      return ['service.update'];
+    case 'admin':
+    case 'system_admin':
+      return ['service.approve', 'service.hide'];
+    default:
+      return [];
+  }
+};
+
 const createAuthContext = ({
-  permissions = [],
+  permissions,
   roleCode = 'admin',
   userId = 'admin-user-1',
 } = {}) => ({
-  permissions,
+  permissions:
+    permissions == null
+      ? getDefaultPermissionsForRole(roleCode)
+      : permissions,
   roleCode,
   tokenId: 'access-jti-1',
   user: {
@@ -99,9 +114,12 @@ test.beforeEach(() => {
     createAuthContext({
       permissions:
         tokenPayload.permissions ||
-        tokenPayload.permission_codes ||
-        [],
-      roleCode: tokenPayload.roleCode || tokenPayload.role || 'admin',
+        tokenPayload.permission_codes,
+      roleCode:
+        tokenPayload.roleCode ||
+        tokenPayload.role_code ||
+        tokenPayload.role ||
+        'admin',
       userId: tokenPayload.userId || tokenPayload.sub || 'admin-user-1',
     });
 });
@@ -412,6 +430,7 @@ test('POST /api/admin/services/{service_id}/submit-review allows staff', async (
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role: 'staff',
     sub: 'staff-1',
   });
@@ -423,6 +442,7 @@ test('POST /api/admin/services/{service_id}/submit-review allows staff', async (
         serviceScopeIds: null,
         tokenPayload: {
           exp: payload.auth.tokenPayload.exp,
+          permissions: ['service.update'],
           role: 'staff',
           sub: 'staff-1',
         },
@@ -488,6 +508,7 @@ test('POST /api/admin/services/{service_id}/approve blocks staff and allows admi
   const successServer = app.listen(0);
   const adminToken = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.approve'],
     role_code: 'admin',
     sub: 'admin-1',
   });
@@ -528,6 +549,7 @@ test('POST /api/admin/services/{service_id}/reject validates required reason', a
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.approve'],
     role: 'admin',
     sub: 'admin-1',
   });
@@ -563,6 +585,7 @@ test('POST /api/admin/services/{service_id}/restore returns restored detail', as
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.hide'],
     role: 'system_admin',
     sub: 'sys-1',
   });
@@ -606,6 +629,7 @@ test('PATCH /api/admin/services/{service_id}/status forwards payload and returns
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.hide'],
     role: 'system_admin',
     sub: 'sys-1',
   });

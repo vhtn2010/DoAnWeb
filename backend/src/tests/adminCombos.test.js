@@ -380,6 +380,7 @@ test('POST /api/admin/services/combos returns 201 for created combo', async () =
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.create'],
     role: 'staff',
     sub: 'staff-1',
   });
@@ -423,6 +424,7 @@ test('PATCH /api/admin/services/combos/{service_id} returns updated combo', asyn
   const server = app.listen(0);
   const token = createAccessToken({
     exp: Math.floor(Date.now() / 1000) + 3600,
+    permissions: ['service.update'],
     role_code: 'admin',
     sub: 'admin-1',
   });

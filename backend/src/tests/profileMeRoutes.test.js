@@ -24,9 +24,15 @@ const originalUpdateCurrentPassword = profileService.updateCurrentPassword;
 const originalUpdateCurrentProfile = profileService.updateCurrentProfile;
 
 const createAuthContext = ({
+  permissions = [
+    'profile.read_self',
+    'profile.update_self',
+    'profile.change_password',
+  ],
   roleCode = 'customer',
   userId = 'user-1',
 } = {}) => ({
+  permissions,
   roleCode,
   tokenId: 'access-jti-1',
   user: {

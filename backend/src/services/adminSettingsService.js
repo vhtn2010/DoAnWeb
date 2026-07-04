@@ -753,7 +753,7 @@ const createAdminSettingsService = ({
 
       ensurePermission({
         permissionCodes,
-        requiredCodes: ['settings.read', 'system_setting.manage'],
+        requiredCodes: ['settings.read'],
       });
 
       let record;
@@ -811,7 +811,7 @@ const createAdminSettingsService = ({
 
       ensurePermission({
         permissionCodes,
-        requiredCodes: ['settings.update', 'system_setting.manage'],
+        requiredCodes: ['settings.update'],
       });
 
       const patch = parseUpdateBody(body || {});
