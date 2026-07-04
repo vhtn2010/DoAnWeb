@@ -267,11 +267,14 @@ const parseContactPhone = (value) => {
   return phone;
 };
 
-const parseIdempotencyKey = (headers = {}) => {
+const parseRequiredIdempotencyKey = (headers = {}) => {
   const value = headers[IDEMPOTENCY_KEY_HEADER] ?? headers[IDEMPOTENCY_KEY_HEADER.toLowerCase()];
 
   if (value == null || value === '') {
-    return null;
+    throw buildValidationError(
+      IDEMPOTENCY_KEY_HEADER,
+      `${IDEMPOTENCY_KEY_HEADER} is required`,
+    );
   }
 
   if (Array.isArray(value)) {
@@ -291,7 +294,10 @@ const parseIdempotencyKey = (headers = {}) => {
   const normalized = value.trim();
 
   if (!normalized) {
-    return null;
+    throw buildValidationError(
+      IDEMPOTENCY_KEY_HEADER,
+      `${IDEMPOTENCY_KEY_HEADER} is required`,
+    );
   }
 
   if (normalized.length > 255) {
@@ -1201,26 +1207,7 @@ const createBookingService = ({
     validateCustomerAuth(auth);
 
     const parsedBody = parseBody(body || {});
-    const idempotencyKey = parseIdempotencyKey(headers);
-
-    if (idempotencyKey) {
-      const existingBooking = await repository.findBookingByIdempotencyKey({
-        idempotencyKey,
-        userId: auth.userId,
-      });
-
-      if (existingBooking) {
-        const existingItems =
-          typeof repository.listBookingItemsByBookingId === 'function'
-            ? await repository.listBookingItemsByBookingId(existingBooking.id)
-            : [];
-
-        return sanitizeCheckoutResponse({
-          booking: existingBooking,
-          items: existingItems,
-        });
-      }
-    }
+    const idempotencyKey = parseRequiredIdempotencyKey(headers);
 
     const cart = await repository.getCartById(parsedBody.cartId);
 

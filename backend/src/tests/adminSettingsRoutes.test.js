@@ -18,9 +18,11 @@ const originalGetPublicSettings = adminSettingsService.getPublicSettings;
 const originalUpdatePublicSettings = adminSettingsService.updatePublicSettings;
 
 const createAuthContext = ({
+  permissions = ['settings.read', 'settings.update', 'system_setting.manage'],
   roleCode = 'admin',
   userId = 'admin-user-1',
 } = {}) => ({
+  permissions,
   roleCode,
   tokenId: 'access-jti-1',
   user: {

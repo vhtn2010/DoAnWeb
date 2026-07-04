@@ -1,6 +1,7 @@
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const {
   buildResolvedTokenPayload,
+  normalizeScopeServiceIds,
 } = require('./authContext');
 const authService = require('../services/authService');
 const AppError = require('../utils/AppError');
@@ -20,7 +21,9 @@ const attachHiddenAuthProperty = (target, key, value) => {
 
 const buildRequestAuth = (authContext, tokenPayload) => {
   const requestAuth = {
+    role: authContext.roleCode,
     roleCode: authContext.roleCode,
+    serviceScopeIds: normalizeScopeServiceIds(tokenPayload),
     tokenId: authContext.tokenId,
     user: authContext.user,
     userId: authContext.userId,
@@ -40,6 +43,37 @@ const buildRequestAuth = (authContext, tokenPayload) => {
   );
 
   return requestAuth;
+};
+
+const normalizePermissionCodes = (req) => {
+  const permissionSources = [
+    req.auth?.permissions,
+    req.auth?.tokenPayload?.permission_codes,
+    req.auth?.tokenPayload?.permissionCodes,
+    req.auth?.tokenPayload?.permissions,
+  ];
+
+  for (const source of permissionSources) {
+    if (!Array.isArray(source)) {
+      continue;
+    }
+
+    return source
+      .map((entry) => {
+        if (typeof entry === 'string') {
+          return entry.trim();
+        }
+
+        if (entry && typeof entry === 'object' && typeof entry.code === 'string') {
+          return entry.code.trim();
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  return [];
 };
 
 const authRequired = ({ allowedRoles } = {}) => async (req, res, next) => {
@@ -100,7 +134,40 @@ const authOptional = ({ allowedRoles } = {}) => async (req, res, next) => {
   }
 };
 
+const requirePermissions = (requiredPermissions, {
+  allowWhenMissing = false,
+} = {}) => (req, res, next) => {
+  if (!req.auth?.userId) {
+    next(new AppError('Forbidden', {
+      code: API_ERROR_CODES.FORBIDDEN,
+      statusCode: 403,
+    }));
+    return;
+  }
+
+  const permissionCodes = normalizePermissionCodes(req);
+
+  if (permissionCodes.length === 0 && allowWhenMissing) {
+    next();
+    return;
+  }
+
+  if (
+    Array.isArray(requiredPermissions) &&
+    requiredPermissions.some((code) => permissionCodes.includes(code))
+  ) {
+    next();
+    return;
+  }
+
+  next(new AppError('Forbidden', {
+    code: API_ERROR_CODES.FORBIDDEN,
+    statusCode: 403,
+  }));
+};
+
 module.exports = {
   authOptional,
   authRequired,
+  requirePermissions,
 };

@@ -735,6 +735,7 @@ const resolveApprovedBookingStatus = ({
 
   if (
     refund.booking_status === 'paid' ||
+    refund.booking_status === 'confirmed' ||
     refund.booking_status === 'cancel_requested'
   ) {
     return 'refund_pending';
@@ -819,52 +820,14 @@ const createAdminRefundService = ({
       throw buildResourceNotFoundError();
     }
 
-    const isReplay = await repository.hasApproveLogByIdempotencyKey({
-      idempotencyKey,
-      refundId: parsedRefundId,
-    });
-
-    if (isReplay) {
-      const latestRefund = await repository.getRefundById({
-        allowedServiceIds: null,
-        refundId: parsedRefundId,
-      });
-      return sanitizeRefundDetail(latestRefund);
-    }
-
-    assertRefundRequested(refund);
-    assertRefundablePayment(refund);
-
-    const bookingItems =
-      await repository.getBookingItemsByBookingId(refund.booking_id);
-    assertRefundableBooking({
-      bookingItems,
-      refund,
-    });
-
     if (parsedBody.approvedAmount > roundMoney(refund.amount)) {
       throw buildRefundNotAllowedError(
         'approved_amount cannot exceed the requested refund amount',
       );
     }
 
-    const otherReservedAmount =
-      await repository.sumOtherActiveRefundAmountsByPaymentId({
-        excludedRefundId: refund.id,
-        paymentId: refund.payment_id,
-      });
-    const remainingRefundableAmount = roundMoney(
-      Number(refund.payment_amount) - otherReservedAmount,
-    );
-
-    if (
-      remainingRefundableAmount <= 0 ||
-      parsedBody.approvedAmount > remainingRefundableAmount
-    ) {
-      throw buildRefundNotAllowedError(
-        'approved_amount exceeds the remaining refundable amount',
-      );
-    }
+    const bookingItems =
+      await repository.getBookingItemsByBookingId(refund.booking_id);
 
     const result = await repository.approveRefund({
       actorUserId: auth.userId,
@@ -882,9 +845,19 @@ const createAdminRefundService = ({
       throw buildResourceNotFoundError();
     }
 
+    if (result.reused === 'idempotency') {
+      return sanitizeRefundDetail(result.refund);
+    }
+
     if (result.transitionApplied === false) {
       throw buildInvalidStateTransitionError(
         'Only requested refunds can be approved',
+      );
+    }
+
+    if (result.overApproved === true) {
+      throw buildRefundNotAllowedError(
+        'approved_amount exceeds the remaining refundable amount',
       );
     }
 
@@ -989,36 +962,6 @@ const createAdminRefundService = ({
       throw buildResourceNotFoundError();
     }
 
-    const isReplay = await repository.hasMarkSuccessLogByIdempotencyKey({
-      idempotencyKey,
-      refundId: parsedRefundId,
-    });
-
-    if (isReplay) {
-      const latestRefund = await repository.getRefundById({
-        allowedServiceIds: resolveScopeServiceIds(auth),
-        refundId: parsedRefundId,
-      });
-      return sanitizeRefundDetail(latestRefund);
-    }
-
-    assertRefundProcessing(
-      refund,
-      'Only processing refunds can be marked as successful',
-    );
-
-    if (
-      ![
-        PAYMENT_STATUS.SUCCESS,
-        PAYMENT_STATUS.RECONCILED,
-        PAYMENT_STATUS.PARTIALLY_REFUNDED,
-      ].includes(refund.payment_status)
-    ) {
-      throw buildRefundNotAllowedError(
-        'The original payment is no longer eligible for refund processing',
-      );
-    }
-
     const result = await repository.markRefundSuccess({
       actorUserId: auth.userId,
       idempotencyKey,
@@ -1030,6 +973,10 @@ const createAdminRefundService = ({
 
     if (!result) {
       throw buildResourceNotFoundError();
+    }
+
+    if (result.reused === 'idempotency') {
+      return sanitizeRefundDetail(result.refund);
     }
 
     if (result.transitionApplied === false) {

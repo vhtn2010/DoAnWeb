@@ -179,6 +179,38 @@ const createAdminPaymentRepository = ({
     );
   };
 
+  const acquireTransactionLock = async (client, key) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [key]);
+  };
+
+  const lockPaymentAndBooking = async (client, paymentId) => {
+    const paymentLockResult = await client.query(
+      `
+        SELECT id, booking_id
+        FROM payments
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [paymentId],
+    );
+
+    if (paymentLockResult.rowCount === 0) {
+      return null;
+    }
+
+    await client.query(
+      `
+        SELECT id
+        FROM bookings
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [paymentLockResult.rows[0].booking_id],
+    );
+
+    return paymentLockResult.rows[0];
+  };
+
   const transitionBookingStatus = async (client, {
     actorUserId,
     bookingId,
@@ -321,10 +353,43 @@ const createAdminPaymentRepository = ({
     receivedAt,
   }) =>
     withTransactionImpl(async (client) => {
+      await acquireTransactionLock(
+        client,
+        `payment:confirm:${actorUserId}:${paymentId}:${idempotencyKey}`,
+      );
+      const lockedPayment = await lockPaymentAndBooking(client, paymentId);
+
+      if (!lockedPayment) {
+        return null;
+      }
+
       const currentPayment = await selectPaymentById(client, paymentId);
 
       if (!currentPayment) {
         return null;
+      }
+
+      const replayResult = await client.query(
+        `
+          SELECT 1
+          FROM user_logs
+          WHERE entity_name = 'payment'
+            AND entity_id = $1
+            AND action = 'payment.direct.confirm'
+            AND metadata ->> 'idempotency_key' = $2
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        [paymentId, idempotencyKey],
+      );
+
+      if (replayResult.rowCount > 0) {
+        return {
+          bookingTransitionApplied: true,
+          payment: currentPayment,
+          reused: 'idempotency',
+          transitionApplied: true,
+        };
       }
 
       const paymentResult = await client.query(
@@ -361,6 +426,9 @@ const createAdminPaymentRepository = ({
 
       if (paymentResult.rowCount !== 1) {
         return {
+          alreadyConfirmed:
+            currentPayment.status === 'success' ||
+            currentPayment.status === 'reconciled',
           payment: currentPayment,
           transitionApplied: false,
         };

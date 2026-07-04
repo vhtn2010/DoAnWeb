@@ -8,7 +8,7 @@ const {
   updateAdminDirectPaymentSettings,
   updateAdminPublicSettings,
 } = require('../controllers/settingsController');
-const { authRequired } = require('../middleware/authSession');
+const { authRequired, requirePermissions } = require('../middleware/authSession');
 const asyncHandler = require('../middleware/asyncHandler');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
@@ -73,6 +73,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['settings.read', 'system_setting.manage']),
   adminPublicSettingsRateLimit,
   asyncHandler(getAdminPublicSettings),
 );
@@ -82,6 +83,7 @@ router.patch(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['settings.update', 'system_setting.manage']),
   adminPublicSettingsUpdateRateLimit,
   asyncHandler(updateAdminPublicSettings),
 );
@@ -91,6 +93,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['settings.read', 'system_setting.manage']),
   adminDirectPaymentSettingsRateLimit,
   asyncHandler(getAdminDirectPaymentSettings),
 );
@@ -100,6 +103,7 @@ router.patch(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['settings.update', 'system_setting.manage']),
   adminDirectPaymentSettingsUpdateRateLimit,
   asyncHandler(updateAdminDirectPaymentSettings),
 );
@@ -109,6 +113,7 @@ router.get(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['settings.read', 'system_setting.manage']),
   adminBusinessSettingsRateLimit,
   asyncHandler(getAdminBusinessSettings),
 );
@@ -118,6 +123,7 @@ router.patch(
   authRequired({
     allowedRoles: ['admin', 'system_admin'],
   }),
+  requirePermissions(['settings.update', 'system_setting.manage']),
   adminBusinessSettingsUpdateRateLimit,
   asyncHandler(updateAdminBusinessSettings),
 );
