@@ -37,7 +37,7 @@ function RecentBookingsTable({ bookings, formatCurrency, formatDateTime }) {
               }
 
               return (
-                <tr key={booking.booking_code}>
+                <tr key={booking.id ?? booking.booking_code}>
                   <td className="admin-dashboard-table__code">{booking.booking_code}</td>
                   <td>
                     <span className="admin-dashboard-table__text" title={booking.customer_name}>
