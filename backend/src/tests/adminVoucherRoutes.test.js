@@ -541,6 +541,12 @@ test('DELETE /api/admin/vouchers/:voucherId returns 403 for staff role', async (
 
   authService.resolveAuthenticatedUser = async () =>
     createAuthContext({
+      permissions: [
+        'voucher.read_all',
+        'voucher.create',
+        'voucher.update',
+        'voucher.delete',
+      ],
       roleCode: 'staff',
       userId: 'staff-user-3',
     });

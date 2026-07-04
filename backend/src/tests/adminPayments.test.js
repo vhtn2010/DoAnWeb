@@ -1355,6 +1355,11 @@ test('admin payment process routes forward auth, body, and headers to service me
     roleCode: 'staff',
     userId: 'staff-user-9',
   });
+  const staffReconcileToken = createAccessToken({
+    permissions: ['payment.reconcile'],
+    roleCode: 'staff',
+    userId: 'staff-user-10',
+  });
   const adminToken = createAccessToken({
     permissions: ['payment.reconcile'],
     roleCode: 'admin',
@@ -1477,6 +1482,19 @@ test('admin payment process routes forward auth, body, and headers to service me
         method: 'POST',
       },
     );
+    const forbiddenReconcileResponse = await request(
+      server,
+      `${apiPrefix}/admin/payments/${PAYMENT_ID}/mark-reconciled`,
+      {
+        body: {
+          note: 'Staff should not reconcile',
+        },
+        headers: {
+          Authorization: `Bearer ${staffReconcileToken}`,
+        },
+        method: 'POST',
+      },
+    );
     const reconcileResponse = await request(
       server,
       `${apiPrefix}/admin/payments/${PAYMENT_ID}/mark-reconciled`,
@@ -1518,6 +1536,9 @@ test('admin payment process routes forward auth, body, and headers to service me
     assert.equal(expireResponse.statusCode, 200);
     assert.equal(expireResponse.body.message, 'Admin payment expired successfully');
     assert.equal(captured.expire.body.reason, 'Qua han doi soat');
+
+    assert.equal(forbiddenReconcileResponse.statusCode, 403);
+    assert.equal(forbiddenReconcileResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
 
     assert.equal(reconcileResponse.statusCode, 200);
     assert.equal(reconcileResponse.body.message, 'Admin payment reconciled successfully');

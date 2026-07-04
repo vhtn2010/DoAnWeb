@@ -29,6 +29,7 @@ const VOUCHER_UPDATE_PERMISSIONS = Object.freeze([
 ]);
 const VOUCHER_UPDATE_PERMISSION = 'voucher.update';
 const VOUCHER_DELETE_PERMISSION = 'voucher.delete';
+const VOUCHER_DELETE_ROLE_CODES = Object.freeze(['admin', 'system_admin']);
 const VOUCHER_STATUS_SET = new Set(VOUCHER_STATUS_VALUES);
 const CREATE_ACTION = 'voucher.create';
 const STATUS_CHANGE_ACTION = 'voucher.change_status';
@@ -1166,6 +1167,20 @@ const ensureActorHasAnyPermission = (permissions, requiredPermissions) => {
   throw buildForbiddenError();
 };
 
+const normalizeActorRoleCode = (actor) => {
+  const roleCode = actor?.role_code || actor?.roleCode || actor?.role;
+
+  return typeof roleCode === 'string' ? roleCode.trim().toLowerCase() : null;
+};
+
+const ensureActorHasAnyRole = (actor, allowedRoleCodes) => {
+  if (allowedRoleCodes.includes(normalizeActorRoleCode(actor))) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
 const ensureActorCanReadAllVouchers = async (queryImpl, actor) => {
   const permissions = await resolveActorPermissions(queryImpl, actor);
 
@@ -1938,8 +1953,10 @@ const createAdminVoucherService = ({
     payload,
     userAgent,
     voucherId,
-  }) =>
-    withTransactionImpl(async (client) => {
+  }) => {
+    ensureActorHasAnyRole(actor, VOUCHER_DELETE_ROLE_CODES);
+
+    return withTransactionImpl(async (client) => {
       const queryExecutor = client.query.bind(client);
       const permissions = await resolveActorPermissions(queryExecutor, actor);
 
@@ -1987,6 +2004,7 @@ const createAdminVoucherService = ({
         status: updatedVoucher.status,
       };
     });
+  };
 
   return {
     createVoucher,
