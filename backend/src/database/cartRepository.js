@@ -514,10 +514,10 @@ const createCartRepository = ({ queryImpl = query } = {}) => {
           AND ci.service_type = 'tour'
         LEFT JOIN hotel_details hd
           ON hd.service_id = s.id
-          AND ci.service_type = ANY($2::text[])
+          AND ci.service_type = ANY($2::service_type[])
         LEFT JOIN room_types rt
           ON rt.id = ci.reference_id
-          AND ci.service_type = ANY($2::text[])
+          AND ci.service_type = ANY($2::service_type[])
         LEFT JOIN flight_details fd
           ON fd.id = ci.reference_id
           AND ci.service_type = 'flight'

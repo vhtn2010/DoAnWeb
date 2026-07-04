@@ -70,12 +70,12 @@ const createAdminDashboardRepository = ({
           COALESCE((
             SELECT COUNT(*)
             FROM payments p
-            WHERE p.status = ANY($3::text[])
+            WHERE p.status = ANY($3::payment_status[])
           ), 0) AS pending_payments,
           COALESCE((
             SELECT COUNT(*)
             FROM refunds r
-            WHERE r.status = ANY($4::text[])
+            WHERE r.status = ANY($4::refund_status[])
           ), 0) AS refund_requests
       `,
       [
