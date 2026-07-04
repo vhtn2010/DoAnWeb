@@ -419,6 +419,8 @@ test('getUserLogs returns only target user logs with masked metadata and meta', 
 test('createUser inserts pending verification internal user, queues email log, and writes admin audit log', async () => {
   const fixedNow = new Date('2026-07-01T10:00:00.000Z');
   const queries = [];
+  const scheduledTasks = [];
+  let sendEmailCallCount = 0;
   const client = {
     query: async (sql, params = []) => {
       queries.push({
@@ -557,10 +559,14 @@ test('createUser inserts pending verification internal user, queues email log, a
     },
     now: () => fixedNow,
     sendEmailImpl: async (payload) => {
+      sendEmailCallCount += 1;
       assert.equal(payload.to.email, 'staff@example.com');
       return {
         messageId: 'sendgrid-message-1',
       };
+    },
+    schedulePostCommitTaskImpl: async (task) => {
+      scheduledTasks.push(task);
     },
     withTransactionImpl: async (callback) => callback(client),
   });
@@ -583,11 +589,25 @@ test('createUser inserts pending verification internal user, queues email log, a
   const userLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
   const userLogMetadata = JSON.parse(userLogQuery.params[6]);
 
+  assert.equal(scheduledTasks.length, 1);
+  assert.equal(sendEmailCallCount, 0);
+  assert.equal(
+    queries.some((entry) => entry.sql.includes('UPDATE email_logs')),
+    false,
+  );
+
+  await scheduledTasks[0]();
+
+  const emailLogUpdateQuery = queries.find((entry) => entry.sql.includes('UPDATE email_logs'));
+
   assert.equal(userLogQuery.params[0], 'cccccccc-cccc-4ccc-8ccc-cccccccccccc');
   assert.equal(insertUserQuery.params[1], 'staff@example.com');
   assert.equal(insertUserQuery.params[3], 'hashed-password');
   assert.equal(insertUserQuery.params[5], 'pending_verification');
   assert.equal(emailLogQuery.params[3], ADMIN_USER_VERIFY_EMAIL_TEMPLATE_CODE);
+  assert.equal(emailLogUpdateQuery.params[0], 'email-log-1');
+  assert.equal(emailLogUpdateQuery.params[1], 'sent');
+  assert.equal(emailLogUpdateQuery.params[2], 'sendgrid-message-1');
   assert.equal(userLogQuery.params[1], ADMIN_USER_CREATE_ACTION);
   assert.deepEqual(userLogMetadata, {
     actor_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -1158,6 +1178,8 @@ test('deleteUser soft deletes active user and writes audit log', async () => {
 test('resendVerificationEmail queues email and writes audit log for pending user', async () => {
   const fixedNow = new Date('2026-07-01T15:00:00.000Z');
   const queries = [];
+  const scheduledTasks = [];
+  let sendEmailCallCount = 0;
   const client = {
     query: async (sql, params = []) => {
       queries.push({ params, sql });
@@ -1234,9 +1256,16 @@ test('resendVerificationEmail queues email and writes audit log for pending user
     createEmailVerificationTokenImpl: () => 'new-verification-token',
     hashEmailVerificationTokenImpl: () => 'new-verification-token-hash',
     now: () => fixedNow,
-    sendEmailImpl: async () => ({
-      messageId: 'sendgrid-message-2',
-    }),
+    schedulePostCommitTaskImpl: async (task) => {
+      scheduledTasks.push(task);
+    },
+    sendEmailImpl: async () => {
+      sendEmailCallCount += 1;
+
+      return {
+        messageId: 'sendgrid-message-2',
+      };
+    },
     withTransactionImpl: async (callback) => callback(client),
   });
 
@@ -1251,7 +1280,21 @@ test('resendVerificationEmail queues email and writes audit log for pending user
   const userLogQuery = queries.find((entry) => entry.sql.includes('INSERT INTO user_logs'));
   const userLogMetadata = JSON.parse(userLogQuery.params[6]);
 
+  assert.equal(scheduledTasks.length, 1);
+  assert.equal(sendEmailCallCount, 0);
+  assert.equal(
+    queries.some((entry) => entry.sql.includes('UPDATE email_logs')),
+    false,
+  );
+
+  await scheduledTasks[0]();
+
+  const emailLogUpdateQuery = queries.find((entry) => entry.sql.includes('UPDATE email_logs'));
+
   assert.equal(emailLogQuery.params[3], ADMIN_RESEND_VERIFY_EMAIL_TEMPLATE_CODE);
+  assert.equal(emailLogUpdateQuery.params[0], 'email-log-2');
+  assert.equal(emailLogUpdateQuery.params[1], 'sent');
+  assert.equal(emailLogUpdateQuery.params[2], 'sendgrid-message-2');
   assert.equal(userLogQuery.params[1], ADMIN_USER_RESEND_VERIFICATION_ACTION);
   assert.deepEqual(userLogMetadata, {
     actor_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',

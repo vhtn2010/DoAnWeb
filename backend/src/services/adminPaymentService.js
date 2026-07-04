@@ -776,34 +776,8 @@ const createAdminPaymentService = ({
 
     ensureDirectPayment(payment);
 
-    const isIdempotentReplay = await repository.hasPaymentConfirmLogByIdempotencyKey({
-      idempotencyKey,
-      paymentId: parsedPaymentId,
-    });
-
-    if (isIdempotentReplay) {
-      const latestPayment = await repository.getPaymentById(parsedPaymentId);
-      return sanitizePaymentDetail(latestPayment);
-    }
-
-    if ([PAYMENT_STATUS.SUCCESS, PAYMENT_STATUS.RECONCILED].includes(payment.status)) {
-      throw buildPaymentAlreadyConfirmedError();
-    }
-
-    if (payment.status !== PAYMENT_STATUS.PENDING) {
-      throw buildInvalidStateTransitionError(
-        'Only pending payments can be confirmed',
-      );
-    }
-
     if (parsedBody.receivedAmount !== roundMoney(payment.amount)) {
       throw buildPaymentAmountMismatchError();
-    }
-
-    if (payment.booking_status !== BOOKING_STATUS.PENDING_PAYMENT) {
-      throw buildInvalidStateTransitionError(
-        'Booking state no longer allows payment confirmation',
-      );
     }
 
     const result = await repository.confirmPayment({
@@ -818,6 +792,14 @@ const createAdminPaymentService = ({
 
     if (!result) {
       throw buildResourceNotFoundError();
+    }
+
+    if (result.reused === 'idempotency') {
+      return sanitizePaymentDetail(result.payment);
+    }
+
+    if (result.alreadyConfirmed === true) {
+      throw buildPaymentAlreadyConfirmedError();
     }
 
     if (result.transitionApplied === false) {

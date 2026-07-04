@@ -6,6 +6,7 @@ const {
 const {
   ADMIN_PUBLIC_FIELD_NAMES,
   createSettingsRepository,
+  isSettingsStorageUnavailableError,
 } = require('../database/settingsRepository');
 const settingsService = require('./settingsService');
 const AppError = require('../utils/AppError');
@@ -55,6 +56,12 @@ const buildInternalError = () =>
   new AppError('Internal server error', {
     code: API_ERROR_CODES.INTERNAL_ERROR,
     statusCode: 500,
+  });
+
+const buildSettingsStorageUnavailableError = () =>
+  new AppError('Settings storage is not configured', {
+    code: API_ERROR_CODES.SETTINGS_STORAGE_UNAVAILABLE,
+    statusCode: 503,
   });
 
 const normalizeOptionalString = (value) => {
@@ -749,7 +756,24 @@ const createAdminSettingsService = ({
         requiredCodes: ['settings.read', 'system_setting.manage'],
       });
 
-      const record = await repository.getAdminPublicSettings();
+      let record;
+
+      try {
+        record = await repository.getAdminPublicSettings();
+      } catch (error) {
+        if (!isSettingsStorageUnavailableError(error)) {
+          throw error;
+        }
+
+        record = {
+          metadata: {
+            updated_at: null,
+            updated_by: null,
+          },
+          settings: null,
+        };
+      }
+
       const settings = sanitizeStoredAdminPublicSettings({
         input: record.settings || buildAdminDefaultSettings({ sendgridConfig }),
         strict: false,
@@ -791,7 +815,18 @@ const createAdminSettingsService = ({
       });
 
       const patch = parseUpdateBody(body || {});
-      const currentRecord = await repository.getAdminPublicSettings();
+      let currentRecord;
+
+      try {
+        currentRecord = await repository.getAdminPublicSettings();
+      } catch (error) {
+        if (!isSettingsStorageUnavailableError(error)) {
+          throw error;
+        }
+
+        throw buildSettingsStorageUnavailableError();
+      }
+
       const currentSettings = sanitizeStoredAdminPublicSettings({
         input: currentRecord.settings || buildAdminDefaultSettings({ sendgridConfig }),
         strict: false,
@@ -829,6 +864,10 @@ const createAdminSettingsService = ({
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
+      }
+
+      if (isSettingsStorageUnavailableError(error)) {
+        throw buildSettingsStorageUnavailableError();
       }
 
       throw buildInternalError();

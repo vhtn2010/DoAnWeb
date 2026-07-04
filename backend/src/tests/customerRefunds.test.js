@@ -99,6 +99,7 @@ test('refundService.createCustomerRefundRequest creates a requested refund for t
             id: BOOKING_ID,
             status: 'refund_pending',
           },
+          reused: null,
           refund: {
             amount: '200000',
             booking_id: BOOKING_ID,
@@ -112,7 +113,6 @@ test('refundService.createCustomerRefundRequest creates a requested refund for t
           },
         };
       },
-      findRefundByIdempotencyKey: async () => null,
       getBookingById: async (bookingId) => {
         assert.equal(bookingId, BOOKING_ID);
 
@@ -177,24 +177,29 @@ test('refundService.createCustomerRefundRequest creates a requested refund for t
 test('refundService.createCustomerRefundRequest reuses the previous refund for the same Idempotency-Key', async () => {
   const service = refundService.createRefundService({
     repository: {
-      createRefundRequest: async () => {
-        throw new Error('createRefundRequest should not be called');
-      },
-      findRefundByIdempotencyKey: async ({ bookingId, idempotencyKey, userId }) => {
-        assert.equal(bookingId, BOOKING_ID);
+      createRefundRequest: async ({ booking, idempotencyKey, actorUserId }) => {
+        assert.equal(booking.id, BOOKING_ID);
         assert.equal(idempotencyKey, 'rf-001');
-        assert.equal(userId, CUSTOMER_ID);
+        assert.equal(actorUserId, CUSTOMER_ID);
 
         return {
-          amount: '200000',
-          booking_id: BOOKING_ID,
-          created_at: '2026-07-02T01:00:00.000Z',
-          id: REFUND_ID,
-          payment_id: PAYMENT_ID,
-          processed_at: null,
-          reason: 'Can hoan mot phan',
-          refund_code: 'RF20260702AAAA1111',
-          status: 'requested',
+          booking: {
+            booking_code: 'BK202607020001',
+            id: BOOKING_ID,
+            status: 'refund_pending',
+          },
+          refund: {
+            amount: '200000',
+            booking_id: BOOKING_ID,
+            created_at: '2026-07-02T01:00:00.000Z',
+            id: REFUND_ID,
+            payment_id: PAYMENT_ID,
+            processed_at: null,
+            reason: 'Can hoan mot phan',
+            refund_code: 'RF20260702AAAA1111',
+            status: 'requested',
+          },
+          reused: 'idempotency',
         };
       },
       getBookingById: async () => ({
@@ -203,6 +208,14 @@ test('refundService.createCustomerRefundRequest reuses the previous refund for t
         status: 'paid',
         user_id: CUSTOMER_ID,
       }),
+      getPaymentById: async () => ({
+        amount: '500000',
+        booking_id: BOOKING_ID,
+        id: PAYMENT_ID,
+        status: 'success',
+      }),
+      listBookingItemsByBookingId: async () => [],
+      sumActiveRefundAmountByPaymentId: async () => 0,
     },
   });
 
@@ -230,10 +243,56 @@ test('refundService.createCustomerRefundRequest reuses the previous refund for t
   assert.equal(result.refund.refund_code, 'RF20260702AAAA1111');
 });
 
+test('refundService.createCustomerRefundRequest requires Idempotency-Key', async () => {
+  const service = refundService.createRefundService({
+    repository: {
+      createRefundRequest: async () => {
+        throw new Error('createRefundRequest should not be called');
+      },
+      getBookingById: async () => ({
+        booking_code: 'BK202607020001',
+        id: BOOKING_ID,
+        status: 'paid',
+        user_id: CUSTOMER_ID,
+      }),
+      getPaymentById: async () => ({
+        amount: '500000',
+        booking_id: BOOKING_ID,
+        id: PAYMENT_ID,
+        status: 'success',
+      }),
+      listBookingItemsByBookingId: async () => [],
+      sumActiveRefundAmountByPaymentId: async () => 0,
+    },
+  });
+
+  await assert.rejects(
+    () => service.createCustomerRefundRequest({
+      auth: {
+        role: 'customer',
+        user: {
+          permission_codes: ['refund.request'],
+        },
+        userId: CUSTOMER_ID,
+      },
+      body: {
+        amount: 200000,
+        payment_id: PAYMENT_ID,
+        reason: 'Can hoan mot phan',
+      },
+      bookingId: BOOKING_ID,
+      headers: {},
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      return true;
+    },
+  );
+});
+
 test('refundService.createCustomerRefundRequest rejects invalid refund conditions', async () => {
   const service = refundService.createRefundService({
     repository: {
-      findRefundByIdempotencyKey: async () => null,
       getBookingById: async (bookingId) => {
         if (bookingId === BOOKING_ID) {
           return {

@@ -2,6 +2,7 @@ const { query: defaultQuery, withTransaction } = require('./client');
 
 const PUBLIC_SETTINGS_TABLE_SCHEMA = 'public';
 const PUBLIC_SETTINGS_TABLE_NAME = 'settings_store';
+const SETTINGS_STORAGE_UNAVAILABLE_MESSAGE = 'settings_store is not available';
 const PUBLIC_SETTINGS_UPDATE_ACTION = 'settings.public.update';
 const DIRECT_PAYMENT_SETTINGS_UPDATE_ACTION = 'settings.direct_payment.update';
 const BUSINESS_SETTINGS_UPDATE_ACTION = 'settings.business.update';
@@ -340,6 +341,9 @@ const executeQuery = (queryExecutor, text, params) =>
     ? queryExecutor(text, params)
     : queryExecutor.query(text, params);
 
+const isSettingsStorageUnavailableError = (error) =>
+  error?.message === SETTINGS_STORAGE_UNAVAILABLE_MESSAGE;
+
 const createSettingsRepository = ({
   query = defaultQuery,
   withTransactionImpl = withTransaction,
@@ -356,7 +360,7 @@ const createSettingsRepository = ({
     const columns = columnsResult.rows || [];
 
     if (columns.length === 0) {
-      throw new Error('settings_store is not available');
+      throw new Error(SETTINGS_STORAGE_UNAVAILABLE_MESSAGE);
     }
 
     return columns;
@@ -766,4 +770,6 @@ module.exports = {
   PUBLIC_FIELD_NAMES,
   PUBLIC_SETTINGS_UPDATE_ACTION,
   createSettingsRepository,
+  isSettingsStorageUnavailableError,
+  SETTINGS_STORAGE_UNAVAILABLE_MESSAGE,
 };
