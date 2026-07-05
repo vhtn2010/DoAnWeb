@@ -1,27 +1,34 @@
 function HotelGallery({ images, selectedImage, title, onSelectImage }) {
-  const galleryImages = Array.isArray(images) ? images : []
+  const galleryImages = Array.isArray(images) ? images.filter(Boolean) : []
+  const featuredImage = selectedImage || galleryImages[0] || ''
+  const thumbnailImages = galleryImages.slice(1, 5)
+  const remainingCount = Math.max(galleryImages.length - 5, 0)
 
   return (
-    <section aria-label="Bộ sưu tập ảnh khách sạn" className="hotel-detail-gallery">
+    <section aria-label="Bo suu tap anh khach san" className="hotel-detail-gallery">
       <div className="hotel-detail-gallery__featured">
-        <img alt={title} className="hotel-detail-gallery__featured-image" src={selectedImage} />
+        <img alt={title} className="hotel-detail-gallery__featured-image" src={featuredImage} />
       </div>
 
       <div className="hotel-detail-gallery__grid">
-        {galleryImages.map((imageUrl, index) => {
-          const isActive = selectedImage === imageUrl
+        {thumbnailImages.map((imageUrl, index) => {
+          const isActive = featuredImage === imageUrl
+          const shouldShowOverlay = remainingCount > 0 && index === thumbnailImages.length - 1
 
           return (
             <button
-              aria-label={`Xem ảnh ${index + 1} của ${title}`}
+              aria-label={`Xem anh ${index + 2} cua ${title}`}
               className={`hotel-detail-gallery__thumb ${
                 isActive ? 'hotel-detail-gallery__thumb--active' : ''
-              }`}
+              } ${shouldShowOverlay ? 'hotel-detail-gallery__thumb--more' : ''}`}
               key={`${imageUrl}-${index}`}
               type="button"
               onClick={() => onSelectImage(imageUrl)}
             >
-              <img alt={`${title} ${index + 1}`} src={imageUrl} />
+              <img alt={`${title} ${index + 2}`} src={imageUrl} />
+              {shouldShowOverlay ? (
+                <span className="hotel-detail-gallery__thumb-overlay">+{remainingCount} anh</span>
+              ) : null}
             </button>
           )
         })}
