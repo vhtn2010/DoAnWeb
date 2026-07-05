@@ -62,6 +62,7 @@ function createHotelFixture({
       highlight_text: details.highlight_text,
       nearby_places: details.nearby_places,
       review_breakdown: details.review_breakdown,
+      review_items: details.review_items,
       room_note: details.room_note,
     },
   }

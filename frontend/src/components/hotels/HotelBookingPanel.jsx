@@ -10,8 +10,8 @@ function HotelBookingPanel({
   feedback,
   formatCurrency,
   guests,
+  hotel,
   onAddToCart,
-  onCheckAvailability,
   onCheckout,
   onDateChange,
   onGuestsChange,
@@ -20,102 +20,116 @@ function HotelBookingPanel({
   selectedRoom,
   stayNights,
 }) {
-  const totalAmount = selectedRoom ? selectedRoom.sale_price * stayNights * roomQuantity : 0
+  const nightlyPrice = selectedRoom?.sale_price ?? hotel?.sale_price ?? 0
+  const totalAmount = nightlyPrice * Math.max(stayNights, 1) * roomQuantity
+  const ratingLabel = hotel ? `${hotel.display_rating_text} (${hotel.display_review_count} danh gia)` : '--'
 
   return (
     <aside className="hotel-booking-panel">
       <div className="hotel-booking-panel__card">
-        <div className="hotel-booking-panel__header">
-          <span className="hotel-booking-panel__eyebrow">Đặt phòng mock</span>
-          <h2 className="hotel-booking-panel__title">Tóm tắt lưu trú</h2>
+        <div className="hotel-booking-panel__price-block">
+          <span className="hotel-booking-panel__price-prefix">Gia tu / dem</span>
+          <strong className="hotel-booking-panel__price-value">
+            {formatCurrency(hotel?.sale_price ?? 0)}
+          </strong>
         </div>
 
-        <div className="hotel-booking-panel__fields">
-          <label className="hotel-booking-panel__field">
-            <span>Nhận phòng</span>
-            <input
-              type="date"
-              value={checkinDate}
-              onChange={(event) => onDateChange({ checkinDate: event.target.value })}
-            />
-          </label>
+        <div className="hotel-booking-panel__section">
+          <h2 className="hotel-booking-panel__title">Thong tin luu tru</h2>
 
-          <label className="hotel-booking-panel__field">
-            <span>Trả phòng</span>
-            <input
-              type="date"
-              value={checkoutDate}
-              onChange={(event) => onDateChange({ checkoutDate: event.target.value })}
-            />
-          </label>
-
-          <div className="hotel-booking-panel__field-grid">
+          <div className="hotel-booking-panel__fields">
             <label className="hotel-booking-panel__field">
-              <span>Số khách</span>
+              <span>Ngay nhan phong</span>
               <input
-                max="10"
-                min="1"
-                type="number"
-                value={guests}
-                onChange={(event) => onGuestsChange(clampInputValue(event.target.value, 1))}
+                type="date"
+                value={checkinDate}
+                onChange={(event) => onDateChange({ checkinDate: event.target.value })}
               />
             </label>
 
             <label className="hotel-booking-panel__field">
-              <span>Số phòng</span>
+              <span>Ngay tra phong</span>
               <input
-                max="5"
-                min="1"
-                type="number"
-                value={roomQuantity}
-                onChange={(event) => onRoomQuantityChange(clampInputValue(event.target.value, 1))}
+                type="date"
+                value={checkoutDate}
+                onChange={(event) => onDateChange({ checkoutDate: event.target.value })}
               />
             </label>
+
+            <div className="hotel-booking-panel__field-grid">
+              <label className="hotel-booking-panel__field">
+                <span>Hanh khach</span>
+                <input
+                  max="10"
+                  min="1"
+                  type="number"
+                  value={guests}
+                  onChange={(event) => onGuestsChange(clampInputValue(event.target.value, 1))}
+                />
+              </label>
+
+              <label className="hotel-booking-panel__field">
+                <span>So phong</span>
+                <input
+                  max="5"
+                  min="1"
+                  type="number"
+                  value={roomQuantity}
+                  onChange={(event) => onRoomQuantityChange(clampInputValue(event.target.value, 1))}
+                />
+              </label>
+            </div>
           </div>
         </div>
 
         <div className="hotel-booking-panel__summary">
+          <h3 className="hotel-booking-panel__summary-title">Tom tat thong tin</h3>
+
           <div className="hotel-booking-panel__summary-row">
-            <span>Phòng đã chọn</span>
-            <strong>{selectedRoom ? selectedRoom.title : 'Chưa chọn phòng'}</strong>
+            <span>Danh gia</span>
+            <strong>{ratingLabel}</strong>
           </div>
           <div className="hotel-booking-panel__summary-row">
-            <span>Giá mỗi đêm</span>
-            <strong>{selectedRoom ? formatCurrency(selectedRoom.sale_price) : '--'}</strong>
+            <span>Nhan phong</span>
+            <strong>{hotel?.checkin_time ?? '--'}</strong>
           </div>
           <div className="hotel-booking-panel__summary-row">
-            <span>Số đêm</span>
-            <strong>{stayNights}</strong>
+            <span>Tra phong</span>
+            <strong>{hotel?.checkout_time ?? '--'}</strong>
+          </div>
+          <div className="hotel-booking-panel__summary-row">
+            <span>Loai phong</span>
+            <strong>{selectedRoom ? selectedRoom.title : 'Chon phong ben duoi'}</strong>
+          </div>
+          <div className="hotel-booking-panel__summary-row">
+            <span>Gia moi dem</span>
+            <strong>{nightlyPrice ? formatCurrency(nightlyPrice) : '--'}</strong>
+          </div>
+          <div className="hotel-booking-panel__summary-row">
+            <span>So dem</span>
+            <strong>{stayNights || 1}</strong>
           </div>
           <div className="hotel-booking-panel__summary-row hotel-booking-panel__summary-row--total">
-            <span>Tổng tạm tính</span>
-            <strong>{selectedRoom ? formatCurrency(totalAmount) : '--'}</strong>
+            <span>Tam tinh</span>
+            <strong>{nightlyPrice ? formatCurrency(totalAmount) : '--'}</strong>
           </div>
         </div>
 
         <div className="hotel-booking-panel__actions">
           <button
-            className="hotel-booking-panel__button hotel-booking-panel__button--secondary"
-            type="button"
-            onClick={() => onCheckAvailability()}
-          >
-            Kiểm tra phòng
-          </button>
-
-          <button
             className="hotel-booking-panel__button hotel-booking-panel__button--primary"
-            type="button"
-            onClick={() => onAddToCart()}
-          >
-            Tiếp tục tới giỏ hàng
-          </button>
-
-          <button
-            className="hotel-booking-panel__button hotel-booking-panel__button--ghost"
             type="button"
             onClick={() => onCheckout()}
           >
-            Đi thẳng tới checkout
+            Dat ngay
+          </button>
+
+          <button
+            className="hotel-booking-panel__button hotel-booking-panel__button--secondary"
+            type="button"
+            onClick={() => onAddToCart()}
+          >
+            Them vao gio hang
           </button>
         </div>
 
