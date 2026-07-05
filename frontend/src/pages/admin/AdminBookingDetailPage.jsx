@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import {
   AdminButton,
@@ -11,7 +12,9 @@ import { ADMIN_ROLE_LABELS, buildAdminPath } from '../../constants/adminRoutes.j
 import {
   ADMIN_BOOKING_LIST,
   ADMIN_BOOKING_STATUS_META,
+  ADMIN_BOOKING_STATUSES,
 } from '../../fixtures/adminBookings.fixtures.js'
+import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN')
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
@@ -37,15 +40,38 @@ function DetailField({ label, value }) {
   )
 }
 
+function DetailActionIcon({ name }) {
+  return (
+    <svg
+      className="admin-booking-detail__action-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      focusable="false"
+      aria-hidden="true"
+    >
+      {name === 'check' ? (
+        <path d="m5 12 4 4L19 6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+      ) : (
+        <>
+          <path d="M18 6 6 18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+          <path d="m6 6 12 12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+        </>
+      )}
+    </svg>
+  )
+}
+
 function AdminBookingDetailPage() {
   const navigate = useNavigate()
   const { currentRole } = useOutletContext()
   const currentRoleLabel = ADMIN_ROLE_LABELS[currentRole] ?? currentRole
   const { bookingCode = '' } = useParams()
   const normalizedCode = bookingCode.replace(/^#/, '').toUpperCase()
-  const booking = ADMIN_BOOKING_LIST.find((item) => item.bookingCode === normalizedCode)
+  const bookingRecord = ADMIN_BOOKING_LIST.find((item) => item.bookingCode === normalizedCode)
+  const [statusByBookingId, setStatusByBookingId] = useState({})
+  const canWriteBookings = hasPermission(currentRole, ADMIN_PERMISSIONS.bookingsWrite)
 
-  if (!booking) {
+  if (!bookingRecord) {
     return (
       <main className="admin-booking-detail">
         <AdminErrorState
@@ -64,7 +90,19 @@ function AdminBookingDetailPage() {
     )
   }
 
+  const booking = {
+    ...bookingRecord,
+    status: statusByBookingId[bookingRecord.id] ?? bookingRecord.status,
+  }
   const statusMeta = ADMIN_BOOKING_STATUS_META[booking.status]
+  const canReviewBooking = booking.status === ADMIN_BOOKING_STATUSES.pendingConfirmation
+
+  function updateBookingStatus(nextStatus) {
+    setStatusByBookingId((currentStatuses) => ({
+      ...currentStatuses,
+      [bookingRecord.id]: nextStatus,
+    }))
+  }
 
   return (
     <main className="admin-booking-detail">
@@ -143,6 +181,29 @@ function AdminBookingDetailPage() {
           <strong>{formatCurrency(booking.totalAmount)}</strong>
         </div>
       </AdminCard>
+
+      {canReviewBooking ? (
+        <footer className="admin-booking-detail__actions" aria-label="Xử lý đơn hàng">
+          <button
+            className="admin-booking-detail__action admin-booking-detail__action--reject"
+            disabled={!canWriteBookings}
+            type="button"
+            onClick={() => updateBookingStatus(ADMIN_BOOKING_STATUSES.cancelled)}
+          >
+            <DetailActionIcon name="x" />
+            Từ chối
+          </button>
+          <button
+            className="admin-booking-detail__action admin-booking-detail__action--accept"
+            disabled={!canWriteBookings}
+            type="button"
+            onClick={() => updateBookingStatus(ADMIN_BOOKING_STATUSES.inProgress)}
+          >
+            <DetailActionIcon name="check" />
+            Chấp nhận
+          </button>
+        </footer>
+      ) : null}
     </main>
   )
 }

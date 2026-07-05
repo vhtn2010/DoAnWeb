@@ -5037,6 +5037,81 @@ select {
   border: 1px solid rgba(200, 16, 46, 0.12);
 }
 
+.admin-booking-detail__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(31, 41, 55, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-booking-detail__action {
+  min-width: 156px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 0 20px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-booking-detail__action:hover:not(:disabled),
+.admin-booking-detail__action:focus-visible:not(:disabled) {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.admin-booking-detail__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+}
+
+.admin-booking-detail__action--reject {
+  border: 2px solid #d20d2d;
+  color: #d20d2d;
+  background: #fff;
+}
+
+.admin-booking-detail__action--reject:hover:not(:disabled),
+.admin-booking-detail__action--reject:focus-visible:not(:disabled) {
+  background: rgba(210, 13, 45, 0.06);
+  box-shadow: 0 10px 18px rgba(210, 13, 45, 0.12);
+}
+
+.admin-booking-detail__action--accept {
+  border: 2px solid #d20d2d;
+  color: #fff;
+  background: #d20d2d;
+  box-shadow: 0 8px 18px rgba(210, 13, 45, 0.22);
+}
+
+.admin-booking-detail__action--accept:hover:not(:disabled),
+.admin-booking-detail__action--accept:focus-visible:not(:disabled) {
+  border-color: #a90922;
+  background: #a90922;
+  box-shadow: 0 12px 22px rgba(210, 13, 45, 0.26);
+}
+
+.admin-booking-detail__action-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
 @media (max-width: 1180px) {
   .admin-booking-card__info-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5096,9 +5171,15 @@ select {
 
   .admin-booking-card__actions,
   .admin-booking-card__actions .admin-ui-button,
+  .admin-booking-detail__actions,
+  .admin-booking-detail__action,
   .admin-review-card__actions,
   .admin-review-card__actions .admin-ui-button {
     width: 100%;
+  }
+
+  .admin-booking-detail__actions {
+    flex-direction: column-reverse;
   }
 }
 
@@ -5720,7 +5801,7 @@ select {
   --promotion-muted: #5c403d;
   --promotion-line: #e5bdb9;
   --promotion-blue: #3b568c;
-  gap: 16px;
+  gap: 20px;
   padding: 0 0 24px;
   background: #f8f9fa;
 }
@@ -5761,23 +5842,27 @@ select {
   color: var(--promotion-gold);
 }
 
-.admin-promotions-page__workspace {
+.admin-promotions-page__top-row {
   display: grid;
-  grid-template-columns: minmax(0, 568px) minmax(280px, 302px);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
   align-items: start;
-  max-width: 894px;
+}
+
+.admin-promotions-page__workspace {
+  display: block;
+  max-width: none;
 }
 
 .admin-promotions-page__main {
   display: grid;
-  gap: 16px;
+  gap: 18px;
   min-width: 0;
 }
 
 .admin-promotions-page__toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto;
+  grid-template-columns: minmax(360px, 1fr) minmax(180px, 200px) minmax(180px, 200px);
   gap: 16px;
   align-items: center;
   min-height: 87px;
@@ -5811,7 +5896,7 @@ select {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-width: 102px;
+  min-width: 180px;
 }
 
 .admin-promotions-page__select-icon {
@@ -5835,7 +5920,8 @@ select {
 
 .admin-promotions-page__select.admin-ui-select {
   min-height: 53px;
-  min-width: 102px;
+  min-width: 180px;
+  width: 100%;
   padding: 13px 34px 13px 38px;
   border-color: #906f6b;
   border-radius: 12px;
@@ -5865,9 +5951,10 @@ select {
 
 .admin-promotion-card.admin-ui-card {
   display: grid;
-  grid-template-columns: 194px minmax(0, 1fr);
-  column-gap: 24px;
+  grid-template-columns: 220px minmax(0, 1fr) auto;
+  column-gap: 28px;
   row-gap: 10px;
+  align-items: center;
   padding: 24px;
   border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 16px;
@@ -5881,6 +5968,7 @@ select {
   align-content: center;
   gap: 4px;
   min-height: 94px;
+  height: 100%;
   border: 1px solid var(--promotion-gold);
   border-radius: 12px;
   background: #fff5f5;
@@ -5983,7 +6071,8 @@ select {
 }
 
 .admin-promotion-card__actions {
-  grid-column: 2;
+  grid-column: 3;
+  grid-row: 1;
   display: flex;
   gap: 12px;
   align-items: center;
@@ -6026,9 +6115,11 @@ select {
 
 .admin-promotions-page__overview {
   display: grid;
+  grid-template-columns: minmax(220px, auto) minmax(0, 1fr);
   gap: 20px;
-  min-height: 311px;
-  padding: 24px;
+  align-items: center;
+  min-height: 0;
+  padding: 20px 24px;
   border: 1px solid var(--promotion-gold);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.7);
@@ -6052,6 +6143,7 @@ select {
 
 .admin-promotions-page__stats {
   display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
   gap: 12px;
 }
 
@@ -6143,11 +6235,11 @@ select {
   --support-muted: #5c403d;
   --support-border: #e5bdb9;
   --support-page: #f8f9fa;
-  --support-panel-height: clamp(560px, calc(100dvh - 280px), 800px);
+  --support-panel-height: clamp(620px, calc(100dvh - 96px), 684px);
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
-  width: min(100%, 1048px, calc(100vw - 368px));
+  width: min(100%, 827px);
   margin-inline: auto;
   padding-bottom: clamp(24px, 5vw, 64px);
   background: var(--support-page);
@@ -6164,12 +6256,12 @@ select {
 }
 
 .admin-support-page__header {
-  min-height: 160px;
+  min-height: 84px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
   align-items: center;
-  padding: clamp(32px, 5vw, 64px) clamp(18px, 5vw, 64px) 24px;
+  padding: 0 0 16px;
 }
 
 .admin-support-page__header-copy {
@@ -6235,11 +6327,11 @@ select {
 
 .admin-support-page__workspace {
   display: grid;
-  grid-template-columns: minmax(320px, 400px) minmax(0, 538px);
+  grid-template-columns: minmax(300px, 334px) minmax(0, 460px);
   justify-content: center;
-  gap: clamp(18px, 2.6vw, 27px);
+  gap: 22px;
   align-items: stretch;
-  padding: 0 clamp(18px, 5vw, 64px);
+  padding: 0;
 }
 
 .admin-support-page__queue,
@@ -6306,15 +6398,16 @@ select {
   min-height: 0;
   padding: 8px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .admin-support-ticket {
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: 7px;
   width: 100%;
-  min-height: 158px;
-  padding: 16px 16px 16px 17px;
+  min-height: 0;
+  padding: 13px 15px 13px 17px;
   border: 1px solid transparent;
   border-radius: 16px;
   background: #fff;
@@ -6390,19 +6483,17 @@ select {
 }
 
 .admin-support-ticket__subject {
-  display: -webkit-box;
-  overflow: hidden;
+  display: block;
   color: var(--support-muted);
   font-size: 14px;
-  line-height: 24px;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  line-height: 22px;
+  overflow-wrap: anywhere;
 }
 
 .admin-support-ticket__badges {
   justify-content: flex-start;
   flex-wrap: wrap;
-  padding-top: 8px;
+  padding-top: 6px;
 }
 
 .admin-support-ticket__badges .admin-ui-badge {
@@ -6449,11 +6540,10 @@ select {
 .admin-support-page__thread {
   display: grid;
   align-content: start;
-  gap: 24px;
+  gap: 20px;
   min-height: 0;
-  padding: 24px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  padding: 22px 24px;
+  overflow: visible;
   background: #fafbfc;
 }
 
@@ -6499,7 +6589,7 @@ select {
 .admin-support-message p {
   color: var(--support-ink);
   font-size: 16px;
-  line-height: 26px;
+  line-height: 24px;
 }
 
 .admin-support-message--system {
@@ -6511,8 +6601,10 @@ select {
 
 .admin-support-page__conversation {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
   gap: 0;
+  height: auto;
+  min-height: var(--support-panel-height);
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -6584,8 +6676,8 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  min-height: 105px;
-  padding: 24px;
+  min-height: 90px;
+  padding: 20px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.5);
 }
@@ -6595,6 +6687,10 @@ select {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.admin-support-detail-header__customer > div {
+  min-width: 0;
 }
 
 .admin-support-detail-header__customer h2 {
@@ -6609,10 +6705,11 @@ select {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   color: var(--support-muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 24px;
+  white-space: nowrap;
 }
 
 .admin-support-detail-header__customer p strong {
@@ -6622,6 +6719,7 @@ select {
 .admin-support-detail-header__actions {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 8px;
 }
 
@@ -6668,7 +6766,7 @@ select {
 
 .admin-support-thread-item {
   display: grid;
-  grid-template-columns: 32px minmax(0, 355px);
+  grid-template-columns: 32px minmax(0, 1fr);
   align-items: start;
   gap: 16px;
 }
@@ -6701,8 +6799,9 @@ select {
 }
 
 .admin-support-message {
-  max-width: 355px;
-  gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  gap: 16px;
   border-radius: 18px 18px 18px 4px;
 }
 
@@ -6710,7 +6809,7 @@ select {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 16px;
-  padding: 24px;
+  padding: 20px 22px;
   border-top: 1px solid rgba(255, 255, 255, 0.4);
   background: #fff;
 }
@@ -6725,7 +6824,8 @@ select {
 
 .admin-support-reply__editor textarea {
   width: 100%;
-  min-height: 128px;
+  height: 96px;
+  min-height: 96px;
   display: block;
   padding: 16px;
   border: 0;
@@ -6749,7 +6849,7 @@ select {
 }
 
 .admin-support-reply__toolbar {
-  min-height: 72px;
+  min-height: 62px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6894,7 +6994,7 @@ select {
   clip-path: inset(50%);
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 760px) {
   .admin-support-page {
     width: 100%;
   }
@@ -10483,6 +10583,28 @@ select {
     max-width: none;
   }
 
+  .admin-promotions-page__top-row,
+  .admin-promotions-page__overview {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-promotions-page__create.admin-ui-button {
+    justify-self: end;
+  }
+
+  .admin-promotions-page__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-promotion-card.admin-ui-card {
+    grid-template-columns: 194px minmax(0, 1fr);
+  }
+
+  .admin-promotion-card__actions {
+    grid-column: 2;
+    grid-row: auto;
+  }
+
   .admin-promotions-page__footer {
     margin-top: 24px;
   }
@@ -10541,6 +10663,12 @@ select {
   .admin-promotions-page__header {
     align-items: stretch;
     padding-top: 28px;
+  }
+
+  .admin-promotions-page__top-row,
+  .admin-promotions-page__overview,
+  .admin-promotions-page__stats {
+    grid-template-columns: 1fr;
   }
 
   .admin-promotions-page__create.admin-ui-button,
