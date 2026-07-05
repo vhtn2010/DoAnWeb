@@ -87,6 +87,41 @@ function createFeedbackState(tone = 'info', message = '') {
   }
 }
 
+function createDateFromKey(dateKey) {
+  if (!dateKey) {
+    return null
+  }
+
+  const [year, month, day] = String(dateKey)
+    .split('-')
+    .map((value) => Number(value))
+
+  if (!year || !month || !day) {
+    return null
+  }
+
+  return new Date(year, month - 1, day, 12)
+}
+
+function createDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`
+}
+
+function addDaysToDate(dateKey, days) {
+  const baseDate = createDateFromKey(dateKey)
+
+  if (!baseDate) {
+    return DEFAULT_FLIGHT_SEARCH_STATE.return_date
+  }
+
+  const nextDate = new Date(baseDate)
+  nextDate.setDate(nextDate.getDate() + days)
+
+  return createDateKey(nextDate)
+}
+
 function buildFlightCartItem({ flight, payload }) {
   return {
     id: `cart-item-flight-${Date.now()}`,
@@ -293,7 +328,7 @@ export default function useFlightList() {
       trip_type: tripType,
       return_date:
         tripType === 'round_trip'
-          ? currentState.return_date || DEFAULT_FLIGHT_SEARCH_STATE.return_date
+          ? currentState.return_date || addDaysToDate(currentState.departure_date, 5)
           : '',
     }))
   }

@@ -26,8 +26,8 @@ export const DEFAULT_FLIGHT_SEARCH_STATE = Object.freeze({
   trip_type: DEFAULT_FLIGHT_TRIP_TYPE,
   from_location: 'HAN',
   to_location: 'SGN',
-  departure_date: '2026-10-12',
-  return_date: '',
+  departure_date: '2026-07-10',
+  return_date: '2026-07-15',
   cabin_class: DEFAULT_FLIGHT_CABIN_CLASS,
 })
 
