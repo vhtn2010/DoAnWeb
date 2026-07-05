@@ -212,17 +212,37 @@ function AdminPromotionsPage() {
         className="admin-promotions-page__header"
         title="Quản lý Khuyến mãi"
         subtitle="Quản lý các chương trình khuyến mãi hiện hành và đã lên lịch."
-        actions={
-          <AdminButton
-            className="admin-promotions-page__create"
-            icon={<PlusIcon />}
-            variant="primary"
-            onClick={() => setFeedback('Luồng tạo khuyến mãi mới sẽ được nối với form ở bước backend.')}
-          >
-            Thêm Khuyến mãi Mới
-          </AdminButton>
-        }
       />
+
+      <div className="admin-promotions-page__top-row">
+        <aside className="admin-promotions-page__overview" aria-label="Tổng quan Khuyến mãi">
+          <h2>
+            <span aria-hidden="true">
+              <TagIcon />
+            </span>
+            Tổng quan Khuyến mãi
+          </h2>
+          <div className="admin-promotions-page__stats">
+            {PROMOTION_OVERVIEW.map((stat) => (
+              <article className="admin-promotions-page__stat" key={stat.label}>
+                <span>{stat.label}</span>
+                <strong className={`admin-promotions-page__stat-value admin-promotions-page__stat-value--${stat.tone}`}>
+                  {stat.value}
+                </strong>
+              </article>
+            ))}
+          </div>
+        </aside>
+
+        <AdminButton
+          className="admin-promotions-page__create"
+          icon={<PlusIcon />}
+          variant="primary"
+          onClick={() => setFeedback('Luồng tạo khuyến mãi mới sẽ được nối với form ở bước backend.')}
+        >
+          Thêm Khuyến mãi Mới
+        </AdminButton>
+      </div>
 
       <section className="admin-promotions-page__workspace" aria-label="Không gian quản lý khuyến mãi">
         <div className="admin-promotions-page__main">
@@ -329,25 +349,6 @@ function AdminPromotionsPage() {
             />
           </div>
         </div>
-
-        <aside className="admin-promotions-page__overview" aria-label="Tổng quan Khuyến mãi">
-          <h2>
-            <span aria-hidden="true">
-              <TagIcon />
-            </span>
-            Tổng quan Khuyến mãi
-          </h2>
-          <div className="admin-promotions-page__stats">
-            {PROMOTION_OVERVIEW.map((stat) => (
-              <article className="admin-promotions-page__stat" key={stat.label}>
-                <span>{stat.label}</span>
-                <strong className={`admin-promotions-page__stat-value admin-promotions-page__stat-value--${stat.tone}`}>
-                  {stat.value}
-                </strong>
-              </article>
-            ))}
-          </div>
-        </aside>
       </section>
     </main>
   )
