@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation, useSearchParams } from 'react-router-dom'
 const navItems = [
   { label: 'Trang chủ', to: '/', end: true },
   { label: 'Tour', to: '/services' },
-  { label: 'Đặt vé', to: '#' },
+  { label: 'Đặt vé', to: '/flights' },
   { label: 'Khách sạn', to: '/hotels' },
 ]
 
@@ -59,6 +59,7 @@ function PublicHeader() {
   const isCartPreview = location.pathname === '/cart'
   const isCheckoutPreview = location.pathname === '/checkout'
   const isHotelPreview = location.pathname.startsWith('/hotels')
+  const isFlightPreview = location.pathname.startsWith('/flights')
 
   return (
     <header className="public-header">
@@ -76,28 +77,16 @@ function PublicHeader() {
         </Link>
 
         <nav aria-label="Điều hướng công khai" className="public-header__nav">
-          {navItems.map((item) =>
-            item.to === '#' ? (
-              <a
-                aria-disabled="true"
-                className="public-header__link public-header__link--placeholder"
-                href="#"
-                key={item.label}
-                onClick={(event) => event.preventDefault()}
-              >
-                {item.label}
-              </a>
-            ) : (
-              <NavLink
-                className={getNavLinkClassName}
-                end={item.end}
-                key={item.label}
-                to={buildPreviewPath(item.to)}
-              >
-                {item.label}
-              </NavLink>
-            ),
-          )}
+          {navItems.map((item) => (
+            <NavLink
+              className={getNavLinkClassName}
+              end={item.end}
+              key={item.label}
+              to={buildPreviewPath(item.to)}
+            >
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
 
         <div className="public-header__actions">
@@ -137,7 +126,7 @@ function PublicHeader() {
 
               <span
                 aria-label={
-                  isCartPreview || isCheckoutPreview || isHotelPreview
+                  isCartPreview || isCheckoutPreview || isHotelPreview || isFlightPreview
                     ? 'Tài khoản người dùng trên trang preview'
                     : 'Tài khoản người dùng'
                 }
