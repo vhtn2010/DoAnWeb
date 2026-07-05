@@ -3,18 +3,12 @@ import {
   AdminButton,
   AdminCard,
   AdminEmptyState,
-  AdminField,
-  AdminFilterBar,
-  AdminKpiCard,
   AdminPageHeader,
   AdminPagination,
   AdminSearchInput,
-  AdminSectionHeader,
   AdminSelect,
-  AdminStatusBadge,
 } from '../../components/admin/ui/index.js'
 import {
-  ADMIN_PROMOTION_STATUS_META,
   ADMIN_PROMOTION_STATUSES,
   ADMIN_PROMOTIONS,
 } from '../../fixtures/adminOperations.fixtures.js'
@@ -22,16 +16,114 @@ import {
 const dateFormatter = new Intl.DateTimeFormat('vi-VN')
 
 const PROMOTION_STATUS_OPTIONS = Object.freeze([
-  { value: 'all', label: 'Tất cả' },
+  { value: 'all', label: 'Lọc' },
   { value: ADMIN_PROMOTION_STATUSES.active, label: 'Đang hoạt động' },
   { value: ADMIN_PROMOTION_STATUSES.scheduled, label: 'Sắp tới' },
   { value: ADMIN_PROMOTION_STATUSES.ended, label: 'Đã kết thúc' },
 ])
 
 const PROMOTION_SORT_OPTIONS = Object.freeze([
+  { value: 'default', label: 'Sắp xếp' },
   { value: 'newest', label: 'Mới nhất' },
   { value: 'ending', label: 'Sắp kết thúc' },
 ])
+
+const PROMOTION_STATUS_VIEW_META = Object.freeze({
+  [ADMIN_PROMOTION_STATUSES.active]: {
+    actionLabel: 'Kết thúc',
+    label: 'Đang hoạt động',
+  },
+  [ADMIN_PROMOTION_STATUSES.ended]: {
+    actionLabel: 'Kết thúc',
+    label: 'Đã kết thúc',
+  },
+  [ADMIN_PROMOTION_STATUSES.scheduled]: {
+    actionLabel: 'Hủy',
+    label: 'Sắp tới',
+  },
+})
+
+const PROMOTION_OVERVIEW = Object.freeze([
+  { label: 'Đang hoạt động', value: '12', tone: 'brand' },
+  { label: 'Sắp tới', value: '8', tone: 'info' },
+  { label: 'Đã kết thúc (Tháng này)', value: '9', tone: 'neutral' },
+])
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  )
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  )
+}
+
+function SortIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path
+        d="M8 4v14m0 0 3-3m-3 3-3-3m8-9h6m-6 6h4m-4 6h2"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  )
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path
+        d="m5 19 4.2-1 9.3-9.3a2.1 2.1 0 0 0-3-3L6.2 15 5 19Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  )
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path
+        d="M7.8 4h8.4L20 7.8v8.4L16.2 20H7.8L4 16.2V7.8L7.8 4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path d="M8 12h8" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  )
+}
+
+function TagIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path
+        d="M4 11.4V5h6.4l8.9 8.9a2.4 2.4 0 0 1 0 3.4l-2 2a2.4 2.4 0 0 1-3.4 0L4 11.4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path d="M8 8h.01" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="3" />
+    </svg>
+  )
+}
 
 function formatDate(value) {
   return dateFormatter.format(new Date(`${value}T00:00:00+07:00`))
@@ -45,6 +137,10 @@ function normalizeText(value) {
 }
 
 function sortPromotions(promotions, sortOrder) {
+  if (sortOrder === 'default') {
+    return promotions
+  }
+
   return [...promotions].sort((firstPromotion, secondPromotion) => {
     const firstDate = new Date(`${firstPromotion[sortOrder === 'ending' ? 'endDate' : 'startDate']}T00:00:00+07:00`)
     const secondDate = new Date(`${secondPromotion[sortOrder === 'ending' ? 'endDate' : 'startDate']}T00:00:00+07:00`)
@@ -55,18 +151,29 @@ function sortPromotions(promotions, sortOrder) {
   })
 }
 
+function PromotionSelect({ ariaLabel, icon, onChange, options, value }) {
+  return (
+    <label className="admin-promotions-page__select-shell">
+      <span aria-hidden="true" className="admin-promotions-page__select-icon">
+        {icon}
+      </span>
+      <AdminSelect
+        aria-label={ariaLabel}
+        className="admin-promotions-page__select"
+        options={options}
+        value={value}
+        onChange={onChange}
+      />
+    </label>
+  )
+}
+
 function AdminPromotionsPage() {
   const [promotionItems, setPromotionItems] = useState(ADMIN_PROMOTIONS)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [sortOrder, setSortOrder] = useState('newest')
+  const [sortOrder, setSortOrder] = useState('default')
   const [feedback, setFeedback] = useState('')
-
-  const promotionCounts = useMemo(() => ({
-    active: promotionItems.filter((promotion) => promotion.status === ADMIN_PROMOTION_STATUSES.active).length,
-    ended: promotionItems.filter((promotion) => promotion.status === ADMIN_PROMOTION_STATUSES.ended).length,
-    scheduled: promotionItems.filter((promotion) => promotion.status === ADMIN_PROMOTION_STATUSES.scheduled).length,
-  }), [promotionItems])
 
   const promotions = useMemo(() => {
     const query = normalizeText(searchQuery.trim())
@@ -85,7 +192,7 @@ function AdminPromotionsPage() {
   function resetFilters() {
     setSearchQuery('')
     setStatusFilter('all')
-    setSortOrder('newest')
+    setSortOrder('default')
   }
 
   function updatePromotionStatus(promotion, status) {
@@ -102,11 +209,13 @@ function AdminPromotionsPage() {
   return (
     <main className="admin-ops-page admin-promotions-page">
       <AdminPageHeader
-        eyebrow="Marketing"
+        className="admin-promotions-page__header"
         title="Quản lý Khuyến mãi"
         subtitle="Quản lý các chương trình khuyến mãi hiện hành và đã lên lịch."
         actions={
           <AdminButton
+            className="admin-promotions-page__create"
+            icon={<PlusIcon />}
             variant="primary"
             onClick={() => setFeedback('Luồng tạo khuyến mãi mới sẽ được nối với form ở bước backend.')}
           >
@@ -115,132 +224,131 @@ function AdminPromotionsPage() {
         }
       />
 
-      <AdminFilterBar
-        aria-label="Bộ lọc khuyến mãi"
-        actions={
-          <AdminButton variant="secondary" onClick={resetFilters}>
-            Đặt lại
-          </AdminButton>
-        }
-      >
-        <AdminField className="admin-ops-page__search" label="Tìm kiếm">
-          <AdminSearchInput
-            placeholder="Tìm mã, tên chương trình, mô tả..."
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-          />
-        </AdminField>
-        <AdminField label="Lọc">
-          <AdminSelect
-            options={PROMOTION_STATUS_OPTIONS}
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-          />
-        </AdminField>
-        <AdminField label="Sắp xếp">
-          <AdminSelect
-            options={PROMOTION_SORT_OPTIONS}
-            value={sortOrder}
-            onChange={(event) => setSortOrder(event.target.value)}
-          />
-        </AdminField>
-      </AdminFilterBar>
-
-      {feedback ? (
-        <p className="admin-ops-page__result-note" role="status">
-          {feedback}
-        </p>
-      ) : null}
-
-      <section className="admin-promotions-page__summary" aria-label="Tổng quan khuyến mãi">
-        <AdminKpiCard
-          label="Đang hoạt động"
-          value={promotionCounts.active}
-          helper="Mã có thể áp dụng ngay"
-          tone="success"
-        />
-        <AdminKpiCard
-          label="Sắp tới"
-          value={promotionCounts.scheduled}
-          helper="Đã lên lịch trong quý này"
-          tone="info"
-        />
-        <AdminKpiCard
-          label="Đã kết thúc"
-          value={promotionCounts.ended}
-          helper="Tính trong danh sách hiện tại"
-          tone="neutral"
-        />
-      </section>
-
-      <section className="admin-promotions-page__list" aria-label="Danh sách mã khuyến mãi">
-        <AdminSectionHeader
-          title="Danh sách Khuyến mãi"
-          subtitle={`Hiển thị ${promotions.length} trong số ${promotionItems.length} mã khuyến mãi`}
-        />
-
-        {promotions.length > 0 ? (
-          <div className="admin-promotions-page__grid">
-            {promotions.map((promotion) => {
-              const status = ADMIN_PROMOTION_STATUS_META[promotion.status]
-              const isEnded = promotion.status === ADMIN_PROMOTION_STATUSES.ended
-
-              return (
-                <AdminCard className="admin-promotion-card" key={promotion.id} padding="lg">
-                  <div className="admin-promotion-card__header">
-                    <AdminStatusBadge tone={status.tone}>{status.label}</AdminStatusBadge>
-                    <strong>{promotion.code}</strong>
-                  </div>
-                  <div className="admin-promotion-card__body">
-                    <p>Mã Khuyến mãi</p>
-                    <h2>{promotion.name}</h2>
-                    <span>
-                      Thời hạn: {formatDate(promotion.startDate)} - {formatDate(promotion.endDate)}
-                    </span>
-                    <p>{promotion.description}</p>
-                  </div>
-                  <div className="admin-promotion-card__actions">
-                    <AdminButton
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setFeedback(`Đã chọn chỉnh sửa mã ${promotion.code}.`)}
-                    >
-                      Sửa
-                    </AdminButton>
-                    <AdminButton
-                      disabled={isEnded}
-                      size="sm"
-                      variant={promotion.status === ADMIN_PROMOTION_STATUSES.scheduled ? 'danger' : 'warning'}
-                      onClick={() => updatePromotionStatus(promotion, ADMIN_PROMOTION_STATUSES.ended)}
-                    >
-                      {isEnded
-                        ? 'Đã kết thúc'
-                        : promotion.status === ADMIN_PROMOTION_STATUSES.scheduled
-                          ? 'Hủy'
-                          : 'Kết thúc'}
-                    </AdminButton>
-                  </div>
-                </AdminCard>
-              )
-            })}
+      <section className="admin-promotions-page__workspace" aria-label="Không gian quản lý khuyến mãi">
+        <div className="admin-promotions-page__main">
+          <div className="admin-promotions-page__toolbar" aria-label="Bộ lọc khuyến mãi">
+            <AdminSearchInput
+              className="admin-promotions-page__search"
+              placeholder="Tìm kiếm mã khuyến mãi..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            <PromotionSelect
+              ariaLabel="Lọc mã khuyến mãi"
+              icon={<FilterIcon />}
+              options={PROMOTION_STATUS_OPTIONS}
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            />
+            <PromotionSelect
+              ariaLabel="Sắp xếp mã khuyến mãi"
+              icon={<SortIcon />}
+              options={PROMOTION_SORT_OPTIONS}
+              value={sortOrder}
+              onChange={(event) => setSortOrder(event.target.value)}
+            />
           </div>
-        ) : (
-          <AdminEmptyState
-            title="Không có mã khuyến mãi phù hợp"
-            description="Thử đổi trạng thái, từ khóa hoặc cách sắp xếp."
-            action={
-              <AdminButton variant="secondary" onClick={resetFilters}>
-                Đặt lại bộ lọc
-              </AdminButton>
-            }
-          />
-        )}
-      </section>
 
-      <div className="admin-ops-page__pagination-row">
-        <p>Hiển thị {promotions.length} trong số {promotionItems.length} mã khuyến mãi</p>
-        <AdminPagination currentPage={1} pages={[1, 2, 3]} totalPages={3} />
-      </div>
+          {feedback ? (
+            <p className="admin-promotions-page__feedback" role="status">
+              {feedback}
+            </p>
+          ) : null}
+
+          {promotions.length > 0 ? (
+            <div className="admin-promotions-page__list" aria-label="Danh sách mã khuyến mãi">
+              {promotions.map((promotion) => {
+                const status = PROMOTION_STATUS_VIEW_META[promotion.status]
+                const isScheduled = promotion.status === ADMIN_PROMOTION_STATUSES.scheduled
+
+                return (
+                  <AdminCard
+                    className={`admin-promotion-card admin-promotion-card--${promotion.status}`}
+                    key={promotion.id}
+                    padding="lg"
+                  >
+                    <div className="admin-promotion-card__voucher">
+                      <strong>{promotion.code}</strong>
+                      <span>Mã Khuyến Mãi</span>
+                    </div>
+                    <div className="admin-promotion-card__content">
+                      <span className={`admin-promotion-card__status admin-promotion-card__status--${promotion.status}`}>
+                        {status.label}
+                      </span>
+                      <h2>{promotion.name}</h2>
+                      <p className="admin-promotion-card__description">{promotion.description}</p>
+                      <p className="admin-promotion-card__date">
+                        <span>Thời hạn:</span> {formatDate(promotion.startDate)} - {formatDate(promotion.endDate)}
+                      </p>
+                    </div>
+                    <div className="admin-promotion-card__actions">
+                      <AdminButton
+                        className="admin-promotion-card__edit"
+                        icon={<EditIcon />}
+                        size="sm"
+                        variant={isScheduled ? 'secondary' : 'primary'}
+                        onClick={() => setFeedback(`Đã chọn chỉnh sửa mã ${promotion.code}.`)}
+                      >
+                        Sửa
+                      </AdminButton>
+                      <AdminButton
+                        className="admin-promotion-card__end"
+                        icon={<StopIcon />}
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => updatePromotionStatus(promotion, ADMIN_PROMOTION_STATUSES.ended)}
+                      >
+                        {status.actionLabel}
+                      </AdminButton>
+                    </div>
+                  </AdminCard>
+                )
+              })}
+            </div>
+          ) : (
+            <AdminEmptyState
+              className="admin-promotions-page__empty"
+              title="Không có mã khuyến mãi phù hợp"
+              description="Thử đổi trạng thái, từ khóa hoặc cách sắp xếp."
+              action={
+                <AdminButton variant="secondary" onClick={resetFilters}>
+                  Đặt lại bộ lọc
+                </AdminButton>
+              }
+            />
+          )}
+
+          <div className="admin-promotions-page__footer">
+            <p>Hiển thị {promotions.length} trong số 29 mã khuyến mãi</p>
+            <AdminPagination
+              className="admin-promotions-page__pagination"
+              currentPage={1}
+              labels={{ previous: '‹', next: '›' }}
+              pages={[1, 2, 3]}
+              totalPages={3}
+            />
+          </div>
+        </div>
+
+        <aside className="admin-promotions-page__overview" aria-label="Tổng quan Khuyến mãi">
+          <h2>
+            <span aria-hidden="true">
+              <TagIcon />
+            </span>
+            Tổng quan Khuyến mãi
+          </h2>
+          <div className="admin-promotions-page__stats">
+            {PROMOTION_OVERVIEW.map((stat) => (
+              <article className="admin-promotions-page__stat" key={stat.label}>
+                <span>{stat.label}</span>
+                <strong className={`admin-promotions-page__stat-value admin-promotions-page__stat-value--${stat.tone}`}>
+                  {stat.value}
+                </strong>
+              </article>
+            ))}
+          </div>
+        </aside>
+      </section>
     </main>
   )
 }

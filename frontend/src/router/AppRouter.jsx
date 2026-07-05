@@ -21,11 +21,11 @@ import AdminPromotionsPage from '../pages/admin/AdminPromotionsPage.jsx'
 import AdminRefundsPage from '../pages/admin/AdminRefundsPage.jsx'
 import AdminRevenuePage from '../pages/admin/AdminRevenuePage.jsx'
 import AdminServiceCreatePage from '../pages/admin/AdminServiceCreatePage.jsx'
-import AdminServiceReviewPage from '../pages/admin/AdminServiceReviewPage.jsx'
+import AdminServiceReviewPage from '../pages/admin/AdminServiceReviewFigmaPage.jsx'
 import AdminServicesPage from '../pages/admin/AdminServicesPage.jsx'
 import AdminSettingsPage from '../pages/admin/AdminSettingsPage.jsx'
-import AdminSupportPage from '../pages/admin/AdminSupportPage.jsx'
-import AdminUsersPage from '../pages/admin/AdminUsersPage.jsx'
+import AdminSupportPage from '../pages/admin/AdminSupportFigmaPage.jsx'
+import AdminUsersPage from '../pages/admin/AdminUsersFigmaPage.jsx'
 import {
   AdminAuditLogsPage,
   AdminEmailLogsPage,

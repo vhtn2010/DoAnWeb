@@ -1,4 +1,4 @@
-import AdminServiceFormModal from '../../components/admin/services/AdminServiceFormModal.jsx'
+import AdminServiceFormModal from '../../components/admin/services/AdminServiceFormFigmaModal.jsx'
 import AdminServiceStatusActionModal from '../../components/admin/services/AdminServiceStatusActionModal.jsx'
 import { AdminEmptyState, AdminErrorState } from '../../components/admin/ui/index.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
