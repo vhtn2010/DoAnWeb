@@ -27,14 +27,25 @@ function formatDurationText(durationMinutes = 0) {
   const minutes = durationMinutes % 60
 
   if (hours === 0) {
-    return `${minutes} phút`
+    return `${minutes}m`
   }
 
   if (minutes === 0) {
-    return `${hours} giờ`
+    return `${hours}h`
   }
 
-  return `${hours} giờ ${minutes} phút`
+  return `${hours}h ${minutes}m`
+}
+
+function formatFlightNumber(value = '') {
+  const normalizedValue = String(value).trim()
+  const match = normalizedValue.match(/^([A-Za-z]+)(\d+)$/)
+
+  if (!match) {
+    return normalizedValue
+  }
+
+  return `${match[1].toUpperCase()}-${match[2]}`
 }
 
 function getCabinClassLabel(cabinClass = '') {
@@ -57,6 +68,7 @@ export function mapFlightToCardView(flight) {
     arrival_date_label: formatDateLabel(flight.arrival_at),
     duration_text: formatDurationText(Number(flight.duration_minutes ?? 0)),
     route_text: `${flight.departure_airport_code} → ${flight.arrival_airport_code}`,
+    flight_number_label: formatFlightNumber(flight.flight_number),
     cabin_class_label: getCabinClassLabel(flight.cabin_class),
     policy_text: [
       flight.refundable ? 'Hoàn vé' : 'Không hoàn vé',
