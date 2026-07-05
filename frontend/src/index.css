@@ -8739,6 +8739,11 @@ select {
   gap: 10px;
 }
 
+.flight-airport-combobox,
+.flight-date-picker {
+  position: relative;
+}
+
 .flight-search-panel__field-icon,
 .flight-passenger-selector__icon {
   width: 18px;
@@ -8792,22 +8797,245 @@ select {
   outline: none;
 }
 
-.flight-search-panel__field-shell--date-display {
-  position: relative;
-  display: flex;
-  align-items: center;
+.flight-airport-combobox__trigger,
+.flight-date-picker__trigger {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
 }
 
-.flight-search-panel__date-display {
+.flight-airport-combobox__trigger {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.flight-airport-combobox__value,
+.flight-date-picker__value {
+  min-width: 0;
   color: #111827;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.flight-airport-combobox__value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flight-airport-combobox__chevron {
+  width: 18px;
+  height: 18px;
+  color: rgba(107, 114, 128, 0.96);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flight-date-picker__value {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flight-date-picker__placeholder {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.flight-date-popover {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  z-index: 18;
+  width: min(368px, calc(100vw - 48px));
+  padding: 16px;
+  border: 1px solid rgba(229, 231, 235, 0.96);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.99);
+  box-shadow: 0 22px 42px rgba(15, 23, 42, 0.16);
+}
+
+.flight-airport-menu {
+  width: 100%;
+  max-width: 368px;
+  display: grid;
+  gap: 12px;
+}
+
+.flight-airport-menu__search {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 14px;
+  border: 1px solid rgba(229, 231, 235, 0.96);
+  border-radius: 14px;
+  background: #f9fafb;
+  color: #111827;
+  font-weight: 700;
+}
+
+.flight-airport-menu__search:focus {
+  outline: none;
+  border-color: rgba(215, 0, 24, 0.24);
+  box-shadow: 0 0 0 4px rgba(215, 0, 24, 0.08);
+  background: #fff;
+}
+
+.flight-airport-menu__list {
+  display: grid;
+  gap: 8px;
+  max-height: 268px;
+  overflow-y: auto;
+}
+
+.flight-airport-option {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(238, 239, 241, 0.96);
+  border-radius: 14px;
+  background: #fff;
+  color: #111827;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.flight-airport-option strong {
+  font-size: 0.95rem;
+}
+
+.flight-airport-option span,
+.flight-airport-menu__empty {
+  color: var(--color-text-soft);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.flight-airport-option:hover,
+.flight-airport-option:focus-visible,
+.flight-airport-option--active {
+  outline: none;
+  border-color: rgba(215, 0, 24, 0.22);
+  background: #fff7f7;
+  color: var(--color-brand-primary);
+}
+
+.flight-airport-menu__empty {
+  margin: 0;
+  padding: 8px 4px;
+}
+
+.flight-calendar {
+  display: grid;
+  gap: 14px;
+}
+
+.flight-calendar__header,
+.flight-calendar__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.flight-calendar__header strong {
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.flight-calendar__nav,
+.flight-calendar__today,
+.flight-calendar__done {
+  border: none;
+  cursor: pointer;
+}
+
+.flight-calendar__nav {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #f6f7f8;
+  color: #111827;
+}
+
+.flight-calendar__nav svg {
+  width: 18px;
+  height: 18px;
+}
+
+.flight-calendar__weekdays,
+.flight-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.flight-calendar__weekdays span {
+  color: var(--color-text-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.flight-calendar-day {
+  min-height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+  color: #111827;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.flight-calendar-day--outside {
+  color: rgba(107, 114, 128, 0.56);
+}
+
+.flight-calendar-day--today {
+  border: 1px solid rgba(215, 0, 24, 0.22);
+}
+
+.flight-calendar-day:hover,
+.flight-calendar-day:focus-visible {
+  outline: none;
+  background: rgba(215, 0, 24, 0.08);
+}
+
+.flight-calendar-day.selected {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+
+.flight-calendar-day.in-range {
+  background: #fff1f2;
+  color: var(--color-brand-primary);
+}
+
+.flight-calendar__today,
+.flight-calendar__done {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
   font-weight: 800;
 }
 
-.flight-search-panel__date-input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
+.flight-calendar__today {
+  background: rgba(214, 40, 40, 0.08);
+  color: var(--color-brand-primary);
+}
+
+.flight-calendar__done {
+  background: linear-gradient(135deg, #c8102e, #e11d2f);
+  color: #fff;
 }
 
 .flight-passenger-selector {
@@ -8859,6 +9087,23 @@ select {
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14);
   display: grid;
   gap: 14px;
+}
+
+.flight-passenger-selector.compact-passenger .flight-passenger-selector__trigger {
+  min-height: 54px;
+  padding-block: 6px;
+}
+
+.flight-passenger-selector.compact-passenger .flight-passenger-selector__copy {
+  gap: 2px;
+}
+
+.flight-passenger-selector.compact-passenger .flight-passenger-selector__label {
+  font-size: 0.74rem;
+}
+
+.flight-passenger-selector.compact-passenger .flight-passenger-selector__copy strong {
+  font-size: 0.95rem;
 }
 
 .flight-passenger-selector__row {
@@ -8914,14 +9159,46 @@ select {
   gap: 16px;
 }
 
+.flight-trip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flight-trip-toggle-btn {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(229, 231, 235, 0.96);
+  border-radius: var(--radius-pill);
+  background: #f4f5f6;
+  color: var(--color-text-soft);
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.flight-trip-toggle-btn.active {
+  border-color: rgba(215, 0, 24, 0.16);
+  background: #fff1f2;
+  color: var(--color-brand-primary);
+}
+
+.flight-trip-toggle-btn:hover,
+.flight-trip-toggle-btn:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: rgba(215, 0, 24, 0.22);
+}
+
 .flight-search-panel__sort {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-
-.flight-search-panel__footer-spacer {
-  min-height: 1px;
 }
 
 .flight-search-panel__sort-prefix {
@@ -9514,6 +9791,7 @@ select {
   .flight-search-panel__sort {
     justify-self: end;
   }
+
 }
 
 @media (max-width: 900px) {
@@ -9564,7 +9842,7 @@ select {
   }
 
   .flight-search-panel__sort {
-    justify-self: stretch;
+    justify-self: flex-start;
   }
 
   .flight-search-panel__submit,
@@ -9572,6 +9850,7 @@ select {
     width: 100%;
   }
 
+  .flight-date-popover,
   .flight-passenger-selector__popover {
     width: 100%;
   }
@@ -9581,6 +9860,10 @@ select {
   .flight-passenger-selector__row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .flight-trip-toggle {
+    width: 100%;
   }
 
   .flight-card {

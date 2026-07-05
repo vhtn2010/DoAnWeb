@@ -48,6 +48,7 @@ function FlightListPage() {
     submitSearch,
     updatePassengers,
     updateSearchField,
+    updateTripType,
   } = useFlightList()
   const searchPanelFeedback = selectedFlightId ? { tone: feedback.tone, message: '' } : feedback
 
@@ -78,6 +79,7 @@ function FlightListPage() {
           sortOptions={defaults.sort_options}
           updatePassengers={updatePassengers}
           updateSearchField={updateSearchField}
+          updateTripType={updateTripType}
           onSortChange={setSort}
           onSubmit={submitSearch}
         />

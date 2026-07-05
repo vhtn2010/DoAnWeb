@@ -1,15 +1,8 @@
+import FlightAirportCombobox from './FlightAirportCombobox.jsx'
+import FlightDateRangePicker from './FlightDateRangePicker.jsx'
 import FlightPassengerSelector from './FlightPassengerSelector.jsx'
 
 function SearchFieldIcon({ type }) {
-  if (type === 'calendar') {
-    return (
-      <svg fill="none" viewBox="0 0 24 24">
-        <rect height="14" rx="3" stroke="currentColor" strokeWidth="1.8" width="16" x="4" y="6" />
-        <path d="M8 4v4M16 4v4M4 11h16" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-      </svg>
-    )
-  }
-
   if (type === 'sort') {
     return (
       <svg fill="none" viewBox="0 0 24 24">
@@ -27,30 +20,7 @@ function SearchFieldIcon({ type }) {
     )
   }
 
-  return (
-    <svg fill="none" viewBox="0 0 24 24">
-      <path
-        d="M12 20s6-4.9 6-10a6 6 0 1 0-12 0c0 5.1 6 10 6 10Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <circle cx="12" cy="10" fill="currentColor" r="1.8" />
-    </svg>
-  )
-}
-
-function formatDateDisplay(value) {
-  if (!value) {
-    return '-- -- --'
-  }
-
-  const [year, month, day] = value.split('-')
-
-  if (!year || !month || !day) {
-    return value
-  }
-
-  return `${day} - ${month} - ${year}`
+  return null
 }
 
 function getSortLabel(selectedSort, variant = 'search') {
@@ -81,76 +51,86 @@ function FlightSearchPanel({
   sortOptions,
   updatePassengers,
   updateSearchField,
+  updateTripType,
   onSortChange,
   onSubmit,
 }) {
+  function handleAirportChange(fieldName, nextAirportCode) {
+    if (fieldName === 'from_location') {
+      if (nextAirportCode === searchState.to_location) {
+        updateSearchField('to_location', searchState.from_location)
+      }
+
+      updateSearchField('from_location', nextAirportCode)
+      return
+    }
+
+    if (nextAirportCode === searchState.from_location) {
+      updateSearchField('from_location', searchState.to_location)
+    }
+
+    updateSearchField('to_location', nextAirportCode)
+  }
+
+  function handleDateChange({ departureDate, returnDate }) {
+    updateSearchField('departure_date', departureDate)
+    updateSearchField('return_date', returnDate ?? '')
+  }
+
   return (
     <section className="flight-search-panel">
       <div className="flight-search-panel__grid">
-        <label className="flight-search-panel__field">
-          <span className="flight-search-panel__field-label">TỪ</span>
-          <span className="flight-search-panel__field-shell">
-            <span className="flight-search-panel__field-icon" aria-hidden="true">
-              <SearchFieldIcon type="location" />
-            </span>
-            <select
-              value={searchState.from_location}
-              onChange={(event) => updateSearchField('from_location', event.target.value)}
-            >
-              {airports.map((airport) => (
-                <option key={airport.airport_code} value={airport.airport_code}>
-                  {airport.label}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+        <FlightAirportCombobox
+          label="TỪ"
+          options={airports}
+          value={searchState.from_location}
+          onChange={(nextAirportCode) => handleAirportChange('from_location', nextAirportCode)}
+        />
 
-        <label className="flight-search-panel__field">
-          <span className="flight-search-panel__field-label">ĐẾN</span>
-          <span className="flight-search-panel__field-shell">
-            <span className="flight-search-panel__field-icon" aria-hidden="true">
-              <SearchFieldIcon type="location" />
-            </span>
-            <select
-              value={searchState.to_location}
-              onChange={(event) => updateSearchField('to_location', event.target.value)}
-            >
-              {airports.map((airport) => (
-                <option key={airport.airport_code} value={airport.airport_code}>
-                  {airport.label}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+        <FlightAirportCombobox
+          label="ĐẾN"
+          options={airports}
+          value={searchState.to_location}
+          onChange={(nextAirportCode) => handleAirportChange('to_location', nextAirportCode)}
+        />
 
-        <label className="flight-search-panel__field">
-          <span className="flight-search-panel__field-label">NGÀY ĐI - VỀ</span>
-          <span className="flight-search-panel__field-shell flight-search-panel__field-shell--date-display">
-            <span className="flight-search-panel__field-icon" aria-hidden="true">
-              <SearchFieldIcon type="calendar" />
-            </span>
-            <span className="flight-search-panel__date-display">
-              {formatDateDisplay(searchState.departure_date)}
-            </span>
-            <input
-              aria-label="Ngày đi"
-              className="flight-search-panel__date-input"
-              type="date"
-              value={searchState.departure_date}
-              onChange={(event) => updateSearchField('departure_date', event.target.value)}
-            />
-          </span>
-        </label>
+        <FlightDateRangePicker
+          departureDate={searchState.departure_date}
+          returnDate={searchState.return_date}
+          tripType={searchState.trip_type}
+          onChange={handleDateChange}
+        />
 
-        <FlightPassengerSelector passengers={searchState.passengers} onChange={updatePassengers} />
+        <FlightPassengerSelector
+          className="compact-passenger"
+          passengers={searchState.passengers}
+          onChange={updatePassengers}
+        />
       </div>
 
       <div className="flight-search-panel__divider" aria-hidden="true" />
 
       <div className="flight-search-panel__footer">
-        <div className="flight-search-panel__footer-spacer" aria-hidden="true" />
+        <div className="flight-trip-toggle" aria-label="Loại vé" role="group">
+          <button
+            className={`flight-trip-toggle-btn ${
+              searchState.trip_type === 'round_trip' ? 'active' : ''
+            }`}
+            type="button"
+            onClick={() => updateTripType('round_trip')}
+          >
+            Khứ hồi
+          </button>
+          <button
+            className={`flight-trip-toggle-btn ${
+              searchState.trip_type === 'one_way' ? 'active' : ''
+            }`}
+            type="button"
+            onClick={() => updateTripType('one_way')}
+          >
+            1 Chiều
+          </button>
+        </div>
 
         <button className="flight-search-panel__submit" type="button" onClick={onSubmit}>
           <SearchFieldIcon type="search" />

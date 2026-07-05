@@ -156,7 +156,7 @@ function shouldUseFigmaDisplayTotal({
   return (
     from_location === 'HAN' &&
     to_location === 'SGN' &&
-    departure_date === '2026-10-12' &&
+    departure_date === '2026-07-10' &&
     !airline_codes.length &&
     !price_ranges.length &&
     !departure_windows.length &&

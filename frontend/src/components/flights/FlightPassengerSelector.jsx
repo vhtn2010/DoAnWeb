@@ -43,7 +43,7 @@ function buildPassengerSummary(passengers = {}) {
   return summary.join(', ')
 }
 
-function FlightPassengerSelector({ passengers, onChange }) {
+function FlightPassengerSelector({ className = '', passengers, onChange }) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
 
@@ -62,7 +62,7 @@ function FlightPassengerSelector({ passengers, onChange }) {
   }, [])
 
   return (
-    <div className="flight-passenger-selector" ref={containerRef}>
+    <div className={`flight-passenger-selector ${className}`.trim()} ref={containerRef}>
       <button
         aria-expanded={isOpen}
         className={`flight-passenger-selector__trigger ${
