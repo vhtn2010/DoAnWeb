@@ -27,9 +27,9 @@ function CounterControl({ description, label, min = 0, value, onChange }) {
 }
 
 function formatPassengerDisplayLines(passengers = {}) {
-  const adults = Number(passengers.adults ?? 1)
-  const children = Number(passengers.children ?? 0)
-  const infants = Number(passengers.infants ?? 0)
+  const adults = Math.max(Number(passengers.adults ?? 1) || 0, 1)
+  const children = Math.max(Number(passengers.children ?? 0) || 0, 0)
+  const infants = Math.max(Number(passengers.infants ?? 0) || 0, 0)
   const firstLineParts = [`${adults} Người lớn`]
 
   if (children > 0) {
@@ -73,13 +73,17 @@ function FlightPassengerSelector({ className = '', passengers, onChange }) {
 
       <button
         aria-expanded={isOpen}
-        className={`flight-passenger-selector__trigger ${
+        aria-haspopup="dialog"
+        className={`flight-search-panel__field-shell flight-passenger-selector__trigger ${
           isOpen ? 'flight-passenger-selector__trigger--open' : ''
         }`}
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
-        <span className="flight-passenger-selector__icon" aria-hidden="true">
+        <span
+          className="flight-search-panel__field-icon flight-passenger-selector__icon"
+          aria-hidden="true"
+        >
           <svg fill="none" viewBox="0 0 24 24">
             <path
               d="M12 12.5a3.8 3.8 0 1 0 0-7.6 3.8 3.8 0 0 0 0 7.6ZM5.5 19.25a6.5 6.5 0 0 1 13 0"
@@ -90,9 +94,9 @@ function FlightPassengerSelector({ className = '', passengers, onChange }) {
           </svg>
         </span>
 
-        <span className="flight-passenger-selector__copy flight-passenger-selector__copy--lines">
-          {passengerLines.map((line) => (
-            <span key={line}>{line}</span>
+        <span className="flight-search-panel__field-value flight-passenger-selector__copy flight-passenger-selector__copy--lines">
+          {passengerLines.map((line, index) => (
+            <span key={`${line}-${index}`}>{line}</span>
           ))}
         </span>
 
