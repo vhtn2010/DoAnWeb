@@ -1,177 +1,294 @@
 import { useMemo, useState } from 'react'
-import {
-  AdminButton,
-  AdminCard,
-  AdminEmptyState,
-  AdminField,
-  AdminFilterBar,
-  AdminPageHeader,
-  AdminSearchInput,
-  AdminSectionHeader,
-  AdminSelect,
-  AdminStatusBadge,
-  AdminTable,
-} from '../../components/admin/ui/index.js'
-import {
-  ADMIN_ACCESS_ROLES,
-  ADMIN_USERS,
-  ADMIN_USER_STATUS_META,
-} from '../../fixtures/adminSystem.fixtures.js'
+
+const ACCESS_TOTAL = 24
 
 const STATUS_OPTIONS = Object.freeze([
-  { value: 'all', label: 'Tất cả trạng thái' },
+  { value: 'all', label: 'Tất cả Trạng thái' },
   { value: 'active', label: 'Hoạt động' },
   { value: 'locked', label: 'Đã khóa' },
 ])
 
 const ROLE_OPTIONS = Object.freeze([
-  { value: 'all', label: 'Tất cả vai trò' },
-  ...ADMIN_ACCESS_ROLES.map((role) => ({
-    label: role.name,
-    value: role.id,
-  })),
+  { value: 'all', label: 'Tất cả Vai trò' },
+  { value: 'staff', label: 'Staff' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'system_admin', label: 'System Admin' },
 ])
 
-const ACCESS_ROWS = ADMIN_USERS.map((user, index) => {
-  const role = ADMIN_ACCESS_ROLES[index % ADMIN_ACCESS_ROLES.length]
-
-  return {
-    ...user,
-    lastLogin: ['05/07/2026 09:14', '04/07/2026 18:32', '02/07/2026 08:45'][index] ?? '01/07/2026 10:00',
-    modules: role.permissions.slice(0, 3),
-    roleId: role.id,
-    roleName: role.name,
-  }
+const STATUS_META = Object.freeze({
+  active: { label: 'Hoạt động', tone: 'active' },
+  locked: { label: 'Đã khóa', tone: 'locked' },
 })
 
-function normalizeText(value) {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+const ACCESS_ROWS = Object.freeze([
+  {
+    email: 'truong.nv@netviet.com',
+    id: 'AC-001',
+    initials: 'NT',
+    name: 'Nguyễn Văn Trường',
+    permission: 'Quyền tài khoản Staff',
+    roleId: 'staff',
+    roleName: 'Staff',
+    status: 'active',
+    tone: 'gold',
+  },
+  {
+    email: 'thiadmin@netviet.com',
+    id: 'AC-002',
+    initials: 'NT',
+    name: 'Nguyễn Thị',
+    permission: 'Quyền tài khoản Admin',
+    roleId: 'admin',
+    roleName: 'Admin',
+    status: 'active',
+    tone: 'blue',
+  },
+  {
+    email: 'alevanadmin@netviet.com',
+    id: 'AC-003',
+    initials: 'LA',
+    name: 'Lê Văn A',
+    permission: 'Toàn quyền',
+    roleId: 'admin',
+    roleName: 'Admin',
+    status: 'active',
+    tone: 'green',
+  },
+])
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 18v3h16v-3" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+    </svg>
+  )
+}
+
+function ChevronLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m15 18-6-6 6-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+    </svg>
+  )
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+    </svg>
+  )
+}
+
+function ViewIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </svg>
+  )
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </svg>
+  )
 }
 
 function AdminAccessControlPage() {
-  const [query, setQuery] = useState('')
   const [role, setRole] = useState('all')
   const [status, setStatus] = useState('all')
+  const [feedback, setFeedback] = useState('')
 
   const rows = useMemo(() => {
-    const normalizedQuery = normalizeText(query.trim())
-
     return ACCESS_ROWS.filter((user) => {
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        normalizeText(`${user.id} ${user.name} ${user.email} ${user.roleName}`).includes(normalizedQuery)
       const matchesRole = role === 'all' || user.roleId === role
       const matchesStatus = status === 'all' || user.status === status
 
-      return matchesQuery && matchesRole && matchesStatus
+      return matchesRole && matchesStatus
     })
-  }, [query, role, status])
+  }, [role, status])
 
   function resetFilters() {
-    setQuery('')
     setRole('all')
     setStatus('all')
+    setFeedback('Đã đặt lại bộ lọc phân quyền.')
   }
 
   return (
     <main className="admin-system-page admin-access-control-page">
-      <AdminPageHeader
-        eyebrow="System Admin"
-        title="Phân quyền truy cập"
-        subtitle="Quản lý người dùng, vai trò và phạm vi truy cập hệ thống."
-        actions={<AdminButton variant="secondary">Xuất danh sách</AdminButton>}
-      />
+      <section className="admin-access-control-page__header">
+        <div className="admin-access-control-page__header-copy">
+          <h1>Phân quyền truy cập</h1>
+          <p>Quản lý và phân bổ quyền hạn cho Admin và Staff trong hệ thống.</p>
+        </div>
 
-      <AdminFilterBar
-        aria-label="Bộ lọc phân quyền truy cập"
-        actions={
-          <AdminButton variant="secondary" onClick={resetFilters}>
-            Đặt lại
-          </AdminButton>
-        }
-      >
-        <AdminField className="admin-system-page__search" label="Tìm kiếm">
-          <AdminSearchInput
-            placeholder="Tên, email, ID hoặc vai trò..."
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </AdminField>
-        <AdminField label="Vai trò">
-          <AdminSelect
-            options={ROLE_OPTIONS}
-            value={role}
-            onChange={(event) => setRole(event.target.value)}
-          />
-        </AdminField>
-        <AdminField label="Trạng thái">
-          <AdminSelect
-            options={STATUS_OPTIONS}
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-          />
-        </AdminField>
-      </AdminFilterBar>
-
-      <AdminCard className="admin-system-page__table-card" padding="lg">
-        <AdminSectionHeader
-          title="Danh sách quyền truy cập"
-          subtitle={`Hiển thị ${rows.length} trong số ${ACCESS_ROWS.length} tài khoản có quyền hệ thống`}
-        />
-
-        <AdminTable
-          tableClassName="admin-access-control-page__table"
-          columns={[
-            { key: 'user', label: 'Người dùng' },
-            { key: 'role', label: 'Vai trò' },
-            { key: 'status', label: 'Trạng thái' },
-            { key: 'lastLogin', label: 'Đăng nhập gần nhất' },
-            { key: 'modules', label: 'Phạm vi truy cập' },
-          ]}
-          emptyState={
-            <AdminEmptyState
-              title="Không có tài khoản phù hợp"
-              description="Thử đổi từ khóa, vai trò hoặc trạng thái."
-              action={<AdminButton variant="secondary" onClick={resetFilters}>Đặt lại</AdminButton>}
-            />
-          }
-          rows={rows}
+        <button
+          className="admin-access-control-page__export"
+          type="button"
+          onClick={() => setFeedback('Đã chuẩn bị dữ liệu phân quyền để xuất Excel.')}
         >
-          {rows.map((user) => {
-            const statusMeta = ADMIN_USER_STATUS_META[user.status]
+          <DownloadIcon />
+          <span>Xuất Excel</span>
+        </button>
+      </section>
 
-            return (
-              <tr className="admin-ops-table__row" key={user.id}>
-                <td>
-                  <div className="admin-system-page__stack">
-                    <strong>{user.name}</strong>
-                    <span>{user.email}</span>
-                  </div>
-                </td>
-                <td>
-                  <AdminStatusBadge tone={user.roleId === 'system_admin' ? 'brand' : 'info'}>
-                    {user.roleName}
-                  </AdminStatusBadge>
-                </td>
-                <td>
-                  <AdminStatusBadge tone={statusMeta.tone}>{statusMeta.label}</AdminStatusBadge>
-                </td>
-                <td>{user.lastLogin}</td>
-                <td>
-                  <div className="admin-system-page__badges">
-                    {user.modules.map((moduleName) => (
-                      <AdminStatusBadge key={moduleName} tone="neutral">{moduleName}</AdminStatusBadge>
-                    ))}
-                  </div>
-                </td>
+      <form
+        className="admin-access-control-page__filters"
+        aria-label="Bộ lọc phân quyền truy cập"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <label className="admin-access-control-page__select">
+          <span className="admin-access-control-page__sr-only">Vai trò</span>
+          <select value={role} onChange={(event) => setRole(event.target.value)}>
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon />
+        </label>
+
+        <label className="admin-access-control-page__select">
+          <span className="admin-access-control-page__sr-only">Trạng thái</span>
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon />
+        </label>
+
+        {(role !== 'all' || status !== 'all') ? (
+          <button className="admin-access-control-page__reset" type="button" onClick={resetFilters}>
+            Đặt lại
+          </button>
+        ) : null}
+      </form>
+
+      {feedback ? (
+        <p className="admin-access-control-page__feedback" role="status">
+          {feedback}
+        </p>
+      ) : null}
+
+      <section className="admin-access-control-page__table-card" aria-label="Danh sách quyền truy cập">
+        <div className="admin-access-control-page__table-scroll">
+          <table className="admin-access-control-page__table">
+            <thead>
+              <tr>
+                <th scope="col">TÊN / EMAIL</th>
+                <th scope="col">Vai trò</th>
+                <th scope="col">QUYỀN HẠN</th>
+                <th scope="col">TRẠNG THÁI</th>
+                <th scope="col">THAO TÁC</th>
               </tr>
-            )
-          })}
-        </AdminTable>
-      </AdminCard>
+            </thead>
+            <tbody>
+              {rows.length > 0 ? rows.map((user) => {
+                const statusMeta = STATUS_META[user.status]
+
+                return (
+                  <tr key={user.id}>
+                    <td>
+                      <div className="admin-access-control-page__identity">
+                        <span className={`admin-access-control-page__avatar admin-access-control-page__avatar--${user.tone}`}>
+                          {user.initials}
+                        </span>
+                        <span className="admin-access-control-page__person">
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td>{user.roleName}</td>
+                    <td>
+                      <span className="admin-access-control-page__permission">
+                        {user.permission}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`admin-access-control-page__status admin-access-control-page__status--${statusMeta.tone}`}>
+                        {statusMeta.label}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="admin-access-control-page__actions">
+                        <button
+                          type="button"
+                          aria-label={`Xem quyền của ${user.name}`}
+                          onClick={() => setFeedback(`Đang xem nhanh quyền của ${user.name}.`)}
+                        >
+                          <ViewIcon />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Sửa quyền của ${user.name}`}
+                          onClick={() => setFeedback(`Đang mở chế độ chỉnh quyền cho ${user.name}.`)}
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Xóa quyền của ${user.name}`}
+                          onClick={() => setFeedback(`Cần xác nhận trước khi xóa quyền của ${user.name}.`)}
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              }) : (
+                <tr>
+                  <td colSpan="5">
+                    <div className="admin-access-control-page__empty" role="status">
+                      <strong>Không có tài khoản phù hợp</strong>
+                      <span>Thử đổi vai trò hoặc trạng thái để xem dữ liệu phân quyền.</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <nav className="admin-access-control-page__pagination" aria-label="Phân trang quyền truy cập">
+          <p>Hiển thị 1 đến {rows.length} của {ACCESS_TOTAL} kết quả</p>
+          <div className="admin-access-control-page__page-buttons">
+            <button type="button" aria-label="Quay về trước 1 trang" disabled>
+              <ChevronLeftIcon />
+            </button>
+            <button type="button" aria-current="page">1</button>
+            <button type="button">2</button>
+            <button type="button">3</button>
+            <button type="button" aria-label="Về sau 1 trang">
+              <ChevronRightIcon />
+            </button>
+          </div>
+        </nav>
+      </section>
     </main>
   )
 }

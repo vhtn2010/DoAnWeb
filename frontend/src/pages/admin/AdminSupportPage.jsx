@@ -27,6 +27,26 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+function cx(...classNames) {
+  return classNames.filter(Boolean).join(' ')
+}
+
+function SupportIcon({ children }) {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      {children}
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <SupportIcon>
+      <path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+    </SupportIcon>
+  )
+}
+
 function AdminSupportPage() {
   const [reply, setReply] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -55,7 +75,31 @@ function AdminSupportPage() {
   }
 
   return (
-    <main className="admin-ops-page admin-support-page">
+    <main className="admin-support-page">
+      <header className="admin-support-page__header">
+        <div className="admin-support-page__header-copy">
+          <h1>Hỗ trợ khách hàng</h1>
+          <p>Quản lý và phản hồi các yêu cầu từ du khách.</p>
+        </div>
+
+        <div className="admin-support-page__filters" role="group" aria-label="Lọc trạng thái hỗ trợ">
+          {ADMIN_SUPPORT_STATUS_OPTIONS.map((option) => (
+            <button
+              className={cx(
+                'admin-support-page__filter',
+                statusFilter === option.value && 'admin-support-page__filter--active',
+              )}
+              key={option.value}
+              type="button"
+              aria-pressed={statusFilter === option.value}
+              onClick={() => setStatusFilter(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
       <AdminPageHeader
         eyebrow="Chăm sóc khách hàng"
         title="Hỗ trợ khách hàng"
@@ -87,6 +131,20 @@ function AdminSupportPage() {
 
       <div className="admin-support-page__workspace">
         <section className="admin-support-page__queue" aria-label="Danh sách yêu cầu hỗ trợ">
+          <form className="admin-support-page__search" role="search" onSubmit={(event) => event.preventDefault()}>
+            <label className="admin-support-page__search-control">
+              <span className="admin-support-page__sr-only">Tìm kiếm mã hỗ trợ, khách hàng</span>
+              <SearchIcon />
+              <input
+                placeholder="Tìm kiếm mã hỗ trợ, khách hàng..."
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </label>
+          </form>
+
+          <div className="admin-support-page__list">
           {requests.length > 0 ? requests.map((request) => {
             const priority = ADMIN_SUPPORT_PRIORITY_META[request.priority]
             const status = ADMIN_SUPPORT_STATUS_META[request.status]
@@ -126,6 +184,7 @@ function AdminSupportPage() {
               }
             />
           )}
+          </div>
         </section>
 
         {selectedRequest ? (

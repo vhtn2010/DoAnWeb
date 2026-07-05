@@ -1,180 +1,199 @@
-import { useMemo, useState } from 'react'
-import {
-  AdminButton,
-  AdminCard,
-  AdminField,
-  AdminFilterBar,
-  AdminInput,
-  AdminPageHeader,
-  AdminSectionHeader,
-  AdminSegmentedControl,
-  AdminStatusBadge,
-} from '../../components/admin/ui/index.js'
-import { ADMIN_SETTINGS_GROUPS } from '../../fixtures/adminSystem.fixtures.js'
+import { useState } from 'react'
 
-function buildInitialValues() {
-  return ADMIN_SETTINGS_GROUPS.reduce((values, group) => {
-    group.fields.forEach((field) => {
-      values[field.name] = field.value
-    })
+const SETTINGS_TABS = Object.freeze([
+  'Thiết lập chung',
+  'Cấu hình Website',
+  'Cấu hình Email',
+  'Lịch Backup',
+  'Quản lý API',
+  'Bảo mật',
+])
 
-    return values
-  }, {})
-}
-
-function validateSettings(values) {
-  const errors = {}
-
-  if (!values.brandName?.trim()) {
-    errors.brandName = 'Nhập tên thương hiệu.'
-  }
-
-  if (values.supportEmail && !values.supportEmail.includes('@')) {
-    errors.supportEmail = 'Email hỗ trợ chưa hợp lệ.'
-  }
-
-  if (!values.hotline?.trim()) {
-    errors.hotline = 'Nhập hotline.'
-  }
-
-  return errors
-}
-
-function AdminSettingsPage() {
-  const [activeGroupId, setActiveGroupId] = useState(ADMIN_SETTINGS_GROUPS[0]?.id ?? '')
-  const [feedback, setFeedback] = useState('')
-  const [values, setValues] = useState(buildInitialValues)
-  const [errors, setErrors] = useState({})
-  const [isSaving, setIsSaving] = useState(false)
-  const initialValues = useMemo(() => buildInitialValues(), [])
-  const activeGroup = ADMIN_SETTINGS_GROUPS.find((group) => group.id === activeGroupId) ?? ADMIN_SETTINGS_GROUPS[0]
-  const hasChanges = Object.keys(initialValues).some((key) => initialValues[key] !== values[key])
-
-  function updateValue(fieldName, value) {
-    setValues((currentValues) => ({
-      ...currentValues,
-      [fieldName]: value,
-    }))
-    setErrors((currentErrors) => {
-      if (!currentErrors[fieldName]) {
-        return currentErrors
-      }
-
-      const nextErrors = { ...currentErrors }
-      delete nextErrors[fieldName]
-      return nextErrors
-    })
-  }
-
-  function handleSubmit(event) {
-    event.preventDefault()
-    const nextErrors = validateSettings(values)
-    setErrors(nextErrors)
-
-    if (Object.keys(nextErrors).length > 0) {
-      setFeedback('')
-      return
-    }
-
-    setIsSaving(true)
-    window.setTimeout(() => {
-      setIsSaving(false)
-      setFeedback('Cấu hình hệ thống đã được lưu trong mock frontend.')
-    }, 350)
-  }
-
-  function handleReset() {
-    setValues(initialValues)
-    setErrors({})
-    setFeedback('Đã khôi phục cấu hình mặc định trong mock frontend.')
+function SettingIcon({ type }) {
+  if (type === 'region') {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+        <path d="M12 21s7-5.2 7-11.2A7 7 0 0 0 5 9.8C5 15.8 12 21 12 21Z" />
+        <path d="M12 12.3a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z" />
+      </svg>
+    )
   }
 
   return (
-    <main className="admin-system-page admin-settings-page">
-      <AdminPageHeader
-        eyebrow="Thiết lập"
-        title="Cấu hình hệ thống"
-        subtitle="Quản lý thông tin công ty, thanh toán và trạng thái vận hành hệ thống."
-        actions={
-          <AdminStatusBadge tone={hasChanges ? 'warning' : 'success'}>
-            {hasChanges ? 'Có thay đổi chưa lưu' : 'Đã đồng bộ'}
-          </AdminStatusBadge>
-        }
-      />
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path d="M4.5 20V8.8L12 4l7.5 4.8V20" />
+      <path d="M8.2 20v-7.3h7.6V20" />
+      <path d="M9.1 10h.01M14.9 10h.01" />
+    </svg>
+  )
+}
 
-      <AdminFilterBar aria-label="Tabs cấu hình hệ thống">
-        <AdminSegmentedControl
-          ariaLabel="Chọn nhóm cấu hình"
-          options={ADMIN_SETTINGS_GROUPS.map((group) => ({
-            label: group.title,
-            value: group.id,
-          }))}
-          value={activeGroupId}
-          onChange={setActiveGroupId}
-        />
-      </AdminFilterBar>
+function ChevronIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
+      <path d="m5 7.5 5 5 5-5" />
+    </svg>
+  )
+}
 
-      <form className="admin-system-settings" noValidate onSubmit={handleSubmit}>
-        <div className="admin-settings-page__workspace">
-          <AdminCard className="admin-settings-page__form-card" padding="lg">
-            <AdminSectionHeader
-              title={activeGroup.title}
-              subtitle={activeGroup.description}
-            />
-            <div className="admin-system-settings__grid">
-              {activeGroup.fields.map((field) => (
-                <AdminField
-                  error={errors[field.name]}
-                  htmlFor={`setting-${field.name}`}
-                  key={field.name}
-                  label={field.label}
-                >
-                  <AdminInput
-                    id={`setting-${field.name}`}
-                    invalid={Boolean(errors[field.name])}
-                    value={values[field.name]}
-                    onChange={(event) => updateValue(field.name, event.target.value)}
-                  />
-                </AdminField>
-              ))}
+function AdminSettingsPage() {
+  const [activeTab, setActiveTab] = useState(SETTINGS_TABS[0])
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false)
+  const [feedback, setFeedback] = useState('')
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    setFeedback('Cấu hình hệ thống đã được cập nhật trong mock frontend.')
+  }
+
+  function handleMaintenanceToggle() {
+    setMaintenanceEnabled((currentValue) => !currentValue)
+    setFeedback((currentValue) => (
+      currentValue === 'Chế độ bảo trì đã được thay đổi trong mock frontend.'
+        ? ''
+        : 'Chế độ bảo trì đã được thay đổi trong mock frontend.'
+    ))
+  }
+
+  return (
+    <main className="admin-settings-page">
+      <header className="admin-settings-page__header">
+        <h1>Cấu hình hệ thống</h1>
+        <p>Quản lý các thiết lập và cấu hình hệ thống Nét Việt Travel</p>
+      </header>
+
+      <nav className="admin-settings-page__tabs" aria-label="Nhóm cấu hình hệ thống">
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            aria-current={activeTab === tab ? 'page' : undefined}
+            className={activeTab === tab ? 'is-active' : ''}
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+          </button>
+        ))}
+      </nav>
+
+      <form className="admin-settings-page__workspace" onSubmit={handleSubmit}>
+        <div className="admin-settings-page__main-column">
+          <section className="admin-settings-page__panel admin-settings-page__panel--company" aria-labelledby="settings-company-title">
+            <div className="admin-settings-page__section-title">
+              <span className="admin-settings-page__section-icon">
+                <SettingIcon />
+              </span>
+              <h2 id="settings-company-title">Thông tin công ty</h2>
             </div>
-          </AdminCard>
 
-          <AdminCard className="admin-settings-page__status-card" padding="lg">
-            <AdminSectionHeader
-              title="Trạng thái hệ thống"
-              subtitle="Tín hiệu cấu hình đang áp dụng"
-            />
-            <div className="admin-access-control-page__audit-list">
-              <span>Bảo trì <strong>{values.maintenance ?? 'Tắt'}</strong></span>
-              <span>Email tự động <strong>{values.emailAutomation ?? 'Bật'}</strong></span>
-              <span>Cảnh báo vận hành <strong>{values.opsAlert ?? 'Bật'}</strong></span>
+            <div className="admin-settings-page__form-grid">
+              <label className="admin-settings-page__field" htmlFor="settings-company-name">
+                <span>Tên công ty</span>
+                <input id="settings-company-name" defaultValue="Nét Việt Travel" />
+              </label>
+              <label className="admin-settings-page__field" htmlFor="settings-tax-code">
+                <span>Mã số thuế</span>
+                <input id="settings-tax-code" defaultValue="0101234567" />
+              </label>
+              <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor="settings-address">
+                <span>Địa chỉ trụ sở</span>
+                <input id="settings-address" defaultValue="Nét Việt, Quận 1, TP. Hồ Chí Minh" />
+              </label>
+              <label className="admin-settings-page__field" htmlFor="settings-email">
+                <span>Email liên hệ</span>
+                <input id="settings-email" defaultValue="hellonetviet@gmail.com" type="email" />
+              </label>
+              <label className="admin-settings-page__field" htmlFor="settings-hotline">
+                <span>Hotline</span>
+                <input id="settings-hotline" defaultValue="1900 888 999" />
+              </label>
             </div>
-          </AdminCard>
+          </section>
+
+          <section className="admin-settings-page__panel admin-settings-page__panel--region" aria-labelledby="settings-region-title">
+            <div className="admin-settings-page__section-title">
+              <span className="admin-settings-page__section-icon">
+                <SettingIcon type="region" />
+              </span>
+              <h2 id="settings-region-title">Cấu hình khu vực</h2>
+            </div>
+
+            <div className="admin-settings-page__form-grid">
+              <label className="admin-settings-page__field" htmlFor="settings-language">
+                <span>Ngôn ngữ mặc định</span>
+                <span className="admin-settings-page__select">
+                  <select id="settings-language" defaultValue="vi-VN">
+                    <option value="vi-VN">Tiếng Việt (vi-VN)</option>
+                    <option value="en-US">English (en-US)</option>
+                  </select>
+                  <ChevronIcon />
+                </span>
+              </label>
+              <label className="admin-settings-page__field admin-settings-page__field--tall" htmlFor="settings-timezone">
+                <span>Múi giờ</span>
+                <span className="admin-settings-page__select">
+                  <select id="settings-timezone" defaultValue="asia-bangkok">
+                    <option value="asia-bangkok">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>
+                    <option value="utc">(GMT+00:00) Coordinated Universal Time</option>
+                  </select>
+                  <ChevronIcon />
+                </span>
+              </label>
+              <label className="admin-settings-page__field" htmlFor="settings-currency">
+                <span>Đồng tiền cơ sở</span>
+                <span className="admin-settings-page__select">
+                  <select id="settings-currency" defaultValue="vnd">
+                    <option value="vnd">VND - Việt Nam Đồng</option>
+                    <option value="usd">USD - US Dollar</option>
+                  </select>
+                  <ChevronIcon />
+                </span>
+              </label>
+              <label className="admin-settings-page__field" htmlFor="settings-date-format">
+                <span>Định dạng ngày</span>
+                <span className="admin-settings-page__select">
+                  <select id="settings-date-format" defaultValue="dd-mm-yyyy">
+                    <option value="dd-mm-yyyy">DD/MM/YYYY</option>
+                    <option value="yyyy-mm-dd">YYYY/MM/DD</option>
+                  </select>
+                  <ChevronIcon />
+                </span>
+              </label>
+            </div>
+          </section>
         </div>
 
-        <AdminCard className="admin-settings-page__region-card" padding="lg">
-          <AdminSectionHeader
-            title="Cấu hình khu vực"
-            subtitle="Thiết lập mặc định cho giao diện quản trị Việt Nam"
-          />
-          <div className="admin-access-control-page__audit-list admin-settings-page__region-list">
-            <span>Múi giờ <strong>Asia/Bangkok</strong></span>
-            <span>Tiền tệ <strong>VND</strong></span>
-            <span>Ngôn ngữ <strong>Tiếng Việt</strong></span>
+        <aside className="admin-settings-page__panel admin-settings-page__status-panel" aria-labelledby="settings-status-title">
+          <h2 id="settings-status-title">Trạng thái hệ thống</h2>
+          <div className="admin-settings-page__status-list">
+            <div className="admin-settings-page__status-item">
+              <span>Phiên bản</span>
+              <strong className="admin-settings-page__version">v2.4.1</strong>
+            </div>
+            <div className="admin-settings-page__status-item">
+              <span>Bảo trì</span>
+              <button
+                aria-checked={maintenanceEnabled}
+                aria-label="Bật tắt chế độ bảo trì"
+                className="admin-settings-page__switch"
+                role="switch"
+                type="button"
+                onClick={handleMaintenanceToggle}
+              >
+                <span />
+              </button>
+            </div>
+            <div className="admin-settings-page__status-item">
+              <span>Log lỗi API</span>
+            </div>
           </div>
-        </AdminCard>
 
-        {feedback ? <p className="admin-system-settings__feedback" role="status">{feedback}</p> : null}
-
-        <div className="admin-system-settings__actions">
-          <AdminButton disabled={isSaving} loading={isSaving} type="submit" variant="primary">
+          <button className="admin-settings-page__save" type="submit">
             Lưu cấu hình
-          </AdminButton>
-          <AdminButton disabled={isSaving} type="button" variant="secondary" onClick={handleReset}>
-            Khôi phục mặc định
-          </AdminButton>
-        </div>
+          </button>
+        </aside>
+
+        {feedback ? <p className="admin-settings-page__feedback" role="status">{feedback}</p> : null}
       </form>
     </main>
   )

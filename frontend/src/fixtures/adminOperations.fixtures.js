@@ -9,13 +9,12 @@ export const ADMIN_REFUND_STATUS_OPTIONS = Object.freeze([
   { value: ADMIN_REFUND_STATUSES.all, label: 'Tất cả' },
   { value: ADMIN_REFUND_STATUSES.completed, label: 'Đã hoàn tiền' },
   { value: ADMIN_REFUND_STATUSES.pending, label: 'Chờ xử lý' },
-  { value: ADMIN_REFUND_STATUSES.processing, label: 'Đang xử lý' },
 ])
 
 export const ADMIN_REFUND_STATUS_META = Object.freeze({
   [ADMIN_REFUND_STATUSES.completed]: { label: 'Đã hoàn tiền', tone: 'success' },
   [ADMIN_REFUND_STATUSES.pending]: { label: 'Chờ xử lý', tone: 'warning' },
-  [ADMIN_REFUND_STATUSES.processing]: { label: 'Đang xử lý', tone: 'info' },
+  [ADMIN_REFUND_STATUSES.processing]: { label: 'Đang xử lý', tone: 'danger' },
 })
 
 export const ADMIN_REFUND_REQUESTS = Object.freeze([
