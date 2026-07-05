@@ -214,7 +214,6 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
     }
 
     setErrors({})
-
     onSave(formValues, submitIntent)
   }
 
@@ -235,8 +234,7 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
               {modalTitle}
             </h2>
             <p className="admin-service-modal__subtitle" id={descriptionId}>
-              Hoàn thiện thông tin dịch vụ theo cấu trúc admin service và giữ toàn bộ thao tác ở
-              local state để sẵn sàng nối POST/PATCH `/admin/services`.
+              Hoàn thiện thông tin dịch vụ theo cấu trúc admin service và giữ toàn bộ thao tác ở local state để sẵn sàng nối POST/PATCH `/admin/services`.
             </p>
           </div>
 
@@ -328,19 +326,8 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
             </div>
 
             <div className="admin-service-modal__grid">
-              <FieldShell
-                error={errors.service_type}
-                label={formatFieldLabel('service_type')}
-                required={requiredFieldNames.has('service_type')}
-              >
-                <select
-                  className={`admin-service-modal__select${
-                    errors.service_type ? ' admin-service-modal__input--error' : ''
-                  }`}
-                  name="service_type"
-                  value={formValues.service_type}
-                  onChange={handleCommonChange}
-                >
+              <FieldShell error={errors.service_type} label={formatFieldLabel('service_type')} required={requiredFieldNames.has('service_type')}>
+                <select className={`admin-service-modal__select${errors.service_type ? ' admin-service-modal__input--error' : ''}`} name="service_type" value={formValues.service_type} onChange={handleCommonChange}>
                   {ADMIN_SERVICE_FORM_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -349,66 +336,20 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
                 </select>
               </FieldShell>
 
-              <FieldShell
-                error={errors.title}
-                label={formatFieldLabel('title')}
-                required={requiredFieldNames.has('title')}
-              >
-                <input
-                  className={`admin-service-modal__input${
-                    errors.title ? ' admin-service-modal__input--error' : ''
-                  }`}
-                  name="title"
-                  type="text"
-                  value={formValues.title}
-                  onChange={handleCommonChange}
-                />
+              <FieldShell error={errors.title} label={formatFieldLabel('title')} required={requiredFieldNames.has('title')}>
+                <input className={`admin-service-modal__input${errors.title ? ' admin-service-modal__input--error' : ''}`} name="title" type="text" value={formValues.title} onChange={handleCommonChange} />
               </FieldShell>
 
-              <FieldShell
-                error={errors.slug}
-                help="Slug có thể tự sinh từ tên dịch vụ và dùng lại khi nối API."
-                label={formatFieldLabel('slug')}
-                required={requiredFieldNames.has('slug')}
-              >
-                <input
-                  className={`admin-service-modal__input${
-                    errors.slug ? ' admin-service-modal__input--error' : ''
-                  }`}
-                  name="slug"
-                  type="text"
-                  value={formValues.slug}
-                  onChange={handleCommonChange}
-                />
+              <FieldShell error={errors.slug} help="Slug có thể tự sinh từ tên dịch vụ và dùng lại khi nối API." label={formatFieldLabel('slug')} required={requiredFieldNames.has('slug')}>
+                <input className={`admin-service-modal__input${errors.slug ? ' admin-service-modal__input--error' : ''}`} name="slug" type="text" value={formValues.slug} onChange={handleCommonChange} />
               </FieldShell>
 
-              <FieldShell
-                error={errors.location_text}
-                label={formatFieldLabel('location_text')}
-                required={requiredFieldNames.has('location_text')}
-              >
-                <input
-                  className={`admin-service-modal__input${
-                    errors.location_text ? ' admin-service-modal__input--error' : ''
-                  }`}
-                  name="location_text"
-                  type="text"
-                  value={formValues.location_text}
-                  onChange={handleCommonChange}
-                />
+              <FieldShell error={errors.location_text} label={formatFieldLabel('location_text')} required={requiredFieldNames.has('location_text')}>
+                <input className={`admin-service-modal__input${errors.location_text ? ' admin-service-modal__input--error' : ''}`} name="location_text" type="text" value={formValues.location_text} onChange={handleCommonChange} />
               </FieldShell>
 
-              <FieldShell
-                error={errors.short_description}
-                label={formatFieldLabel('short_description')}
-              >
-                <textarea
-                  className="admin-service-modal__textarea admin-service-modal__textarea--compact"
-                  name="short_description"
-                  rows="3"
-                  value={formValues.short_description}
-                  onChange={handleCommonChange}
-                />
+              <FieldShell error={errors.short_description} label={formatFieldLabel('short_description')}>
+                <textarea className="admin-service-modal__textarea admin-service-modal__textarea--compact" name="short_description" rows="3" value={formValues.short_description} onChange={handleCommonChange} />
               </FieldShell>
             </div>
           </section>
@@ -420,61 +361,20 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
             </div>
 
             <div className="admin-service-modal__grid">
-              <FieldShell
-                error={errors.base_price}
-                label={formatFieldLabel('base_price')}
-                required={requiredFieldNames.has('base_price')}
-              >
-                <input
-                  className={`admin-service-modal__input${
-                    errors.base_price ? ' admin-service-modal__input--error' : ''
-                  }`}
-                  name="base_price"
-                  type="number"
-                  value={formValues.base_price}
-                  onChange={handleCommonChange}
-                />
+              <FieldShell error={errors.base_price} label={formatFieldLabel('base_price')} required={requiredFieldNames.has('base_price')}>
+                <input className={`admin-service-modal__input${errors.base_price ? ' admin-service-modal__input--error' : ''}`} name="base_price" type="number" value={formValues.base_price} onChange={handleCommonChange} />
               </FieldShell>
 
-              <FieldShell
-                error={errors.sale_price}
-                help="Giá ưu đãi không được lớn hơn giá gốc."
-                label={formatFieldLabel('sale_price')}
-              >
-                <input
-                  className={`admin-service-modal__input${
-                    errors.sale_price ? ' admin-service-modal__input--error' : ''
-                  }`}
-                  name="sale_price"
-                  type="number"
-                  value={formValues.sale_price}
-                  onChange={handleCommonChange}
-                />
+              <FieldShell error={errors.sale_price} help="Giá ưu đãi không được lớn hơn giá gốc." label={formatFieldLabel('sale_price')}>
+                <input className={`admin-service-modal__input${errors.sale_price ? ' admin-service-modal__input--error' : ''}`} name="sale_price" type="number" value={formValues.sale_price} onChange={handleCommonChange} />
               </FieldShell>
 
               <FieldShell error={errors.currency} label={formatFieldLabel('currency')}>
-                <input
-                  className="admin-service-modal__input"
-                  name="currency"
-                  type="text"
-                  value={formValues.currency}
-                  onChange={handleCommonChange}
-                />
+                <input className="admin-service-modal__input" name="currency" type="text" value={formValues.currency} onChange={handleCommonChange} />
               </FieldShell>
 
-              <FieldShell
-                error={errors.status}
-                label={formatFieldLabel('status')}
-                required={requiredFieldNames.has('status')}
-              >
-                <select
-                  className={`admin-service-modal__select${
-                    errors.status ? ' admin-service-modal__input--error' : ''
-                  }`}
-                  name="status"
-                  value={formValues.status}
-                  onChange={handleCommonChange}
-                >
+              <FieldShell error={errors.status} label={formatFieldLabel('status')} required={requiredFieldNames.has('status')}>
+                <select className={`admin-service-modal__select${errors.status ? ' admin-service-modal__input--error' : ''}`} name="status" value={formValues.status} onChange={handleCommonChange}>
                   {ADMIN_SERVICE_FORM_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -493,27 +393,11 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
 
             <div className="admin-service-modal__grid">
               <FieldShell error={errors.provider_name} label={formatFieldLabel('provider_name')}>
-                <input
-                  className="admin-service-modal__input"
-                  name="provider_name"
-                  type="text"
-                  value={formValues.provider_name}
-                  onChange={handleCommonChange}
-                />
+                <input className="admin-service-modal__input" name="provider_name" type="text" value={formValues.provider_name} onChange={handleCommonChange} />
               </FieldShell>
 
-              <FieldShell
-                error={errors.image_url}
-                help="Khuyến nghị dùng ảnh tối thiểu 1200x800px, phù hợp pattern raw HTML."
-                label={formatFieldLabel('image_url')}
-              >
-                <input
-                  className="admin-service-modal__input"
-                  name="image_url"
-                  type="text"
-                  value={formValues.image_url}
-                  onChange={handleCommonChange}
-                />
+              <FieldShell error={errors.image_url} help="Khuyến nghị dùng ảnh tối thiểu 1200x800px, phù hợp pattern raw HTML." label={formatFieldLabel('image_url')}>
+                <input className="admin-service-modal__input" name="image_url" type="text" value={formValues.image_url} onChange={handleCommonChange} />
               </FieldShell>
             </div>
           </section>
@@ -522,8 +406,7 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
             <div className="admin-service-modal__section-heading">
               <h3>Thông tin chi tiết theo loại dịch vụ</h3>
               <p>
-                Render động theo `service_type`. Với `room`, modal chỉ hiển thị note định hướng sang
-                luồng quản lý phòng khách sạn.
+                Render động theo `service_type`. Với `room`, modal chỉ hiển thị note định hướng sang luồng quản lý phòng khách sạn.
               </p>
             </div>
 
@@ -543,26 +426,11 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
 
             <div className="admin-service-modal__grid admin-service-modal__grid--full">
               <FieldShell error={errors.description} label={formatFieldLabel('description')}>
-                <textarea
-                  className="admin-service-modal__textarea"
-                  name="description"
-                  rows="5"
-                  value={formValues.description}
-                  onChange={handleCommonChange}
-                />
+                <textarea className="admin-service-modal__textarea" name="description" rows="5" value={formValues.description} onChange={handleCommonChange} />
               </FieldShell>
 
-              <FieldShell
-                error={errors.cancellation_policy}
-                label={formatFieldLabel('cancellation_policy')}
-              >
-                <textarea
-                  className="admin-service-modal__textarea"
-                  name="cancellation_policy"
-                  rows="4"
-                  value={formValues.cancellation_policy}
-                  onChange={handleCommonChange}
-                />
+              <FieldShell error={errors.cancellation_policy} label={formatFieldLabel('cancellation_policy')}>
+                <textarea className="admin-service-modal__textarea" name="cancellation_policy" rows="4" value={formValues.cancellation_policy} onChange={handleCommonChange} />
               </FieldShell>
             </div>
           </section>
@@ -572,18 +440,10 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
           <button className="admin-service-modal__button admin-service-modal__button--ghost" type="button" onClick={onClose}>
             Hủy
           </button>
-          <button
-            className="admin-service-modal__button admin-service-modal__button--secondary"
-            type="button"
-            onClick={() => handleSubmit('draft')}
-          >
+          <button className="admin-service-modal__button admin-service-modal__button--secondary" type="button" onClick={() => handleSubmit('draft')}>
             Lưu bản nháp
           </button>
-          <button
-            className="admin-service-modal__button admin-service-modal__button--primary"
-            type="button"
-            onClick={() => handleSubmit('save')}
-          >
+          <button className="admin-service-modal__button admin-service-modal__button--primary" type="button" onClick={() => handleSubmit('save')}>
             {submitLabel}
           </button>
         </div>

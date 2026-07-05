@@ -14,12 +14,12 @@ export const ADMIN_SERVICE_SORT_OPTIONS = Object.freeze([
 
 export const ADMIN_SERVICE_TYPE_OPTIONS = Object.freeze([
   { value: 'all', label: 'Tất cả' },
-  { value: SERVICE_TYPES.tour, label: SERVICE_TYPES.tour },
-  { value: SERVICE_TYPES.hotel, label: SERVICE_TYPES.hotel },
-  { value: SERVICE_TYPES.room, label: SERVICE_TYPES.room },
-  { value: SERVICE_TYPES.flight, label: SERVICE_TYPES.flight },
-  { value: SERVICE_TYPES.train, label: SERVICE_TYPES.train },
-  { value: SERVICE_TYPES.combo, label: SERVICE_TYPES.combo },
+  { value: SERVICE_TYPES.tour, label: 'Tours' },
+  { value: SERVICE_TYPES.hotel, label: 'Khách sạn' },
+  { value: SERVICE_TYPES.room, label: 'Phòng' },
+  { value: SERVICE_TYPES.flight, label: 'Vé máy bay' },
+  { value: SERVICE_TYPES.train, label: 'Vé tàu' },
+  { value: SERVICE_TYPES.combo, label: 'Combo' },
 ])
 
 export const ADMIN_SERVICE_FORM_TYPE_OPTIONS = Object.freeze(
@@ -28,14 +28,14 @@ export const ADMIN_SERVICE_FORM_TYPE_OPTIONS = Object.freeze(
 
 export const ADMIN_SERVICE_STATUS_OPTIONS = Object.freeze([
   { value: 'all', label: 'Tất cả' },
-  { value: SERVICE_STATUSES.draft, label: SERVICE_STATUSES.draft },
-  { value: SERVICE_STATUSES.pendingReview, label: SERVICE_STATUSES.pendingReview },
-  { value: SERVICE_STATUSES.active, label: SERVICE_STATUSES.active },
-  { value: SERVICE_STATUSES.hidden, label: SERVICE_STATUSES.hidden },
-  { value: SERVICE_STATUSES.soldOut, label: SERVICE_STATUSES.soldOut },
-  { value: SERVICE_STATUSES.expired, label: SERVICE_STATUSES.expired },
-  { value: SERVICE_STATUSES.archived, label: SERVICE_STATUSES.archived },
-  { value: SERVICE_STATUSES.deleted, label: SERVICE_STATUSES.deleted },
+  { value: SERVICE_STATUSES.draft, label: 'Bản nháp' },
+  { value: SERVICE_STATUSES.pendingReview, label: 'Chờ duyệt' },
+  { value: SERVICE_STATUSES.active, label: 'Đang bán' },
+  { value: SERVICE_STATUSES.hidden, label: 'Tạm ẩn' },
+  { value: SERVICE_STATUSES.soldOut, label: 'Hết chỗ' },
+  { value: SERVICE_STATUSES.expired, label: 'Hết hạn' },
+  { value: SERVICE_STATUSES.archived, label: 'Lưu trữ' },
+  { value: SERVICE_STATUSES.deleted, label: 'Đã xóa' },
 ])
 
 export const ADMIN_SERVICE_FORM_STATUS_OPTIONS = Object.freeze(
@@ -43,26 +43,26 @@ export const ADMIN_SERVICE_FORM_STATUS_OPTIONS = Object.freeze(
 )
 
 export const ADMIN_TRANSPORT_TYPE_OPTIONS = Object.freeze([
-  { value: 'bus', label: 'bus' },
-  { value: 'flight', label: 'flight' },
-  { value: 'train', label: 'train' },
-  { value: 'car', label: 'car' },
-  { value: 'ship', label: 'ship' },
-  { value: 'mixed', label: 'mixed' },
+  { value: 'bus', label: 'Xe khách' },
+  { value: 'flight', label: 'Máy bay' },
+  { value: 'train', label: 'Tàu hỏa' },
+  { value: 'car', label: 'Ô tô riêng' },
+  { value: 'ship', label: 'Tàu thủy' },
+  { value: 'mixed', label: 'Kết hợp' },
 ])
 
 export const ADMIN_CABIN_CLASS_OPTIONS = Object.freeze([
-  { value: 'economy', label: 'economy' },
-  { value: 'premium_economy', label: 'premium_economy' },
-  { value: 'business', label: 'business' },
-  { value: 'first', label: 'first' },
+  { value: 'economy', label: 'Phổ thông' },
+  { value: 'premium_economy', label: 'Phổ thông đặc biệt' },
+  { value: 'business', label: 'Thương gia' },
+  { value: 'first', label: 'Hạng nhất' },
 ])
 
 export const ADMIN_SEAT_CLASS_OPTIONS = Object.freeze([
-  { value: 'hard_seat', label: 'hard_seat' },
-  { value: 'soft_seat', label: 'soft_seat' },
-  { value: 'sleeper', label: 'sleeper' },
-  { value: 'vip', label: 'vip' },
+  { value: 'hard_seat', label: 'Ghế cứng' },
+  { value: 'soft_seat', label: 'Ghế mềm' },
+  { value: 'sleeper', label: 'Giường nằm' },
+  { value: 'vip', label: 'VIP' },
 ])
 
 export const ADMIN_ROLE_DISPLAY_NAMES = Object.freeze({
@@ -75,8 +75,8 @@ export const ADMIN_SERVICE_TYPE_DISPLAY_NAMES = Object.freeze({
   [SERVICE_TYPES.tour]: 'Tour',
   [SERVICE_TYPES.hotel]: 'Khách sạn',
   [SERVICE_TYPES.room]: 'Phòng',
-  [SERVICE_TYPES.flight]: 'Chuyến bay',
-  [SERVICE_TYPES.train]: 'Tàu hỏa',
+  [SERVICE_TYPES.flight]: 'Vé máy bay',
+  [SERVICE_TYPES.train]: 'Vé tàu',
   [SERVICE_TYPES.combo]: 'Combo',
 })
 

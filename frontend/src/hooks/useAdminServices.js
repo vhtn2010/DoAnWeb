@@ -10,7 +10,6 @@ import {
   ADMIN_SERVICE_SUMMARY_LIMIT,
   ADMIN_SERVICE_TYPE_OPTIONS,
 } from '../constants/adminServices.js'
-import { ROLES } from '../constants/roles.js'
 import {
   buildServicePayloadFromForm,
   createAdminServicesPageNumbers,
@@ -66,6 +65,7 @@ function createInitialPaginationState() {
 
 function getVisibilityNote(service, filters) {
   return matchesAdminServiceFilters(service, {
+    destination: filters.destination,
     q: filters.search,
     type: filters.type,
     status: filters.status,
@@ -114,6 +114,7 @@ async function fetchAdminServicesState({ currentRole, nextFilters, nextPage, nex
   const [listResponse, summaryResponse] = await Promise.all([
     listAdminServices({
       currentRole,
+      destination: nextFilters.destination,
       limit: ADMIN_SERVICE_PAGE_SIZE,
       page: nextPage,
       q: nextFilters.search,
@@ -136,13 +137,12 @@ async function fetchAdminServicesState({ currentRole, nextFilters, nextPage, nex
 
 export default function useAdminServices() {
   const outletContext = useOutletContext()
-  const currentRole = normalizeAdminPreviewRole(
-    outletContext?.currentRole ?? ROLES.systemAdmin,
-  )
+  const currentRole = normalizeAdminPreviewRole(outletContext?.currentRole)
 
   const [services, setServices] = useState([])
   const [summarySourceServices, setSummarySourceServices] = useState([])
   const [filters, setFilters] = useState({
+    destination: 'all',
     search: '',
     type: 'all',
     status: 'all',
@@ -281,6 +281,14 @@ export default function useAdminServices() {
     setCurrentPage(1)
   }
 
+  function setDestinationFilter(value) {
+    setFilters((currentFilters) => ({
+      ...currentFilters,
+      destination: value,
+    }))
+    setCurrentPage(1)
+  }
+
   function setSort(value) {
     setSortState(value)
     setCurrentPage(1)
@@ -288,6 +296,7 @@ export default function useAdminServices() {
 
   function resetFilters() {
     setFilters({
+      destination: 'all',
       search: '',
       type: 'all',
       status: 'all',
@@ -495,6 +504,21 @@ export default function useAdminServices() {
     () => createAdminServicesSummary(summarySourceServices),
     [summarySourceServices],
   )
+  const destinationOptions = useMemo(() => {
+    const uniqueDestinations = Array.from(
+      new Set(summarySourceServices.map((service) => service.location_text).filter(Boolean)),
+    ).sort((firstDestination, secondDestination) =>
+      firstDestination.localeCompare(secondDestination, 'vi'),
+    )
+
+    return [
+      { value: 'all', label: 'Điểm đến:' },
+      ...uniqueDestinations.map((destination) => ({
+        value: destination,
+        label: destination,
+      })),
+    ]
+  }, [summarySourceServices])
   const pageNumbers = useMemo(
     () => createAdminServicesPageNumbers(pagination.total_pages ?? 1),
     [pagination.total_pages],
@@ -521,6 +545,7 @@ export default function useAdminServices() {
     currentRole,
     currentRoleLabel: getAdminRoleLabel(currentRole),
     error,
+    destinationOptions,
     feedback,
     filters,
     formModalState,
@@ -543,6 +568,7 @@ export default function useAdminServices() {
     selectedService,
     services,
     setCurrentPage,
+    setDestinationFilter,
     setSearch,
     setSort,
     setStatusFilter,
