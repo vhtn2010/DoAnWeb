@@ -137,10 +137,10 @@ select {
   min-width: 0;
 }
 
-.public-header__booking-menu {
+.public-nav-ticket {
   position: relative;
   display: inline-flex;
-  justify-content: center;
+  align-items: center;
 }
 
 .public-header__actions {
@@ -229,68 +229,75 @@ select {
   color: var(--color-brand-primary);
 }
 
-.public-header__booking-dropdown {
+.ticket-dropdown {
   position: absolute;
-  top: calc(100% + 16px);
+  top: calc(100% + 18px);
   left: 50%;
-  z-index: 8;
-  min-width: 220px;
-  padding: 12px;
-  border: 1px solid rgba(214, 40, 40, 0.12);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 42px rgba(170, 22, 41, 0.14);
+  z-index: 50;
+  min-width: 190px;
+  border: 1px solid rgba(215, 0, 24, 0.12);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(67, 35, 35, 0.16);
   display: grid;
-  gap: 8px;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transform: translate(-50%, 12px);
+  transform: translateX(-50%) translateY(6px);
   transition:
     opacity 160ms ease,
     transform 160ms ease,
     visibility 160ms ease;
-  visibility: hidden;
+  overflow: hidden;
 }
 
-.public-header__booking-menu:hover .public-header__booking-dropdown,
-.public-header__booking-menu:focus-within .public-header__booking-dropdown,
-.public-header__booking-menu .public-header__link--active + .public-header__booking-dropdown {
+.public-nav-ticket:hover .ticket-dropdown,
+.public-nav-ticket:focus-within .ticket-dropdown {
   opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
   visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
 }
 
-.public-header__booking-option {
-  width: 100%;
-  min-height: 48px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 16px;
-  background: transparent;
-  color: var(--color-text-soft);
+.ticket-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  color: #5b3c3c;
+  font-weight: 700;
+  text-decoration: none;
+  background: #fff;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.ticket-dropdown-item + .ticket-dropdown-item {
+  border-top: 1px solid rgba(215, 0, 24, 0.1);
+}
+
+.ticket-dropdown-item:hover,
+.ticket-dropdown-item:focus-visible,
+.ticket-dropdown-item--active {
+  color: #d70018;
+  background: #fff7f7;
+  outline: none;
+}
+
+.ticket-dropdown-icon {
+  width: 24px;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  font-weight: 800;
-  text-align: left;
-}
-
-.public-header__booking-option svg {
-  width: 18px;
-  height: 18px;
-  color: inherit;
+  justify-content: center;
+  color: currentColor;
+  font-size: 20px;
   flex: 0 0 auto;
 }
 
-.public-header__booking-option--active {
-  background: rgba(214, 40, 40, 0.08);
-  color: var(--color-brand-primary);
-}
-
-.public-header__booking-option:not(.public-header__booking-option--active) {
-  cursor: default;
-  opacity: 0.86;
+.ticket-dropdown-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .public-header__login {
@@ -973,7 +980,7 @@ select {
     gap: 10px 18px;
   }
 
-  .public-header__booking-dropdown {
+  .ticket-dropdown {
     min-width: 196px;
   }
 
