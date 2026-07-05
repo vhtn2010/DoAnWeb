@@ -6,17 +6,21 @@ import {
   ADMIN_SERVICE_SUMMARY_CARD_CONFIG,
   ADMIN_SERVICE_TYPE_DISPLAY_NAMES,
 } from '../constants/adminServices.js'
-import { ROLES } from '../constants/roles.js'
 import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
+import {
+  ADMIN_PERMISSIONS,
+  hasPermission,
+  normalizeAdminRole,
+} from '../utils/rolePermissions.js'
 
-const SERVICE_ACTION_ROLE_MAP = Object.freeze({
-  submit_review: [ROLES.staff, ROLES.admin, ROLES.systemAdmin],
-  approve: [ROLES.admin, ROLES.systemAdmin],
-  reject: [ROLES.admin, ROLES.systemAdmin],
-  hide: [ROLES.admin, ROLES.systemAdmin],
-  restore: [ROLES.admin, ROLES.systemAdmin],
-  delete: [ROLES.admin, ROLES.systemAdmin],
+const SERVICE_ACTION_PERMISSION_MAP = Object.freeze({
+  submit_review: ADMIN_PERMISSIONS.servicesSubmitReview,
+  approve: ADMIN_PERMISSIONS.servicesApprove,
+  reject: ADMIN_PERMISSIONS.servicesReject,
+  hide: ADMIN_PERMISSIONS.servicesHide,
+  restore: ADMIN_PERMISSIONS.servicesRestore,
+  delete: ADMIN_PERMISSIONS.servicesDelete,
 })
 
 const SERVICE_DETAIL_TEMPLATES = Object.freeze({
@@ -215,13 +219,11 @@ function getStatusTone(status) {
 }
 
 function isRoleAllowedForServiceAction(action, currentRole) {
-  return SERVICE_ACTION_ROLE_MAP[action]?.includes(currentRole) ?? false
+  return hasPermission(currentRole, SERVICE_ACTION_PERMISSION_MAP[action])
 }
 
 export function normalizeAdminPreviewRole(value) {
-  return [ROLES.staff, ROLES.admin, ROLES.systemAdmin].includes(value)
-    ? value
-    : ROLES.systemAdmin
+  return normalizeAdminRole(value)
 }
 
 export function createFeedbackState(tone = 'info', message = '') {
@@ -438,7 +440,15 @@ export function getServiceStatusTransition(action, currentStatus, targetStatus =
 }
 
 export function getAllowedServiceActions(service, currentRole) {
-  const actions = ['view', 'edit']
+  const actions = []
+
+  if (hasPermission(currentRole, ADMIN_PERMISSIONS.servicesRead)) {
+    actions.push('view')
+  }
+
+  if (hasPermission(currentRole, ADMIN_PERMISSIONS.servicesUpdate)) {
+    actions.push('edit')
+  }
 
   ;['submit_review', 'approve', 'reject', 'hide', 'restore', 'delete'].forEach((action) => {
     if (!isRoleAllowedForServiceAction(action, currentRole)) {
@@ -489,7 +499,7 @@ export function getCurrentPrice(service) {
 
 export function matchesAdminServiceFilters(
   service,
-  { q = '', type = 'all', status = 'all' } = {},
+  { destination = 'all', q = '', type = 'all', status = 'all' } = {},
 ) {
   const normalizedQuery = normalizeText(q.trim())
   const matchesQuery =
@@ -500,8 +510,10 @@ export function matchesAdminServiceFilters(
 
   const matchesType = type === 'all' || service.service_type === type
   const matchesStatus = status === 'all' || service.status === status
+  const matchesDestination =
+    destination === 'all' || normalizeText(service.location_text) === normalizeText(destination)
 
-  return matchesQuery && matchesType && matchesStatus
+  return matchesQuery && matchesType && matchesStatus && matchesDestination
 }
 
 export function sortAdminServices(services, sortValue = 'newest') {
@@ -577,15 +589,15 @@ export function paginateAdminServices(services = [], page = 1, limit = 20) {
 
 export function getServiceDetailSummary(service) {
   if (service.service_type === SERVICE_TYPES.tour) {
-    return `${service.details.duration_days ?? '-'}N${service.details.duration_nights ?? '-'}Đ • ${service.details.transport_type ?? 'n/a'}`
+    return `${service.details.duration_days ?? '-'}N${service.details.duration_nights ?? '-'}Đ - ${service.details.transport_type ?? 'n/a'}`
   }
 
   if (service.service_type === SERVICE_TYPES.hotel) {
-    return `${service.details.star_rating ?? '-'} sao • ${service.details.address ?? service.provider_name}`
+    return `${service.details.star_rating ?? '-'} sao - ${service.details.address ?? service.provider_name}`
   }
 
   if (service.service_type === SERVICE_TYPES.flight) {
-    return `${service.details.airline_name ?? service.provider_name} • ${service.details.flight_number ?? 'n/a'}`
+    return `${service.details.airline_name ?? service.provider_name} - ${service.details.flight_number ?? 'n/a'}`
   }
 
   if (service.service_type === SERVICE_TYPES.train) {

@@ -197,6 +197,7 @@ let mockAdminServicesState = createInitialAdminServiceState()
 
 export async function listAdminServices({
   currentRole,
+  destination = 'all',
   limit = ADMIN_SERVICE_PAGE_SIZE,
   page = 1,
   q = '',
@@ -206,7 +207,7 @@ export async function listAdminServices({
 } = {}) {
   const filteredServices = sortAdminServices(
     mockAdminServicesState.filter((service) =>
-      matchesAdminServiceFilters(service, { q, type, status, currentRole }),
+      matchesAdminServiceFilters(service, { destination, q, type, status, currentRole }),
     ),
     sort,
   )

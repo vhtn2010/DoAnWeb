@@ -1,16 +1,11 @@
 import { Outlet, useSearchParams } from 'react-router-dom'
 import AdminSidebar from '../components/layout/AdminSidebar.jsx'
 import AdminTopbar from '../components/layout/AdminTopbar.jsx'
-
-const allowedAdminRoles = ['staff', 'admin', 'system_admin']
-
-function normalizeAdminPreviewRole(value) {
-  return allowedAdminRoles.includes(value) ? value : 'system_admin'
-}
+import { normalizeAdminRole } from '../utils/rolePermissions.js'
 
 function AdminLayout() {
   const [searchParams] = useSearchParams()
-  const currentRole = normalizeAdminPreviewRole(searchParams.get('role'))
+  const currentRole = normalizeAdminRole(searchParams.get('role'))
 
   return (
     <div className="admin-layout">
