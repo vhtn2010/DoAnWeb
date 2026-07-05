@@ -58,7 +58,7 @@ function PublicHeader() {
   const customerCartPath = buildPreviewPath('/cart')
   const isCartPreview = location.pathname === '/cart'
   const isCheckoutPreview = location.pathname === '/checkout'
-  const isHotelPreview = location.pathname === '/hotels'
+  const isHotelPreview = location.pathname.startsWith('/hotels')
 
   return (
     <header className="public-header">

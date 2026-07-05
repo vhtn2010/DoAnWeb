@@ -1,4 +1,5 @@
 import {
+  addCartItemPreview as addCartItemPreviewWithMockAdapter,
   getActiveCart as getActiveCartWithMockAdapter,
   getCartSummary as getCartSummaryWithMockAdapter,
   removeCartItem as removeCartItemWithMockAdapter,
@@ -7,11 +8,16 @@ import {
 } from '../adapters/mock/cartMockAdapter.js'
 
 const cartAdapter = {
+  addCartItemPreview: addCartItemPreviewWithMockAdapter,
   getActiveCart: getActiveCartWithMockAdapter,
   getCartSummary: getCartSummaryWithMockAdapter,
   removeCartItem: removeCartItemWithMockAdapter,
   updateCartItem: updateCartItemWithMockAdapter,
   validateCart: validateCartWithMockAdapter,
+}
+
+export function addCartItemPreview(payload) {
+  return cartAdapter.addCartItemPreview(payload)
 }
 
 export function getActiveCart(params) {
