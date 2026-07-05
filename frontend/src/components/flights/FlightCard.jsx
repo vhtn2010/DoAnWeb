@@ -35,7 +35,11 @@ function FlightCard({
       <div className="flight-card__main">
         <div className="flight-card__brand">
           <span className="flight-card__brand-mark">
-            <img alt={flight.airline_name} className="flight-card__airline-logo" src={flight.image_url} />
+            <img
+              alt={flight.airline_name}
+              className="flight-card__airline-logo"
+              src={flight.image_url}
+            />
           </span>
 
           <div className="flight-card__brand-copy">
@@ -47,8 +51,9 @@ function FlightCard({
         <div className="flight-card__route">
           <div className="flight-card__time-block">
             <strong>{flight.departure_time_label}</strong>
-            <span>{flight.departure_airport_code}</span>
-            <p>{flight.departure_city}</p>
+            <p>
+              {flight.departure_airport_code} · {flight.departure_city_label}
+            </p>
           </div>
 
           <div className="flight-card__timeline">
@@ -63,33 +68,37 @@ function FlightCard({
                 </svg>
               </span>
             </div>
-            <p>(Bay thẳng)</p>
+            <p>{flight.stop_text}</p>
             <small>{flight.flight_number_label}</small>
           </div>
 
           <div className="flight-card__time-block flight-card__time-block--arrival">
             <strong>{flight.arrival_time_label}</strong>
-            <span>{flight.arrival_airport_code}</span>
-            <p>{flight.arrival_city}</p>
+            <p>
+              {flight.arrival_airport_code} · {flight.arrival_city_label}
+            </p>
           </div>
-        </div>
-
-        <div className="flight-card__meta">
-          <span>{flight.cabin_class_label}</span>
-          <span>{flight.baggage_allowance}</span>
         </div>
       </div>
 
       <div className="flight-card__fare">
         <span className="flight-card__fare-old">{formatCurrency(flight.base_price)}</span>
         <strong>{formatCurrency(flight.sale_price)}</strong>
-        <button className="flight-card__button flight-card__button--primary" type="button" onClick={handleBookingClick}>
+        <button
+          className="flight-card__button flight-card__button--primary"
+          type="button"
+          onClick={handleBookingClick}
+        >
           Chọn chuyến
         </button>
-        <button className="flight-card__button flight-card__button--secondary" type="button" onClick={handleDetailClick}>
+        <button
+          className="flight-card__button flight-card__button--secondary"
+          type="button"
+          onClick={handleDetailClick}
+        >
           Xem chi tiết
         </button>
-        <span className="flight-card__seat-note">ⓘ CHỈ CÒN {flight.available_seats} CHỖ</span>
+        <span className="flight-card__seat-note">CHỈ CÒN {flight.available_seats} CHỖ</span>
       </div>
 
       {feedbackMessage ? (

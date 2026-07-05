@@ -36,7 +36,6 @@ function FlightListPage() {
     goToFlightDetail,
     hasMore,
     loading,
-    resetFilters,
     resultSummary,
     retry,
     searchState,
@@ -49,7 +48,6 @@ function FlightListPage() {
     submitSearch,
     updatePassengers,
     updateSearchField,
-    updateTripType,
   } = useFlightList()
   const searchPanelFeedback = selectedFlightId ? { tone: feedback.tone, message: '' } : feedback
 
@@ -74,14 +72,12 @@ function FlightListPage() {
       <div className="flight-list-page__search-shell">
         <FlightSearchPanel
           airports={defaults.airports}
-          cabinClasses={defaults.cabin_classes}
           feedback={searchPanelFeedback}
           searchState={searchState}
           selectedSort={selectedSort}
           sortOptions={defaults.sort_options}
           updatePassengers={updatePassengers}
           updateSearchField={updateSearchField}
-          updateTripType={updateTripType}
           onSortChange={setSort}
           onSubmit={submitSearch}
         />
@@ -93,7 +89,6 @@ function FlightListPage() {
             airlineOptions={defaults.airlines}
             draftFilters={draftFilters}
             onApply={applyFilters}
-            onReset={resetFilters}
             onToggle={setFilter}
           />
 

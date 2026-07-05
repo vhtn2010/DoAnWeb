@@ -23,6 +23,7 @@ const EMPTY_META = Object.freeze({
   page: 1,
   limit: DEFAULT_FLIGHT_PAGE_SIZE,
   total: 0,
+  total_display: 0,
   total_pages: 1,
   has_next: false,
 })
@@ -71,6 +72,7 @@ function createInitialFilterState(searchParams) {
     airline_codes: parseArraySearchParam(searchParams, 'airlines'),
     price_ranges: parseArraySearchParam(searchParams, 'prices'),
     departure_windows: parseArraySearchParam(searchParams, 'departure_windows'),
+    stop_counts: parseArraySearchParam(searchParams, 'stops'),
   }
 }
 
@@ -193,6 +195,7 @@ export default function useFlightList() {
           airline_codes: appliedFilters.airline_codes,
           price_ranges: appliedFilters.price_ranges,
           departure_windows: appliedFilters.departure_windows,
+          stop_counts: appliedFilters.stop_counts,
           sort: selectedSort,
           page: currentPage,
           limit: DEFAULT_FLIGHT_PAGE_SIZE,
@@ -260,6 +263,7 @@ export default function useFlightList() {
         airline_codes: nextFilters.airline_codes,
         price_ranges: nextFilters.price_ranges,
         departure_windows: nextFilters.departure_windows,
+        stop_counts: nextFilters.stop_counts,
         sort: nextSort,
         page: nextPage,
       }),
@@ -318,14 +322,7 @@ export default function useFlightList() {
 
     setCurrentPage(1)
     setSelectedFlightId('')
-    setFeedback(
-      createFeedbackState(
-        'info',
-        searchState.trip_type === 'round_trip'
-          ? 'Đang hiển thị chặng đi trước trong dữ liệu mock cho hành trình khứ hồi.'
-          : 'Đã cập nhật kết quả chuyến bay theo lựa chọn của bạn.',
-      ),
-    )
+    setFeedback(createFeedbackState('info', 'Đã cập nhật kết quả chuyến bay theo lựa chọn của bạn.'))
     syncSearchParams({ nextPage: 1 })
   }
 
@@ -343,6 +340,7 @@ export default function useFlightList() {
       airline_codes: [...draftFilters.airline_codes],
       price_ranges: [...draftFilters.price_ranges],
       departure_windows: [...draftFilters.departure_windows],
+      stop_counts: [...draftFilters.stop_counts],
     }
 
     setAppliedFilters(nextFilters)
@@ -366,6 +364,7 @@ export default function useFlightList() {
       airline_codes: [],
       price_ranges: [],
       departure_windows: [],
+      stop_counts: [],
     }
 
     setDraftFilters(emptyFilters)
@@ -386,7 +385,9 @@ export default function useFlightList() {
 
   function selectFlight(flight) {
     setSelectedFlightId(flight.id)
-    setFeedback(createFeedbackState('success', `Đã chọn chuyến ${flight.flight_number_label} để tiếp tục.`))
+    setFeedback(
+      createFeedbackState('success', `Đã chọn chuyến ${flight.flight_number_label} để tiếp tục.`),
+    )
   }
 
   function goToFlightDetail(flight) {
@@ -410,7 +411,12 @@ export default function useFlightList() {
     const payloadResponse = await buildFlightSelectionPayload(selectedFlight, searchState)
 
     if (!payloadResponse.success || !payloadResponse.data) {
-      setFeedback(createFeedbackState('error', payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến bay mock.'))
+      setFeedback(
+        createFeedbackState(
+          'error',
+          payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến bay mock.',
+        ),
+      )
       return
     }
 
@@ -431,11 +437,11 @@ export default function useFlightList() {
 
   const resultSummary = useMemo(() => {
     return {
-      total: meta.total ?? 0,
+      total: meta.total_display ?? meta.total ?? 0,
       fromLabel: formatResultLocation(defaults.airports, searchState.from_location),
       toLabel: formatResultLocation(defaults.airports, searchState.to_location),
     }
-  }, [defaults.airports, meta.total, searchState.from_location, searchState.to_location])
+  }, [defaults.airports, meta.total, meta.total_display, searchState.from_location, searchState.to_location])
 
   return {
     applyFilters,

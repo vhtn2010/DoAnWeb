@@ -1,11 +1,8 @@
 import {
   FLIGHT_DEPARTURE_TIME_FILTER_OPTIONS,
   FLIGHT_PRICE_FILTER_OPTIONS,
+  FLIGHT_STOP_FILTER_OPTIONS,
 } from '../../constants/flights.js'
-
-const STOP_OPTIONS = Object.freeze([
-  { value: 'direct', label: 'Bay thẳng' },
-])
 
 function FilterSection({ children, title }) {
   return (
@@ -16,13 +13,16 @@ function FilterSection({ children, title }) {
   )
 }
 
-function FlightFilterSidebar({
-  airlineOptions,
-  draftFilters,
-  onApply,
-  onReset,
-  onToggle,
-}) {
+function FilterCheckbox({ checked, label, onChange }) {
+  return (
+    <label className="flight-filter-sidebar__check">
+      <input checked={checked} type="checkbox" onChange={onChange} />
+      <span>{label}</span>
+    </label>
+  )
+}
+
+function FlightFilterSidebar({ airlineOptions, draftFilters, onApply, onToggle }) {
   return (
     <aside className="flight-filter-sidebar">
       <div className="flight-filter-sidebar__header">
@@ -41,49 +41,45 @@ function FlightFilterSidebar({
 
       <FilterSection title="Hãng hàng không">
         {airlineOptions.map((airline) => (
-          <label className="flight-filter-sidebar__check" key={airline.code}>
-            <input
-              checked={draftFilters.airline_codes.includes(airline.code)}
-              type="checkbox"
-              onChange={() => onToggle('airline_codes', airline.code)}
-            />
-            <span>{airline.name}</span>
-          </label>
+          <FilterCheckbox
+            checked={draftFilters.airline_codes.includes(airline.code)}
+            key={airline.code}
+            label={airline.name}
+            onChange={() => onToggle('airline_codes', airline.code)}
+          />
         ))}
       </FilterSection>
 
       <FilterSection title="Khung giờ bay">
         {FLIGHT_DEPARTURE_TIME_FILTER_OPTIONS.map((option) => (
-          <label className="flight-filter-sidebar__check" key={option.value}>
-            <input
-              checked={draftFilters.departure_windows.includes(option.value)}
-              type="checkbox"
-              onChange={() => onToggle('departure_windows', option.value)}
-            />
-            <span>{option.label}</span>
-          </label>
+          <FilterCheckbox
+            checked={draftFilters.departure_windows.includes(option.value)}
+            key={option.value}
+            label={option.label}
+            onChange={() => onToggle('departure_windows', option.value)}
+          />
         ))}
       </FilterSection>
 
       <FilterSection title="Điểm dừng">
-        {STOP_OPTIONS.map((option) => (
-          <label className="flight-filter-sidebar__check" key={option.value}>
-            <input checked readOnly type="checkbox" />
-            <span>{option.label}</span>
-          </label>
+        {FLIGHT_STOP_FILTER_OPTIONS.map((option) => (
+          <FilterCheckbox
+            checked={draftFilters.stop_counts.includes(option.value)}
+            key={option.value}
+            label={option.label}
+            onChange={() => onToggle('stop_counts', option.value)}
+          />
         ))}
       </FilterSection>
 
       <FilterSection title="Mức giá">
         {FLIGHT_PRICE_FILTER_OPTIONS.map((option) => (
-          <label className="flight-filter-sidebar__check" key={option.value}>
-            <input
-              checked={draftFilters.price_ranges.includes(option.value)}
-              type="checkbox"
-              onChange={() => onToggle('price_ranges', option.value)}
-            />
-            <span>{option.label}</span>
-          </label>
+          <FilterCheckbox
+            checked={draftFilters.price_ranges.includes(option.value)}
+            key={option.value}
+            label={option.label}
+            onChange={() => onToggle('price_ranges', option.value)}
+          />
         ))}
       </FilterSection>
 
@@ -94,13 +90,6 @@ function FlightFilterSidebar({
           onClick={onApply}
         >
           Áp dụng bộ lọc
-        </button>
-        <button
-          className="flight-filter-sidebar__button flight-filter-sidebar__button--ghost"
-          type="button"
-          onClick={onReset}
-        >
-          Xóa bộ lọc
         </button>
       </div>
     </aside>

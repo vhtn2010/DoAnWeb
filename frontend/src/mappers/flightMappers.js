@@ -59,7 +59,17 @@ function getCabinClassLabel(cabinClass = '') {
   return labels[cabinClass] ?? cabinClass
 }
 
+function formatCityLabel(city = '') {
+  if (city === 'TP. Hồ Chí Minh') {
+    return 'TP. Hồ Chí Minh'
+  }
+
+  return city
+}
+
 export function mapFlightToCardView(flight) {
+  const stopCount = Number(flight.details?.stop_count ?? 0)
+
   return {
     ...flight,
     departure_time_label: formatTimeLabel(flight.departure_at),
@@ -70,6 +80,9 @@ export function mapFlightToCardView(flight) {
     route_text: `${flight.departure_airport_code} → ${flight.arrival_airport_code}`,
     flight_number_label: formatFlightNumber(flight.flight_number),
     cabin_class_label: getCabinClassLabel(flight.cabin_class),
+    departure_city_label: formatCityLabel(flight.departure_city),
+    arrival_city_label: formatCityLabel(flight.arrival_city),
+    stop_text: stopCount > 0 ? `${stopCount} điểm dừng` : 'Bay thẳng',
     policy_text: [
       flight.refundable ? 'Hoàn vé' : 'Không hoàn vé',
       flight.changeable ? 'Đổi lịch được' : 'Không đổi lịch',
