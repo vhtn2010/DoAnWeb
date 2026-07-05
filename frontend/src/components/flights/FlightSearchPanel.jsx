@@ -101,11 +101,7 @@ function FlightSearchPanel({
           onChange={handleDateChange}
         />
 
-        <FlightPassengerSelector
-          className="compact-passenger"
-          passengers={searchState.passengers}
-          onChange={updatePassengers}
-        />
+        <FlightPassengerSelector passengers={searchState.passengers} onChange={updatePassengers} />
       </div>
 
       <div className="flight-search-panel__divider" aria-hidden="true" />
