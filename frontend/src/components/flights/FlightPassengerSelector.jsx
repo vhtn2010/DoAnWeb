@@ -26,26 +26,27 @@ function CounterControl({ description, label, min = 0, value, onChange }) {
   )
 }
 
-function buildPassengerSummary(passengers = {}) {
+function formatPassengerDisplayLines(passengers = {}) {
   const adults = Number(passengers.adults ?? 1)
   const children = Number(passengers.children ?? 0)
   const infants = Number(passengers.infants ?? 0)
-  const summary = [`${adults} Người lớn`]
+  const firstLineParts = [`${adults} Người lớn`]
 
   if (children > 0) {
-    summary.push(`${children} Trẻ em`)
+    firstLineParts.push(`${children} Trẻ em`)
   }
 
   if (infants > 0) {
-    summary.push(`${infants} Em bé`)
+    return [firstLineParts.join(', '), `${infants} Em bé`]
   }
 
-  return summary.join(', ')
+  return [firstLineParts.join(', ')]
 }
 
 function FlightPassengerSelector({ className = '', passengers, onChange }) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
+  const passengerLines = formatPassengerDisplayLines(passengers)
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -62,7 +63,14 @@ function FlightPassengerSelector({ className = '', passengers, onChange }) {
   }, [])
 
   return (
-    <div className={`flight-passenger-selector ${className}`.trim()} ref={containerRef}>
+    <div
+      className={`flight-passenger-selector flight-search-panel__field ${className}`.trim()}
+      ref={containerRef}
+    >
+      <span className="flight-passenger-selector__label flight-search-panel__field-label">
+        HÀNH KHÁCH
+      </span>
+
       <button
         aria-expanded={isOpen}
         className={`flight-passenger-selector__trigger ${
@@ -82,9 +90,10 @@ function FlightPassengerSelector({ className = '', passengers, onChange }) {
           </svg>
         </span>
 
-        <span className="flight-passenger-selector__copy">
-          <span className="flight-passenger-selector__label">HÀNH KHÁCH</span>
-          <strong>{buildPassengerSummary(passengers)}</strong>
+        <span className="flight-passenger-selector__copy flight-passenger-selector__copy--lines">
+          {passengerLines.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
         </span>
 
         <span className="flight-passenger-selector__chevron" aria-hidden="true">

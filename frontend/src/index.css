@@ -8704,6 +8704,7 @@ select {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+  align-items: end;
 }
 
 .flight-search-panel__field,
@@ -8731,8 +8732,8 @@ select {
 }
 
 .flight-search-panel__field-shell {
-  min-height: 54px;
-  padding: 0 16px;
+  min-height: 60px;
+  padding: 0 18px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -9040,32 +9041,38 @@ select {
 
 .flight-passenger-selector {
   position: relative;
+  min-width: 0;
 }
 
 .flight-passenger-selector__trigger {
-  min-height: 54px;
+  min-height: 60px;
   width: 100%;
-  padding: 0 16px;
+  padding: 0 18px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   text-align: left;
   cursor: pointer;
 }
 
 .flight-passenger-selector__copy {
   min-width: 0;
+  color: #111827;
   display: grid;
-  gap: 4px;
+  gap: 2px;
+  font-weight: 800;
+  font-size: 0.94rem;
+  line-height: 1.12;
 }
 
-.flight-passenger-selector__copy strong {
-  color: #111827;
-  font-weight: 800;
+.flight-passenger-selector__copy--lines {
+  align-content: center;
+}
+
+.flight-passenger-selector__copy--lines span {
+  display: block;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .flight-passenger-selector__chevron {
@@ -9087,23 +9094,6 @@ select {
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14);
   display: grid;
   gap: 14px;
-}
-
-.flight-passenger-selector.compact-passenger .flight-passenger-selector__trigger {
-  min-height: 54px;
-  padding-block: 6px;
-}
-
-.flight-passenger-selector.compact-passenger .flight-passenger-selector__copy {
-  gap: 2px;
-}
-
-.flight-passenger-selector.compact-passenger .flight-passenger-selector__label {
-  font-size: 0.74rem;
-}
-
-.flight-passenger-selector.compact-passenger .flight-passenger-selector__copy strong {
-  font-size: 0.95rem;
 }
 
 .flight-passenger-selector__row {
