@@ -34,7 +34,6 @@ const PROMOTION_STATUS_VIEW_META = Object.freeze({
     label: 'Đang hoạt động',
   },
   [ADMIN_PROMOTION_STATUSES.ended]: {
-    actionLabel: 'Kết thúc',
     label: 'Đã kết thúc',
   },
   [ADMIN_PROMOTION_STATUSES.scheduled]: {
@@ -279,6 +278,7 @@ function AdminPromotionsPage() {
             <div className="admin-promotions-page__list" aria-label="Danh sách mã khuyến mãi">
               {promotions.map((promotion) => {
                 const status = PROMOTION_STATUS_VIEW_META[promotion.status]
+                const isEnded = promotion.status === ADMIN_PROMOTION_STATUSES.ended
                 const isScheduled = promotion.status === ADMIN_PROMOTION_STATUSES.scheduled
 
                 return (
@@ -311,15 +311,17 @@ function AdminPromotionsPage() {
                       >
                         Sửa
                       </AdminButton>
-                      <AdminButton
-                        className="admin-promotion-card__end"
-                        icon={<StopIcon />}
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => updatePromotionStatus(promotion, ADMIN_PROMOTION_STATUSES.ended)}
-                      >
-                        {status.actionLabel}
-                      </AdminButton>
+                      {!isEnded ? (
+                        <AdminButton
+                          className="admin-promotion-card__end"
+                          icon={<StopIcon />}
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => updatePromotionStatus(promotion, ADMIN_PROMOTION_STATUSES.ended)}
+                        >
+                          {status.actionLabel}
+                        </AdminButton>
+                      ) : null}
                     </div>
                   </AdminCard>
                 )
