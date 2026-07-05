@@ -111,6 +111,20 @@ function buildFlightCartItem({ flight, payload }) {
   }
 }
 
+function formatResultLocation(airports, airportCode) {
+  const airport = airports.find((item) => item.airport_code === airportCode)
+
+  if (!airport) {
+    return airportCode || '---'
+  }
+
+  if (airport.city === 'TP. Hồ Chí Minh') {
+    return 'TP. HCM'
+  }
+
+  return airport.city
+}
+
 export default function useFlightList() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -188,7 +202,20 @@ export default function useFlightList() {
           return
         }
 
-        setFlights(Array.isArray(response.data) ? response.data.map(mapFlightToCardView) : [])
+        const mappedFlights = Array.isArray(response.data)
+          ? response.data.map(mapFlightToCardView)
+          : []
+
+        setFlights((currentFlights) => {
+          if (currentPage <= 1) {
+            return mappedFlights
+          }
+
+          const existingIds = new Set(currentFlights.map((flight) => flight.id))
+          const nextFlights = mappedFlights.filter((flight) => !existingIds.has(flight.id))
+
+          return [...currentFlights, ...nextFlights]
+        })
         setMeta(response.meta ?? EMPTY_META)
       } catch (loadError) {
         if (!isActive) {
@@ -290,6 +317,7 @@ export default function useFlightList() {
     }
 
     setCurrentPage(1)
+    setSelectedFlightId('')
     setFeedback(
       createFeedbackState(
         'info',
@@ -319,6 +347,7 @@ export default function useFlightList() {
 
     setAppliedFilters(nextFilters)
     setCurrentPage(1)
+    setSelectedFlightId('')
     syncSearchParams({ nextFilters, nextPage: 1 })
   }
 
@@ -328,6 +357,7 @@ export default function useFlightList() {
 
     setSelectedSort(nextSort)
     setCurrentPage(1)
+    setSelectedFlightId('')
     syncSearchParams({ nextSort, nextPage: 1 })
   }
 
@@ -341,17 +371,22 @@ export default function useFlightList() {
     setDraftFilters(emptyFilters)
     setAppliedFilters(emptyFilters)
     setCurrentPage(1)
+    setSelectedFlightId('')
     syncSearchParams({ nextFilters: emptyFilters, nextPage: 1 })
   }
 
   function setPage(nextPage) {
+    if (nextPage === currentPage) {
+      return
+    }
+
     setCurrentPage(nextPage)
     syncSearchParams({ nextPage })
   }
 
   function selectFlight(flight) {
     setSelectedFlightId(flight.id)
-    setFeedback(createFeedbackState('success', `Đã chọn chuyến ${flight.flight_number} để tiếp tục.`))
+    setFeedback(createFeedbackState('success', `Đã chọn chuyến ${flight.flight_number_label} để tiếp tục.`))
   }
 
   function goToFlightDetail(flight) {
@@ -395,21 +430,15 @@ export default function useFlightList() {
   }
 
   const resultSummary = useMemo(() => {
-    if (loading) {
-      return 'Đang tải chuyến bay từ mock adapter...'
+    return {
+      total: meta.total ?? 0,
+      fromLabel: formatResultLocation(defaults.airports, searchState.from_location),
+      toLabel: formatResultLocation(defaults.airports, searchState.to_location),
     }
-
-    if (!meta.total) {
-      return 'Chưa có chuyến bay phù hợp với bộ lọc hiện tại.'
-    }
-
-    return `Hiển thị ${flights.length} trong ${meta.total} chuyến bay đang mở bán`
-  }, [flights.length, loading, meta.total])
+  }, [defaults.airports, meta.total, searchState.from_location, searchState.to_location])
 
   return {
-    appliedFilters,
     applyFilters,
-    breadcrumbHomePath: buildAuthAwarePath('/', isCustomer),
     currentPage: meta.page ?? currentPage,
     defaults,
     draftFilters,
@@ -419,11 +448,8 @@ export default function useFlightList() {
     formatCurrency: formatCurrencyVND,
     goToFlightDetail,
     continueBookingMock,
+    hasMore: Boolean(meta.has_next),
     loading,
-    pagination: {
-      totalPages: meta.total_pages ?? 1,
-      total: meta.total ?? 0,
-    },
     resetFilters,
     resultSummary,
     retry,

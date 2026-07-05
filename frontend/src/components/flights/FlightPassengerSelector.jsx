@@ -30,8 +30,17 @@ function buildPassengerSummary(passengers = {}) {
   const adults = Number(passengers.adults ?? 1)
   const children = Number(passengers.children ?? 0)
   const infants = Number(passengers.infants ?? 0)
+  const summary = [`${adults} Người lớn`]
 
-  return `${adults} NL • ${children} TE • ${infants} EB`
+  if (children > 0) {
+    summary.push(`${children} Trẻ em`)
+  }
+
+  if (infants > 0) {
+    summary.push(`${infants} Em bé`)
+  }
+
+  return summary.join(', ')
 }
 
 function FlightPassengerSelector({ passengers, onChange }) {
@@ -62,8 +71,27 @@ function FlightPassengerSelector({ passengers, onChange }) {
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
-        <span className="flight-passenger-selector__label">Hành khách</span>
-        <strong>{buildPassengerSummary(passengers)}</strong>
+        <span className="flight-passenger-selector__icon" aria-hidden="true">
+          <svg fill="none" viewBox="0 0 24 24">
+            <path
+              d="M12 12.5a3.8 3.8 0 1 0 0-7.6 3.8 3.8 0 0 0 0 7.6ZM5.5 19.25a6.5 6.5 0 0 1 13 0"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="1.8"
+            />
+          </svg>
+        </span>
+
+        <span className="flight-passenger-selector__copy">
+          <span className="flight-passenger-selector__label">HÀNH KHÁCH</span>
+          <strong>{buildPassengerSummary(passengers)}</strong>
+        </span>
+
+        <span className="flight-passenger-selector__chevron" aria-hidden="true">
+          <svg fill="none" viewBox="0 0 24 24">
+            <path d="m7 10 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+          </svg>
+        </span>
       </button>
 
       {isOpen ? (

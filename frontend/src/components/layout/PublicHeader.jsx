@@ -1,9 +1,8 @@
 import { Link, NavLink, useLocation, useSearchParams } from 'react-router-dom'
 
-const navItems = [
+const primaryNavItems = [
   { label: 'Trang chủ', to: '/', end: true },
   { label: 'Tour', to: '/services' },
-  { label: 'Đặt vé', to: '/flights' },
   { label: 'Khách sạn', to: '/hotels' },
 ]
 
@@ -36,6 +35,23 @@ function HeaderActionIcon({ children, href, label, to }) {
   )
 }
 
+function BookingSubmenuIcon({ type }) {
+  if (type === 'train') {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+        <rect height="11" rx="3" stroke="currentColor" strokeWidth="1.7" width="12" x="6" y="4.5" />
+        <path d="M8.5 8.5h2.6M12.9 8.5h2.6M9 15.5l-2 4M15 15.5l2 4M7 19.5h10" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path d="M3.75 13.25h7.05l3.15 5.2c.2.35.56.55.96.55h1.34c.4 0 .65-.44.45-.8l-1.88-4.95h4.46c.56 0 1.08-.3 1.36-.78l.66-1.16c.19-.33-.05-.75-.43-.75H14.1L9.96 4.43a1.23 1.23 0 0 0-1.06-.61H7.7c-.36 0-.6.36-.46.68l2.02 5.06H3.75c-.42 0-.75.33-.75.75v2.19c0 .42.33.75.75.75Z" fill="currentColor" />
+    </svg>
+  )
+}
+
 function getPublicHeaderState(authState) {
   const isCustomer = authState === 'customer'
 
@@ -60,6 +76,9 @@ function PublicHeader() {
   const isCheckoutPreview = location.pathname === '/checkout'
   const isHotelPreview = location.pathname.startsWith('/hotels')
   const isFlightPreview = location.pathname.startsWith('/flights')
+  const bookingLinkClassName = `public-header__link${
+    isFlightPreview ? ' public-header__link--active' : ''
+  }`
 
   return (
     <header className="public-header">
@@ -77,7 +96,43 @@ function PublicHeader() {
         </Link>
 
         <nav aria-label="Điều hướng công khai" className="public-header__nav">
-          {navItems.map((item) => (
+          {primaryNavItems.slice(0, 2).map((item) => (
+            <NavLink
+              className={getNavLinkClassName}
+              end={item.end}
+              key={item.label}
+              to={buildPreviewPath(item.to)}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+
+          <div className="public-header__booking-menu">
+            <Link className={bookingLinkClassName} to={buildPreviewPath('/flights')}>
+              Đặt vé
+            </Link>
+
+            <div className="public-header__booking-dropdown">
+              <Link
+                className="public-header__booking-option public-header__booking-option--active"
+                to={buildPreviewPath('/flights')}
+              >
+                <BookingSubmenuIcon type="flight" />
+                <span>Vé máy bay</span>
+              </Link>
+
+              <button
+                aria-disabled="true"
+                className="public-header__booking-option"
+                type="button"
+              >
+                <BookingSubmenuIcon type="train" />
+                <span>Vé tàu</span>
+              </button>
+            </div>
+          </div>
+
+          {primaryNavItems.slice(2).map((item) => (
             <NavLink
               className={getNavLinkClassName}
               end={item.end}

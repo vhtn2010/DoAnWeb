@@ -1,47 +1,22 @@
-import { Link } from 'react-router-dom'
 import FlightCard from '../../components/flights/FlightCard.jsx'
 import FlightFilterSidebar from '../../components/flights/FlightFilterSidebar.jsx'
 import FlightSearchPanel from '../../components/flights/FlightSearchPanel.jsx'
 import FlightSortBar from '../../components/flights/FlightSortBar.jsx'
 import useFlightList from '../../hooks/useFlightList.js'
 
-function FlightPagination({ currentPage, totalPages, onPageChange }) {
-  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
-
+function FlightResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
   return (
-    <div className="flight-pagination" aria-label="Phân trang chuyến bay">
+    <div className="flight-results__footer">
       <button
-        aria-label="Trang trước"
-        className="flight-pagination__button"
-        disabled={currentPage === 1}
+        className="flight-results__load-more"
+        disabled={!canLoadMore || isLoading}
         type="button"
-        onClick={() => onPageChange(currentPage - 1)}
+        onClick={onLoadMore}
       >
-        ‹
-      </button>
-
-      {pageNumbers.map((pageNumber) => (
-        <button
-          aria-current={pageNumber === currentPage ? 'page' : undefined}
-          className={`flight-pagination__button ${
-            pageNumber === currentPage ? 'flight-pagination__button--active' : ''
-          }`}
-          key={pageNumber}
-          type="button"
-          onClick={() => onPageChange(pageNumber)}
-        >
-          {pageNumber}
-        </button>
-      ))}
-
-      <button
-        aria-label="Trang sau"
-        className="flight-pagination__button"
-        disabled={currentPage === totalPages}
-        type="button"
-        onClick={() => onPageChange(currentPage + 1)}
-      >
-        ›
+        <span>Xem thêm chuyến bay</span>
+        <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+          <path d="m7 10 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+        </svg>
       </button>
     </div>
   )
@@ -50,7 +25,6 @@ function FlightPagination({ currentPage, totalPages, onPageChange }) {
 function FlightListPage() {
   const {
     applyFilters,
-    breadcrumbHomePath,
     continueBookingMock,
     currentPage,
     defaults,
@@ -60,8 +34,8 @@ function FlightListPage() {
     flights,
     formatCurrency,
     goToFlightDetail,
+    hasMore,
     loading,
-    pagination,
     resetFilters,
     resultSummary,
     retry,
@@ -77,6 +51,7 @@ function FlightListPage() {
     updateSearchField,
     updateTripType,
   } = useFlightList()
+  const searchPanelFeedback = selectedFlightId ? { tone: feedback.tone, message: '' } : feedback
 
   return (
     <div className="flight-list-page">
@@ -88,16 +63,10 @@ function FlightListPage() {
           src="/assets/template/home/v39_1669.png"
         />
         <div className="flight-list-page__hero-content">
-          <div className="flight-list-page__breadcrumb">
-            <Link className="flight-list-page__breadcrumb-link" to={breadcrumbHomePath}>
-              Trang chủ
-            </Link>
-            <span aria-hidden="true">›</span>
-            <span>Đặt vé máy bay</span>
-          </div>
-          <h1 className="flight-list-page__hero-title">Đặt vé máy bay</h1>
+          <p className="flight-list-page__hero-eyebrow">VivuTrip Flight</p>
+          <h1 className="flight-list-page__hero-title">Khám phá Việt Nam</h1>
           <p className="flight-list-page__hero-copy">
-            Tìm chuyến bay theo dữ liệu mock với pattern API-ready để tiếp tục giỏ hàng và checkout.
+            Hành trình vạn dặm, bắt đầu từ một bước chân cùng VivuTrip.
           </p>
         </div>
       </section>
@@ -106,11 +75,14 @@ function FlightListPage() {
         <FlightSearchPanel
           airports={defaults.airports}
           cabinClasses={defaults.cabin_classes}
-          feedback={feedback}
+          feedback={searchPanelFeedback}
           searchState={searchState}
+          selectedSort={selectedSort}
+          sortOptions={defaults.sort_options}
           updatePassengers={updatePassengers}
           updateSearchField={updateSearchField}
           updateTripType={updateTripType}
+          onSortChange={setSort}
           onSubmit={submitSearch}
         />
       </div>
@@ -135,16 +107,16 @@ function FlightListPage() {
 
             {error ? (
               <div className="flight-results__empty" role="alert">
-                <h3>Không thể tải chuyến bay</h3>
+                <h3>Không thể tải chuyến bay lúc này</h3>
                 <p>{error}</p>
                 <button className="flight-results__retry" type="button" onClick={retry}>
-                  Tải lại
+                  Tải lại danh sách
                 </button>
               </div>
-            ) : loading ? (
+            ) : loading && !flights.length ? (
               <div className="flight-results__empty" role="status">
-                <h3>Đang tải chuyến bay</h3>
-                <p>Dữ liệu đang được đọc từ mock adapter theo API-ready pattern.</p>
+                <h3>Đang tìm chuyến bay phù hợp</h3>
+                <p>Danh sách đang được đọc từ mock adapter theo pattern API-ready hiện tại.</p>
               </div>
             ) : flights.length ? (
               <>
@@ -163,10 +135,10 @@ function FlightListPage() {
                   ))}
                 </div>
 
-                <FlightPagination
-                  currentPage={currentPage}
-                  totalPages={pagination.totalPages}
-                  onPageChange={setPage}
+                <FlightResultsFooter
+                  canLoadMore={hasMore}
+                  isLoading={loading}
+                  onLoadMore={() => setPage(currentPage + 1)}
                 />
               </>
             ) : (
