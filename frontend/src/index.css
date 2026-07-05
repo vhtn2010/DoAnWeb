@@ -8616,8 +8616,8 @@ select {
   padding: 0 24px 28px;
   border-radius: inherit;
   background:
-    radial-gradient(circle at top right, rgba(214, 40, 40, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), #fff7f4 100%);
+    radial-gradient(circle at top right, rgba(214, 40, 40, 0.05), transparent 24%),
+    linear-gradient(180deg, #fff 0%, #fffdfd 68%, #fff8f8 100%);
 }
 
 .flight-list-page__hero {
@@ -8681,7 +8681,7 @@ select {
 .flight-list-page__search-shell {
   position: relative;
   z-index: 2;
-  margin: -78px auto 0;
+  margin: -64px auto 0;
   width: min(1120px, calc(100% - 32px));
 }
 
@@ -8689,74 +8689,21 @@ select {
 .flight-filter-sidebar,
 .flight-card {
   border: 1px solid rgba(229, 231, 235, 0.96);
-  border-radius: 30px;
+  border-radius: 22px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 30px 65px rgba(170, 22, 41, 0.1);
+  box-shadow: 0 22px 48px rgba(170, 22, 41, 0.08);
 }
 
 .flight-search-panel {
-  padding: 28px 30px;
+  padding: 24px 28px 22px;
   display: grid;
-  gap: 22px;
-}
-
-.flight-search-panel__topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.flight-search-panel__trip-types {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.flight-search-panel__caption {
-  color: rgba(107, 114, 128, 0.94);
-  font-weight: 700;
-}
-
-.flight-search-panel__trip-button,
-.flight-filter-sidebar__button,
-.flight-card__button,
-.flight-search-panel__submit,
-.flight-results__retry,
-.flight-results__load-more,
-.flight-passenger-selector__trigger,
-.flight-passenger-selector__counter button {
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
-}
-
-.flight-search-panel__trip-button {
-  min-height: 42px;
-  padding: 0 20px;
-  border: 1px solid rgba(214, 40, 40, 0.14);
-  border-radius: var(--radius-pill);
-  background: rgba(255, 245, 245, 0.9);
-  color: var(--color-text-soft);
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.flight-search-panel__trip-button--active {
-  background: var(--color-brand-primary);
-  border-color: var(--color-brand-primary);
-  color: #fff;
+  gap: 18px;
 }
 
 .flight-search-panel__grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .flight-search-panel__field,
@@ -8776,31 +8723,26 @@ select {
 
 .flight-search-panel__field-shell,
 .flight-passenger-selector__trigger,
-.flight-search-panel__utility select,
-.flight-search-panel__sort-shell,
-.flight-sort-bar__select-shell {
+.flight-search-panel__sort-trigger,
+.flight-sort-bar__trigger {
   border: 1px solid rgba(232, 236, 239, 0.96);
   border-radius: 999px;
   background: #f6f7f8;
 }
 
 .flight-search-panel__field-shell {
-  min-height: 66px;
-  padding: 0 18px;
+  min-height: 54px;
+  padding: 0 16px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
-}
-
-.flight-search-panel__field-shell--dates {
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
 }
 
 .flight-search-panel__field-icon,
 .flight-passenger-selector__icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   color: var(--color-brand-primary);
   display: inline-flex;
   align-items: center;
@@ -8810,8 +8752,8 @@ select {
 .flight-search-panel__field-icon svg,
 .flight-passenger-selector__icon svg,
 .flight-search-panel__submit svg,
-.flight-search-panel__sort-shell svg,
-.flight-sort-bar__select-shell svg,
+.flight-search-panel__sort-trigger svg,
+.flight-sort-bar__trigger svg,
 .flight-filter-sidebar__marker svg,
 .flight-results__load-more svg,
 .flight-passenger-selector__chevron svg {
@@ -8820,10 +8762,7 @@ select {
 }
 
 .flight-search-panel__field select,
-.flight-search-panel__field input,
-.flight-search-panel__utility select,
-.flight-search-panel__sort-shell select,
-.flight-sort-bar__select-shell select {
+.flight-search-panel__field input {
   width: 100%;
   border: none;
   background: transparent;
@@ -8831,23 +8770,13 @@ select {
   font-weight: 800;
 }
 
-.flight-search-panel__field select,
-.flight-search-panel__utility select,
-.flight-search-panel__sort-shell select,
-.flight-sort-bar__select-shell select {
+.flight-search-panel__field select {
   appearance: none;
   cursor: pointer;
 }
 
-.flight-search-panel__field input {
-  min-width: 0;
-}
-
 .flight-search-panel__field select:focus,
-.flight-search-panel__field input:focus,
-.flight-search-panel__utility select:focus,
-.flight-search-panel__sort-shell select:focus,
-.flight-sort-bar__select-shell select:focus {
+.flight-search-panel__field input:focus {
   outline: none;
 }
 
@@ -8855,18 +8784,30 @@ select {
 .flight-passenger-selector__trigger--open,
 .flight-passenger-selector__trigger:hover,
 .flight-passenger-selector__trigger:focus-visible,
-.flight-search-panel__utility select:focus,
-.flight-search-panel__sort-shell:focus-within,
-.flight-sort-bar__select-shell:focus-within {
+.flight-search-panel__sort-trigger:focus-within,
+.flight-sort-bar__trigger:focus-within {
   border-color: rgba(215, 0, 24, 0.26);
   box-shadow: 0 0 0 4px rgba(215, 0, 24, 0.08);
   background: #fff;
   outline: none;
 }
 
-.flight-search-panel__date-separator {
-  color: rgba(156, 163, 175, 0.94);
+.flight-search-panel__field-shell--date-display {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.flight-search-panel__date-display {
+  color: #111827;
   font-weight: 800;
+}
+
+.flight-search-panel__date-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .flight-passenger-selector {
@@ -8874,9 +8815,9 @@ select {
 }
 
 .flight-passenger-selector__trigger {
-  min-height: 66px;
+  min-height: 54px;
   width: 100%;
-  padding: 0 18px;
+  padding: 0 16px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -8968,32 +8909,31 @@ select {
 
 .flight-search-panel__footer {
   display: grid;
-  grid-template-columns: minmax(180px, 220px) auto minmax(180px, 220px);
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
 }
 
-.flight-search-panel__utility,
 .flight-search-panel__sort {
-  display: grid;
-  gap: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.flight-search-panel__utility span,
-.flight-search-panel__sort > span {
+.flight-search-panel__footer-spacer {
+  min-height: 1px;
+}
+
+.flight-search-panel__sort-prefix {
   color: var(--color-text-soft);
   font-size: 0.88rem;
   font-weight: 800;
 }
 
-.flight-search-panel__utility select {
-  min-height: 52px;
-  padding: 0 18px;
-}
-
 .flight-search-panel__submit {
   min-height: 56px;
-  padding: 0 28px;
+  width: min(340px, 100%);
+  padding: 0 30px;
   border: none;
   border-radius: var(--radius-pill);
   background: linear-gradient(135deg, #c8102e, #e11d2f);
@@ -9014,23 +8954,44 @@ select {
 }
 
 .flight-search-panel__sort {
-  justify-items: end;
+  justify-self: end;
+  position: relative;
 }
 
-.flight-search-panel__sort-shell,
-.flight-sort-bar__select-shell {
-  min-height: 50px;
-  padding: 0 16px;
+.flight-search-panel__sort-trigger,
+.flight-sort-bar__trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding: 0 4px 0 0;
+  border: none;
+  background: transparent;
+  min-height: auto;
 }
 
-.flight-search-panel__sort-shell svg,
-.flight-sort-bar__select-shell svg {
+.flight-search-panel__sort-value,
+.flight-sort-bar__value {
+  color: var(--color-brand-primary);
+  font-weight: 800;
+}
+
+.flight-search-panel__sort-icon,
+.flight-sort-bar__trigger svg {
   width: 16px;
   height: 16px;
-  color: rgba(107, 114, 128, 0.96);
+  color: rgba(107, 114, 128, 0.94);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flight-search-panel__sort-select,
+.flight-sort-bar__select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .flight-search-panel__feedback,
@@ -9062,24 +9023,25 @@ select {
 }
 
 .flight-list-page__body {
-  padding: 36px 0 10px;
+  padding: 30px 0 10px;
 }
 
 .flight-list-page__layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 28px;
   align-items: start;
 }
 
 .flight-filter-sidebar {
   position: sticky;
-  top: 110px;
-  padding: 24px;
+  top: 106px;
+  padding: 22px 20px;
   display: grid;
-  gap: 18px;
-  border-color: rgba(238, 239, 241, 0.96);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+  gap: 16px;
+  border: 1px solid #f0dada;
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
 }
 
 .flight-filter-sidebar__header {
@@ -9089,9 +9051,9 @@ select {
 }
 
 .flight-filter-sidebar__marker {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   background: rgba(214, 40, 40, 0.12);
   color: var(--color-brand-primary);
   display: inline-flex;
@@ -9100,14 +9062,14 @@ select {
 }
 
 .flight-filter-sidebar__marker svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .flight-filter-sidebar__title {
   margin: 0;
   color: #111827;
-  font-size: 1.16rem;
+  font-size: 1.02rem;
   font-weight: 900;
 }
 
@@ -9124,7 +9086,7 @@ select {
 .flight-filter-sidebar__section h3 {
   margin: 0;
   color: #111827;
-  font-size: 0.98rem;
+  font-size: 0.94rem;
   font-weight: 800;
 }
 
@@ -9139,24 +9101,36 @@ select {
   gap: 10px;
   color: var(--color-text-soft);
   font-weight: 700;
+  font-size: 0.92rem;
 }
 
 .flight-filter-sidebar__check input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--color-brand-primary);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  appearance: none;
+  border: 1px solid rgba(215, 0, 24, 0.22);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 0 var(--color-brand-primary);
+}
+
+.flight-filter-sidebar__check input:checked {
+  border-color: var(--color-brand-primary);
+  background: rgba(215, 0, 24, 0.08);
+  box-shadow: inset 0 0 0 4px var(--color-brand-primary);
 }
 
 .flight-filter-sidebar__actions {
-  display: grid;
-  gap: 12px;
-  padding-top: 6px;
+  padding-top: 4px;
 }
 
 .flight-filter-sidebar__button {
-  min-height: 48px;
+  width: 100%;
+  min-height: 46px;
   border: none;
-  border-radius: 16px;
+  border-radius: 10px;
   font-weight: 900;
   cursor: pointer;
 }
@@ -9177,51 +9151,52 @@ select {
 
 .flight-results {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .flight-sort-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
 .flight-sort-bar__summary {
   margin: 0;
   color: var(--color-text-soft);
-  font-size: 1rem;
+  font-size: 1.02rem;
   font-weight: 700;
 }
 
 .flight-sort-bar__summary strong {
   color: var(--color-brand-primary);
-  font-size: 1.2rem;
+  font-size: 1.05rem;
 }
 
 .flight-sort-bar__control {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--color-text-soft);
   font-weight: 800;
 }
 
 .flight-results__list {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .flight-card {
   position: relative;
-  padding: 22px 24px 22px 28px;
+  padding: 20px 22px 20px 26px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 18px;
   align-items: center;
   border-color: rgba(215, 0, 24, 0.14);
   cursor: pointer;
+  border-radius: 18px;
 }
 
 .flight-card--selected {
@@ -9236,9 +9211,9 @@ select {
 
 .flight-card__accent {
   position: absolute;
-  top: 24px;
-  left: 12px;
-  bottom: 24px;
+  top: 20px;
+  left: 10px;
+  bottom: 20px;
   width: 8px;
   border-radius: var(--radius-pill);
   background: linear-gradient(180deg, #e11d2f, #f87171);
@@ -9257,9 +9232,9 @@ select {
 }
 
 .flight-card__brand-mark {
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
   border: 1px solid rgba(229, 231, 235, 0.96);
   background: #fff;
   display: inline-flex;
@@ -9286,7 +9261,7 @@ select {
 }
 
 .flight-card__brand-copy strong {
-  font-size: 1.04rem;
+  font-size: 1rem;
 }
 
 .flight-card__brand-copy span,
@@ -9300,30 +9275,29 @@ select {
 
 .flight-card__route {
   display: grid;
-  grid-template-columns: minmax(108px, 120px) minmax(0, 1fr) minmax(108px, 120px);
-  gap: 18px;
+  grid-template-columns: minmax(120px, 132px) minmax(0, 1fr) minmax(120px, 132px);
+  gap: 16px;
   align-items: center;
 }
 
 .flight-card__time-block {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .flight-card__time-block strong {
-  font-size: 2rem;
+  font-size: 1.9rem;
   line-height: 1;
-}
-
-.flight-card__time-block span {
-  color: var(--color-brand-primary);
-  font-weight: 900;
 }
 
 .flight-card__time-block p,
 .flight-card__timeline p,
 .flight-card__timeline small {
   margin: 0;
+}
+
+.flight-card__time-block p {
+  font-size: 0.93rem;
 }
 
 .flight-card__timeline {
@@ -9385,7 +9359,7 @@ select {
 .flight-card__fare {
   display: grid;
   justify-items: end;
-  gap: 10px;
+  gap: 8px;
   text-align: right;
 }
 
@@ -9397,7 +9371,7 @@ select {
 
 .flight-card__fare strong {
   color: var(--color-brand-primary);
-  font-size: 2rem;
+  font-size: 1.9rem;
   line-height: 1;
 }
 
@@ -9419,11 +9393,13 @@ select {
   padding: 0;
   background: transparent;
   color: var(--color-brand-primary);
+  justify-self: end;
+  font-size: 0.92rem;
 }
 
 .flight-card__seat-note {
   color: var(--color-brand-primary);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 900;
 }
 
@@ -9463,11 +9439,12 @@ select {
 .flight-results__footer {
   display: flex;
   justify-content: center;
+  margin-top: 4px;
 }
 
 .flight-results__load-more {
-  min-height: 50px;
-  padding: 0 22px;
+  min-height: 48px;
+  padding: 0 24px;
   border: 1px solid rgba(215, 0, 24, 0.28);
   border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.98);
@@ -9533,6 +9510,10 @@ select {
   .flight-search-panel__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .flight-search-panel__sort {
+    justify-self: end;
+  }
 }
 
 @media (max-width: 900px) {
@@ -9583,7 +9564,7 @@ select {
   }
 
   .flight-search-panel__sort {
-    justify-items: stretch;
+    justify-self: stretch;
   }
 
   .flight-search-panel__submit,

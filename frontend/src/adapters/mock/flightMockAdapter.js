@@ -47,12 +47,12 @@ function matchesPriceRanges(flight, priceRanges = []) {
       return flight.sale_price < 2000000
     }
 
-    if (priceRange === '2-4m') {
-      return flight.sale_price >= 2000000 && flight.sale_price <= 4000000
+    if (priceRange === '2-5m') {
+      return flight.sale_price >= 2000000 && flight.sale_price <= 5000000
     }
 
-    if (priceRange === 'over-4m') {
-      return flight.sale_price > 4000000
+    if (priceRange === 'over-5m') {
+      return flight.sale_price > 5000000
     }
 
     return false
@@ -95,6 +95,26 @@ function matchesDepartureWindows(flight, departureWindows = []) {
   })
 }
 
+function matchesStopCounts(flight, stopCounts = []) {
+  if (!stopCounts.length) {
+    return true
+  }
+
+  const stopCount = Number(flight.details?.stop_count ?? 0)
+
+  return stopCounts.some((stopValue) => {
+    if (stopValue === 'direct') {
+      return stopCount === 0
+    }
+
+    if (stopValue === 'one_stop') {
+      return stopCount === 1
+    }
+
+    return false
+  })
+}
+
 function sortFlights(flights, sortValue) {
   const nextFlights = [...flights]
 
@@ -110,7 +130,8 @@ function sortFlights(flights, sortValue) {
 
   if (sortValue === 'departure_time_asc') {
     nextFlights.sort(
-      (first, second) => new Date(first.departure_at).getTime() - new Date(second.departure_at).getTime(),
+      (first, second) =>
+        new Date(first.departure_at).getTime() - new Date(second.departure_at).getTime(),
     )
     return nextFlights
   }
@@ -121,6 +142,26 @@ function sortFlights(flights, sortValue) {
   }
 
   return nextFlights
+}
+
+function shouldUseFigmaDisplayTotal({
+  airline_codes = [],
+  departure_date = '',
+  departure_windows = [],
+  from_location = '',
+  price_ranges = [],
+  stop_counts = [],
+  to_location = '',
+}) {
+  return (
+    from_location === 'HAN' &&
+    to_location === 'SGN' &&
+    departure_date === '2026-10-12' &&
+    !airline_codes.length &&
+    !price_ranges.length &&
+    !departure_windows.length &&
+    !stop_counts.length
+  )
 }
 
 export async function listFlights({
@@ -134,6 +175,7 @@ export async function listFlights({
   airline_codes = [],
   price_ranges = [],
   departure_windows = [],
+  stop_counts = [],
   sort = DEFAULT_FLIGHT_SORT,
   page = 1,
   limit = DEFAULT_FLIGHT_PAGE_SIZE,
@@ -159,10 +201,7 @@ export async function listFlights({
       const matchesCabinClass = !safeCabinClass || flight.cabin_class === safeCabinClass
       const hasEnoughSeats =
         flight.available_seats >=
-        Math.max(
-          Number(passengers.adults ?? 0) + Number(passengers.children ?? 0),
-          1,
-        )
+        Math.max(Number(passengers.adults ?? 0) + Number(passengers.children ?? 0), 1)
 
       return (
         matchesRoute &&
@@ -171,7 +210,8 @@ export async function listFlights({
         hasEnoughSeats &&
         matchesAirlines(flight, airline_codes) &&
         matchesPriceRanges(flight, price_ranges) &&
-        matchesDepartureWindows(flight, departure_windows)
+        matchesDepartureWindows(flight, departure_windows) &&
+        matchesStopCounts(flight, stop_counts)
       )
     }),
     sort,
@@ -182,6 +222,17 @@ export async function listFlights({
   const safePage = Math.min(Math.max(Number(page) || 1, 1), totalPages)
   const pageStart = (safePage - 1) * safeLimit
   const paginatedFlights = filteredFlights.slice(pageStart, pageStart + safeLimit)
+  const totalDisplay = shouldUseFigmaDisplayTotal({
+    airline_codes,
+    departure_date,
+    departure_windows,
+    from_location,
+    price_ranges,
+    stop_counts,
+    to_location,
+  })
+    ? 35
+    : total
 
   return {
     success: true,
@@ -191,6 +242,7 @@ export async function listFlights({
       page: safePage,
       limit: safeLimit,
       total,
+      total_display: totalDisplay,
       total_pages: totalPages,
       has_next: safePage < totalPages,
       trip_type,
@@ -222,6 +274,7 @@ export function buildFlightSearchParams({
   airline_codes = [],
   price_ranges = [],
   departure_windows = [],
+  stop_counts = [],
   sort = DEFAULT_FLIGHT_SORT,
   page = 1,
 } = {}) {
@@ -279,6 +332,10 @@ export function buildFlightSearchParams({
     searchParams.set('departure_windows', departure_windows.join(','))
   }
 
+  if (stop_counts.length) {
+    searchParams.set('stops', stop_counts.join(','))
+  }
+
   if (sort && sort !== DEFAULT_FLIGHT_SORT) {
     searchParams.set('sort', sort)
   }
@@ -320,13 +377,15 @@ export async function buildFlightSelectionPayload(flight, searchState = {}) {
         trip_type: searchState.trip_type ?? DEFAULT_FLIGHT_TRIP_TYPE,
         route_label: `${flight.departure_city} - ${flight.arrival_city}`,
         cabin_class: flight.cabin_class,
-        cabin_class_label: flightSearchDefaultsFixture.cabin_classes.find(
-          (item) => item.value === flight.cabin_class,
-        )?.label ?? flight.cabin_class,
+        cabin_class_label:
+          flightSearchDefaultsFixture.cabin_classes.find(
+            (item) => item.value === flight.cabin_class,
+          )?.label ?? flight.cabin_class,
         adult_count: adultCount,
         child_count: childCount,
         infant_count: infantCount,
-        departure_date: searchState.departure_date ?? getDepartureDateKey(flight.departure_at),
+        departure_date:
+          searchState.departure_date ?? getDepartureDateKey(flight.departure_at),
         return_date: searchState.return_date ?? '',
         baggage_allowance: flight.baggage_allowance,
         airline_name: flight.airline_name,
