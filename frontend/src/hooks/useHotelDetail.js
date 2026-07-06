@@ -176,7 +176,7 @@ export default function useHotelDetail() {
             detail_path: buildAuthAwarePath(`/hotels/${relatedHotel.slug}`, isCustomer),
           })),
         )
-        setSelectedRoomId('')
+        setSelectedRoomId(mappedState.rooms[0]?.id ?? '')
         setSelectedImage(mappedState.hotel.gallery[0] ?? mappedState.hotel.image_url)
         setAvailability(createAvailabilityState())
       } catch (loadError) {
