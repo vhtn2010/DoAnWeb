@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import HotelAmenityList from '../../components/hotels/HotelAmenityList.jsx'
 import HotelBookingPanel from '../../components/hotels/HotelBookingPanel.jsx'
 import HotelGallery from '../../components/hotels/HotelGallery.jsx'
@@ -6,12 +5,20 @@ import HotelReviewSummary from '../../components/hotels/HotelReviewSummary.jsx'
 import HotelRoomCard from '../../components/hotels/HotelRoomCard.jsx'
 import useHotelDetail from '../../hooks/useHotelDetail.js'
 
+function StarIcon() {
+  return (
+    <svg fill="currentColor" viewBox="0 0 24 24">
+      <path d="m12 2.6 2.85 5.77 6.37.93-4.61 4.49 1.09 6.34L12 17.13 6.3 20.13l1.09-6.34L2.78 9.3l6.37-.93L12 2.6Z" />
+    </svg>
+  )
+}
+
 function HotelStars({ total = 5 }) {
   return (
     <div className="hotel-detail-title__stars" aria-label={`${total} sao`}>
       {Array.from({ length: total }, (_, index) => (
         <span key={index} aria-hidden="true">
-          ★
+          <StarIcon />
         </span>
       ))}
     </div>
@@ -42,7 +49,13 @@ function HotelLocationIcon() {
 function ShareIcon() {
   return (
     <svg fill="none" viewBox="0 0 24 24">
-      <path d="M15 8 9 12l6 4M18 6.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM6 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM18 22.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+      <path
+        d="M15 8 9 12l6 4M18 6.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM6 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM18 22.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
     </svg>
   )
 }
@@ -50,7 +63,13 @@ function ShareIcon() {
 function HeartIcon() {
   return (
     <svg fill="none" viewBox="0 0 24 24">
-      <path d="M12 20.5 5.6 14A4.8 4.8 0 0 1 12 7.4 4.8 4.8 0 0 1 18.4 14L12 20.5Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+      <path
+        d="M12 20.5 5.6 14A4.8 4.8 0 0 1 12 7.4 4.8 4.8 0 0 1 18.4 14L12 20.5Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
     </svg>
   )
 }
@@ -58,45 +77,25 @@ function HeartIcon() {
 function HotelDetailPage() {
   const {
     availability,
-    breadcrumbHomePath,
-    breadcrumbListPath,
-    checkinDate,
-    checkoutDate,
     error,
     feedback,
     formatCurrency,
     galleryState,
     goToCartMock,
     goToCheckoutMock,
-    guests,
     hotel,
     loading,
     retry,
-    roomQuantity,
     rooms,
     selectRoom,
     selectedRoom,
     selectedRoomId,
-    stayNights,
-    updateDateRange,
-    updateGuests,
-    updateRoomQuantity,
   } = useHotelDetail()
 
   if (error && !hotel && !loading) {
     return (
       <div className="hotel-detail-page">
         <div className="hotel-detail-page__shell">
-          <nav aria-label="Breadcrumb" className="hotel-detail-page__breadcrumb">
-            <Link className="hotel-detail-page__breadcrumb-link" to={breadcrumbHomePath}>
-              Trang chu
-            </Link>
-            <span aria-hidden="true">/</span>
-            <Link className="hotel-detail-page__breadcrumb-link" to={breadcrumbListPath}>
-              Khach san
-            </Link>
-          </nav>
-
           <section className="hotel-detail-card hotel-detail-card--empty">
             <p className="hotel-detail-page__eyebrow">Khong kha dung</p>
             <h1 className="hotel-detail-page__title">Khong tim thay khach san</h1>
@@ -131,18 +130,6 @@ function HotelDetailPage() {
   return (
     <div className="hotel-detail-page">
       <div className="hotel-detail-page__shell">
-        <nav aria-label="Breadcrumb" className="hotel-detail-page__breadcrumb">
-          <Link className="hotel-detail-page__breadcrumb-link" to={breadcrumbHomePath}>
-            Trang chu
-          </Link>
-          <span aria-hidden="true">/</span>
-          <Link className="hotel-detail-page__breadcrumb-link" to={breadcrumbListPath}>
-            Khach san
-          </Link>
-          <span aria-hidden="true">/</span>
-          <span className="hotel-detail-page__breadcrumb-current">{hotel.title}</span>
-        </nav>
-
         <section className="hotel-detail-title">
           <div className="hotel-detail-title__copy">
             <HotelStars total={hotel.details?.star_rating ?? 5} />
@@ -153,11 +140,10 @@ function HotelDetailPage() {
                 <HotelLocationIcon />
               </span>
               <span>{hotel.address}</span>
+              <button className="hotel-detail-title__map-link" type="button">
+                Xem tren ban do
+              </button>
             </div>
-
-            <button className="hotel-detail-title__map-link" type="button">
-              Xem tren ban do
-            </button>
           </div>
 
           <div className="hotel-detail-title__actions">
@@ -185,58 +171,46 @@ function HotelDetailPage() {
               </div>
 
               <p className="hotel-detail-page__description">{hotel.description}</p>
-              <p className="hotel-detail-page__description">{hotel.short_description}</p>
             </section>
 
             <HotelAmenityList items={hotel.amenities} title="Tien nghi" />
-
-            <section className="hotel-detail-card hotel-detail-card--plain">
-              <div className="hotel-detail-section-heading">
-                <h2 className="hotel-detail-section-heading__title">Cac loai phong</h2>
-                {hotel.details?.room_note ? (
-                  <p className="hotel-detail-section-heading__note">{hotel.details.room_note}</p>
-                ) : null}
-              </div>
-
-              <div className="hotel-detail-room-list">
-                {featuredRooms.map((room) => (
-                  <HotelRoomCard
-                    key={room.id}
-                    formatCurrency={formatCurrency}
-                    isSelected={selectedRoomId === room.id}
-                    room={room}
-                    onReserve={goToCheckoutMock}
-                    onSelect={selectRoom}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <HotelReviewSummary
-              rating={hotel.rating}
-              reviewCount={hotel.review_count}
-              reviews={hotel.details?.review_items}
-            />
           </div>
 
           <HotelBookingPanel
             availability={availability}
-            checkinDate={checkinDate}
-            checkoutDate={checkoutDate}
             feedback={feedback}
             formatCurrency={formatCurrency}
-            guests={guests}
             hotel={hotel}
-            roomQuantity={roomQuantity}
             selectedRoom={selectedRoom}
-            stayNights={stayNights}
             onAddToCart={goToCartMock}
             onCheckout={goToCheckoutMock}
-            onDateChange={updateDateRange}
-            onGuestsChange={updateGuests}
-            onRoomQuantityChange={updateRoomQuantity}
           />
         </div>
+
+        <section className="hotel-detail-card hotel-detail-card--plain hotel-detail-rooms">
+          <div className="hotel-detail-section-heading">
+            <h2 className="hotel-detail-section-heading__title">Cac loai phong</h2>
+          </div>
+
+          <div className="hotel-detail-room-list">
+            {featuredRooms.map((room) => (
+              <HotelRoomCard
+                key={room.id}
+                formatCurrency={formatCurrency}
+                isSelected={selectedRoomId === room.id}
+                room={room}
+                onReserve={goToCheckoutMock}
+                onSelect={selectRoom}
+              />
+            ))}
+          </div>
+        </section>
+
+        <HotelReviewSummary
+          rating={hotel.rating}
+          reviewCount={hotel.review_count}
+          reviews={hotel.details?.review_items}
+        />
       </div>
     </div>
   )
