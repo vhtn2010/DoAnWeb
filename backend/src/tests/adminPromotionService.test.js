@@ -177,6 +177,8 @@ test('getPromotions returns all promotion statuses with pagination meta', async 
   });
   assert.equal(result.data[0].status, 'active');
   assert.equal(result.data[1].status, 'cancelled');
+  assert.equal(result.data[0].voucher_count, 2);
+  assert.equal(result.data[0].active_voucher_count, 1);
   assert.deepEqual(queries[0].params, ['active']);
 });
 

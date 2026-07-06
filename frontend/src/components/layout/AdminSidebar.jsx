@@ -233,7 +233,6 @@ function AuditIcon() {
 const routeIcons = {
   dashboard: <DashboardIcon />,
   revenue: <ChartIcon />,
-  reports: <ChartIcon />,
   bookings: <BookingIcon />,
   inventory: <InventoryIcon />,
   services: <ListIcon />,
@@ -241,7 +240,6 @@ const routeIcons = {
   payments: <ClockIcon />,
   refunds: <RefundIcon />,
   promotions: <TagIcon />,
-  vouchers: <TagIcon />,
   support: <HelpIcon />,
   emailLogs: <MailIcon />,
   users: <UsersIcon />,

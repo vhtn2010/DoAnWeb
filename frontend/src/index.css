@@ -6055,6 +6055,59 @@ select {
   min-width: 132px;
 }
 
+.admin-promotions-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.admin-promotions-modal__dialog {
+  width: min(860px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  border-radius: 16px;
+}
+
+.admin-promotions-modal--wide .admin-promotions-modal__dialog {
+  width: min(1080px, 100%);
+}
+
+.admin-promotions-modal__close {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(144, 111, 107, 0.28);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--promotion-ink);
+  cursor: pointer;
+}
+
+.admin-promotions-modal__close:hover,
+.admin-promotions-modal__close:focus-visible {
+  border-color: var(--promotion-brand);
+  color: var(--promotion-brand);
+}
+
+.admin-promotions-modal__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-promotions-modal__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .admin-promotions-page__list {
   display: grid;
   gap: 16px;
@@ -6179,10 +6232,12 @@ select {
 }
 
 .admin-promotion-card__voucher strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   color: var(--promotion-brand);
   font-size: 24px;
   font-weight: 700;
-  letter-spacing: 3.2px;
+  letter-spacing: 0;
   line-height: 40px;
 }
 
@@ -6211,7 +6266,7 @@ select {
   color: var(--promotion-muted);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 0;
   line-height: 16px;
   text-transform: uppercase;
 }
@@ -6232,7 +6287,7 @@ select {
   color: #fff;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 0;
   line-height: 16px;
   text-transform: uppercase;
 }
@@ -6302,6 +6357,33 @@ select {
   margin: 0;
 }
 
+.admin-promotion-card__details {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: var(--promotion-muted);
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.admin-promotion-card__details div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+}
+
+.admin-promotion-card__details dt {
+  color: var(--promotion-muted);
+  font-weight: 800;
+}
+
+.admin-promotion-card__details dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--promotion-ink);
+  overflow-wrap: anywhere;
+}
+
 .admin-promotion-card__description {
   color: var(--promotion-brand);
   font-size: 12px;
@@ -6341,7 +6423,7 @@ select {
   color: var(--promotion-muted);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 0;
 }
 
 .admin-promotion-card__actions {
@@ -6380,6 +6462,7 @@ select {
 }
 
 .admin-promotion-card__edit.admin-ui-button--secondary,
+.admin-promotion-card__voucher-button.admin-ui-button--secondary,
 .admin-promotion-card__end.admin-ui-button--secondary {
   border-color: #906f6b;
   background: transparent;
@@ -6535,6 +6618,326 @@ select {
 .admin-promotions-page__empty {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.7);
+}
+
+.admin-promotion-card__voucher-details {
+  display: grid;
+  grid-template-columns: minmax(122px, 0.8fr) minmax(156px, 1fr) minmax(142px, 0.9fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  margin-top: 8px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid rgba(144, 111, 107, 0.18);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.admin-promotion-card__voucher-details--empty,
+.admin-promotion-card__voucher-details--loading {
+  grid-template-columns: 1fr;
+  color: var(--promotion-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.admin-promotion-card__voucher-details--loading .admin-ui-loading-block {
+  padding: 0;
+}
+
+.admin-promotion-voucher__discount,
+.admin-promotion-voucher__usage {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-promotion-voucher__discount strong {
+  overflow: hidden;
+  color: var(--promotion-ink);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-promotion-voucher__discount span,
+.admin-promotion-voucher__usage span {
+  overflow: hidden;
+  color: var(--promotion-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-promotion-voucher__usage i {
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #f1e7dc;
+}
+
+.admin-promotion-voucher__usage b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--promotion-brand);
+}
+
+.admin-promotion-voucher__status {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 94px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.admin-promotion-voucher__status--success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.admin-promotion-voucher__status--info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.admin-promotion-voucher__status--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.admin-promotion-voucher__status--neutral {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.admin-promotion-voucher__action.admin-ui-icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.admin-promotion-voucher-modal {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid rgba(255, 215, 0, 0.38);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.22);
+}
+
+.admin-promotion-voucher-modal__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.admin-promotion-voucher-modal__header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.admin-promotion-voucher-modal__header h2,
+.admin-promotion-voucher-modal__header p,
+.admin-promotion-voucher-modal__eyebrow {
+  margin: 0;
+}
+
+.admin-promotion-voucher-modal__header h2 {
+  margin-top: 4px;
+  color: var(--promotion-ink);
+  font-size: 22px;
+  line-height: 30px;
+}
+
+.admin-promotion-voucher-modal__header p {
+  margin-top: 6px;
+  color: var(--promotion-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.admin-promotion-voucher-modal__eyebrow {
+  color: var(--promotion-brand);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.admin-promotion-voucher-modal__summary {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-promotion-voucher-modal__summary span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid rgba(144, 111, 107, 0.18);
+  border-radius: 999px;
+  background: #fff8de;
+  color: var(--promotion-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-promotion-voucher-modal__summary strong {
+  color: var(--promotion-ink);
+}
+
+.admin-promotion-voucher-create {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(144, 111, 107, 0.22);
+  border-radius: 12px;
+  background: #fffaf0;
+}
+
+.admin-promotion-voucher-create__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-promotion-voucher-create__header h3,
+.admin-promotion-voucher-create__header p {
+  margin: 0;
+}
+
+.admin-promotion-voucher-create__header h3 {
+  color: var(--promotion-ink);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 22px;
+}
+
+.admin-promotion-voucher-create__header p {
+  margin-top: 4px;
+  color: var(--promotion-muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.admin-promotion-voucher-create__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-promotion-voucher-create__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-promotion-voucher-modal__list {
+  display: grid;
+  gap: 12px;
+  max-height: min(58dvh, 620px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.admin-promotion-voucher-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(144, 111, 107, 0.2);
+  border-radius: 12px;
+  background: #fffdf6;
+}
+
+.admin-promotion-voucher-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-promotion-voucher-card__top p,
+.admin-promotion-voucher-card__top h3 {
+  margin: 0;
+}
+
+.admin-promotion-voucher-card__top p {
+  color: var(--promotion-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.admin-promotion-voucher-card__top h3 {
+  color: var(--promotion-brand);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 30px;
+  overflow-wrap: anywhere;
+}
+
+.admin-promotion-voucher-card__details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.admin-promotion-voucher-card__details div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.admin-promotion-voucher-card__details dt {
+  color: var(--promotion-muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 14px;
+  text-transform: uppercase;
+}
+
+.admin-promotion-voucher-card__details dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--promotion-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.admin-promotion-voucher-card__actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .admin-support-page {
@@ -11610,6 +12013,10 @@ select {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .admin-promotion-voucher-card__details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .admin-promotion-card.admin-ui-card {
     grid-template-columns: 194px minmax(0, 1fr);
   }
@@ -11701,6 +12108,40 @@ select {
 
   .admin-promotions-page__form-actions .admin-ui-button {
     width: 100%;
+  }
+
+  .admin-promotions-modal {
+    padding: 12px;
+  }
+
+  .admin-promotions-modal__dialog {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+  }
+
+  .admin-promotion-voucher-modal {
+    padding: 16px;
+  }
+
+  .admin-promotion-voucher-modal__header,
+  .admin-promotion-voucher-modal__header-actions,
+  .admin-promotion-voucher-create__header,
+  .admin-promotion-voucher-card__top {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-promotion-voucher-create__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-promotion-voucher-create__actions .admin-ui-button,
+  .admin-promotion-voucher-modal__header-actions .admin-ui-button {
+    width: 100%;
+  }
+
+  .admin-promotion-voucher-card__details {
+    grid-template-columns: 1fr;
   }
 
   .admin-promotion-card.admin-ui-card {
