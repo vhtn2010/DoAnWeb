@@ -5,7 +5,7 @@ function HotelGallery({ images, selectedImage, title, onSelectImage }) {
   const remainingCount = Math.max(galleryImages.length - 5, 0)
 
   return (
-    <section aria-label="Bo suu tap anh khach san" className="hotel-detail-gallery">
+    <section aria-label="Bộ sưu tập ảnh khách sạn" className="hotel-detail-gallery">
       <div className="hotel-detail-gallery__featured">
         <img alt={title} className="hotel-detail-gallery__featured-image" src={featuredImage} />
       </div>
@@ -17,7 +17,7 @@ function HotelGallery({ images, selectedImage, title, onSelectImage }) {
 
           return (
             <button
-              aria-label={`Xem anh ${index + 2} cua ${title}`}
+              aria-label={`Xem ảnh ${index + 2} của ${title}`}
               className={`hotel-detail-gallery__thumb ${
                 isActive ? 'hotel-detail-gallery__thumb--active' : ''
               } ${shouldShowOverlay ? 'hotel-detail-gallery__thumb--more' : ''}`}
@@ -27,7 +27,7 @@ function HotelGallery({ images, selectedImage, title, onSelectImage }) {
             >
               <img alt={`${title} ${index + 2}`} src={imageUrl} />
               {shouldShowOverlay ? (
-                <span className="hotel-detail-gallery__thumb-overlay">+{remainingCount} anh</span>
+                <span className="hotel-detail-gallery__thumb-overlay">+{remainingCount} ảnh</span>
               ) : null}
             </button>
           )

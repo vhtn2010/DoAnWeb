@@ -9,7 +9,7 @@ function HotelBookingPanel({
 }) {
   const nightlyPrice = selectedRoom?.sale_price ?? hotel?.sale_price ?? 0
   const ratingLabel = hotel
-    ? `${hotel.display_rating_text} (${hotel.display_review_count} danh gia)`
+    ? `${hotel.display_rating_text} (${hotel.display_review_count} đánh giá)`
     : '--'
 
   return (
@@ -21,30 +21,26 @@ function HotelBookingPanel({
               {nightlyPrice ? formatCurrency(nightlyPrice) : '--'}
             </span>
             <div className="hotel-booking-panel__price-meta">
-              <span>Gia tu</span>
-              <small>/dem</small>
+              <span>Giá từ</span>
+              <small>/đêm</small>
             </div>
           </div>
         </div>
 
         <div className="hotel-booking-panel__summary">
-          <h2 className="hotel-booking-panel__summary-title">Tom tat thong tin</h2>
+          <h2 className="hotel-booking-panel__summary-title">Tóm tắt thông tin</h2>
 
           <div className="hotel-booking-panel__summary-row">
-            <span>Danh gia</span>
+            <span>Đánh giá</span>
             <strong>{ratingLabel}</strong>
           </div>
           <div className="hotel-booking-panel__summary-row">
-            <span>Nhan phong</span>
+            <span>Nhận phòng</span>
             <strong>{hotel?.checkin_time ?? '--'}</strong>
           </div>
           <div className="hotel-booking-panel__summary-row">
-            <span>Tra phong</span>
+            <span>Trả phòng</span>
             <strong>{hotel?.checkout_time ?? '--'}</strong>
-          </div>
-          <div className="hotel-booking-panel__summary-row">
-            <span>Loai phong</span>
-            <strong>{selectedRoom?.title ?? hotel?.room_types?.[0]?.name ?? 'Dang cap nhat'}</strong>
           </div>
         </div>
 
@@ -54,7 +50,7 @@ function HotelBookingPanel({
             type="button"
             onClick={() => onCheckout()}
           >
-            Dat ngay
+            Đặt ngay
           </button>
 
           <button
@@ -62,7 +58,7 @@ function HotelBookingPanel({
             type="button"
             onClick={() => onAddToCart()}
           >
-            Them vao gio hang
+            Thêm vào giỏ hàng
           </button>
         </div>
 

@@ -55,11 +55,11 @@ function HotelReviewSummary({ reviews = [] }) {
     <section className="hotel-detail-card hotel-detail-card--plain hotel-review-summary">
       <div className="hotel-review-summary__header">
         <div className="hotel-detail-section-heading">
-          <h2 className="hotel-detail-section-heading__title">Danh gia tu khach hang</h2>
+          <h2 className="hotel-detail-section-heading__title">Đánh giá từ khách hàng</h2>
         </div>
 
         <button className="hotel-review-summary__link" type="button">
-          Viet danh gia
+          Viết đánh giá
         </button>
       </div>
 
