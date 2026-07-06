@@ -6,7 +6,7 @@ function FlightPolicyCard({ policies }) {
   return (
     <section
       id="flight-detail-policies"
-      className="flight-detail-policy-card"
+      className="flight-detail-card flight-detail-policy-card"
       aria-labelledby="flight-detail-policy-title"
     >
       <div className="flight-detail-section-heading">

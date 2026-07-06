@@ -1,20 +1,30 @@
+function formatPaymentAmount(value) {
+  return new Intl.NumberFormat('vi-VN', {
+    maximumFractionDigits: 0,
+  }).format(Math.max(Number(value) || 0, 0))
+}
+
 function FlightPaymentSummary({ flight, selectedFare, formatCurrency, onAddToCart, onBookNow }) {
   const ticketPrice = Number(selectedFare?.price ?? flight.sale_price ?? 0)
   const taxes = Number(selectedFare?.taxes ?? 0)
   const addOns = Number(selectedFare?.add_ons ?? 0)
   const totalPrice = Number(selectedFare?.total_price ?? ticketPrice + taxes + addOns)
+  const fareSubtitle =
+    selectedFare?.summary_subtitle ??
+    flight.payment_summary.fare_subtitle ??
+    selectedFare?.included_baggage ??
+    ''
 
   return (
-    <aside className="flight-detail-payment" aria-label="Tóm tắt thanh toán">
-      <div className="flight-detail-payment__card">
-        <div className="flight-detail-payment__header">
+    <aside className="flight-detail-sidebar flight-payment-summary" aria-label="Tóm tắt thanh toán">
+      <div className="flight-detail-card flight-payment-summary__card">
+        <div className="flight-payment-summary__header">
           <h2>Tóm tắt thanh toán</h2>
-          {selectedFare ? (
-            <p className="flight-detail-payment__fare-name">{selectedFare.title}</p>
-          ) : null}
+          {selectedFare ? <p className="flight-payment-summary__fare-name">{selectedFare.title}</p> : null}
+          {fareSubtitle ? <p className="flight-payment-summary__fare-subtitle">{fareSubtitle}</p> : null}
         </div>
 
-        <div className="flight-detail-payment__rows">
+        <div className="flight-payment-summary__rows">
           <div>
             <span>{flight.payment_summary.passenger_label}</span>
             <strong>{formatCurrency(ticketPrice)}</strong>
@@ -29,23 +39,23 @@ function FlightPaymentSummary({ flight, selectedFare, formatCurrency, onAddToCar
           </div>
         </div>
 
-        <div className="flight-detail-payment__total">
+        <div className="flight-payment-summary__total">
           <span>Tổng cộng</span>
           <div>
-            <strong>{formatCurrency(totalPrice)}</strong>
-            <small>{flight.currency}</small>
+            <strong>{formatPaymentAmount(totalPrice)}</strong>
+            <small>{selectedFare?.currency ?? flight.currency}</small>
           </div>
         </div>
 
         <button
-          className="flight-detail-payment__button flight-detail-payment__button--primary"
+          className="flight-payment-summary__button flight-payment-summary__button--primary"
           type="button"
           onClick={onBookNow}
         >
           {flight.payment_summary.cta_primary}
         </button>
         <button
-          className="flight-detail-payment__button flight-detail-payment__button--secondary"
+          className="flight-payment-summary__button flight-payment-summary__button--secondary"
           type="button"
           onClick={onAddToCart}
         >

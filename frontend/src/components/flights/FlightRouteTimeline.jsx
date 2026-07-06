@@ -15,7 +15,7 @@ function FlightRouteTimeline({ flight }) {
       <div className="flight-detail-timeline__point">
         <strong>{flight.departure_time_label}</strong>
         <span className="flight-detail-timeline__code">{flight.departure_airport_code}</span>
-        <span className="flight-detail-timeline__airport">{flight.departure_airport}</span>
+        <span className="flight-detail-timeline__airport">{flight.departure_airport_short_label}</span>
         {flight.departure_terminal_label ? (
           <span className="flight-detail-timeline__terminal">{flight.departure_terminal_label}</span>
         ) : null}
@@ -36,7 +36,7 @@ function FlightRouteTimeline({ flight }) {
       <div className="flight-detail-timeline__point flight-detail-timeline__point--arrival">
         <strong>{flight.arrival_time_label}</strong>
         <span className="flight-detail-timeline__code">{flight.arrival_airport_code}</span>
-        <span className="flight-detail-timeline__airport">{flight.arrival_airport}</span>
+        <span className="flight-detail-timeline__airport">{flight.arrival_airport_short_label}</span>
         {flight.arrival_terminal_label ? (
           <span className="flight-detail-timeline__terminal">{flight.arrival_terminal_label}</span>
         ) : null}

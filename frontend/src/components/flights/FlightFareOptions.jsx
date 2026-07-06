@@ -22,13 +22,13 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
         <a href="#flight-detail-policies">Điều kiện giá vé</a>
       </div>
 
-      <div className="flight-detail-fares__grid">
+      <div className="flight-fare-grid">
         {fareOptions.map((fare) => {
           const isSelected = selectedFareId === fare.id
           const cardClassName = [
-            'flight-detail-fare-card',
-            fare.is_featured ? 'flight-detail-fare-card--featured' : '',
-            isSelected ? 'flight-detail-fare-card--selected' : '',
+            'flight-fare-card',
+            fare.is_featured ? 'flight-fare-card--featured' : '',
+            isSelected ? 'flight-fare-card--selected' : '',
           ]
             .filter(Boolean)
             .join(' ')
@@ -36,6 +36,7 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
           return (
             <article
               key={fare.id}
+              aria-pressed={isSelected}
               className={cardClassName}
               role="button"
               tabIndex={0}
@@ -47,21 +48,21 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
                 }
               }}
             >
-              {fare.badge ? <div className="flight-detail-fare-card__badge">{fare.badge}</div> : null}
+              {fare.badge ? <div className="flight-fare-card__badge">{fare.badge}</div> : null}
 
-              <div className="flight-detail-fare-card__copy">
+              <div className="flight-fare-card__copy">
                 <h3>{fare.title}</h3>
-                <p className="flight-detail-fare-card__price">
+                <p className="flight-fare-card__price">
                   {formatCompactFarePrice(fare.total_price)}
                   <span>đ</span>
                 </p>
               </div>
 
-              <ul className="flight-detail-fare-card__features">
+              <ul className="flight-fare-card__features">
                 {fare.features.map((feature) => (
                   <li
                     key={`${fare.id}-${feature}`}
-                    className={`flight-detail-fare-card__feature flight-detail-fare-card__feature--${getFeatureTone(
+                    className={`flight-fare-card__feature flight-fare-card__feature--${getFeatureTone(
                       feature,
                     )}`}
                   >
@@ -71,10 +72,14 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
               </ul>
 
               <button
-                className={`flight-detail-fare-card__button ${
-                  isSelected ? 'flight-detail-fare-card__button--selected' : ''
+                className={`flight-fare-card__button ${
+                  isSelected ? 'flight-fare-card__button--selected' : ''
                 }`}
                 type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onSelectFare(fare.id)
+                }}
               >
                 {isSelected ? fare.cta_label ?? 'Đã chọn' : 'Chọn'}
               </button>

@@ -32,15 +32,13 @@ function BenefitIcon() {
 }
 
 function FlightInfoCards({ flight, selectedFare }) {
-  const farePolicyText = [
-    selectedFare?.included_baggage ?? flight.baggage_allowance,
-    selectedFare?.refundable ? 'Hoàn vé' : 'Không hoàn vé',
-    selectedFare?.changeable ? 'Đổi vé có phí' : 'Không đổi vé',
-  ].join(' • ')
+  const benefits = selectedFare?.benefits_preview?.length
+    ? selectedFare.benefits_preview
+    : flight.onboard_benefits
 
   return (
     <section className="flight-detail-info-grid" aria-label="Thông tin chuyến bay">
-      <article className="flight-detail-info-card">
+      <article className="flight-detail-card flight-detail-info-card">
         <div className="flight-detail-info-card__title">
           <span className="flight-detail-info-card__icon">
             <InfoIcon />
@@ -49,20 +47,9 @@ function FlightInfoCards({ flight, selectedFare }) {
         </div>
 
         <p>{flight.flight_info}</p>
-
-        <div className="flight-detail-info-card__meta">
-          <div>
-            <span>Hành lý theo vé</span>
-            <strong>{selectedFare?.included_baggage ?? flight.baggage_allowance}</strong>
-          </div>
-          <div>
-            <span>Điều kiện</span>
-            <strong>{farePolicyText}</strong>
-          </div>
-        </div>
       </article>
 
-      <article className="flight-detail-info-card">
+      <article className="flight-detail-card flight-detail-info-card">
         <div className="flight-detail-info-card__title">
           <span className="flight-detail-info-card__icon">
             <BenefitIcon />
@@ -71,7 +58,7 @@ function FlightInfoCards({ flight, selectedFare }) {
         </div>
 
         <div className="flight-detail-info-card__chips">
-          {flight.onboard_benefits.map((benefit) => (
+          {benefits.map((benefit) => (
             <span key={benefit}>{benefit}</span>
           ))}
         </div>
