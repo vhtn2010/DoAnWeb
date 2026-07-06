@@ -20,7 +20,6 @@ const requiredFieldNames = new Set([
   'slug',
   'location_text',
   'base_price',
-  'status',
 ])
 
 const fieldLabels = {
@@ -100,10 +99,6 @@ function validateServiceForm(values) {
 
   if (values.sale_price !== '' && !Number.isNaN(salePrice) && salePrice > basePrice) {
     errors.sale_price = 'Giá ưu đãi không được lớn hơn giá gốc.'
-  }
-
-  if (!values.status) {
-    errors.status = 'Vui lòng chọn trạng thái.'
   }
 
   return errors
@@ -307,6 +302,9 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
   const headerStatusOptions = ADMIN_SERVICE_FORM_STATUS_OPTIONS.filter((option) =>
     [SERVICE_STATUSES.active, SERVICE_STATUSES.hidden].includes(option.value),
   )
+  const statusHelp = isEditMode
+    ? 'Trạng thái được đổi bằng các action workflow ở bảng danh sách.'
+    : 'Dịch vụ mới luôn được tạo ở trạng thái bản nháp theo backend.'
 
   const handleCommonChange = (event) => {
     const { name, value } = event.target
@@ -356,13 +354,6 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     }))
   }
 
-  const handleStatusShortcut = (status) => {
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      status,
-    }))
-  }
-
   const handleSubmit = (submitIntent) => {
     const nextErrors = validateServiceForm(formValues)
 
@@ -405,10 +396,11 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                       'admin-service-modal__status-option',
                       formValues.status === option.value && 'admin-service-modal__status-option--active',
                     )}
+                    disabled
                     key={option.value}
                     type="button"
                     aria-pressed={formValues.status === option.value}
-                    onClick={() => handleStatusShortcut(option.value)}
+                    title={statusHelp}
                   >
                     {option.value === SERVICE_STATUSES.active ? 'Đang bán' : 'Tạm ẩn'}
                   </button>
@@ -563,9 +555,10 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                     />
                   </FieldShell>
 
-                  <FieldShell error={errors.status} label={formatFieldLabel('status')} required={requiredFieldNames.has('status')}>
+                  <FieldShell error={errors.status} help={statusHelp} label={formatFieldLabel('status')}>
                     <select
                       className={cx('admin-service-modal__select', errors.status && 'admin-service-modal__input--error')}
+                      disabled
                       name="status"
                       value={formValues.status}
                       onChange={handleCommonChange}

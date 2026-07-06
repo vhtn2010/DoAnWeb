@@ -116,7 +116,7 @@ export const ADMIN_SERVICE_ACTION_META = Object.freeze({
 export const ADMIN_SERVICE_INITIAL_FEEDBACK = Object.freeze({
   tone: 'info',
   message:
-    'Các thao tác trên màn hình này hiện là UI mock, sẵn sàng thay bằng tích hợp Admin Service API.',
+    'Danh sách và workflow dịch vụ đang được đồng bộ với Admin Service API.',
 })
 
 export const ADMIN_SERVICE_SUMMARY_CARD_CONFIG = Object.freeze([
@@ -124,7 +124,7 @@ export const ADMIN_SERVICE_SUMMARY_CARD_CONFIG = Object.freeze([
     key: 'total',
     label: 'Tổng dịch vụ',
     tone: 'primary',
-    helper: 'Toàn bộ dữ liệu mock sẵn sàng nối API',
+    helper: 'Toàn bộ dịch vụ phù hợp quyền truy cập',
   },
   {
     key: 'active',

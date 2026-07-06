@@ -1,29 +1,22 @@
-import { useMemo, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
-import { AdminEmptyState } from '../../components/admin/ui/index.js'
+import {
+  AdminButton,
+  AdminEmptyState,
+  AdminErrorState,
+  AdminLoadingBlock,
+} from '../../components/admin/ui/index.js'
 import { buildAdminPath } from '../../constants/adminRoutes.js'
 import {
-  ADMIN_BOOKING_LIST,
-  ADMIN_BOOKING_STATUS_OPTIONS,
   ADMIN_BOOKING_STATUSES,
-  ADMIN_BOOKING_TOTAL,
-} from '../../fixtures/adminBookings.fixtures.js'
+  ADMIN_BOOKING_STATUS_OPTIONS,
+} from '../../constants/adminBookings.js'
+import useAdminBookings from '../../hooks/useAdminBookings.js'
 import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN')
-const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-})
-const pageSize = 3
 
 function formatCurrency(value) {
   return `${currencyFormatter.format(value)} Đ`
-}
-
-function formatDate(value) {
-  return dateFormatter.format(new Date(`${value}T00:00:00+07:00`))
 }
 
 function BookingIcon({ name }) {
@@ -162,39 +155,30 @@ function BookingInfoItem({ icon, label, value }) {
 }
 
 function AdminBookingsPage() {
-  const { currentRole } = useOutletContext()
-  const [bookings, setBookings] = useState(ADMIN_BOOKING_LIST)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [statusFilter, setStatusFilter] = useState(ADMIN_BOOKING_STATUSES.all)
-  const canWriteBookings = hasPermission(currentRole, ADMIN_PERMISSIONS.bookingsWrite)
-
-  const filteredBookings = useMemo(() => {
-    return bookings.filter((booking) => {
-      return statusFilter === ADMIN_BOOKING_STATUSES.all || booking.status === statusFilter
-    })
-  }, [bookings, statusFilter])
-
-  const totalPages = Math.max(1, Math.ceil(filteredBookings.length / pageSize))
-  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
-  const currentBookings = filteredBookings.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
+  const { currentPermissions, currentRole } = useOutletContext()
+  const {
+    bookings,
+    currentPage,
+    error,
+    feedback,
+    getBookingActions,
+    isBookingActionLoading,
+    loading,
+    pageNumbers,
+    paginationMeta,
+    reloadBookings,
+    setCurrentPage,
+    statusFilter,
+    updateBookingAction,
+    updateStatusFilter,
+  } = useAdminBookings()
+  const canWriteBookings = hasPermission(
+    currentRole,
+    ADMIN_PERMISSIONS.bookingsWrite,
+    currentPermissions,
   )
-
-  function updateStatusFilter(nextStatus) {
-    setStatusFilter(nextStatus)
-    setCurrentPage(1)
-  }
-
-  function updateBookingStatus(booking, nextStatus) {
-    setBookings((currentBookingsValue) =>
-      currentBookingsValue.map((currentBooking) =>
-        currentBooking.id === booking.id
-          ? { ...currentBooking, status: nextStatus }
-          : currentBooking,
-      ),
-    )
-  }
+  const currentBookings = bookings
+  const totalPages = paginationMeta.totalPages
 
   return (
     <main className="admin-bookings-page admin-bookings-page--figma">
@@ -213,6 +197,7 @@ function AdminBookingsPage() {
             }
             key={option.value}
             type="button"
+            disabled={loading}
             aria-pressed={option.value === statusFilter}
             onClick={() => updateStatusFilter(option.value)}
           >
@@ -221,141 +206,172 @@ function AdminBookingsPage() {
         ))}
       </nav>
 
-      <section className="admin-bookings-page__list" aria-label="Danh sách đơn hàng">
-        {currentBookings.length > 0 ? (
-          currentBookings.map((booking) => (
-            <article className="admin-booking-card" key={booking.id}>
-              <div className="admin-booking-card__media">
-                <img alt={booking.serviceTitle} src={booking.imageUrl} />
-              </div>
+      {feedback ? (
+        <p className="admin-bookings-page__feedback" role="status">
+          {feedback}
+        </p>
+      ) : null}
 
-              <div className="admin-booking-card__content">
-                <header className="admin-booking-card__header">
-                  <div className="admin-booking-card__heading">
-                    <h2 className="admin-booking-card__title">
-                      {booking.serviceTitle.toUpperCase()}
-                    </h2>
+      {loading && currentBookings.length === 0 ? (
+        <AdminLoadingBlock rows={4} />
+      ) : null}
 
-                    <div className="admin-booking-card__badges">
-                      <span className="admin-booking-card__code">
-                        Mã đơn #{booking.bookingCode}
-                      </span>
-                      <span className="admin-booking-card__time">{booking.createdLabel}</span>
-                      <Link
-                        className="admin-booking-card__detail-link"
-                        to={buildAdminPath(`/admin/bookings/${booking.bookingCode}`, currentRole)}
-                      >
-                        Xem chi tiết
-                      </Link>
+      {error && currentBookings.length === 0 ? (
+        <AdminErrorState
+          title="Không thể tải danh sách đơn hàng"
+          description={error}
+          action={
+            <AdminButton variant="secondary" onClick={reloadBookings}>
+              Thử lại
+            </AdminButton>
+          }
+        />
+      ) : null}
+
+      {!loading && !error ? (
+        <section className="admin-bookings-page__list" aria-label="Danh sách đơn hàng">
+          {currentBookings.length > 0 ? (
+            currentBookings.map((booking) => {
+              const bookingActions = getBookingActions(booking.status)
+
+              return (
+                <article className="admin-booking-card" key={booking.id}>
+                  <div className="admin-booking-card__media">
+                    <img alt={booking.serviceTitle} src={booking.imageUrl} />
+                  </div>
+
+                  <div className="admin-booking-card__content">
+                    <header className="admin-booking-card__header">
+                      <div className="admin-booking-card__heading">
+                        <h2 className="admin-booking-card__title">
+                          {booking.serviceTitle.toUpperCase()}
+                        </h2>
+
+                        <div className="admin-booking-card__badges">
+                          <span className="admin-booking-card__code">
+                            Mã đơn #{booking.bookingCode}
+                          </span>
+                          <span className="admin-booking-card__time">
+                            {booking.statusLabel}
+                          </span>
+                          <span className="admin-booking-card__time">
+                            {booking.createdLabel}
+                          </span>
+                          <Link
+                            className="admin-booking-card__detail-link"
+                            to={buildAdminPath(`/admin/bookings/${booking.id}`, currentRole)}
+                          >
+                            Xem chi tiết
+                          </Link>
+                        </div>
+
+                        <div className="admin-booking-card__meta">
+                          <BookingMetaItem icon="location">{booking.destination}</BookingMetaItem>
+                          <BookingMetaItem icon="users">{booking.travelers}</BookingMetaItem>
+                          <BookingMetaItem icon="clock">{booking.duration}</BookingMetaItem>
+                        </div>
+                      </div>
+                    </header>
+
+                    <div className="admin-booking-card__info-grid">
+                      <div className="admin-booking-card__info-column">
+                        <BookingInfoItem
+                          icon="user"
+                          label="Khách hàng"
+                          value={booking.customerName}
+                        />
+                        <BookingInfoItem icon="mail" label="Email" value={booking.customerEmail} />
+                        <BookingInfoItem icon="phone" label="SĐT" value={booking.customerPhone} />
+                      </div>
+
+                      <div className="admin-booking-card__info-column">
+                        <BookingInfoItem
+                          icon="calendar"
+                          label="Ngày đi"
+                          value={booking.departureLabel}
+                        />
+                        <BookingInfoItem
+                          icon="calendar"
+                          label="Ngày về"
+                          value={booking.returnLabel}
+                        />
+                        <BookingInfoItem
+                          icon="transport"
+                          label="Phương tiện"
+                          value={booking.transport}
+                        />
+                        <BookingInfoItem icon="hotel" label="Khách sạn" value={booking.hotelName} />
+                      </div>
                     </div>
 
-                    <div className="admin-booking-card__meta">
-                      <BookingMetaItem icon="location">{booking.destination}</BookingMetaItem>
-                      <BookingMetaItem icon="users">{booking.travelers}</BookingMetaItem>
-                      <BookingMetaItem icon="clock">{booking.duration}</BookingMetaItem>
-                    </div>
+                    <p className="admin-booking-card__total">
+                      Tổng cộng: {formatCurrency(booking.totalAmount)}
+                    </p>
+
+                    <footer className="admin-booking-card__footer">
+                      <div className="admin-booking-card__note">
+                        <strong>Ghi chú:</strong>
+                        <span>{booking.note}</span>
+                      </div>
+
+                      {bookingActions.length > 0 ? (
+                        <div className="admin-booking-card__actions">
+                          {bookingActions.map((action) => (
+                            <button
+                              className={`admin-booking-card__action admin-booking-card__action--${action.tone}`}
+                              disabled={
+                                !canWriteBookings ||
+                                isBookingActionLoading(booking, action.action)
+                              }
+                              key={action.action}
+                              type="button"
+                              aria-busy={
+                                isBookingActionLoading(booking, action.action) || undefined
+                              }
+                              onClick={() => updateBookingAction(booking, action.action)}
+                            >
+                              <BookingIcon name={action.icon} />
+                              {isBookingActionLoading(booking, action.action)
+                                ? 'Đang xử lý...'
+                                : action.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </footer>
                   </div>
-                </header>
-
-                <div className="admin-booking-card__info-grid">
-                  <div className="admin-booking-card__info-column">
-                    <BookingInfoItem
-                      icon="user"
-                      label="Khách hàng"
-                      value={booking.customerName}
-                    />
-                    <BookingInfoItem icon="mail" label="Email" value={booking.customerEmail} />
-                    <BookingInfoItem icon="phone" label="SĐT" value={booking.customerPhone} />
-                  </div>
-
-                  <div className="admin-booking-card__info-column">
-                    <BookingInfoItem
-                      icon="calendar"
-                      label="Ngày đi"
-                      value={formatDate(booking.departureDate)}
-                    />
-                    <BookingInfoItem
-                      icon="calendar"
-                      label="Ngày về"
-                      value={formatDate(booking.returnDate)}
-                    />
-                    <BookingInfoItem
-                      icon="transport"
-                      label="Phương tiện"
-                      value={booking.transport}
-                    />
-                    <BookingInfoItem icon="hotel" label="Khách sạn" value={booking.hotelName} />
-                  </div>
-                </div>
-
-                <p className="admin-booking-card__total">
-                  Tổng cộng: {formatCurrency(booking.totalAmount)}
-                </p>
-
-                <footer className="admin-booking-card__footer">
-                  <div className="admin-booking-card__note">
-                    <strong>Ghi chú:</strong>
-                    <span>{booking.note}</span>
-                  </div>
-
-                  {booking.status === ADMIN_BOOKING_STATUSES.pendingConfirmation ? (
-                    <div className="admin-booking-card__actions">
-                      <button
-                        className="admin-booking-card__action admin-booking-card__action--reject"
-                        disabled={!canWriteBookings}
-                        type="button"
-                        onClick={() =>
-                          updateBookingStatus(booking, ADMIN_BOOKING_STATUSES.cancelled)
-                        }
-                      >
-                        <BookingIcon name="x" />
-                        Từ chối
-                      </button>
-                      <button
-                        className="admin-booking-card__action admin-booking-card__action--confirm"
-                        disabled={!canWriteBookings}
-                        type="button"
-                        onClick={() =>
-                          updateBookingStatus(booking, ADMIN_BOOKING_STATUSES.inProgress)
-                        }
-                      >
-                        <BookingIcon name="check" />
-                        Xác nhận
-                      </button>
-                    </div>
-                  ) : null}
-                </footer>
-              </div>
-            </article>
-          ))
-        ) : (
-          <AdminEmptyState
-            title="Không có đơn hàng phù hợp"
-            description="Thử đổi trạng thái để xem thêm đơn hàng."
-            action={
-              <button
-                className="admin-bookings-page__empty-action"
-                type="button"
-                onClick={() => updateStatusFilter(ADMIN_BOOKING_STATUSES.all)}
-              >
-                Xem tất cả
-              </button>
-            }
-          />
-        )}
-      </section>
+                </article>
+              )
+            })
+          ) : (
+            <AdminEmptyState
+              title="Không có đơn hàng phù hợp"
+              description="Thử đổi trạng thái để xem thêm đơn hàng."
+              action={
+                <button
+                  className="admin-bookings-page__empty-action"
+                  type="button"
+                  onClick={() => updateStatusFilter(ADMIN_BOOKING_STATUSES.all)}
+                >
+                  Xem tất cả
+                </button>
+              }
+            />
+          )}
+        </section>
+      ) : null}
 
       <footer className="admin-bookings-page__pagination-row">
         <p>
-          {filteredBookings.length > 0
-            ? `Hiển thị ${currentBookings.length} trong số ${ADMIN_BOOKING_TOTAL} đơn hàng`
+          {paginationMeta.total > 0
+            ? `Hiển thị ${currentBookings.length} trong số ${paginationMeta.total} đơn hàng`
             : 'Hiện không có đơn hàng để hiển thị'}
         </p>
 
         <nav className="admin-bookings-page__pagination" aria-label="Phân trang đơn hàng">
           <button
             className="admin-bookings-page__page-button admin-bookings-page__page-button--arrow"
-            disabled={currentPage === 1}
+            disabled={loading || currentPage === 1}
             type="button"
             aria-label="Trang trước"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
@@ -372,6 +388,7 @@ function AdminBookingsPage() {
               }
               key={pageNumber}
               type="button"
+              disabled={loading}
               aria-current={pageNumber === currentPage ? 'page' : undefined}
               onClick={() => setCurrentPage(pageNumber)}
             >
@@ -381,7 +398,7 @@ function AdminBookingsPage() {
 
           <button
             className="admin-bookings-page__page-button admin-bookings-page__page-button--arrow"
-            disabled={currentPage === totalPages}
+            disabled={loading || currentPage === totalPages}
             type="button"
             aria-label="Trang sau"
             onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}

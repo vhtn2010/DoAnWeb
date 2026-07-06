@@ -226,6 +226,7 @@ function AdminServicesPage() {
     currentRole,
     destinationOptions,
     error,
+    feedback,
     filters,
     formModalState,
     getAllowedActions,
@@ -235,6 +236,7 @@ function AdminServicesPage() {
     openCreateForm,
     pageNumbers,
     pagination,
+    reloadServices,
     resetFilters,
     resultRange,
     selectedService,
@@ -272,7 +274,26 @@ function AdminServicesPage() {
         <AdminErrorState
           description={error}
           title="Không thể tải dữ liệu dịch vụ"
+          action={
+            <button
+              className="admin-services-page__empty-action"
+              disabled={loading}
+              type="button"
+              onClick={() => reloadServices()}
+            >
+              Thử lại
+            </button>
+          }
         />
+      ) : null}
+
+      {feedback?.message ? (
+        <p
+          className={`admin-services-page__feedback admin-services-page__feedback--${feedback.tone}`}
+          role="status"
+        >
+          {feedback.message}
+        </p>
       ) : null}
 
       <section className="admin-services-page__filter-card" aria-label="Bộ lọc dịch vụ">
@@ -452,7 +473,7 @@ function AdminServicesPage() {
                   <td colSpan={serviceTableColumns.length}>
                     <AdminEmptyState
                       title="Không có dịch vụ phù hợp"
-                      description="Thử đổi từ khóa, trạng thái, điểm đến hoặc loại dịch vụ để xem thêm dữ liệu mock."
+                      description="Thử đổi từ khóa, trạng thái, điểm đến hoặc loại dịch vụ để xem thêm dữ liệu."
                       action={
                         <button
                           className="admin-services-page__empty-action"

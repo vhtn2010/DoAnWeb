@@ -28,7 +28,7 @@ export const ADMIN_ROLE_SYSTEM_LABELS = Object.freeze({
 
 export const ADMIN_DEFAULT_ROUTE_BY_ROLE = Object.freeze({
   [ROLES.staff]: '/admin/services',
-  [ROLES.admin]: '/admin/revenue',
+  [ROLES.admin]: '/admin',
   [ROLES.systemAdmin]: '/admin',
 })
 
@@ -39,7 +39,7 @@ export const ADMIN_ROUTES = Object.freeze({
     title: 'Tổng quan hệ thống',
     subtitle: 'Theo dõi các chỉ số quan trọng và hoạt động vận hành.',
     permission: ADMIN_PERMISSIONS.dashboardRead,
-    allowedRoles: ADMIN_ROLE_GROUPS.system,
+    allowedRoles: ADMIN_ROLE_GROUPS.elevated,
   },
   revenue: {
     path: '/admin/revenue',
@@ -236,7 +236,9 @@ const SHARED_OPERATION_ROUTES = Object.freeze([
   'payments',
   'refunds',
   'promotions',
+  'vouchers',
   'support',
+  'emailLogs',
 ])
 
 export const ADMIN_NAV_SECTIONS_BY_ROLE = Object.freeze({
@@ -250,15 +252,25 @@ export const ADMIN_NAV_SECTIONS_BY_ROLE = Object.freeze({
     {
       heading: '',
       routeIds: [
+        'dashboard',
         'revenue',
+        'reports',
         'bookings',
         'services',
         'payments',
         'refunds',
         'promotions',
+        'vouchers',
         'users',
         'serviceReview',
         'support',
+        'emailLogs',
+        'notifications',
+        'roles',
+        'permissions',
+        'auditLogs',
+        'uploads',
+        'settings',
       ],
     },
   ]),
@@ -268,17 +280,25 @@ export const ADMIN_NAV_SECTIONS_BY_ROLE = Object.freeze({
       routeIds: [
         'dashboard',
         'revenue',
+        'reports',
         'bookings',
         'services',
         'payments',
         'refunds',
         'promotions',
+        'vouchers',
         'users',
         'serviceReview',
+        'support',
+        'emailLogs',
+        'notifications',
         'accessControl',
+        'roles',
+        'permissions',
+        'auditLogs',
+        'uploads',
         'infrastructure',
         'settings',
-        'support',
       ],
     },
   ]),
@@ -286,22 +306,36 @@ export const ADMIN_NAV_SECTIONS_BY_ROLE = Object.freeze({
 
 export const ADMIN_NAV_SECTIONS = ADMIN_NAV_SECTIONS_BY_ROLE[ROLES.systemAdmin]
 
-export function canViewAdminRoute(currentRole, route) {
-  return canAccessResource(currentRole, route)
+export function canViewAdminRoute(currentRole, route, permissions) {
+  return canAccessResource(currentRole, route, permissions)
 }
 
-export function buildAdminPath(path, currentRole) {
-  return `${path}?role=${normalizeAdminRole(currentRole)}`
+export function buildAdminPath(path) {
+  return path
 }
 
-export function getAdminDefaultPath(currentRole) {
-  const normalizedRole = normalizeAdminRole(currentRole)
-  return buildAdminPath(ADMIN_DEFAULT_ROUTE_BY_ROLE[normalizedRole], normalizedRole)
+export function getAdminDefaultPath(currentRole, permissions) {
+  const normalizedRole = normalizeAdminRole(currentRole, null)
+
+  if (!normalizedRole) {
+    return '/'
+  }
+
+  const visibleRoute = getAdminNavSections(normalizedRole)
+    .flatMap((section) => section.routeIds)
+    .map((routeId) => ADMIN_ROUTES[routeId])
+    .find((route) => canViewAdminRoute(normalizedRole, route, permissions))
+
+  if (visibleRoute) {
+    return buildAdminPath(visibleRoute.path)
+  }
+
+  return buildAdminPath(ADMIN_DEFAULT_ROUTE_BY_ROLE[normalizedRole])
 }
 
 export function getAdminNavSections(currentRole) {
-  const normalizedRole = normalizeAdminRole(currentRole)
-  return ADMIN_NAV_SECTIONS_BY_ROLE[normalizedRole] ?? ADMIN_NAV_SECTIONS
+  const normalizedRole = normalizeAdminRole(currentRole, null)
+  return ADMIN_NAV_SECTIONS_BY_ROLE[normalizedRole] ?? []
 }
 
 export function getAdminRouteMetaByPath(pathname) {

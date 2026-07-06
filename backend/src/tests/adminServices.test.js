@@ -158,6 +158,7 @@ test('adminServiceCatalogService.listServices validates filters and applies staf
           limit: 2,
           offset: 2,
           serviceStatus: 'hidden',
+          serviceSort: 'price_asc',
           serviceType: 'hotel',
         });
 
@@ -201,6 +202,7 @@ test('adminServiceCatalogService.listServices validates filters and applies staf
     limit: '2',
     page: '2',
     q: '  Da Nang ',
+    sort: 'price_asc',
     status: 'hidden',
     type: 'hotel',
   });
@@ -274,6 +276,20 @@ test('adminServiceCatalogService.listServices rejects invalid status and limit',
         {
           field: 'limit',
           message: 'limit must be less than or equal to 100',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.listServices({ sort: 'title_asc' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'sort',
+          message: 'sort must be one of: newest, oldest, price_asc, price_desc',
         },
       ]);
       return true;

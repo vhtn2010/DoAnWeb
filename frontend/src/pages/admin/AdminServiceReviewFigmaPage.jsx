@@ -1,30 +1,17 @@
-import { useMemo, useState } from 'react'
 import {
   AdminButton,
   AdminEmptyState,
+  AdminErrorState,
   AdminField,
+  AdminLoadingBlock,
   AdminTextarea,
 } from '../../components/admin/ui/index.js'
-import {
-  ADMIN_SERVICE_REVIEW_ITEMS,
-  ADMIN_SERVICE_REVIEW_TYPES,
-} from '../../fixtures/adminServiceWorkflow.fixtures.js'
+import useAdminServiceReview from '../../hooks/useAdminServiceReview.js'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN')
 
-const reviewSummaryLabels = Object.freeze({
-  flight: 'Chuyến bay',
-  hotel: 'Khách sạn',
-  tour: 'Tour',
-  train: 'Tàu hỏa',
-})
-
 function formatCurrency(value) {
   return `${currencyFormatter.format(value)} Đ`
-}
-
-function removeCount(label) {
-  return label.replace(/\s*\(\d+\)$/, '')
 }
 
 function ReviewIcon({ children }) {
@@ -36,7 +23,7 @@ function ReviewIcon({ children }) {
 }
 
 function ServiceTypeIcon({ type }) {
-  if (type === 'hotel') {
+  if (type === 'hotel' || type === 'room') {
     return (
       <ReviewIcon>
         <path d="M3 11h18v8h-2v-3H5v3H3V11Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
@@ -116,82 +103,26 @@ function ApproveIcon() {
 }
 
 function AdminServiceReviewFigmaPage() {
-  const [activeType, setActiveType] = useState('tour')
-  const [reviewItems, setReviewItems] = useState(ADMIN_SERVICE_REVIEW_ITEMS)
-  const [notes, setNotes] = useState({})
-  const [errors, setErrors] = useState({})
-  const [decisionFeedback, setDecisionFeedback] = useState('')
-
-  const reviewTypeOptions = useMemo(
-    () =>
-      ADMIN_SERVICE_REVIEW_TYPES.map((type) => {
-        const count = reviewItems.filter((item) => item.type === type.value).length
-
-        return {
-          ...type,
-          label: `${removeCount(type.label)} (${count})`,
-        }
-      }),
-    [reviewItems],
-  )
-
-  const visibleItems = useMemo(
-    () => reviewItems.filter((item) => item.type === activeType),
-    [activeType, reviewItems],
-  )
-
-  const activeTypeLabel = reviewSummaryLabels[activeType] ?? removeCount(
-    ADMIN_SERVICE_REVIEW_TYPES.find((type) => type.value === activeType)?.label ?? 'dịch vụ',
-  )
-
-  function resetFilters() {
-    setActiveType('tour')
-  }
-
-  function updateNote(itemId, value) {
-    setNotes((currentNotes) => ({
-      ...currentNotes,
-      [itemId]: value,
-    }))
-    setErrors((currentErrors) => {
-      if (!currentErrors[itemId]) {
-        return currentErrors
-      }
-
-      const nextErrors = { ...currentErrors }
-      delete nextErrors[itemId]
-      return nextErrors
-    })
-  }
-
-  function updateItemStatus(item, nextStatus) {
-    const note = notes[item.id]?.trim() ?? ''
-
-    if (nextStatus === 'rejected' && note.length === 0) {
-      setErrors((currentErrors) => ({
-        ...currentErrors,
-        [item.id]: 'Nhập lý do trước khi từ chối.',
-      }))
-      return
-    }
-
-    setReviewItems((items) => items.filter((currentItem) => currentItem.id !== item.id))
-    setErrors((currentErrors) => {
-      const nextErrors = { ...currentErrors }
-      delete nextErrors[item.id]
-      return nextErrors
-    })
-    setNotes((currentNotes) => {
-      const nextNotes = { ...currentNotes }
-      delete nextNotes[item.id]
-      return nextNotes
-    })
-    setDecisionFeedback(
-      nextStatus === 'approved'
-        ? `Đã phê duyệt dịch vụ "${item.title}".`
-        : `Đã từ chối dịch vụ "${item.title}".`,
-    )
-  }
+  const {
+    activeType,
+    activeTypeLabel,
+    approveReviewItem,
+    error,
+    errors,
+    feedback,
+    isActionLoading,
+    isMutating,
+    loading,
+    notes,
+    rejectReviewItem,
+    reloadReviewItems,
+    resetFilters,
+    reviewItems,
+    reviewTypeOptions,
+    setActiveType,
+    updateNote,
+    visibleItems,
+  } = useAdminServiceReview()
 
   return (
     <main className="admin-ops-page admin-service-review-page">
@@ -205,6 +136,7 @@ function AdminServiceReviewFigmaPage() {
           <button
             aria-current={activeType === type.value ? 'page' : undefined}
             className={`admin-review-tabs__item${activeType === type.value ? ' admin-review-tabs__item--active' : ''}`}
+            disabled={loading || isMutating}
             key={type.value}
             type="button"
             onClick={() => setActiveType(type.value)}
@@ -217,14 +149,31 @@ function AdminServiceReviewFigmaPage() {
         ))}
       </nav>
 
-      {decisionFeedback ? (
-        <p className="admin-service-review-page__feedback" role="status">
-          {decisionFeedback}
+      {feedback.message ? (
+        <p
+          className={`admin-service-review-page__feedback admin-service-review-page__feedback--${feedback.tone}`}
+          role={feedback.tone === 'error' ? 'alert' : 'status'}
+        >
+          {feedback.message}
         </p>
       ) : null}
 
       <section className="admin-service-review-page__list" aria-label="Danh sách dịch vụ chờ duyệt">
-        {visibleItems.length > 0 ? (
+        {loading ? <AdminLoadingBlock rows={3} /> : null}
+
+        {!loading && error ? (
+          <AdminErrorState
+            title="Không thể tải dịch vụ chờ duyệt"
+            description={error}
+            action={
+              <AdminButton variant="secondary" onClick={reloadReviewItems}>
+                Thử lại
+              </AdminButton>
+            }
+          />
+        ) : null}
+
+        {!loading && !error && visibleItems.length > 0 ? (
           visibleItems.map((item) => (
             <article className="admin-review-card" key={item.id}>
               <div className="admin-review-card__media">
@@ -277,8 +226,9 @@ function AdminServiceReviewFigmaPage() {
                   >
                     <AdminTextarea
                       className="admin-review-card__textarea"
+                      disabled={isMutating}
                       invalid={Boolean(errors[item.id])}
-                      placeholder="Nhập lý do..."
+                      placeholder="Nhập lý do hoặc ghi chú kiểm duyệt..."
                       rows={1}
                       value={notes[item.id] ?? ''}
                       onChange={(event) => updateNote(item.id, event.target.value)}
@@ -288,17 +238,21 @@ function AdminServiceReviewFigmaPage() {
                   <div className="admin-review-card__actions">
                     <AdminButton
                       className="admin-review-card__button admin-review-card__button--reject"
+                      disabled={isMutating}
                       icon={<RejectIcon />}
+                      loading={isActionLoading(item.id, 'reject')}
                       variant="danger"
-                      onClick={() => updateItemStatus(item, 'rejected')}
+                      onClick={() => rejectReviewItem(item)}
                     >
                       Từ chối
                     </AdminButton>
                     <AdminButton
                       className="admin-review-card__button admin-review-card__button--approve"
+                      disabled={isMutating}
                       icon={<ApproveIcon />}
+                      loading={isActionLoading(item.id, 'approve')}
                       variant="success"
-                      onClick={() => updateItemStatus(item, 'approved')}
+                      onClick={() => approveReviewItem(item)}
                     >
                       Phê duyệt
                     </AdminButton>
@@ -307,21 +261,23 @@ function AdminServiceReviewFigmaPage() {
               </div>
             </article>
           ))
-        ) : (
+        ) : null}
+
+        {!loading && !error && visibleItems.length === 0 ? (
           <AdminEmptyState
             title="Không có dịch vụ chờ duyệt phù hợp"
-            description="Thử đổi loại dịch vụ hoặc quay lại danh sách Tour đang có dữ liệu mẫu."
+            description="Thử đổi loại dịch vụ hoặc quay lại sau khi nhân viên gửi dịch vụ lên hàng chờ."
             action={
               <AdminButton variant="secondary" onClick={resetFilters}>
                 Đặt lại bộ lọc
               </AdminButton>
             }
           />
-        )}
+        ) : null}
       </section>
 
       <p className="admin-service-review-page__summary">
-        Hiển thị {visibleItems.length} trong số {visibleItems.length} {activeTypeLabel}
+        Hiển thị {visibleItems.length} trong số {reviewItems.length} {activeTypeLabel}
       </p>
     </main>
   )

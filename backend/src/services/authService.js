@@ -40,6 +40,12 @@ const {
   hashSessionToken,
   verifyRefreshToken,
 } = require('../utils/sessionToken');
+const {
+  renderEmailButton,
+  renderEmailInfoRows,
+  renderEmailLayout,
+  renderEmailSection,
+} = require('../utils/emailTemplate');
 const { sendEmail } = require('./sendgridService');
 
 const AUTH_CHANGE_EMAIL_CONFIRMED_ACTION = 'auth.change_email_confirmed';
@@ -478,30 +484,48 @@ const buildVerificationLinks = (token) => {
 };
 
 const buildVerificationEmail = ({
-  apiVerifyUrl,
   expiresInMinutes,
   fullName,
-  token,
   verificationUrl,
 }) => ({
-  html: [
-    `<p>Xin chao ${fullName},</p>`,
-    '<p>Tai khoan Net Viet Travel cua ban da duoc tao thanh cong.</p>',
-    `<p>Vui long xac thuc email trong vong ${expiresInMinutes} phut bang cach mo lien ket sau:</p>`,
-    `<p><a href="${verificationUrl}">${verificationUrl}</a></p>`,
-    '<p>Neu can goi API truc tiep, hay gui token nay toi POST /auth/verify-email:</p>',
-    `<p><code>${token}</code></p>`,
-    `<p>API: <code>${apiVerifyUrl}</code></p>`,
-  ].join(''),
+  html: renderEmailLayout({
+    badge: 'Xac thuc tai khoan',
+    body: [
+      renderEmailButton({
+        href: verificationUrl,
+        label: 'Xac thuc email',
+      }),
+      renderEmailSection({
+        title: 'Lien ket xac thuc',
+        children: renderEmailInfoRows([
+          {
+            label: 'Duong dan',
+            value: verificationUrl,
+          },
+          {
+            label: 'Han xac thuc',
+            value: `${expiresInMinutes} phut`,
+          },
+        ]),
+      }),
+    ].join(''),
+    footerNote:
+      'Neu ban khong tao tai khoan nay, vui long bo qua email nay hoac lien he bo phan ho tro.',
+    greeting: `Xin chao ${fullName},`,
+    intro: [
+      'Tai khoan Net Viet Travel cua ban da duoc tao thanh cong.',
+      `Vui long xac thuc email trong vong ${expiresInMinutes} phut de bao ve tai khoan va bat dau quan ly chuyen di.`,
+    ],
+    preheader: `Xac thuc tai khoan Net Viet Travel trong ${expiresInMinutes} phut.`,
+    title: 'Hoan tat kich hoat tai khoan',
+  }),
   subject: 'Xac thuc tai khoan Net Viet Travel',
   text: [
     `Xin chao ${fullName},`,
     'Tai khoan Net Viet Travel cua ban da duoc tao thanh cong.',
     `Vui long xac thuc email trong vong ${expiresInMinutes} phut tai:`,
     verificationUrl,
-    'Neu can goi API truc tiep, gui token nay toi POST /auth/verify-email:',
-    token,
-    `API: ${apiVerifyUrl}`,
+    'Neu ban khong tao tai khoan nay, vui long bo qua email nay hoac lien he bo phan ho tro.',
   ].join('\n\n'),
 });
 
@@ -516,30 +540,48 @@ const buildResetPasswordLinks = (token) => {
 };
 
 const buildResetPasswordEmail = ({
-  apiResetUrl,
   expiresInMinutes,
   fullName,
   resetUrl,
-  token,
 }) => ({
-  html: [
-    `<p>Xin chao ${fullName},</p>`,
-    '<p>He thong da nhan duoc yeu cau dat lai mat khau cho tai khoan Net Viet Travel cua ban.</p>',
-    `<p>Vui long dat lai mat khau trong vong ${expiresInMinutes} phut tai lien ket sau:</p>`,
-    `<p><a href="${resetUrl}">${resetUrl}</a></p>`,
-    '<p>Neu can goi API truc tiep, hay gui token nay toi POST /auth/reset-password kem new_password:</p>',
-    `<p><code>${token}</code></p>`,
-    `<p>API: <code>${apiResetUrl}</code></p>`,
-  ].join(''),
+  html: renderEmailLayout({
+    badge: 'Bao mat tai khoan',
+    body: [
+      renderEmailButton({
+        href: resetUrl,
+        label: 'Dat lai mat khau',
+      }),
+      renderEmailSection({
+        title: 'Lien ket dat lai mat khau',
+        children: renderEmailInfoRows([
+          {
+            label: 'Duong dan',
+            value: resetUrl,
+          },
+          {
+            label: 'Han su dung',
+            value: `${expiresInMinutes} phut`,
+          },
+        ]),
+      }),
+    ].join(''),
+    footerNote:
+      'Neu ban khong yeu cau dat lai mat khau, hay bo qua email nay. Mat khau hien tai cua ban van duoc giu nguyen.',
+    greeting: `Xin chao ${fullName},`,
+    intro: [
+      'He thong da nhan duoc yeu cau dat lai mat khau cho tai khoan Net Viet Travel cua ban.',
+      `Vui long dat lai mat khau trong vong ${expiresInMinutes} phut de tiep tuc su dung tai khoan an toan.`,
+    ],
+    preheader: `Lien ket dat lai mat khau co hieu luc trong ${expiresInMinutes} phut.`,
+    title: 'Dat lai mat khau cua ban',
+  }),
   subject: 'Dat lai mat khau Net Viet Travel',
   text: [
     `Xin chao ${fullName},`,
     'He thong da nhan duoc yeu cau dat lai mat khau cho tai khoan Net Viet Travel cua ban.',
     `Vui long dat lai mat khau trong vong ${expiresInMinutes} phut tai:`,
     resetUrl,
-    'Neu can goi API truc tiep, gui token nay toi POST /auth/reset-password kem new_password:',
-    token,
-    `API: ${apiResetUrl}`,
+    'Neu ban khong yeu cau dat lai mat khau, hay bo qua email nay. Mat khau hien tai cua ban van duoc giu nguyen.',
   ].join('\n\n'),
 });
 
@@ -554,30 +596,55 @@ const buildChangeEmailConfirmLinks = (token) => {
 };
 
 const buildChangeEmailConfirmEmail = ({
-  apiConfirmUrl,
   confirmUrl,
   expiresInMinutes,
   fullName,
-  token,
+  newEmail,
 }) => ({
-  html: [
-    `<p>Xin chao ${fullName},</p>`,
-    '<p>He thong da nhan duoc yeu cau doi email dang nhap cho tai khoan Net Viet Travel cua ban.</p>',
-    `<p>Vui long xac nhan email moi trong vong ${expiresInMinutes} phut tai lien ket sau:</p>`,
-    `<p><a href="${confirmUrl}">${confirmUrl}</a></p>`,
-    '<p>Neu can goi API truc tiep, hay gui token nay toi POST /auth/change-email/confirm:</p>',
-    `<p><code>${token}</code></p>`,
-    `<p>API: <code>${apiConfirmUrl}</code></p>`,
-  ].join(''),
+  html: renderEmailLayout({
+    badge: 'Doi email dang nhap',
+    body: [
+      renderEmailButton({
+        href: confirmUrl,
+        label: 'Xac nhan email moi',
+      }),
+      renderEmailSection({
+        title: 'Thong tin thay doi',
+        children: renderEmailInfoRows([
+          newEmail
+            ? {
+                label: 'Email moi',
+                value: newEmail,
+              }
+            : null,
+          {
+            label: 'Duong dan',
+            value: confirmUrl,
+          },
+          {
+            label: 'Han xac nhan',
+            value: `${expiresInMinutes} phut`,
+          },
+        ]),
+      }),
+    ].join(''),
+    footerNote:
+      'Neu ban khong yeu cau doi email dang nhap, vui long lien he bo phan ho tro de kiem tra tai khoan.',
+    greeting: `Xin chao ${fullName},`,
+    intro: [
+      'He thong da nhan duoc yeu cau doi email dang nhap cho tai khoan Net Viet Travel cua ban.',
+      `Vui long xac nhan email moi trong vong ${expiresInMinutes} phut de hoan tat thay doi.`,
+    ],
+    preheader: `Xac nhan email dang nhap moi trong ${expiresInMinutes} phut.`,
+    title: 'Xac nhan email dang nhap moi',
+  }),
   subject: 'Xac nhan doi email dang nhap Net Viet Travel',
   text: [
     `Xin chao ${fullName},`,
     'He thong da nhan duoc yeu cau doi email dang nhap cho tai khoan Net Viet Travel cua ban.',
     `Vui long xac nhan email moi trong vong ${expiresInMinutes} phut tai:`,
     confirmUrl,
-    'Neu can goi API truc tiep, gui token nay toi POST /auth/change-email/confirm:',
-    token,
-    `API: ${apiConfirmUrl}`,
+    'Neu ban khong yeu cau doi email dang nhap, vui long lien he bo phan ho tro de kiem tra tai khoan.',
   ].join('\n\n'),
 });
 
@@ -1457,6 +1524,7 @@ const createAuthService = ({
           confirmUrl,
           expiresInMinutes: changeEmail.expiresInMinutes,
           fullName: user.full_name,
+          newEmail: input.newEmail,
           token,
         });
         const emailLogResult = await queueEmailLog(client, {

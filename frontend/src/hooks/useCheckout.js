@@ -10,6 +10,7 @@ import {
   validateCheckoutForm,
 } from '../repositories/checkoutRepository.js'
 import { syncCheckoutDraftTravellers } from '../mappers/checkoutMappers.js'
+import { getAuthSession } from '../services/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 
 function clearFieldError(currentErrors, fieldName) {
@@ -22,11 +23,18 @@ function clearFieldError(currentErrors, fieldName) {
   return nextErrors
 }
 
+function getCheckoutAuthState(searchParams) {
+  if (getAuthSession().isAuthenticated) {
+    return ROLES.customer
+  }
+
+  return searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+}
+
 export default function useCheckout() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+  const authState = getCheckoutAuthState(searchParams)
 
   const selectedCartItemIds = useMemo(() => {
     if (

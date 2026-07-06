@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   buildRegisterPayload,
   createRegisterFormValues,
+  mapApiValidationErrors,
   validateRegisterPayload,
 } from '../mappers/authMappers.js'
 import { register } from '../repositories/authRepository.js'
@@ -55,6 +56,12 @@ export default function useRegisterForm() {
         setFormValues(createRegisterFormValues())
       }
     } catch (error) {
+      const apiFieldErrors = mapApiValidationErrors(error?.details)
+
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setErrors(apiFieldErrors)
+      }
+
       setFeedbackMessage(error?.message ?? 'Không thể đăng ký tài khoản lúc này.')
       setFeedbackTone('error')
     } finally {

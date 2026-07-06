@@ -1,89 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import {
   AdminButton,
+  AdminEmptyState,
+  AdminErrorState,
+  AdminLoadingBlock,
   AdminSegmentedControl,
 } from '../../components/admin/ui/index.js'
-
-const RANGE_OPTIONS = Object.freeze([
-  { value: 'day', label: 'Ngày' },
-  { value: 'month', label: 'Tháng' },
-  { value: 'year', label: 'Năm' },
-])
-
-const REVENUE_REPORTS = Object.freeze({
-  day: {
-    period: 'Ngày 05/07/2026',
-    metrics: [
-      { id: 'total-revenue', label: 'Tổng Doanh Thu', tone: 'rose', trend: '+8.4%', trendDirection: 'up', value: '128.5M đ' },
-      { id: 'new-orders', label: 'Đơn Hàng Mới', tone: 'gold', trend: '+6.1%', trendDirection: 'up', value: '42' },
-      { id: 'net-profit', label: 'Lợi Nhuận Ròng', tone: 'blue', trend: '+1.9%', trendDirection: 'up', value: '24.8M đ' },
-      { id: 'new-customers', label: 'Khách Hàng Mới', tone: 'brand', trend: '+10.2%', trendDirection: 'up', value: '9' },
-    ],
-    series: [
-      { label: '08:00', value: 30, display: '18M' },
-      { label: '10:00', value: 50, display: '26M' },
-      { label: '12:00', value: 45, display: '19M' },
-      { label: '14:00', value: 70, display: '33M' },
-      { label: '16:00', value: 65, display: '21M' },
-      { label: '18:00', value: 90, display: '28M', highlight: true },
-      { label: '20:00', value: 85, display: '25M' },
-    ],
-    breakdown: [
-      { color: '#c8102e', label: 'Tour Du lịch', value: 48 },
-      { color: '#ffd700', label: 'Khách sạn', value: 26 },
-      { color: '#546ea7', label: 'Chuyến bay', value: 17 },
-      { color: '#906f6b', label: 'Tàu hỏa', value: 9 },
-    ],
-  },
-  month: {
-    period: 'Tháng 05, 2026',
-    metrics: [
-      { id: 'total-revenue', label: 'Tổng Doanh Thu', tone: 'rose', trend: '+12.5%', trendDirection: 'up', value: '4.25B đ' },
-      { id: 'new-orders', label: 'Đơn Hàng Mới', tone: 'gold', trend: '+5.2%', trendDirection: 'up', value: '1,245' },
-      { id: 'net-profit', label: 'Lợi Nhuận Ròng', tone: 'blue', trend: '-2.1%', trendDirection: 'down', value: '850M đ' },
-      { id: 'new-customers', label: 'Khách Hàng Mới', tone: 'brand', trend: '+18.4%', trendDirection: 'up', value: '30' },
-    ],
-    series: [
-      { label: 'Tuần 1', value: 30, display: '520M' },
-      { label: 'Tuần 2', value: 50, display: '760M' },
-      { label: 'Tuần 3', value: 45, display: '690M' },
-      { label: 'Tuần 4', value: 70, display: '1.02B' },
-      { label: 'Tuần 5', value: 65, display: '940M' },
-      { label: 'Tuần 6', value: 90, display: '1.28B', highlight: true },
-      { label: 'Tuần 7', value: 85, display: '1.18B' },
-    ],
-    breakdown: [
-      { color: '#c8102e', label: 'Tour Du lịch', value: 45 },
-      { color: '#ffd700', label: 'Khách sạn', value: 30 },
-      { color: '#546ea7', label: 'Chuyến bay', value: 15 },
-      { color: '#906f6b', label: 'Tàu hỏa', value: 10 },
-    ],
-  },
-  year: {
-    period: 'Năm 2026',
-    metrics: [
-      { id: 'total-revenue', label: 'Tổng Doanh Thu', tone: 'rose', trend: '+21.8%', trendDirection: 'up', value: '48.7B đ' },
-      { id: 'new-orders', label: 'Đơn Hàng Mới', tone: 'gold', trend: '+14.6%', trendDirection: 'up', value: '14,920' },
-      { id: 'net-profit', label: 'Lợi Nhuận Ròng', tone: 'blue', trend: '+9.8%', trendDirection: 'up', value: '9.8B đ' },
-      { id: 'new-customers', label: 'Khách Hàng Mới', tone: 'brand', trend: '+26.2%', trendDirection: 'up', value: '326' },
-    ],
-    series: [
-      { label: 'Tháng 1', value: 38, display: '3.4B' },
-      { label: 'Tháng 2', value: 46, display: '3.8B' },
-      { label: 'Tháng 3', value: 55, display: '4.2B' },
-      { label: 'Tháng 4', value: 64, display: '4.7B' },
-      { label: 'Tháng 5', value: 78, display: '5.5B' },
-      { label: 'Tháng 6', value: 90, display: '6.4B', highlight: true },
-      { label: 'Tháng 7', value: 84, display: '6.1B' },
-    ],
-    breakdown: [
-      { color: '#c8102e', label: 'Tour Du lịch', value: 52 },
-      { color: '#ffd700', label: 'Khách sạn', value: 24 },
-      { color: '#546ea7', label: 'Chuyến bay', value: 14 },
-      { color: '#906f6b', label: 'Tàu hỏa', value: 10 },
-    ],
-  },
-})
+import useAdminRevenueReport from '../../hooks/useAdminRevenueReport.js'
+import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js'
 
 function DownloadIcon() {
   return (
@@ -187,33 +112,56 @@ function TrendIcon({ direction = 'up' }) {
 }
 
 function RevenueMetricCard({ metric }) {
+  const trendDirection = metric.trendDirection === 'down' ? 'down' : 'up'
+  const trendToneClass =
+    metric.trendDirection === 'neutral'
+      ? ''
+      : ` admin-revenue-metric__trend--${trendDirection}`
+
   return (
     <article className={`admin-revenue-metric admin-revenue-metric--${metric.tone}`}>
       <p className="admin-revenue-metric__label">{metric.label}</p>
       <strong className="admin-revenue-metric__value">{metric.value}</strong>
-      <span
-        aria-label={`${metric.trendDirection === 'down' ? 'Giảm' : 'Tăng'} ${metric.trend}`}
-        className={`admin-revenue-metric__trend admin-revenue-metric__trend--${metric.trendDirection}`}
-      >
-        <TrendIcon direction={metric.trendDirection} />
-        {metric.trend}
-      </span>
+      {metric.trend ? (
+        <span
+          aria-label={metric.trend}
+          className={`admin-revenue-metric__trend${trendToneClass}`}
+        >
+          {metric.trendDirection === 'neutral' ? null : (
+            <TrendIcon direction={trendDirection} />
+          )}
+          {metric.trend}
+        </span>
+      ) : null}
     </article>
   )
 }
 
 function AdminRevenuePage() {
-  const [range, setRange] = useState('month')
-  const [feedback, setFeedback] = useState('')
-  const report = REVENUE_REPORTS[range]
+  const { currentPermissions, currentRole } = useOutletContext()
+  const {
+    error,
+    exportReport,
+    exportingFormat,
+    feedback,
+    hasReport,
+    loading,
+    range,
+    rangeOptions,
+    reloadReport,
+    report,
+    setRange,
+  } = useAdminRevenueReport()
   const maxSeriesValue = useMemo(
-    () => Math.max(...report.series.map((point) => point.value)),
+    () => Math.max(...(report?.series ?? []).map((point) => point.value), 0),
     [report],
   )
-
-  function exportReport(format) {
-    setFeedback(`Đã chuẩn bị báo cáo doanh thu ${report.period} dạng ${format}.`)
-  }
+  const hasSeriesData = Boolean(report?.series?.some((point) => point.value > 0))
+  const canExport = Boolean(hasReport) && !loading && hasPermission(
+    currentRole,
+    ADMIN_PERMISSIONS.reportsExport,
+    currentPermissions,
+  )
 
   return (
     <main className="admin-revenue-page">
@@ -225,16 +173,20 @@ function AdminRevenuePage() {
         <div className="admin-revenue-page__actions" aria-label="Xuất báo cáo">
           <AdminButton
             className="admin-revenue-page__export admin-revenue-page__export--excel"
+            disabled={!canExport}
             icon={<DownloadIcon />}
-            onClick={() => exportReport('Excel')}
+            loading={exportingFormat === 'xlsx'}
+            onClick={() => exportReport('xlsx')}
           >
             Xuất Excel
           </AdminButton>
           <AdminButton
             className="admin-revenue-page__export admin-revenue-page__export--pdf"
+            disabled={!canExport}
             icon={<PdfIcon />}
-            onClick={() => exportReport('PDF')}
+            loading={exportingFormat === 'pdf'}
             variant="primary"
+            onClick={() => exportReport('pdf')}
           >
             Xuất PDF
           </AdminButton>
@@ -247,16 +199,17 @@ function AdminRevenuePage() {
           <AdminSegmentedControl
             ariaLabel="Chọn khoảng thời gian báo cáo"
             className="admin-revenue-page__range-tabs"
-            options={RANGE_OPTIONS}
+            disabled={loading}
+            options={rangeOptions}
             value={range}
             variant="pill"
             onChange={setRange}
           />
         </div>
 
-        <button className="admin-revenue-page__period-button" type="button">
+        <button className="admin-revenue-page__period-button" disabled={loading} type="button">
           <CalendarIcon />
-          <span>{report.period}</span>
+          <span>{report?.period ?? 'Đang tải dữ liệu'}</span>
           <ChevronDownIcon />
         </button>
       </section>
@@ -267,59 +220,108 @@ function AdminRevenuePage() {
         </p>
       ) : null}
 
-      <section className="admin-revenue-page__metrics" aria-label="Chỉ số doanh thu">
-        {report.metrics.map((metric) => (
-          <RevenueMetricCard key={metric.id} metric={metric} />
-        ))}
-      </section>
+      {loading && !hasReport ? (
+        <AdminLoadingBlock rows={4} />
+      ) : null}
 
-      <div className="admin-revenue-page__analytics">
-        <section className="admin-revenue-page__chart-card" aria-labelledby="revenue-trend-title">
-          <header className="admin-revenue-page__card-header">
-            <h2 id="revenue-trend-title">Xu hướng Doanh thu</h2>
-            <button aria-label="Xem chi tiết xu hướng doanh thu" type="button">
-              <KebabIcon />
-            </button>
-          </header>
+      {error && !hasReport ? (
+        <AdminErrorState
+          title="Không thể tải báo cáo doanh thu"
+          description={error}
+          action={
+            <AdminButton variant="secondary" onClick={reloadReport}>
+              Thử lại
+            </AdminButton>
+          }
+        />
+      ) : null}
 
-          <div className="admin-revenue-page__chart-area" aria-label="Khu vực biểu đồ doanh thu">
-            <div className="admin-revenue-page__bars">
-              {report.series.map((point) => (
-                <span
-                  aria-label={`${point.label}: ${point.display}`}
-                  className={`admin-revenue-page__bar${point.highlight ? ' admin-revenue-page__bar--highlight' : ''}`}
-                  key={point.label}
-                  style={{ height: `${Math.max(30, Math.round((point.value / maxSeriesValue) * 100))}%` }}
-                />
-              ))}
-            </div>
-            <span className="admin-revenue-page__chart-label">Khu vực biểu đồ đồ thị đường</span>
-          </div>
-        </section>
+      {hasReport ? (
+        <>
+          {error ? (
+            <AdminErrorState
+              title="Dữ liệu có thể chưa mới nhất"
+              description={error}
+              action={
+                <AdminButton variant="secondary" onClick={reloadReport}>
+                  Tải lại
+                </AdminButton>
+              }
+            />
+          ) : null}
 
-        <section className="admin-revenue-page__breakdown-card" aria-labelledby="service-breakdown-title">
-          <header className="admin-revenue-page__card-header">
-            <h2 id="service-breakdown-title">Cơ cấu Dịch vụ</h2>
-          </header>
+          {report.warnings.length > 0 ? (
+            <p className="admin-ops-page__result-note" role="status">
+              {report.warnings.map((warning) => warning.message).join(' ')}
+            </p>
+          ) : null}
 
-          <div className="admin-revenue-page__breakdown-list">
-            {report.breakdown.map((item) => (
-              <div className="admin-revenue-page__breakdown-item" key={item.label}>
-                <div className="admin-revenue-page__breakdown-row">
-                  <span className="admin-revenue-page__breakdown-name">
-                    <span style={{ backgroundColor: item.color }} />
-                    {item.label}
-                  </span>
-                  <strong>{item.value}%</strong>
-                </div>
-                <div className="admin-revenue-page__progress" aria-hidden="true">
-                  <span style={{ backgroundColor: item.color, width: `${item.value}%` }} />
-                </div>
-              </div>
+          <section className="admin-revenue-page__metrics" aria-label="Chỉ số doanh thu">
+            {report.metrics.map((metric) => (
+              <RevenueMetricCard key={metric.id} metric={metric} />
             ))}
+          </section>
+
+          <div className="admin-revenue-page__analytics">
+            <section className="admin-revenue-page__chart-card" aria-labelledby="revenue-trend-title">
+              <header className="admin-revenue-page__card-header">
+                <h2 id="revenue-trend-title">Xu hướng Doanh thu</h2>
+                <button aria-label="Xem chi tiết xu hướng doanh thu" type="button">
+                  <KebabIcon />
+                </button>
+              </header>
+
+              <div className="admin-revenue-page__chart-area" aria-label="Khu vực biểu đồ doanh thu">
+                {hasSeriesData ? (
+                  <div className="admin-revenue-page__bars">
+                    {report.series.map((point) => (
+                      <span
+                        aria-label={`${point.label}: ${point.display}`}
+                        className={`admin-revenue-page__bar${point.highlight ? ' admin-revenue-page__bar--highlight' : ''}`}
+                        key={point.period}
+                        style={{
+                          height: `${Math.max(12, Math.round((point.value / maxSeriesValue) * 100))}%`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <AdminEmptyState
+                    title="Chưa có doanh thu"
+                    description="Backend chưa ghi nhận giao dịch thành công trong khoảng thời gian này."
+                  />
+                )}
+                <span className="admin-revenue-page__chart-label">
+                  Doanh thu ròng theo {report.groupBy === 'month' ? 'tháng' : report.groupBy === 'week' ? 'tuần' : 'ngày'}
+                </span>
+              </div>
+            </section>
+
+            <section className="admin-revenue-page__breakdown-card" aria-labelledby="cashflow-breakdown-title">
+              <header className="admin-revenue-page__card-header">
+                <h2 id="cashflow-breakdown-title">Cơ cấu dòng tiền</h2>
+              </header>
+
+              <div className="admin-revenue-page__breakdown-list">
+                {report.breakdown.map((item) => (
+                  <div className="admin-revenue-page__breakdown-item" key={item.label}>
+                    <div className="admin-revenue-page__breakdown-row">
+                      <span className="admin-revenue-page__breakdown-name">
+                        <span style={{ backgroundColor: item.color }} />
+                        {item.label}
+                      </span>
+                      <strong>{item.value}%</strong>
+                    </div>
+                    <div className="admin-revenue-page__progress" aria-hidden="true">
+                      <span style={{ backgroundColor: item.color, width: `${item.value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
-        </section>
-      </div>
+        </>
+      ) : null}
     </main>
   )
 }
