@@ -33,6 +33,21 @@ function TitleActionButton({ label, children }) {
   )
 }
 
+function HotelPriceSummary({ formatCurrency, value }) {
+  return (
+    <div className="hotel-detail-title__price" aria-label="Giá tham khảo mỗi đêm">
+      <strong className="hotel-detail-title__price-value">
+        {value ? formatCurrency(value) : '--'}
+      </strong>
+
+      <div className="hotel-detail-title__price-copy">
+        <span>Giá từ</span>
+        <small>/đêm</small>
+      </div>
+    </div>
+  )
+}
+
 function HotelLocationIcon() {
   return (
     <svg fill="none" viewBox="0 0 24 24">
@@ -141,39 +156,46 @@ function HotelDetailPage() {
               </span>
               <span>{hotel.address}</span>
               <button className="hotel-detail-title__map-link" type="button">
-                Xem tren ban do
+                Xem trên bản đồ
               </button>
             </div>
           </div>
 
-          <div className="hotel-detail-title__actions">
-            <TitleActionButton label="Chia se khach san">
-              <ShareIcon />
-            </TitleActionButton>
-            <TitleActionButton label="Luu khach san">
-              <HeartIcon />
-            </TitleActionButton>
+          <div className="hotel-detail-title__side">
+            <div className="hotel-detail-title__actions">
+              <TitleActionButton label="Chia sẻ khách sạn">
+                <ShareIcon />
+              </TitleActionButton>
+              <TitleActionButton label="Lưu khách sạn">
+                <HeartIcon />
+              </TitleActionButton>
+            </div>
+
+            <HotelPriceSummary
+              formatCurrency={formatCurrency}
+              value={selectedRoom?.sale_price ?? hotel.sale_price}
+            />
           </div>
         </section>
 
+        <HotelGallery
+          images={galleryState.images}
+          selectedImage={galleryState.selectedImage}
+          title={hotel.title}
+          onSelectImage={galleryState.setSelectedImage}
+        />
+
         <div className="hotel-detail-page__layout">
           <div className="hotel-detail-page__main">
-            <HotelGallery
-              images={galleryState.images}
-              selectedImage={galleryState.selectedImage}
-              title={hotel.title}
-              onSelectImage={galleryState.setSelectedImage}
-            />
-
             <section className="hotel-detail-card hotel-detail-card--plain hotel-detail-copy">
               <div className="hotel-detail-section-heading">
-                <h2 className="hotel-detail-section-heading__title">Mo ta</h2>
+                <h2 className="hotel-detail-section-heading__title">Mô tả</h2>
               </div>
 
               <p className="hotel-detail-page__description">{hotel.description}</p>
             </section>
 
-            <HotelAmenityList items={hotel.amenities} title="Tien nghi" />
+            <HotelAmenityList items={hotel.amenities} title="Tiện nghi" />
           </div>
 
           <HotelBookingPanel
@@ -189,7 +211,7 @@ function HotelDetailPage() {
 
         <section className="hotel-detail-card hotel-detail-card--plain hotel-detail-rooms">
           <div className="hotel-detail-section-heading">
-            <h2 className="hotel-detail-section-heading__title">Cac loai phong</h2>
+            <h2 className="hotel-detail-section-heading__title">Các loại phòng</h2>
           </div>
 
           <div className="hotel-detail-room-list">

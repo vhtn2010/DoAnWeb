@@ -1,3 +1,5 @@
+const VINPEARL_HA_LONG_SLUG = 'vinpearl-resort-spa-ha-long'
+
 function resolveGallery(gallery = [], fallbackImage = '') {
   if (Array.isArray(gallery) && gallery.length > 0) {
     return gallery
@@ -75,19 +77,19 @@ function resolveReviewItems(reviewItems = []) {
 }
 
 function applyHotelDetailDisplayOverride(hotel) {
-  if (hotel?.slug !== 'the-watson-premium-halong-hotel') {
+  if (hotel?.slug !== VINPEARL_HA_LONG_SLUG) {
     return hotel
   }
 
   return {
     ...hotel,
-    title: 'Vinpearl Resort & Spa Ha Long',
+    title: 'Vinpearl Resort & Spa Hạ Long',
     short_description:
-      'Khu nghi duong ven bien voi khong gian sang trong, ho boi, spa va nha hang huong vinh Ha Long.',
+      'Khu nghỉ dưỡng ven biển với không gian sang trọng, hồ bơi, spa và nhà hàng hướng vịnh Hạ Long.',
     description:
-      'Vinpearl Resort & Spa Ha Long mang den trai nghiem nghi duong cao cap voi phong nghi huong bien, khu spa thu gian, nha hang phong cach hien dai va khong gian phu hop cho ky nghi gia dinh hoac cap doi.',
-    location_text: 'Ha Long, Quang Ninh',
-    address: 'Dao Reu, Phuong Bai Chay, Thanh pho Ha Long, Quang Ninh',
+      'Được lấy cảm hứng từ thiết kế của Nhà hát Opera Rennes tại Pháp, Vinpearl Resort & Spa Hạ Long mang đến trải nghiệm độc đáo trên một hòn đảo riêng biệt với bốn mặt hướng biển và tầm nhìn rộng ra Vịnh Hạ Long.',
+    location_text: 'Hạ Long, Quảng Ninh',
+    address: 'Đảo Rều, Phường Bãi Cháy, Thành phố Hạ Long, Quảng Ninh',
     sale_price: 1450000,
     review_count: 2400,
     display_review_count: '2.4k',
@@ -111,45 +113,45 @@ function applyHotelDetailDisplayOverride(hotel) {
       '/assets/template/service/detail/ha-long-gallery-main.png?photo=16',
       '/assets/template/service/detail/ha-long-gallery-sunset.png?photo=17',
     ],
-    amenities: ['Ho boi', 'Spa', 'Nha hang', 'WiFi mien phi'],
+    amenities: ['Hồ bơi', 'Spa', 'Nhà hàng', 'WiFi miễn phí'],
     details: {
       ...(hotel.details ?? {}),
       star_rating: 5,
-      headline: 'Khong gian nghi duong cao cap voi tam nhin thanh binh huong ra Ha Long.',
+      headline: 'Không gian nghỉ dưỡng cao cấp với tầm nhìn thanh bình hướng ra Vịnh Hạ Long.',
       hotel_style: 'Resort & spa retreat',
       highlight_text:
-        'Phu hop cho ky nghi bien, chuyen di gia dinh va ky nghi cuoi tuan thu gian.',
-      nearby_places: ['Sun World Ha Long', 'Bai Chay', 'Cang tau khach quoc te'],
+        'Phù hợp cho kỳ nghỉ biển, chuyến đi gia đình và kỳ nghỉ cuối tuần thư giãn.',
+      nearby_places: ['Sun World Hạ Long', 'Bãi Cháy', 'Cảng tàu khách quốc tế'],
       review_items: resolveReviewItems([
         {
           id: 'review-an-nguyen',
           name: 'An Nguyen',
-          stayed_text: 'Da luu tru - 2 tuan truoc',
+          stayed_text: 'Đã lưu trú - 2 tuần trước',
           rating: 4.8,
-          comment: 'Khuon vien dep, buffet sang ngon va phong nghi thong thoang.',
+          comment: 'Khuôn viên đẹp, buffet sáng ngon và phòng nghỉ thoáng đãng.',
         },
         {
           id: 'review-thao-le',
           name: 'Thao Le',
-          stayed_text: 'Da luu tru - 3 tuan truoc',
+          stayed_text: 'Đã lưu trú - 3 tuần trước',
           rating: 4.9,
-          comment: 'Nhan vien chu dao, be boi sach va rat phu hop cho ky nghi gia dinh.',
+          comment: 'Nhân viên chu đáo, hồ bơi sạch và rất phù hợp cho kỳ nghỉ gia đình.',
         },
         {
           id: 'review-minh-pham',
           name: 'Minh Pham',
-          stayed_text: 'Da luu tru - 1 thang truoc',
+          stayed_text: 'Đã lưu trú - 1 tháng trước',
           rating: 4.7,
-          comment: 'View bien dep, spa thu gian va vi tri di chuyen thuan tien.',
+          comment: 'View biển đẹp, spa thư giãn và vị trí di chuyển thuận tiện.',
         },
       ]),
-      room_note: 'Mot so hang phong co the ke them giuong phu cho tre em.',
+      room_note: 'Một số hạng phòng có thể kê thêm giường phụ cho trẻ em.',
     },
   }
 }
 
 function applyHotelRoomDisplayOverrides(rooms = [], hotelSlug = '') {
-  if (hotelSlug !== 'the-watson-premium-halong-hotel') {
+  if (hotelSlug !== VINPEARL_HA_LONG_SLUG) {
     return rooms
   }
 
@@ -157,21 +159,21 @@ function applyHotelRoomDisplayOverrides(rooms = [], hotelSlug = '') {
     if (room.id === 'room-hl-premium-bay') {
       return {
         ...room,
-        title: 'Deluxe Huong Bien',
-        short_description: 'Phong huong bien voi tam nhin mo ra khu vuc Bai Chay.',
+        title: 'Deluxe Hướng Biển',
+        short_description: 'Phòng hướng biển với tầm nhìn mở ra khu vực Bãi Cháy.',
         sale_price: 1450000,
         base_price: 1650000,
-        bed_type: '1 giuong doi lon',
+        bed_type: '1 giường đôi lớn',
         room_size: '40m2',
         image_url: '/assets/template/service/detail/ha-long-gallery-cabin.png',
-        display_badge: 'Pho bien',
-        display_guest_label: '2 Nguoi lon',
+        display_badge: 'Phổ biến',
+        display_guest_label: '2 Người lớn',
         display_secondary_meta: '40m2',
         display_price_text: '$145',
-        display_price_suffix: 'moi dem',
+        display_price_suffix: 'mỗi đêm',
         options: {
           ...(room.options ?? {}),
-          badge: 'Pho bien',
+          badge: 'Phổ biến',
         },
       }
     }
@@ -184,13 +186,13 @@ function applyHotelRoomDisplayOverrides(rooms = [], hotelSlug = '') {
         sale_price: 2800000,
         base_price: 3200000,
         max_guests: 3,
-        bed_type: '1 giuong king',
+        bed_type: '1 giường king',
         room_size: '76m2',
         image_url: '/assets/template/home/v39_1693.png',
-        display_guest_label: '3 Nguoi lon',
+        display_guest_label: '3 Người lớn',
         display_secondary_meta: '76m2',
         display_price_text: '$280',
-        display_price_suffix: 'moi dem',
+        display_price_suffix: 'mỗi đêm',
         options: {
           ...(room.options ?? {}),
           badge: '',
@@ -208,11 +210,11 @@ function applyHotelRoomDisplayOverrides(rooms = [], hotelSlug = '') {
       service_code: 'ROOM-HL-003',
       service_type: overriddenRooms[0]?.service_type,
       hotel_service_id: overriddenRooms[0]?.hotel_service_id,
-      title: 'Biet thu Tong thong',
+      title: 'Biệt thự Tổng thống',
       slug: 'presidential-lagoon-villa',
-      short_description: 'Biet thu cao cap co ho boi rieng va khu tiep khach sang trong.',
+      short_description: 'Biệt thự cao cấp có hồ bơi riêng và khu tiếp khách sang trọng.',
       description:
-        'Khong gian nghi duong biet lap voi san tam nang, phong khach lon va tam nhin rong ra mat nuoc.',
+        'Không gian nghỉ dưỡng biệt lập với sân tắm nắng, phòng khách lớn và tầm nhìn rộng ra mặt nước.',
       base_price: 9200000,
       sale_price: 8500000,
       currency: overriddenRooms[0]?.currency,
@@ -224,18 +226,18 @@ function applyHotelRoomDisplayOverrides(rooms = [], hotelSlug = '') {
         '/assets/template/home/v39_1693.png',
       ],
       max_guests: 6,
-      bed_type: '2 giuong king',
+      bed_type: '2 giường king',
       room_size: '160m2',
-      amenities: ['Ho boi rieng', 'Quan gia rieng', 'Bua sang tai phong', 'Dich vu dua don'],
+      amenities: ['Hồ bơi riêng', 'Quản gia riêng', 'Bữa sáng tại phòng', 'Dịch vụ đưa đón'],
       available_quantity: 2,
-      display_guest_label: '6 Nguoi lon',
-      display_secondary_meta: 'Ho boi rieng',
+      display_guest_label: '6 Người lớn',
+      display_secondary_meta: 'Hồ bơi riêng',
       display_price_text: '$850',
-      display_price_suffix: 'moi dem',
+      display_price_suffix: 'mỗi đêm',
       options: {
-        view: 'Dam nuoc rieng',
+        view: 'Đầm nước riêng',
         breakfast_included: true,
-        cancellation: 'Ho tro doi lich theo goi dat phong',
+        cancellation: 'Hỗ trợ đổi lịch theo gói đặt phòng',
         badge: '',
       },
     },

@@ -1,5 +1,24 @@
 function AmenityIcon({ item }) {
-  const normalizedItem = String(item ?? '').toLowerCase()
+  const normalizedItem = String(item ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+
+  if (normalizedItem.includes('ho boi')) {
+    return (
+      <svg fill="none" viewBox="0 0 24 24">
+        <path
+          d="M4 16c1.1 0 1.7-.5 2.4-1 .7-.5 1.3-1 2.4-1 1.1 0 1.7.5 2.4 1 .7.5 1.3 1 2.4 1 1.1 0 1.7-.5 2.4-1 .7-.5 1.3-1 2.4-1"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="1.8"
+        />
+        <path d="M7 12V8a2 2 0 0 1 4 0v4M15 12V6" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      </svg>
+    )
+  }
 
   if (normalizedItem.includes('spa')) {
     return (

@@ -55,9 +55,15 @@ function RoomMetaItem({ iconType, value }) {
 
 function HotelRoomCard({ room, isSelected, onReserve, onSelect, formatCurrency }) {
   const badgeLabel = room.display_badge ?? room.options?.badge ?? ''
-  const guestLabel = room.display_guest_label ?? `${room.max_guests} Nguoi lon`
+  const guestLabel = room.display_guest_label ?? `${room.max_guests} Người lớn`
   const secondaryMeta = room.display_secondary_meta ?? room.room_size
-  const secondaryMetaIcon = String(secondaryMeta).toLowerCase().includes('ho boi')
+  const normalizedSecondaryMeta = String(secondaryMeta)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+  const secondaryMetaIcon = normalizedSecondaryMeta.includes('ho boi')
     ? 'pool'
     : 'size'
   const displayPrice = room.display_price_text ?? formatCurrency(room.sale_price)
@@ -104,7 +110,7 @@ function HotelRoomCard({ room, isSelected, onReserve, onSelect, formatCurrency }
         <div className="hotel-room-card__footer">
           <div className="hotel-room-card__price">
             <strong>{displayPrice}</strong>
-            <span>{room.display_price_suffix ?? 'moi dem'}</span>
+            <span>{room.display_price_suffix ?? 'mỗi đêm'}</span>
           </div>
 
           <button
@@ -112,7 +118,7 @@ function HotelRoomCard({ room, isSelected, onReserve, onSelect, formatCurrency }
             type="button"
             onClick={handleReserve}
           >
-            Dat ngay
+            Đặt ngay
           </button>
         </div>
       </div>

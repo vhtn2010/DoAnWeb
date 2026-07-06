@@ -172,8 +172,8 @@ const hotelDrafts = [
   {
     id: 'hotel-ha-long-watson-premium',
     service_code: 'HOTEL-HL-002',
-    title: 'The Watson Premium HaLong Hotel',
-    slug: 'the-watson-premium-halong-hotel',
+    title: 'Vinpearl Resort & Spa Hạ Long',
+    slug: 'vinpearl-resort-spa-ha-long',
     short_description:
       'Khách sạn hướng vịnh Hạ Long với thiết kế sang trọng, hồ bơi trong nhà và nhà hàng hải sản.',
     description:
@@ -181,8 +181,8 @@ const hotelDrafts = [
     location_text: 'Hạ Long, Quảng Ninh',
     address:
       'Lô 9 Hoàng Quốc Việt, Khu du lịch và đô thị mới Hùng Thắng, Bãi Cháy, Hạ Long, Việt Nam',
-    base_price: 2500000,
-    sale_price: 1900000,
+    base_price: 1650000,
+    sale_price: 1450000,
     image_url: '/assets/template/service/detail/ha-long-gallery-main.png',
     gallery: [
       '/assets/template/service/detail/ha-long-gallery-main.png',
@@ -192,7 +192,7 @@ const hotelDrafts = [
       '/assets/template/service/detail/ha-long-gallery-cabin.png',
     ],
     rating: 4.8,
-    review_count: 214,
+    review_count: 2400,
     amenities: [
       'Hồ bơi trong nhà',
       'Phòng gym hiện đại',
@@ -211,11 +211,11 @@ const hotelDrafts = [
     created_at: '2026-04-12T08:15:00+07:00',
     updated_at: '2026-06-18T17:10:00+07:00',
     details: {
-      provider_name: 'Watson Premium Hospitality',
+      provider_name: 'Vinpearl Hospitality',
       cancellation_policy: 'Hỗ trợ đổi ngày trước 72 giờ nhận phòng.',
       star_rating: 5,
       headline: 'Tầm nhìn ôm trọn vịnh cùng trải nghiệm nghỉ dưỡng tinh gọn.',
-      hotel_style: 'Bayfront premium stay',
+      hotel_style: 'Resort & spa retreat',
       highlight_text: 'Điểm dừng chân phù hợp cho chuyến nghỉ dưỡng Hạ Long 2-3 đêm.',
       nearby_places: ['Sun World Hạ Long', 'Bãi Cháy', 'Cảng tàu khách quốc tế'],
       review_breakdown: {
@@ -1045,19 +1045,25 @@ export const hotelServiceFixtures = Object.freeze(
 )
 
 export const hotelRelatedSlugMap = Object.freeze({
-  'golden-lotus-grand-da-nang': ['la-cle-da-lat', 'hue-imperial-riverside-hotel', 'the-watson-premium-halong-hotel'],
-  'the-watson-premium-halong-hotel': ['golden-lotus-grand-da-nang', 'ho-tram-pearl-oceanfront-hotel', 'saigon-reverie-boutique-hotel'],
+  'golden-lotus-grand-da-nang': ['la-cle-da-lat', 'hue-imperial-riverside-hotel', 'vinpearl-resort-spa-ha-long'],
+  'vinpearl-resort-spa-ha-long': ['golden-lotus-grand-da-nang', 'ho-tram-pearl-oceanfront-hotel', 'saigon-reverie-boutique-hotel'],
   'la-cle-da-lat': ['golden-lotus-grand-da-nang', 'saigon-reverie-boutique-hotel', 'sapa-summit-retreat-hotel'],
   'central-plaza-hotel-my-tho': ['legacy-mekong-riverside-hotel', 'saigon-reverie-boutique-hotel', 'la-cle-da-lat'],
   'saigon-reverie-boutique-hotel': ['central-plaza-hotel-my-tho', 'ho-tram-pearl-oceanfront-hotel', 'la-cle-da-lat'],
   'sapa-summit-retreat-hotel': ['la-cle-da-lat', 'hue-imperial-riverside-hotel', 'golden-lotus-grand-da-nang'],
-  'ho-tram-pearl-oceanfront-hotel': ['saigon-reverie-boutique-hotel', 'the-watson-premium-halong-hotel', 'central-plaza-hotel-my-tho'],
+  'ho-tram-pearl-oceanfront-hotel': ['saigon-reverie-boutique-hotel', 'vinpearl-resort-spa-ha-long', 'central-plaza-hotel-my-tho'],
   'hue-imperial-riverside-hotel': ['golden-lotus-grand-da-nang', 'sapa-summit-retreat-hotel', 'la-cle-da-lat'],
   'legacy-mekong-riverside-hotel': ['central-plaza-hotel-my-tho', 'saigon-reverie-boutique-hotel', 'ho-tram-pearl-oceanfront-hotel'],
 })
 
+export const hotelSlugAliases = Object.freeze({
+  'the-watson-premium-halong-hotel': 'vinpearl-resort-spa-ha-long',
+})
+
 export function getHotelFixtureBySlug(slug) {
-  return hotelServiceFixtures.find((hotel) => hotel.slug === slug) ?? null
+  const resolvedSlug = hotelSlugAliases[slug] ?? slug
+
+  return hotelServiceFixtures.find((hotel) => hotel.slug === resolvedSlug) ?? null
 }
 
 export function getHotelRoomsFixtureByHotelServiceId(hotelServiceId) {
