@@ -1,3 +1,4 @@
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import FlightCard from '../../components/flights/FlightCard.jsx'
 import FlightFilterSidebar from '../../components/flights/FlightFilterSidebar.jsx'
 import FlightSearchPanel from '../../components/flights/FlightSearchPanel.jsx'
@@ -23,6 +24,9 @@ function FlightResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
 }
 
 function FlightListPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const isCustomerPreview = searchParams.get('auth') === 'customer'
   const {
     applyFilters,
     continueBookingMock,
@@ -33,7 +37,6 @@ function FlightListPage() {
     feedback,
     flights,
     formatCurrency,
-    goToFlightDetail,
     hasMore,
     loading,
     resultSummary,
@@ -51,6 +54,12 @@ function FlightListPage() {
     updateTripType,
   } = useFlightList()
   const searchPanelFeedback = selectedFlightId ? { tone: feedback.tone, message: '' } : feedback
+
+  function handleViewDetail(flight) {
+    const detailPath = flight.detail_path ?? `/flights/${flight.slug}`
+
+    navigate(isCustomerPreview ? `${detailPath}?auth=customer` : detailPath)
+  }
 
   return (
     <div className="flight-list-page">
@@ -127,7 +136,7 @@ function FlightListPage() {
                       isSelected={selectedFlightId === flight.id}
                       onContinueBooking={continueBookingMock}
                       onSelect={selectFlight}
-                      onViewDetail={goToFlightDetail}
+                      onViewDetail={handleViewDetail}
                     />
                   ))}
                 </div>

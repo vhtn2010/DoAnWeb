@@ -7,12 +7,33 @@ import {
 import { SERVICE_STATUSES } from '../../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
 import {
+  flightRelatedSlugMap,
   flightSearchDefaultsFixture,
   flightServiceFixtures,
+  getFlightFixtureBySlug,
 } from '../../fixtures/flights.fixtures.js'
 
 function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function getRelatedFlights(flightSlug) {
+  const relatedSlugs = flightRelatedSlugMap[flightSlug] ?? []
+
+  return relatedSlugs.filter(Boolean).reduce((relatedFlights, slug) => {
+    const flight = getFlightFixtureBySlug(slug)
+
+    if (
+      !flight ||
+      flight.service_type !== SERVICE_TYPES.flight ||
+      flight.status !== SERVICE_STATUSES.active
+    ) {
+      return relatedFlights
+    }
+
+    relatedFlights.push(flight)
+    return relatedFlights
+  }, [])
 }
 
 function getDepartureHour(dateTimeValue) {
@@ -347,8 +368,70 @@ export function buildFlightSearchParams({
   return searchParams
 }
 
-export async function buildFlightSelectionPayload(flight, searchState = {}) {
-  // TODO: replace mock flight selection payload with POST /cart/items in API integration phase.
+export async function getFlightDetailBySlug(slug) {
+  // TODO: replace mock flight detail with GET /services/{slug} in API integration phase.
+  const flight = getFlightFixtureBySlug(slug)
+
+  if (
+    !flight ||
+    flight.service_type !== SERVICE_TYPES.flight ||
+    flight.status !== SERVICE_STATUSES.active
+  ) {
+    return {
+      success: false,
+      message: 'Không tìm thấy chuyến bay.',
+      data: null,
+    }
+  }
+
+  return {
+    success: true,
+    message: 'OK',
+    data: {
+      flight: cloneValue(flight),
+      related_flights: cloneValue(getRelatedFlights(flight.slug)),
+    },
+  }
+}
+
+export async function checkFlightAvailability({
+  selected_flight_id = '',
+  quantity = 1,
+} = {}) {
+  // TODO: replace mock flight availability with flight availability API in integration phase.
+  const flight = flightServiceFixtures.find((item) => item.id === selected_flight_id)
+
+  if (!flight || flight.service_type !== SERVICE_TYPES.flight) {
+    return {
+      success: false,
+      message: 'Không tìm thấy chuyến bay.',
+      data: null,
+    }
+  }
+
+  const requestedQuantity = Math.max(Number(quantity) || 1, 1)
+  const isAvailable =
+    flight.status === SERVICE_STATUSES.active && flight.available_seats >= requestedQuantity
+
+  return {
+    success: true,
+    message: isAvailable
+      ? 'Chuyến bay còn chỗ trong dữ liệu mock.'
+      : 'Chuyến bay không còn đủ chỗ trong dữ liệu mock.',
+    data: {
+      is_available: isAvailable,
+      available_seats: flight.available_seats,
+      selected_flight_id: flight.id,
+    },
+  }
+}
+
+export async function buildFlightSelectionPayload(
+  flight,
+  selectedFareOrSearchState = null,
+  maybeSearchState = {},
+) {
+  // TODO: replace mock cart payload with POST /cart/items in API integration phase.
   if (!flight || flight.service_type !== SERVICE_TYPES.flight) {
     return {
       success: false,
@@ -357,10 +440,27 @@ export async function buildFlightSelectionPayload(flight, searchState = {}) {
     }
   }
 
+  const selectedFareLooksLikeSearchState =
+    selectedFareOrSearchState &&
+    typeof selectedFareOrSearchState === 'object' &&
+    !Array.isArray(selectedFareOrSearchState) &&
+    ('trip_type' in selectedFareOrSearchState ||
+      'passengers' in selectedFareOrSearchState ||
+      'departure_date' in selectedFareOrSearchState ||
+      'return_date' in selectedFareOrSearchState)
+  const selectedFare = selectedFareLooksLikeSearchState ? null : selectedFareOrSearchState
+  const searchState = selectedFareLooksLikeSearchState
+    ? selectedFareOrSearchState
+    : maybeSearchState ?? {}
   const adultCount = Math.max(Number(searchState.passengers?.adults ?? 1), 1)
   const childCount = Math.max(Number(searchState.passengers?.children ?? 0), 0)
   const infantCount = Math.max(Number(searchState.passengers?.infants ?? 0), 0)
   const payingPassengers = adultCount + childCount
+  const unitPriceSnapshot = Math.max(Number(selectedFare?.price ?? flight.sale_price ?? 0), 0)
+  const selectedFareTotal = Math.max(
+    Number(selectedFare?.total_price ?? selectedFare?.price ?? flight.sale_price ?? 0),
+    0,
+  )
 
   return {
     success: true,
@@ -372,7 +472,7 @@ export async function buildFlightSelectionPayload(flight, searchState = {}) {
       start_at: flight.departure_at,
       end_at: flight.arrival_at,
       quantity: Math.max(payingPassengers, 1),
-      unit_price_snapshot: flight.sale_price,
+      unit_price_snapshot: unitPriceSnapshot,
       options: {
         trip_type: searchState.trip_type ?? DEFAULT_FLIGHT_TRIP_TYPE,
         route_label: `${flight.departure_city} - ${flight.arrival_city}`,
@@ -387,9 +487,22 @@ export async function buildFlightSelectionPayload(flight, searchState = {}) {
         departure_date:
           searchState.departure_date ?? getDepartureDateKey(flight.departure_at),
         return_date: searchState.return_date ?? '',
-        baggage_allowance: flight.baggage_allowance,
+        baggage_allowance: selectedFare?.included_baggage ?? flight.baggage_allowance,
         airline_name: flight.airline_name,
         flight_number: flight.flight_number,
+        selected_fare_id: selectedFare?.id ?? '',
+        selected_fare_title: selectedFare?.title ?? '',
+        selected_fare_total_price: selectedFareTotal,
+        taxes: Number(selectedFare?.taxes ?? 0),
+        add_ons: Number(selectedFare?.add_ons ?? 0),
+        refundable:
+          typeof selectedFare?.refundable === 'boolean'
+            ? selectedFare.refundable
+            : flight.refundable,
+        changeable:
+          typeof selectedFare?.changeable === 'boolean'
+            ? selectedFare.changeable
+            : flight.changeable,
       },
     },
   }
