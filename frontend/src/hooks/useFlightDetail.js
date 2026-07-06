@@ -127,6 +127,7 @@ export default function useFlightDetail() {
         })
         const defaultFare =
           mappedState.flight?.fare_options.find((fare) => fare.is_default) ??
+          mappedState.flight?.fare_options.find((fare) => fare.is_featured) ??
           mappedState.flight?.fare_options[0] ??
           null
 
@@ -166,7 +167,13 @@ export default function useFlightDetail() {
       return null
     }
 
-    return flight.fare_options.find((fare) => fare.id === selectedFareId) ?? null
+    return (
+      flight.fare_options.find((fare) => fare.id === selectedFareId) ??
+      flight.fare_options.find((fare) => fare.is_default) ??
+      flight.fare_options.find((fare) => fare.is_featured) ??
+      flight.fare_options[0] ??
+      null
+    )
   }, [flight, selectedFareId])
 
   function preserveAuthQuery(path) {
@@ -174,6 +181,10 @@ export default function useFlightDetail() {
   }
 
   function selectFare(fareId) {
+    if (!fareId) {
+      return
+    }
+
     setSelectedFareId(fareId)
     setFeedback(createFeedbackState('info', 'Đã cập nhật hạng vé bạn muốn xem.'))
   }

@@ -1,3 +1,37 @@
+const DESTINATION_EDITORIAL_BY_AIRPORT_CODE = Object.freeze({
+  // TODO: replace mock destination editorial with destination content from database/API in integration phase.
+  SGN: {
+    title: 'Khám phá TP. Hồ Chí Minh',
+    description:
+      'Được mệnh danh là Hòn ngọc Viễn Đông, Sài Gòn là sự hòa quyện giữa lịch sử, văn hóa và nhịp sống sôi động không ngừng nghỉ. Từ những công trình kiến trúc thời Pháp thuộc đến chợ Bến Thành tấp nập, mỗi góc phố đều kể một câu chuyện về quá khứ và tương lai của Việt Nam.',
+    temperature_label: '29°C Nắng',
+    timezone_label: 'Múi giờ GMT +7',
+    image_url: '/assets/template/home/v39_1669.png',
+  },
+  DAD: {
+    title: 'Khám phá Đà Nẵng',
+    description:
+      'Đà Nẵng là thành phố biển năng động, nổi bật với những cây cầu biểu tượng, bãi biển Mỹ Khê và nhịp sống hiện đại. Từ trung tâm thành phố, bạn có thể dễ dàng kết nối tới Hội An, bán đảo Sơn Trà và chuỗi trải nghiệm ẩm thực miền Trung rất riêng.',
+    temperature_label: '28°C Nắng',
+    timezone_label: 'Múi giờ GMT +7',
+    image_url: '/assets/template/service/detail/recommendation-mien-trung.png',
+  },
+  HAN: {
+    title: 'Khám phá Hà Nội',
+    description:
+      'Hà Nội là thủ đô ngàn năm văn hiến, nơi nhịp sống hiện đại giao thoa cùng phố cổ, hồ Hoàn Kiếm và chiều sâu văn hóa truyền thống. Thành phố phù hợp cho những hành trình vừa nghỉ ngơi, vừa tìm kiếm trải nghiệm ẩm thực, lịch sử và đời sống địa phương đặc sắc.',
+    temperature_label: '27°C Dịu nhẹ',
+    timezone_label: 'Múi giờ GMT +7',
+    image_url: '/assets/template/home/v39_1679.png',
+  },
+})
+
+const DESTINATION_EDITORIAL_BY_CITY = Object.freeze({
+  'TP. Hồ Chí Minh': DESTINATION_EDITORIAL_BY_AIRPORT_CODE.SGN,
+  'Đà Nẵng': DESTINATION_EDITORIAL_BY_AIRPORT_CODE.DAD,
+  'Hà Nội': DESTINATION_EDITORIAL_BY_AIRPORT_CODE.HAN,
+})
+
 function padNumber(value) {
   return String(value).padStart(2, '0')
 }
@@ -124,11 +158,11 @@ function resolveTerminalLabel(code = '', fallbackLabel = '') {
 }
 
 function createFallbackFareOptions(flight) {
-  const standardPrice = Math.max(Number(flight.sale_price ?? 0), 1000000)
-  const litePrice = Math.max(standardPrice - 250000, 850000)
-  const businessPrice = Math.max(
+  const standardPrice = Math.max(Number(flight.sale_price ?? 0), 1100000)
+  const liteTotalPrice = Math.max(standardPrice - 250000, 850000)
+  const businessTotalPrice = Math.max(
     Number(flight.base_price ?? standardPrice + 850000) + 900000,
-    standardPrice + 1900000,
+    3000000,
   )
   const taxes = 400000
 
@@ -136,7 +170,7 @@ function createFallbackFareOptions(flight) {
     {
       id: `fare-${flight.id}-economy-lite`,
       title: 'PHỔ THÔNG TIẾT KIỆM',
-      price: Math.max(litePrice - taxes, 650000),
+      price: Math.max(liteTotalPrice - taxes, 450000),
       currency: flight.currency ?? 'VND',
       badge: '',
       is_featured: false,
@@ -155,12 +189,12 @@ function createFallbackFareOptions(flight) {
       ],
       taxes,
       add_ons: 0,
-      total_price: litePrice,
+      total_price: liteTotalPrice,
     },
     {
       id: `fare-${flight.id}-economy-standard`,
       title: 'PHỔ THÔNG TIÊU CHUẨN',
-      price: Math.max(standardPrice - taxes, 850000),
+      price: Math.max(standardPrice - taxes, 700000),
       currency: flight.currency ?? 'VND',
       badge: 'PHỔ BIẾN NHẤT',
       is_featured: true,
@@ -176,7 +210,7 @@ function createFallbackFareOptions(flight) {
         '12kg Hành lý xách tay',
         flight.changeable ? 'Thay đổi vé (Có phí)' : 'Không đổi vé',
         'Chọn chỗ tiêu chuẩn',
-        'Bao gồm phần ăn',
+        'Bao gồm phần ăn nóng',
       ],
       taxes,
       add_ons: 0,
@@ -185,7 +219,7 @@ function createFallbackFareOptions(flight) {
     {
       id: `fare-${flight.id}-business`,
       title: 'THƯƠNG GIA',
-      price: Math.max(businessPrice - taxes, standardPrice + 1200000),
+      price: Math.max(businessTotalPrice - taxes, standardPrice + 1400000),
       currency: flight.currency ?? 'VND',
       badge: '',
       is_featured: false,
@@ -198,13 +232,13 @@ function createFallbackFareOptions(flight) {
       benefits_preview: ['Phòng chờ', 'Ưu tiên check-in', 'Ẩm thực cao cấp'],
       features: [
         '40kg Hành lý ký gửi',
-        'Phòng chờ sân bay',
+        'Sử dụng phòng chờ',
         'Ưu tiên làm thủ tục',
         'Ẩm thực cao cấp',
       ],
       taxes,
       add_ons: 0,
-      total_price: businessPrice,
+      total_price: businessTotalPrice,
     },
   ]
 }
@@ -229,21 +263,31 @@ function resolveFareOptions(flight) {
     summary_subtitle: fareOption.summary_subtitle ?? '',
     benefits_preview: Array.isArray(fareOption.benefits_preview)
       ? fareOption.benefits_preview
-      : ['WiFi miá»…n phÃ­ bay', 'Cá»•ng sáº¡c USB', 'Pháº§n Äƒn'],
+      : ['WiFi miễn phí bay', 'Cổng sạc USB', 'Phần ăn'],
   }))
 }
 
 function resolveEditorialDestination(editorialDestination = {}, flight = {}) {
   const arrivalCityLabel = formatCityLabel(flight.arrival_city ?? 'điểm đến')
+  const fallbackEditorial =
+    DESTINATION_EDITORIAL_BY_AIRPORT_CODE[flight.arrival_airport_code] ??
+    DESTINATION_EDITORIAL_BY_CITY[arrivalCityLabel] ??
+    null
 
   return {
-    title: editorialDestination.title ?? `Khám phá ${arrivalCityLabel}`,
+    title: editorialDestination.title ?? fallbackEditorial?.title ?? `Khám phá ${arrivalCityLabel}`,
     description:
       editorialDestination.description ??
+      fallbackEditorial?.description ??
       `${arrivalCityLabel} là điểm đến sôi động với nhịp sống hiện đại, ẩm thực đa dạng và nhiều trải nghiệm văn hóa đặc sắc phù hợp cho cả hành trình công tác lẫn nghỉ ngơi cuối tuần.`,
-    temperature_label: editorialDestination.temperature_label ?? '29°C Nắng',
-    timezone_label: editorialDestination.timezone_label ?? 'Múi giờ GMT +7',
-    image_url: editorialDestination.image_url ?? '/assets/template/home/v39_1669.png',
+    temperature_label:
+      editorialDestination.temperature_label ?? fallbackEditorial?.temperature_label ?? '29°C Nắng',
+    timezone_label:
+      editorialDestination.timezone_label ?? fallbackEditorial?.timezone_label ?? 'Múi giờ GMT +7',
+    image_url:
+      editorialDestination.image_url ??
+      fallbackEditorial?.image_url ??
+      '/assets/template/home/v39_1669.png',
   }
 }
 

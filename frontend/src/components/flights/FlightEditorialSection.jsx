@@ -6,8 +6,8 @@ function FlightEditorialSection({ destination }) {
   return (
     <section className="flight-detail-card flight-editorial">
       <div className="flight-editorial__copy">
-        <h2>{destination.title}</h2>
-        <p>{destination.description}</p>
+        <h2 className="flight-editorial__title">{destination.title}</h2>
+        <p className="flight-editorial__description">{destination.description}</p>
 
         <div className="flight-editorial__meta">
           {destination.temperature_label ? <span>{destination.temperature_label}</span> : null}
