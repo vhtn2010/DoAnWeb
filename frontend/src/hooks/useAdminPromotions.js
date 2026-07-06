@@ -299,13 +299,12 @@ export default function useAdminPromotions() {
         throw new Error(response.message || 'Không thể lưu khuyến mãi.')
       }
 
-      const nextPromotion = mapAdminPromotion(response.data)
       const nextPage = isCreateMode ? 1 : currentPage
 
       setFeedback(
         createAdminPromotionFeedback(
           'success',
-          `${response.message || 'Đã lưu khuyến mãi.'} Mã: ${nextPromotion.code}.`,
+          response.message || 'Đã lưu khuyến mãi.',
         ),
       )
       closeForm()
@@ -345,23 +344,23 @@ export default function useAdminPromotions() {
         throw new Error(response.message || 'Không thể cập nhật trạng thái khuyến mãi.')
       }
 
-      const nextPromotion = mapAdminPromotion(response.data)
-
       setFeedback(
         createAdminPromotionFeedback(
           'success',
-          `${response.message || 'Đã cập nhật trạng thái khuyến mãi.'} Mã: ${nextPromotion.code}.`,
+          response.message || 'Đã cập nhật trạng thái khuyến mãi.',
         ),
       )
       await loadPromotionState({
         nextPage: currentPage,
         nextStatus: statusFilter,
       })
+      return true
     } catch (actionError) {
       const nextMessage = actionError?.message ?? 'Không thể cập nhật trạng thái khuyến mãi lúc này.'
 
       setError(nextMessage)
       setFeedback(createAdminPromotionFeedback('error', nextMessage))
+      return false
     } finally {
       setActionLoading(false)
     }

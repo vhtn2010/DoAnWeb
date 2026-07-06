@@ -634,6 +634,8 @@ const ensureActorCanReadPromotionVouchers = async (queryImpl, actor) => {
 };
 
 const mapPromotionListItem = (row) => ({
+  active_voucher_count:
+    row.active_voucher_count == null ? 0 : Number(row.active_voucher_count),
   created_at: toIsoString(row.created_at),
   created_by: row.created_by,
   description: row.description,
@@ -644,6 +646,7 @@ const mapPromotionListItem = (row) => ({
   updated_at: toIsoString(row.updated_at),
   valid_from: toIsoString(row.valid_from),
   valid_to: toIsoString(row.valid_to),
+  voucher_count: row.voucher_count == null ? 0 : Number(row.voucher_count),
 });
 
 const mapPromotionDetail = (row) => ({
@@ -804,7 +807,18 @@ const listPromotions = async (queryExecutor, filters) => {
         p.target_service_type,
         p.created_by,
         p.created_at,
-        p.updated_at
+        p.updated_at,
+        (
+          SELECT COUNT(*)::integer
+          FROM vouchers v
+          WHERE v.promotion_id = p.id
+        ) AS voucher_count,
+        (
+          SELECT COUNT(*)::integer
+          FROM vouchers v
+          WHERE v.promotion_id = p.id
+            AND v.status = 'active'
+        ) AS active_voucher_count
       FROM promotions p
       ${whereSql}
       ORDER BY p.created_at DESC, p.id DESC

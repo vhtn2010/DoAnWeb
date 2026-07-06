@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import PublicLayout from '../layouts/PublicLayout.jsx'
 import AuthLayout from '../layouts/AuthLayout.jsx'
 import AdminLayout from '../layouts/AdminLayout.jsx'
@@ -33,10 +33,8 @@ import {
   AdminInventoryPage,
   AdminNotificationsPage,
   AdminPermissionsPage,
-  AdminReportsPage,
   AdminRolesPage,
   AdminUploadsPage,
-  AdminVouchersPage,
 } from '../pages/admin/AdminUtilityPages.jsx'
 import AdminRouteGate from '../pages/admin/AdminRouteGate.jsx'
 import ProtectedRoute from './ProtectedRoute.jsx'
@@ -77,14 +75,6 @@ function AppRouter() {
               element={
                 <AdminRouteGate routeId="revenue">
                   <AdminRevenuePage />
-                </AdminRouteGate>
-              }
-            />
-            <Route
-              path="/admin/reports"
-              element={
-                <AdminRouteGate routeId="reports">
-                  <AdminReportsPage />
                 </AdminRouteGate>
               }
             />
@@ -163,9 +153,7 @@ function AppRouter() {
             <Route
               path="/admin/vouchers"
               element={
-                <AdminRouteGate routeId="vouchers">
-                  <AdminVouchersPage />
-                </AdminRouteGate>
+                <Navigate replace to="/admin/promotions" />
               }
             />
             <Route

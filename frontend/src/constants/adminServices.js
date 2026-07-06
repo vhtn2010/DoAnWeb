@@ -3,7 +3,7 @@ import { SERVICE_STATUSES } from './serviceStatuses.js'
 import { SERVICE_TYPES } from './serviceTypes.js'
 
 export const ADMIN_SERVICE_PAGE_SIZE = 4
-export const ADMIN_SERVICE_SUMMARY_LIMIT = 200
+export const ADMIN_SERVICE_SUMMARY_LIMIT = 100
 
 export const ADMIN_SERVICE_SORT_OPTIONS = Object.freeze([
   { value: 'newest', label: 'Mới nhất' },

@@ -79,22 +79,6 @@ export const ADMIN_UTILITY_MODULES = Object.freeze({
     subtitle: 'Tra cứu permission theo module, resource và chuẩn bị ma trận phân quyền.',
     title: 'Danh sách permission',
   },
-  reports: {
-    actionLabel: 'Tải file',
-    eyebrow: 'Báo cáo',
-    metrics: [
-      { label: 'Báo cáo đã tạo', value: '42', helper: 'Trong tháng hiện tại', tone: 'success' },
-      { label: 'Đang chờ', value: '6', helper: 'Đợi xuất file nền', tone: 'warning' },
-      { label: 'Mẫu báo cáo', value: '9', helper: 'Doanh thu, đơn hàng, dịch vụ', tone: 'info' },
-    ],
-    rows: [
-      ['Doanh thu tháng 05/2026', 'Excel', 'Sẵn sàng', 'Admin Lê Hùng'],
-      ['Đơn hàng theo trạng thái', 'PDF', 'Đang tạo', 'System Admin Văn Quang'],
-      ['Dịch vụ bán chạy', 'Excel', 'Sẵn sàng', 'Admin Lê Hùng'],
-    ],
-    subtitle: 'Tổng hợp báo cáo doanh thu, đơn hàng, dịch vụ, thanh toán và xuất file.',
-    title: 'Báo cáo quản trị',
-  },
   roles: {
     actionLabel: 'Xem role',
     eyebrow: 'Phân quyền',
@@ -126,21 +110,5 @@ export const ADMIN_UTILITY_MODULES = Object.freeze({
     ],
     subtitle: 'Theo dõi dung lượng upload, Cloudinary usage và các tài nguyên media.',
     title: 'Quản lý uploads',
-  },
-  vouchers: {
-    actionLabel: 'Sửa',
-    eyebrow: 'Marketing',
-    metrics: [
-      { label: 'Voucher hoạt động', value: '18', helper: 'Có thể áp dụng ngay', tone: 'success' },
-      { label: 'Đã dùng', value: '326', helper: 'Trong tháng này', tone: 'brand' },
-      { label: 'Sắp hết hạn', value: '7', helper: 'Trong 7 ngày tới', tone: 'warning' },
-    ],
-    rows: [
-      ['WELCOME10', 'Giảm 10%', 'Hoạt động', 'Khách mới'],
-      ['VIP500K', 'Giảm 500.000đ', 'Hoạt động', 'VIP'],
-      ['FAMILY15', 'Giảm 15%', 'Sắp hết hạn', 'Nhóm gia đình'],
-    ],
-    subtitle: 'Tạo, lọc, nhân bản và cập nhật trạng thái voucher.',
-    title: 'Quản lý voucher',
   },
 })

@@ -95,11 +95,18 @@ function normalizeServiceResponse(response) {
 }
 
 function normalizeServiceListResponse(response) {
+  const responseData = Array.isArray(response?.data)
+    ? response.data
+    : Array.isArray(response?.data?.services)
+      ? response.data.services
+      : Array.isArray(response?.services)
+        ? response.services
+        : []
+
   return {
     ...response,
-    data: Array.isArray(response?.data)
-      ? response.data.map((service) => normalizeService(service))
-      : [],
+    data: responseData.map((service) => normalizeService(service)),
+    meta: response?.meta ?? response?.data?.meta,
   }
 }
 

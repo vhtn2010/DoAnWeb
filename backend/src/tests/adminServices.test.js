@@ -243,6 +243,47 @@ test('adminServiceCatalogService.listServices validates filters and applies staf
   });
 });
 
+test('adminServiceCatalogService.listServices does not scope staff when no service scope is provided', async () => {
+  const service = adminServiceCatalogService.createAdminServiceCatalogService({
+    repository: {
+      listServices: async (filters) => {
+        assert.deepEqual(filters, {
+          allowedServiceIds: null,
+          keyword: null,
+          limit: 20,
+          offset: 0,
+          serviceStatus: null,
+          serviceSort: 'newest',
+          serviceType: null,
+        });
+
+        return {
+          rows: [],
+          total: 0,
+        };
+      },
+    },
+  });
+
+  const result = await service.listServices({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: null,
+    },
+  });
+
+  assert.deepEqual(result, {
+    meta: {
+      has_next: false,
+      limit: 20,
+      page: 1,
+      total: 0,
+      total_pages: 0,
+    },
+    services: [],
+  });
+});
+
 test('adminServiceCatalogService.listServices rejects invalid status and limit', async () => {
   const service = adminServiceCatalogService.createAdminServiceCatalogService({
     repository: {

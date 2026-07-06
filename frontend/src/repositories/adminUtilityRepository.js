@@ -1,8 +1,8 @@
 import {
   changeAdminVoucherStatus,
+  createAdminVoucher,
   deleteAdminVoucher,
   duplicateAdminVoucher,
-  getAdminReportsOverview,
   getAdminUploadUsage,
   listAdminAuditLogs,
   listAdminEmailLogs,
@@ -14,9 +14,9 @@ import {
 
 export {
   changeAdminVoucherStatus,
+  createAdminVoucher,
   deleteAdminVoucher,
   duplicateAdminVoucher,
-  getAdminReportsOverview,
   getAdminUploadUsage,
   listAdminAuditLogs,
   listAdminEmailLogs,

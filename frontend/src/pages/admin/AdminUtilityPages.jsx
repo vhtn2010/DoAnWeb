@@ -15,13 +15,10 @@ import {
 } from '../../components/admin/ui/index.js'
 import { ADMIN_UTILITY_MODULES } from '../../fixtures/adminUtilityModules.fixtures.js'
 import {
-  changeAdminVoucherStatus,
-  getAdminReportsOverview,
   getAdminUploadUsage,
   listAdminAuditLogs,
   listAdminEmailLogs,
   listAdminNotifications,
-  listAdminVouchers,
   resendAdminEmailLog,
   updateAdminNotificationStatus,
 } from '../../repositories/adminUtilityRepository.js'
@@ -42,17 +39,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
   month: '2-digit',
   year: 'numeric',
 })
-const currencyFormatter = new Intl.NumberFormat('vi-VN', {
-  maximumFractionDigits: 0,
-})
 
 function formatDateTime(value) {
   const date = value ? new Date(value) : null
   return date && !Number.isNaN(date.getTime()) ? dateTimeFormatter.format(date) : 'Chưa cập nhật'
-}
-
-function formatMoney(value) {
-  return `${currencyFormatter.format(Number(value || 0))} Đ`
 }
 
 function formatBytes(value) {
@@ -103,14 +93,6 @@ function getStatusTone(value = '') {
   return 'info'
 }
 
-function getVoucherDiscountLabel(voucher = {}) {
-  if (voucher.discount_type === 'percent') {
-    return `${Number(voucher.discount_value || 0)}%`
-  }
-
-  return formatMoney(voucher.discount_value)
-}
-
 function mapAuditRows(items = []) {
   return items.map((item) => ({
     actionLabel: '',
@@ -140,18 +122,6 @@ function mapNotificationRows(items = []) {
     owner: item.recipient?.email || (item.is_broadcast ? 'Broadcast' : 'Người nhận trực tiếp'),
     primary: item.title || 'Thông báo',
     secondary: item.type || item.related_entity_name || 'system',
-    status: item.status || 'unknown',
-  }))
-}
-
-function mapVoucherRows(items = []) {
-  return items.map((item) => ({
-    actionLabel: item.status === 'active' ? 'Tắt' : 'Bật',
-    id: item.id,
-    nextStatus: item.status === 'active' ? 'disabled' : 'active',
-    owner: `${Number(item.used_count || 0)} đã dùng${item.usage_limit_total ? ` / ${item.usage_limit_total}` : ''}`,
-    primary: item.code || item.id,
-    secondary: `${item.promotion_name || 'Không có promotion'} · ${getVoucherDiscountLabel(item)}`,
     status: item.status || 'unknown',
   }))
 }
@@ -186,44 +156,6 @@ function mapUploadRows(data = {}) {
   ]
 }
 
-function mapReportRows(data = {}) {
-  const revenueSummary = data.revenue?.summary || {}
-  const bookingSummary = data.bookings?.summary || {}
-  const serviceSummary = data.services?.summary || {}
-  const paymentSummary = data.payments?.summary || {}
-
-  return [
-    {
-      id: 'revenue',
-      owner: `${Number(revenueSummary.payment_count || 0)} giao dịch`,
-      primary: 'Báo cáo doanh thu',
-      secondary: formatMoney(revenueSummary.net_revenue),
-      status: Number(revenueSummary.refund_amount || 0) > 0 ? 'has refunds' : 'ready',
-    },
-    {
-      id: 'bookings',
-      owner: formatMoney(bookingSummary.total_booking_value),
-      primary: 'Báo cáo đơn hàng',
-      secondary: `${Number(bookingSummary.total_bookings || 0)} đơn`,
-      status: 'ready',
-    },
-    {
-      id: 'services',
-      owner: `${Number(serviceSummary.active_services || 0)} đang bán`,
-      primary: 'Báo cáo dịch vụ',
-      secondary: `${Number(serviceSummary.total_services || 0)} dịch vụ`,
-      status: 'ready',
-    },
-    {
-      id: 'payments',
-      owner: `${Number(paymentSummary.success_count || 0)} thành công`,
-      primary: 'Báo cáo thanh toán',
-      secondary: formatMoney(paymentSummary.collected_amount),
-      status: Number(paymentSummary.reconciled_count || 0) > 0 ? 'reconciled' : 'ready',
-    },
-  ]
-}
-
 const API_MODULE_CONFIG = Object.freeze({
   auditLogs: {
     action: null,
@@ -245,24 +177,11 @@ const API_MODULE_CONFIG = Object.freeze({
     mapRows: mapNotificationRows,
     title: 'Thông báo hệ thống',
   },
-  reports: {
-    list: getAdminReportsOverview,
-    mapRows: mapReportRows,
-    single: true,
-    title: 'Báo cáo quản trị',
-  },
   uploads: {
     list: getAdminUploadUsage,
     mapRows: (data) => mapUploadRows(data),
     single: true,
     title: 'Quản lý uploads',
-  },
-  vouchers: {
-    action: (id, row) => changeAdminVoucherStatus(id, { status: row.nextStatus }),
-    actionPermission: ADMIN_PERMISSIONS.vouchersWrite,
-    list: listAdminVouchers,
-    mapRows: mapVoucherRows,
-    title: 'Quản lý voucher',
   },
 })
 
@@ -546,18 +465,10 @@ export function AdminPermissionsPage() {
   return <AdminUtilityModulePage moduleId="permissions" />
 }
 
-export function AdminReportsPage() {
-  return <AdminUtilityModulePage moduleId="reports" />
-}
-
 export function AdminRolesPage() {
   return <AdminUtilityModulePage moduleId="roles" />
 }
 
 export function AdminUploadsPage() {
   return <AdminUtilityModulePage moduleId="uploads" />
-}
-
-export function AdminVouchersPage() {
-  return <AdminUtilityModulePage moduleId="vouchers" />
 }
