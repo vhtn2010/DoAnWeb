@@ -16,7 +16,7 @@ function EcoIcon() {
 
 function FlightDetailHeaderCard({ flight }) {
   return (
-    <article className="flight-detail-header-card">
+    <article className="flight-detail-card flight-detail-header-card">
       <div className="flight-detail-header-card__top">
         <div className="flight-detail-header-card__brand">
           <div className="flight-detail-header-card__brand-mark">
@@ -25,9 +25,11 @@ function FlightDetailHeaderCard({ flight }) {
 
           <div className="flight-detail-header-card__brand-copy">
             <h1>{flight.airline_name}</h1>
-            <p>{flight.flight_number_label}</p>
-            <span aria-hidden="true">•</span>
-            <p>{flight.aircraft_label}</p>
+            <div className="flight-detail-header-card__meta">
+              <p>{flight.flight_number_label}</p>
+              <span aria-hidden="true">•</span>
+              <p>{flight.aircraft_label}</p>
+            </div>
           </div>
         </div>
 

@@ -66,17 +66,17 @@ function FlightDetailPage() {
   if (error) {
     return (
       <div className="flight-detail-page">
-        <div className="flight-detail-page__shell">
-          <section className="flight-detail-page__state-card" role="alert">
-            <p className="flight-detail-page__eyebrow">Không khả dụng</p>
+        <div className="flight-detail-shell">
+          <section className="flight-detail-state-card" role="alert">
+            <p className="flight-detail-state-card__eyebrow">Không khả dụng</p>
             <h1>Không tìm thấy chuyến bay</h1>
             <p>{error}</p>
-            <div className="flight-detail-page__state-actions">
-              <button className="flight-detail-page__button" type="button" onClick={retry}>
+            <div className="flight-detail-state-card__actions">
+              <button className="flight-detail-state-card__button" type="button" onClick={retry}>
                 Tải lại
               </button>
               <button
-                className="flight-detail-page__button flight-detail-page__button--secondary"
+                className="flight-detail-state-card__button flight-detail-state-card__button--secondary"
                 type="button"
                 onClick={goBackToFlights}
               >
@@ -92,9 +92,9 @@ function FlightDetailPage() {
   if (loading || !flight) {
     return (
       <div className="flight-detail-page">
-        <div className="flight-detail-page__shell">
-          <section className="flight-detail-page__state-card" role="status">
-            <p className="flight-detail-page__eyebrow">Đang tải</p>
+        <div className="flight-detail-shell">
+          <section className="flight-detail-state-card" role="status">
+            <p className="flight-detail-state-card__eyebrow">Đang tải</p>
             <h1>Chi tiết vé máy bay đang được chuẩn bị</h1>
             <p>Dữ liệu đang được đọc từ mock adapter theo đúng pattern API-ready hiện tại.</p>
           </section>
@@ -105,9 +105,8 @@ function FlightDetailPage() {
 
   return (
     <div className="flight-detail-page">
-      <div className="flight-detail-page__shell">
+      <div className="flight-detail-shell">
         <section className="flight-detail-page__topbar">
-          <div className="flight-detail-page__topbar-spacer" />
           <FlightDetailTopActions />
         </section>
 
@@ -117,8 +116,8 @@ function FlightDetailPage() {
           </p>
         ) : null}
 
-        <div className="flight-detail-page__main">
-          <div className="flight-detail-page__content">
+        <div className="flight-detail-main">
+          <div className="flight-detail-main__content">
             <FlightDetailHeaderCard flight={flight} />
             <FlightFareOptions
               fareOptions={flight.fare_options}

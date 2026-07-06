@@ -11,7 +11,15 @@ import {
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 
 function buildAuthAwarePath(path, isCustomer) {
-  return isCustomer ? `${path}?auth=customer` : path
+  if (!isCustomer) {
+    return path
+  }
+
+  const [pathname, queryString = ''] = String(path ?? '').split('?')
+  const nextSearchParams = new URLSearchParams(queryString)
+  nextSearchParams.set('auth', ROLES.customer)
+
+  return `${pathname}?${nextSearchParams.toString()}`
 }
 
 function createFeedbackState(tone = 'info', message = '') {

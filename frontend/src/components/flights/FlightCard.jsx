@@ -1,20 +1,7 @@
-function FlightCard({
-  feedbackMessage,
-  flight,
-  formatCurrency,
-  isSelected,
-  onContinueBooking,
-  onSelect,
-  onViewDetail,
-}) {
-  function handleDetailClick(event) {
-    event.stopPropagation()
-    onViewDetail(flight)
-  }
-
+function FlightCard({ flight, formatCurrency, isSelected, onOpenDetail, onSelect }) {
   function handleBookingClick(event) {
     event.stopPropagation()
-    onContinueBooking(flight)
+    onOpenDetail(flight)
   }
 
   return (
@@ -91,21 +78,8 @@ function FlightCard({
         >
           Chọn chuyến
         </button>
-        <button
-          className="flight-card__button flight-card__button--secondary"
-          type="button"
-          onClick={handleDetailClick}
-        >
-          Xem chi tiết
-        </button>
         <span className="flight-card__seat-note">CHỈ CÒN {flight.available_seats} CHỖ</span>
       </div>
-
-      {feedbackMessage ? (
-        <p className="flight-card__feedback" role="status">
-          {feedbackMessage}
-        </p>
-      ) : null}
     </article>
   )
 }

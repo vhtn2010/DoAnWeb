@@ -10,10 +10,8 @@ import {
 } from '../constants/flights.js'
 import { mapFlightToCardView } from '../mappers/flightMappers.js'
 import { ROLES } from '../constants/roles.js'
-import { addCartItemPreview } from '../repositories/cartRepository.js'
 import {
   buildFlightSearchParams,
-  buildFlightSelectionPayload,
   getFlightSearchDefaults,
   listFlights,
 } from '../repositories/flightRepository.js'
@@ -77,7 +75,15 @@ function createInitialFilterState(searchParams) {
 }
 
 function buildAuthAwarePath(path, isCustomer) {
-  return isCustomer ? `${path}?auth=customer` : path
+  if (!isCustomer) {
+    return path
+  }
+
+  const [pathname, queryString = ''] = String(path ?? '').split('?')
+  const nextSearchParams = new URLSearchParams(queryString)
+  nextSearchParams.set('auth', ROLES.customer)
+
+  return `${pathname}?${nextSearchParams.toString()}`
 }
 
 function createFeedbackState(tone = 'info', message = '') {
@@ -120,32 +126,6 @@ function addDaysToDate(dateKey, days) {
   nextDate.setDate(nextDate.getDate() + days)
 
   return createDateKey(nextDate)
-}
-
-function buildFlightCartItem({ flight, payload }) {
-  return {
-    id: `cart-item-flight-${Date.now()}`,
-    service_id: payload.service_id,
-    service_type: payload.service_type,
-    reference_id: payload.reference_id,
-    start_at: payload.start_at,
-    end_at: payload.end_at,
-    quantity: payload.quantity,
-    unit_price_snapshot: payload.unit_price_snapshot,
-    options: {
-      ...(payload.options ?? {}),
-    },
-    created_at: new Date().toISOString(),
-    service: {
-      service_code: flight.service_code,
-      title: `${flight.airline_name} ${flight.flight_number}`,
-      slug: flight.slug,
-      short_description: flight.short_description,
-      location_text: `${flight.departure_city} - ${flight.arrival_city}`,
-      image_url: flight.image_url,
-      status: flight.status,
-    },
-  }
 }
 
 function formatResultLocation(airports, airportCode) {
@@ -277,6 +257,10 @@ export default function useFlightList() {
     }
   }, [appliedFilters, currentPage, reloadSeed, searchState, selectedSort])
 
+  function preserveAuthQuery(path) {
+    return buildAuthAwarePath(path, isCustomer)
+  }
+
   function syncSearchParams({
     nextSearchState = searchState,
     nextFilters = appliedFilters,
@@ -339,10 +323,7 @@ export default function useFlightList() {
       return
     }
 
-    if (
-      searchState.trip_type === DEFAULT_FLIGHT_TRIP_TYPE &&
-      !searchState.departure_date
-    ) {
+    if (searchState.trip_type === DEFAULT_FLIGHT_TRIP_TYPE && !searchState.departure_date) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn ngày đi.'))
       return
     }
@@ -425,45 +406,13 @@ export default function useFlightList() {
     )
   }
 
-  function goToFlightDetail(flight) {
+  function openFlightDetail(flight) {
+    if (!flight) {
+      return
+    }
+
     setSelectedFlightId(flight.id)
-    setFeedback(
-      createFeedbackState(
-        'info',
-        'Màn chi tiết chuyến bay sẽ được thực hiện ở task sau. Bạn vẫn có thể đặt vé mock ngay từ danh sách.',
-      ),
-    )
-  }
-
-  async function continueBookingMock(flight) {
-    const selectedFlight = flight ?? flights.find((item) => item.id === selectedFlightId)
-
-    if (!selectedFlight) {
-      setFeedback(createFeedbackState('error', 'Vui lòng chọn một chuyến bay trước khi tiếp tục.'))
-      return
-    }
-
-    const payloadResponse = await buildFlightSelectionPayload(selectedFlight, searchState)
-
-    if (!payloadResponse.success || !payloadResponse.data) {
-      setFeedback(
-        createFeedbackState(
-          'error',
-          payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến bay mock.',
-        ),
-      )
-      return
-    }
-
-    await addCartItemPreview({
-      authState,
-      item: buildFlightCartItem({
-        flight: selectedFlight,
-        payload: payloadResponse.data,
-      }),
-    })
-
-    navigate(buildAuthAwarePath('/cart', isCustomer))
+    navigate(preserveAuthQuery(flight.detail_path ?? `/flights/${flight.slug}`))
   }
 
   function retry() {
@@ -476,7 +425,13 @@ export default function useFlightList() {
       fromLabel: formatResultLocation(defaults.airports, searchState.from_location),
       toLabel: formatResultLocation(defaults.airports, searchState.to_location),
     }
-  }, [defaults.airports, meta.total, meta.total_display, searchState.from_location, searchState.to_location])
+  }, [
+    defaults.airports,
+    meta.total,
+    meta.total_display,
+    searchState.from_location,
+    searchState.to_location,
+  ])
 
   return {
     applyFilters,
@@ -487,10 +442,10 @@ export default function useFlightList() {
     feedback,
     flights,
     formatCurrency: formatCurrencyVND,
-    goToFlightDetail,
-    continueBookingMock,
     hasMore: Boolean(meta.has_next),
     loading,
+    openFlightDetail,
+    preserveAuthQuery,
     resetFilters,
     resultSummary,
     retry,
