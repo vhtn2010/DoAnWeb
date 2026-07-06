@@ -1,13 +1,5 @@
-function formatCompactFarePrice(value) {
-  const numericValue = Math.max(Number(value) || 0, 0)
-  const millions = Math.floor(numericValue / 1000000)
-  const thousands = Math.round((numericValue % 1000000) / 1000)
-
-  if (millions <= 0) {
-    return `${Math.round(numericValue / 1000)}k`
-  }
-
-  return `${millions}tr${String(thousands).padStart(3, '0')}`
+function formatFullFarePrice(value) {
+  return `${new Intl.NumberFormat('vi-VN').format(Math.max(Number(value) || 0, 0))}đ`
 }
 
 function getFeatureTone(feature) {
@@ -24,7 +16,7 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
 
       <div className="flight-fare-grid">
         {fareOptions.map((fare) => {
-          const isSelected = selectedFareId === fare.id
+          const isSelected = fare.id === selectedFareId
           const cardClassName = [
             'flight-fare-card',
             fare.is_featured ? 'flight-fare-card--featured' : '',
@@ -33,6 +25,11 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
             .filter(Boolean)
             .join(' ')
 
+          function handleSelectFare(event) {
+            event?.stopPropagation?.()
+            onSelectFare(fare.id)
+          }
+
           return (
             <article
               key={fare.id}
@@ -40,11 +37,11 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
               className={cardClassName}
               role="button"
               tabIndex={0}
-              onClick={() => onSelectFare(fare.id)}
+              onClick={handleSelectFare}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
-                  onSelectFare(fare.id)
+                  handleSelectFare(event)
                 }
               }}
             >
@@ -52,10 +49,7 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
 
               <div className="flight-fare-card__copy">
                 <h3>{fare.title}</h3>
-                <p className="flight-fare-card__price">
-                  {formatCompactFarePrice(fare.total_price)}
-                  <span>đ</span>
-                </p>
+                <p className="flight-fare-card__price">{formatFullFarePrice(fare.total_price)}</p>
               </div>
 
               <ul className="flight-fare-card__features">
@@ -76,12 +70,9 @@ function FlightFareOptions({ fareOptions, selectedFareId, onSelectFare }) {
                   isSelected ? 'flight-fare-card__button--selected' : ''
                 }`}
                 type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onSelectFare(fare.id)
-                }}
+                onClick={handleSelectFare}
               >
-                {isSelected ? fare.cta_label ?? 'Đã chọn' : 'Chọn'}
+                {isSelected ? 'Đã chọn' : 'Chọn'}
               </button>
             </article>
           )
