@@ -175,14 +175,14 @@ function ForgotPasswordPage() {
                 type="button"
                 onClick={handleSendCode}
               >
-                {isSendingCode ? 'Đang gửi...' : sentCode ? 'Đã gửi' : 'Gửi mã'}
+                {isSendingCode ? 'Đang gửi...' : sentCode ? 'Đã gửi' : 'Gửi link'}
               </button>
             </div>
             {errors.email ? <p className="auth-form__field-error">{errors.email}</p> : null}
           </label>
 
           <label className="auth-forgot-form__field" htmlFor="forgot-password-code">
-            <span className="auth-forgot-form__label">Mã xác nhận</span>
+            <span className="auth-forgot-form__label">Token đặt lại mật khẩu</span>
             <div
               className={`auth-forgot-form__control${
                 errors.otp_code ? ' auth-forgot-form__control--error' : ''
@@ -196,7 +196,7 @@ function ForgotPasswordPage() {
                 className="auth-forgot-form__input"
                 id="forgot-password-code"
                 name="otp_code"
-                placeholder="1234"
+                placeholder="Dán token từ email"
                 type="text"
                 value={formValues.otp_code}
                 onChange={handleFieldChange}

@@ -41,15 +41,81 @@ export const ADMIN_PERMISSIONS = Object.freeze({
   rolesRead: 'admin.roles.read',
   permissionsRead: 'admin.permissions.read',
   reportsRead: 'admin.reports.read',
+  reportsExport: 'admin.reports.export',
   notificationsRead: 'admin.notifications.read',
   notificationsSend: 'admin.notifications.send',
   emailLogsRead: 'admin.email_logs.read',
+  emailLogsResend: 'admin.email_logs.resend',
   uploadsRead: 'admin.uploads.read',
   auditLogsRead: 'admin.audit_logs.read',
   accessControlManage: 'admin.access_control.manage',
   infrastructureRead: 'admin.infrastructure.read',
   settingsRead: 'admin.settings.read',
   settingsWrite: 'admin.settings.write',
+})
+
+const BACKEND_PERMISSION_ALIASES = Object.freeze({
+  [ADMIN_PERMISSIONS.accessControlManage]: ['role_permission.update'],
+  [ADMIN_PERMISSIONS.auditLogsRead]: ['audit.read'],
+  [ADMIN_PERMISSIONS.bookingsRead]: ['booking.read_all'],
+  [ADMIN_PERMISSIONS.bookingsWrite]: [
+    'booking.cancel',
+    'booking.update_status',
+  ],
+  [ADMIN_PERMISSIONS.dashboardRead]: ['dashboard.read'],
+  [ADMIN_PERMISSIONS.emailLogsRead]: ['email_log.read'],
+  [ADMIN_PERMISSIONS.emailLogsResend]: ['email.resend'],
+  [ADMIN_PERMISSIONS.infrastructureRead]: ['dashboard.read'],
+  [ADMIN_PERMISSIONS.inventoryManage]: ['service.inventory_update'],
+  [ADMIN_PERMISSIONS.notificationsRead]: ['notification.manage'],
+  [ADMIN_PERMISSIONS.notificationsSend]: ['notification.broadcast'],
+  [ADMIN_PERMISSIONS.paymentsRead]: ['payment.read_all'],
+  [ADMIN_PERMISSIONS.permissionsRead]: ['permission.read'],
+  [ADMIN_PERMISSIONS.promotionsRead]: ['promotion.read'],
+  [ADMIN_PERMISSIONS.promotionsWrite]: [
+    'promotion.change_status',
+    'promotion.create',
+    'promotion.delete',
+    'promotion.update',
+  ],
+  [ADMIN_PERMISSIONS.refundsRead]: ['refund.read_all'],
+  [ADMIN_PERMISSIONS.refundsReview]: [
+    'refund.approve',
+    'refund.process',
+    'refund.reject',
+  ],
+  [ADMIN_PERMISSIONS.reportsRead]: ['report.read'],
+  [ADMIN_PERMISSIONS.reportsExport]: ['report.export'],
+  [ADMIN_PERMISSIONS.revenueRead]: ['report.read'],
+  [ADMIN_PERMISSIONS.rolesRead]: ['role.read'],
+  [ADMIN_PERMISSIONS.servicesApprove]: ['service.approve'],
+  [ADMIN_PERMISSIONS.servicesCreate]: ['service.create'],
+  [ADMIN_PERMISSIONS.servicesDelete]: ['service.delete'],
+  [ADMIN_PERMISSIONS.servicesHide]: ['service.hide'],
+  [ADMIN_PERMISSIONS.servicesRead]: ['service.read_all'],
+  [ADMIN_PERMISSIONS.servicesReject]: ['service.approve'],
+  [ADMIN_PERMISSIONS.servicesRestore]: ['service.hide'],
+  [ADMIN_PERMISSIONS.servicesSubmitReview]: ['service.update'],
+  [ADMIN_PERMISSIONS.servicesUpdate]: ['service.update'],
+  [ADMIN_PERMISSIONS.settingsRead]: ['settings.read'],
+  [ADMIN_PERMISSIONS.settingsWrite]: ['settings.update'],
+  [ADMIN_PERMISSIONS.supportRead]: ['support.read_all'],
+  [ADMIN_PERMISSIONS.supportReply]: ['support.reply'],
+  [ADMIN_PERMISSIONS.uploadsRead]: ['dashboard.read'],
+  [ADMIN_PERMISSIONS.usersManage]: [
+    'user.change_role',
+    'user.change_status',
+    'user.create',
+    'user.delete',
+    'user.update',
+  ],
+  [ADMIN_PERMISSIONS.usersRead]: ['user.read_all'],
+  [ADMIN_PERMISSIONS.vouchersRead]: ['voucher.read_all'],
+  [ADMIN_PERMISSIONS.vouchersWrite]: [
+    'voucher.create',
+    'voucher.delete',
+    'voucher.update',
+  ],
 })
 
 const STAFF_PERMISSIONS = Object.freeze([
@@ -69,6 +135,7 @@ const STAFF_PERMISSIONS = Object.freeze([
   ADMIN_PERMISSIONS.supportRead,
   ADMIN_PERMISSIONS.supportReply,
   ADMIN_PERMISSIONS.emailLogsRead,
+  ADMIN_PERMISSIONS.emailLogsResend,
 ])
 
 const ADMIN_PERMISSIONS_LIST = Object.freeze([
@@ -86,6 +153,7 @@ const ADMIN_PERMISSIONS_LIST = Object.freeze([
   ADMIN_PERMISSIONS.rolesRead,
   ADMIN_PERMISSIONS.permissionsRead,
   ADMIN_PERMISSIONS.reportsRead,
+  ADMIN_PERMISSIONS.reportsExport,
   ADMIN_PERMISSIONS.notificationsRead,
   ADMIN_PERMISSIONS.notificationsSend,
   ADMIN_PERMISSIONS.uploadsRead,
@@ -118,6 +186,13 @@ function normalizePermissionList(permissions = []) {
   return permissions ? [permissions] : []
 }
 
+function getEquivalentPermissionCodes(permission) {
+  return [
+    permission,
+    ...(BACKEND_PERMISSION_ALIASES[permission] ?? []),
+  ]
+}
+
 export function normalizeRole(value, fallback = ROLES.guest) {
   const role = normalizeRoleValue(value)
   return ROLE_VALUES.includes(role) ? role : fallback
@@ -141,42 +216,54 @@ export function getPermissionsForRole(currentRole) {
   return ROLE_PERMISSION_MAP[role] ?? []
 }
 
-export function hasPermission(currentRole, permission) {
+export function hasPermission(currentRole, permission, sessionPermissions) {
   if (!permission) {
     return false
+  }
+
+  if (sessionPermissions !== undefined) {
+    const permissionSet = new Set(normalizePermissionList(sessionPermissions))
+
+    return getEquivalentPermissionCodes(permission).some((code) =>
+      permissionSet.has(code),
+    )
   }
 
   return getPermissionsForRole(currentRole).includes(permission)
 }
 
-export function hasAnyPermission(currentRole, permissions = []) {
+export function hasAnyPermission(currentRole, permissions = [], sessionPermissions) {
   const permissionList = normalizePermissionList(permissions)
-  return permissionList.some((permission) => hasPermission(currentRole, permission))
-}
-
-export function hasAllPermissions(currentRole, permissions = []) {
-  const permissionList = normalizePermissionList(permissions)
-  return (
-    permissionList.length > 0 &&
-    permissionList.every((permission) => hasPermission(currentRole, permission))
+  return permissionList.some((permission) =>
+    hasPermission(currentRole, permission, sessionPermissions),
   )
 }
 
-export function canAccessResource(currentRole, resource = {}) {
+export function hasAllPermissions(currentRole, permissions = [], sessionPermissions) {
+  const permissionList = normalizePermissionList(permissions)
+  return (
+    permissionList.length > 0 &&
+    permissionList.every((permission) =>
+      hasPermission(currentRole, permission, sessionPermissions),
+    )
+  )
+}
+
+export function canAccessResource(currentRole, resource = {}, sessionPermissions) {
   if (resource.allowedRoles && !hasRole(currentRole, resource.allowedRoles)) {
     return false
   }
 
   if (resource.permission) {
-    return hasPermission(currentRole, resource.permission)
+    return hasPermission(currentRole, resource.permission, sessionPermissions)
   }
 
   if (resource.anyPermissions) {
-    return hasAnyPermission(currentRole, resource.anyPermissions)
+    return hasAnyPermission(currentRole, resource.anyPermissions, sessionPermissions)
   }
 
   if (resource.permissions) {
-    return hasAllPermissions(currentRole, resource.permissions)
+    return hasAllPermissions(currentRole, resource.permissions, sessionPermissions)
   }
 
   if (resource.allowedRoles) {

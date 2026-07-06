@@ -200,7 +200,9 @@ test('forgotPassword sends reset email and writes safe logs for eligible users',
   assert.equal(Object.hasOwn(forgotMetadata, 'reset_token'), false);
   assert.equal(Object.hasOwn(forgotMetadata, 'password'), false);
   assert.equal(capturedEmailPayload.to.email, 'customer@example.com');
-  assert.match(capturedEmailPayload.text, /reset-token/);
+  assert.match(capturedEmailPayload.text, /reset-password\?token=reset-token/);
+  assert.doesNotMatch(capturedEmailPayload.html, /Thong tin ky thuat|POST \/auth|API:/);
+  assert.doesNotMatch(capturedEmailPayload.text, /POST \/auth|API:/);
 });
 
 test('forgotPassword skips suspended users but still writes audit log', async () => {

@@ -89,11 +89,27 @@ function TopbarAction({ canOpen, children, label, to }) {
   )
 }
 
-function AdminTopbar({ currentRole = 'system_admin' }) {
+function AdminTopbar({
+  currentPermissions = undefined,
+  currentRole = 'system_admin',
+  currentUser = null,
+}) {
   const profileRoleLabel = ADMIN_ROLE_LABELS[currentRole] ?? currentRole
-  const profileName = ADMIN_ROLE_PROFILE_NAMES[currentRole] ?? ADMIN_ROLE_PROFILE_NAMES.system_admin
-  const canOpenNotifications = canViewAdminRoute(currentRole, ADMIN_ROUTES.notifications)
-  const canOpenSettings = canViewAdminRoute(currentRole, ADMIN_ROUTES.settings)
+  const profileName =
+    currentUser?.full_name ||
+    currentUser?.email ||
+    ADMIN_ROLE_PROFILE_NAMES[currentRole] ||
+    ADMIN_ROLE_PROFILE_NAMES.system_admin
+  const canOpenNotifications = canViewAdminRoute(
+    currentRole,
+    ADMIN_ROUTES.notifications,
+    currentPermissions,
+  )
+  const canOpenSettings = canViewAdminRoute(
+    currentRole,
+    ADMIN_ROUTES.settings,
+    currentPermissions,
+  )
 
   return (
     <header className="admin-topbar">

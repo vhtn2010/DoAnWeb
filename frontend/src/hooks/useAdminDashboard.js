@@ -16,9 +16,10 @@ import { getAdminDashboard } from '../repositories/adminDashboardRepository.js'
 export default function useAdminDashboard() {
   const outletContext = useOutletContext()
   const currentRole = normalizeAdminPreviewRole(outletContext?.currentRole)
+  const currentPermissions = outletContext?.currentPermissions
   const accessState = useMemo(
-    () => createAdminDashboardAccessState(currentRole),
-    [currentRole],
+    () => createAdminDashboardAccessState(currentRole, currentPermissions),
+    [currentPermissions, currentRole],
   )
   const [selectedRange, setSelectedRange] = useState(getAdminDashboardDefaultRange())
   const [dashboardState, setDashboardState] = useState(null)

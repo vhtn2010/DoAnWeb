@@ -1,34 +1,49 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import {
   AdminButton,
   AdminCard,
   AdminErrorState,
+  AdminLoadingBlock,
   AdminPageHeader,
   AdminSectionHeader,
   AdminStatusBadge,
 } from '../../components/admin/ui/index.js'
 import { ADMIN_ROLE_LABELS, buildAdminPath } from '../../constants/adminRoutes.js'
+import { ADMIN_BOOKING_STATUSES, ADMIN_BOOKING_STATUS_META } from '../../constants/adminBookings.js'
 import {
-  ADMIN_BOOKING_LIST,
-  ADMIN_BOOKING_STATUS_META,
-  ADMIN_BOOKING_STATUSES,
-} from '../../fixtures/adminBookings.fixtures.js'
+  getAdminBookingActionConfig,
+  mapAdminBookingDetail,
+} from '../../mappers/adminBookingMappers.js'
+import {
+  cancelAdminBooking,
+  completeAdminBooking,
+  confirmAdminBooking,
+  getAdminBookingDetail,
+  updateAdminBookingStatus,
+} from '../../repositories/adminBookingRepository.js'
 import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN')
-const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-})
 
 function formatCurrency(value) {
   return `${currencyFormatter.format(value)} Đ`
 }
 
-function formatDate(value) {
-  return dateFormatter.format(new Date(`${value}T00:00:00+07:00`))
+function getActionReason(action) {
+  if (action === 'confirm') {
+    return 'Admin xác nhận đơn hàng từ trang Chi tiết Đơn hàng.'
+  }
+
+  if (action === 'cancel') {
+    return 'Admin huỷ đơn hàng từ trang Chi tiết Đơn hàng.'
+  }
+
+  if (action === 'complete') {
+    return 'Admin đánh dấu đơn hàng hoàn thành từ trang Chi tiết Đơn hàng.'
+  }
+
+  return 'Admin cập nhật trạng thái đơn hàng từ trang Chi tiết Đơn hàng.'
 }
 
 function DetailField({ label, value }) {
@@ -63,20 +78,111 @@ function DetailActionIcon({ name }) {
 
 function AdminBookingDetailPage() {
   const navigate = useNavigate()
-  const { currentRole } = useOutletContext()
+  const { currentPermissions, currentRole } = useOutletContext()
   const currentRoleLabel = ADMIN_ROLE_LABELS[currentRole] ?? currentRole
-  const { bookingCode = '' } = useParams()
-  const normalizedCode = bookingCode.replace(/^#/, '').toUpperCase()
-  const bookingRecord = ADMIN_BOOKING_LIST.find((item) => item.bookingCode === normalizedCode)
-  const [statusByBookingId, setStatusByBookingId] = useState({})
-  const canWriteBookings = hasPermission(currentRole, ADMIN_PERMISSIONS.bookingsWrite)
+  const { bookingCode: bookingId = '' } = useParams()
+  const [booking, setBooking] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [feedback, setFeedback] = useState('')
+  const [actionState, setActionState] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  const canWriteBookings = hasPermission(
+    currentRole,
+    ADMIN_PERMISSIONS.bookingsWrite,
+    currentPermissions,
+  )
 
-  if (!bookingRecord) {
+  useEffect(() => {
+    let isActive = true
+
+    async function loadBookingDetail() {
+      setLoading(true)
+      setError('')
+
+      try {
+        const response = await getAdminBookingDetail(bookingId)
+
+        if (!isActive) {
+          return
+        }
+
+        if (!response.success || !response.data) {
+          throw new Error(response.message || 'Không thể tải chi tiết đơn hàng lúc này.')
+        }
+
+        setBooking(mapAdminBookingDetail(response.data))
+      } catch (loadError) {
+        if (!isActive) {
+          return
+        }
+
+        setBooking(null)
+        setError(loadError?.message ?? 'Không thể tải chi tiết đơn hàng lúc này.')
+      } finally {
+        if (isActive) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadBookingDetail()
+
+    return () => {
+      isActive = false
+    }
+  }, [bookingId, reloadKey])
+
+  async function updateBookingAction(action) {
+    if (!booking) {
+      return
+    }
+
+    const reason = getActionReason(action)
+
+    setActionState(action)
+    setFeedback('')
+    setError('')
+
+    try {
+      let response
+
+      if (action === 'confirm') {
+        response = await confirmAdminBooking(booking.id, { reason })
+      } else if (action === 'cancel') {
+        response = await cancelAdminBooking(booking.id, { reason })
+      } else if (action === 'complete') {
+        response = await completeAdminBooking(booking.id, { reason })
+      } else {
+        response = await updateAdminBookingStatus(booking.id, {
+          reason,
+          status: ADMIN_BOOKING_STATUSES.inProgress,
+        })
+      }
+
+      setFeedback(response.message || 'Đã cập nhật trạng thái đơn hàng.')
+      setReloadKey((currentValue) => currentValue + 1)
+    } catch (actionError) {
+      setFeedback(actionError?.message ?? 'Không thể cập nhật trạng thái đơn hàng lúc này.')
+    } finally {
+      setActionState('')
+    }
+  }
+
+  if (loading && !booking) {
+    return (
+      <main className="admin-booking-detail">
+        <AdminLoadingBlock rows={4} />
+      </main>
+    )
+  }
+
+  if (error && !booking) {
     return (
       <main className="admin-booking-detail">
         <AdminErrorState
           title="Không tìm thấy đơn hàng"
-          description={`Không có dữ liệu mock cho mã đơn ${bookingCode}.`}
+          description={error}
           action={
             <AdminButton
               variant="secondary"
@@ -90,19 +196,12 @@ function AdminBookingDetailPage() {
     )
   }
 
-  const booking = {
-    ...bookingRecord,
-    status: statusByBookingId[bookingRecord.id] ?? bookingRecord.status,
+  if (!booking) {
+    return null
   }
-  const statusMeta = ADMIN_BOOKING_STATUS_META[booking.status]
-  const canReviewBooking = booking.status === ADMIN_BOOKING_STATUSES.pendingConfirmation
 
-  function updateBookingStatus(nextStatus) {
-    setStatusByBookingId((currentStatuses) => ({
-      ...currentStatuses,
-      [bookingRecord.id]: nextStatus,
-    }))
-  }
+  const statusMeta = ADMIN_BOOKING_STATUS_META[booking.status]
+  const bookingActions = getAdminBookingActionConfig(booking.status)
 
   return (
     <main className="admin-booking-detail">
@@ -119,6 +218,12 @@ function AdminBookingDetailPage() {
           </Link>
         }
       />
+
+      {feedback ? (
+        <p className="admin-bookings-page__feedback" role="status">
+          {feedback}
+        </p>
+      ) : null}
 
       <AdminCard className="admin-booking-detail__summary" padding="lg">
         <AdminSectionHeader
@@ -146,8 +251,8 @@ function AdminBookingDetailPage() {
           <DetailField label="Khách hàng" value={booking.customerName} />
           <DetailField label="SĐT" value={booking.customerPhone} />
           <DetailField label="Email" value={booking.customerEmail} />
-          <DetailField label="Ngày đi" value={formatDate(booking.departureDate)} />
-          <DetailField label="Ngày về" value={formatDate(booking.returnDate)} />
+          <DetailField label="Ngày đi" value={booking.departureLabel} />
+          <DetailField label="Ngày về" value={booking.returnLabel} />
           <DetailField label="Điểm đến" value={booking.destination} />
           <DetailField label="Hành khách" value={booking.travelers} />
         </div>
@@ -160,20 +265,24 @@ function AdminBookingDetailPage() {
       <AdminCard className="admin-booking-detail__services" padding="lg">
         <AdminSectionHeader
           title="Chi tiết dịch vụ"
-          subtitle={`${booking.destination} · ${booking.duration} · ${booking.transport}`}
+          subtitle={`${booking.itemCount} mục dịch vụ trong đơn`}
         />
 
         <div className="admin-booking-detail__line-items">
-          {booking.serviceItems.map((item) => (
-            <article className="admin-booking-detail__line-item" key={`${item.label}-${item.title}`}>
-              <div>
-                <span>{item.label}</span>
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
-              </div>
-              <strong>{formatCurrency(item.price)}</strong>
-            </article>
-          ))}
+          {booking.serviceItems.length > 0 ? (
+            booking.serviceItems.map((item) => (
+              <article className="admin-booking-detail__line-item" key={`${item.label}-${item.title}`}>
+                <div>
+                  <span>{item.label}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </div>
+                <strong>{formatCurrency(item.price)}</strong>
+              </article>
+            ))
+          ) : (
+            <p>Backend chưa trả chi tiết dịch vụ cho đơn hàng này.</p>
+          )}
         </div>
 
         <div className="admin-booking-detail__total">
@@ -182,26 +291,21 @@ function AdminBookingDetailPage() {
         </div>
       </AdminCard>
 
-      {canReviewBooking ? (
+      {bookingActions.length > 0 ? (
         <footer className="admin-booking-detail__actions" aria-label="Xử lý đơn hàng">
-          <button
-            className="admin-booking-detail__action admin-booking-detail__action--reject"
-            disabled={!canWriteBookings}
-            type="button"
-            onClick={() => updateBookingStatus(ADMIN_BOOKING_STATUSES.cancelled)}
-          >
-            <DetailActionIcon name="x" />
-            Từ chối
-          </button>
-          <button
-            className="admin-booking-detail__action admin-booking-detail__action--accept"
-            disabled={!canWriteBookings}
-            type="button"
-            onClick={() => updateBookingStatus(ADMIN_BOOKING_STATUSES.inProgress)}
-          >
-            <DetailActionIcon name="check" />
-            Chấp nhận
-          </button>
+          {bookingActions.map((action) => (
+            <button
+              className={`admin-booking-detail__action admin-booking-detail__action--${action.tone === 'reject' ? 'reject' : 'accept'}`}
+              disabled={!canWriteBookings || actionState === action.action}
+              key={action.action}
+              type="button"
+              aria-busy={actionState === action.action || undefined}
+              onClick={() => updateBookingAction(action.action)}
+            >
+              <DetailActionIcon name={action.icon} />
+              {actionState === action.action ? 'Đang xử lý...' : action.label}
+            </button>
+          ))}
         </footer>
       ) : null}
     </main>

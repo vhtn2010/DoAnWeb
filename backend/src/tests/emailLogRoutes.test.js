@@ -271,9 +271,7 @@ test('emailLogService.listAdminMailTemplates returns fixed safe metadata for aut
     display_name: 'Verify Email',
     required_variables: [
       'full_name',
-      'token',
       'verification_url',
-      'api_verify_url',
       'expires_in_minutes',
     ],
     template_code: 'AUTH_VERIFY_EMAIL',
@@ -734,8 +732,10 @@ test('emailLogService.resendAdminEmailLog regenerates verification emails with a
       }),
     },
     sendEmailImpl: async (payload) => {
-      assert.match(payload.html, /fresh-token/);
-      assert.match(payload.text, /fresh-token/);
+      assert.match(payload.html, /verify-email\?token=fresh-token/);
+      assert.match(payload.text, /verify-email\?token=fresh-token/);
+      assert.doesNotMatch(payload.html, /Thong tin ky thuat|POST \/auth|API:/);
+      assert.doesNotMatch(payload.text, /POST \/auth|API:/);
       assert.equal(payload.to.email, 'customer@example.com');
 
       return {
@@ -773,9 +773,7 @@ test('GET /api/admin/mail/templates returns fixed template metadata and blocks c
         display_name: 'Verify Email',
         required_variables: [
           'full_name',
-          'token',
           'verification_url',
-          'api_verify_url',
           'expires_in_minutes',
         ],
         template_code: 'AUTH_VERIFY_EMAIL',

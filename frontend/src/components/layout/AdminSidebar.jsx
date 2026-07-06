@@ -293,9 +293,18 @@ function getSidebarRouteLabel(routeId, route) {
   return sidebarRouteLabels[routeId] ?? route.label
 }
 
-function AdminSidebar({ currentRole = 'system_admin' }) {
+function AdminSidebar({
+  currentPermissions = undefined,
+  currentRole = 'system_admin',
+  loggingOut = false,
+  onLogout,
+}) {
   const { pathname } = useLocation()
-  const canAccessDashboard = canViewAdminRoute(currentRole, ADMIN_ROUTES.dashboard)
+  const canAccessDashboard = canViewAdminRoute(
+    currentRole,
+    ADMIN_ROUTES.dashboard,
+    currentPermissions,
+  )
   const navSections = getAdminNavSections(currentRole)
 
   return (
@@ -324,7 +333,7 @@ function AdminSidebar({ currentRole = 'system_admin' }) {
 
       {navSections.map((section) => {
         const visibleRouteIds = section.routeIds.filter((routeId) =>
-          canViewAdminRoute(currentRole, ADMIN_ROUTES[routeId]),
+          canViewAdminRoute(currentRole, ADMIN_ROUTES[routeId], currentPermissions),
         )
 
         if (visibleRouteIds.length === 0) {
@@ -366,7 +375,12 @@ function AdminSidebar({ currentRole = 'system_admin' }) {
           </SidebarIcon>
           <span>Hồ sơ</span>
         </button>
-        <button className="admin-sidebar__account-row admin-sidebar__account-row--danger" type="button">
+        <button
+          className="admin-sidebar__account-row admin-sidebar__account-row--danger"
+          disabled={loggingOut}
+          type="button"
+          onClick={onLogout}
+        >
           <SidebarIcon>
             <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
               <path

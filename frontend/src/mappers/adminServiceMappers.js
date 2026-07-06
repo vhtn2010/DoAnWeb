@@ -109,6 +109,10 @@ function serializeComboItems(items) {
       return String(item)
     }
 
+    if (item.service_type && item.service_id) {
+      return `${item.service_type}:${item.service_id}:${item.quantity ?? 1}`
+    }
+
     if (item.service_type && item.service_code) {
       return `${item.service_type}:${item.service_code}`
     }
@@ -121,6 +125,12 @@ function serializeComboItems(items) {
   })
 }
 
+function normalizeQuantityValue(value) {
+  const parsedValue = Number(value)
+
+  return Number.isFinite(parsedValue) ? parsedValue : value
+}
+
 function normalizeMultilineArray(value) {
   return String(value ?? '')
     .split('\n')
@@ -130,17 +140,37 @@ function normalizeMultilineArray(value) {
 
 function parseComboItems(value) {
   return normalizeMultilineArray(value).map((line) => {
-    const [serviceType, serviceCode] = line.split(':').map((item) => item?.trim())
+    if (line.startsWith('{')) {
+      try {
+        const parsedItem = JSON.parse(line)
 
-    if (serviceType && serviceCode) {
+        if (parsedItem && typeof parsedItem === 'object' && !Array.isArray(parsedItem)) {
+          return {
+            quantity: normalizeQuantityValue(parsedItem.quantity ?? 1),
+            service_id: parsedItem.service_id,
+            service_type: parsedItem.service_type,
+          }
+        }
+      } catch {
+        // Backend validation will report the unsupported combo item shape.
+      }
+    }
+
+    const [serviceType, serviceId, quantity = 1] = line
+      .split(':')
+      .map((item) => item?.trim())
+
+    if (serviceType && serviceId) {
       return {
+        quantity: normalizeQuantityValue(quantity),
+        service_id: serviceId,
         service_type: serviceType,
-        service_code: serviceCode,
       }
     }
 
     return {
-      service_code: line,
+      quantity: 1,
+      service_id: line,
     }
   })
 }
@@ -218,12 +248,12 @@ function getStatusTone(status) {
   return ADMIN_SERVICE_STATUS_META[status]?.tone ?? 'draft'
 }
 
-function isRoleAllowedForServiceAction(action, currentRole) {
-  return hasPermission(currentRole, SERVICE_ACTION_PERMISSION_MAP[action])
+function isRoleAllowedForServiceAction(action, currentRole, currentPermissions) {
+  return hasPermission(currentRole, SERVICE_ACTION_PERMISSION_MAP[action], currentPermissions)
 }
 
 export function normalizeAdminPreviewRole(value) {
-  return normalizeAdminRole(value)
+  return normalizeAdminRole(value, 'guest')
 }
 
 export function createFeedbackState(tone = 'info', message = '') {
@@ -439,19 +469,19 @@ export function getServiceStatusTransition(action, currentStatus, targetStatus =
   return null
 }
 
-export function getAllowedServiceActions(service, currentRole) {
+export function getAllowedServiceActions(service, currentRole, currentPermissions) {
   const actions = []
 
-  if (hasPermission(currentRole, ADMIN_PERMISSIONS.servicesRead)) {
+  if (hasPermission(currentRole, ADMIN_PERMISSIONS.servicesRead, currentPermissions)) {
     actions.push('view')
   }
 
-  if (hasPermission(currentRole, ADMIN_PERMISSIONS.servicesUpdate)) {
+  if (hasPermission(currentRole, ADMIN_PERMISSIONS.servicesUpdate, currentPermissions)) {
     actions.push('edit')
   }
 
   ;['submit_review', 'approve', 'reject', 'hide', 'restore', 'delete'].forEach((action) => {
-    if (!isRoleAllowedForServiceAction(action, currentRole)) {
+    if (!isRoleAllowedForServiceAction(action, currentRole, currentPermissions)) {
       return
     }
 

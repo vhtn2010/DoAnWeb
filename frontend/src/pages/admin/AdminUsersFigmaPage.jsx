@@ -1,65 +1,27 @@
-import { useMemo, useState } from 'react'
-import avatarVanHai from '../../assets/admin-users/avatar-van-hai.png'
-import avatarYenNhi from '../../assets/admin-users/avatar-yen-nhi.png'
+import { ROLES } from '../../constants/roles.js'
+import {
+  ADMIN_USER_SORT_OPTIONS,
+  ADMIN_USER_STATUS_OPTIONS,
+} from '../../constants/adminUsers.js'
+import useAdminUsers from '../../hooks/useAdminUsers.js'
+import {
+  getAdminUserStatusMeta,
+} from '../../mappers/adminUserMappers.js'
 
 const dateFormatter = new Intl.DateTimeFormat('vi-VN')
-const FIGMA_TOTAL_USERS = 248
 
-const ADMIN_USERS = Object.freeze([
-  {
-    id: 'ND-8492',
-    email: 'yennhi.nguyen@email.com',
-    joinedAt: '2025-05-12',
-    name: 'Nguyễn Trần Yến Nhi',
-    phone: '+84 987 654 321',
-    status: 'active',
-    tier: 'VIP',
-  },
-  {
-    id: 'ND-7731',
-    email: 'tvhai.business@email.com',
-    joinedAt: '2024-11-03',
-    name: 'Trần Văn Hải',
-    phone: '+84 901 234 567',
-    status: 'active',
-    tier: 'Thường',
-  },
-  {
-    id: 'ND-9102',
-    email: 'nam.lh99@email.com',
-    joinedAt: '2024-01-22',
-    name: 'Lê Hoàng Nam',
-    phone: '+84 933 445 566',
-    status: 'locked',
-    tier: 'Thường',
-  },
-])
-
-const ADMIN_USER_STATUS_META = Object.freeze({
-  active: { label: 'Hoạt động' },
-  locked: { label: 'Đã khóa' },
-})
-
-const USER_STATUS_OPTIONS = Object.freeze([
-  { value: 'all', label: 'Tất cả Trạng thái' },
-  { value: 'active', label: 'Hoạt động' },
-  { value: 'locked', label: 'Đã khóa' },
-])
-
-const USER_SORT_OPTIONS = Object.freeze([
-  { value: 'newest', label: 'Mới nhất' },
-  { value: 'name', label: 'Tên A-Z' },
-])
-
-const USER_AVATARS = Object.freeze({
-  'ND-8492': avatarYenNhi,
-  'ND-7731': avatarVanHai,
-})
-
-function DownloadIcon() {
+function RefreshIcon() {
   return (
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+      <path d="M20 6v5h-5M4 18v-5h5M18.2 9A7 7 0 0 0 6.8 6.7L4 9m16 6-2.8 2.3A7 7 0 0 1 5.8 15" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.25" />
     </svg>
   )
 }
@@ -68,14 +30,6 @@ function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
       <path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
-    </svg>
-  )
-}
-
-function FilterIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.4" />
     </svg>
   )
 }
@@ -129,6 +83,30 @@ function TrashIcon() {
   )
 }
 
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6V10Zm6 4v2" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+    </svg>
+  )
+}
+
+function UnlockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M7 10V8a5 5 0 0 1 9.2-2.7M6 10h12v10H6V10Zm6 4v2" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+    </svg>
+  )
+}
+
+function MailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M4 6h16v12H4V6Zm0 1 8 6 8-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+    </svg>
+  )
+}
+
 function LockedUserIcon() {
   return (
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -138,101 +116,185 @@ function LockedUserIcon() {
 }
 
 function formatDate(value) {
+  if (!value) {
+    return 'Chưa cập nhật'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Chưa cập nhật'
+  }
+
   const { day, month, year } = dateFormatter
-    .formatToParts(new Date(`${value}T00:00:00+07:00`))
+    .formatToParts(date)
     .reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {})
 
   return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`
 }
 
-function normalizeText(value) {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+function getFooterText({ pagination, resultRange, users }) {
+  if (!pagination.total) {
+    return 'Chưa có người dùng để hiển thị'
+  }
+
+  return `Hiển thị ${resultRange.start}-${resultRange.end} trong tổng ${pagination.total} người dùng (${users.length} dòng trang này)`
 }
 
-function normalizeTier(tier) {
-  return tier === 'VIP' ? 'VIP' : 'standard'
-}
+function UserForm({
+  actionLoading,
+  closeForm,
+  currentRole,
+  formErrors,
+  formRoleOptions,
+  formState,
+  formValues,
+  submitUserForm,
+  updateFormField,
+}) {
+  const isEditMode = formState.mode === 'edit'
+  const canEditRole = isEditMode ? currentRole === ROLES.systemAdmin : true
 
-function splitUserId(id) {
-  const [prefix, number] = id.split('-')
+  return (
+    <form
+      className="admin-users-page__form"
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault()
+        submitUserForm()
+      }}
+    >
+      <div className="admin-users-page__form-header">
+        <div>
+          <h2>{isEditMode ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}</h2>
+          <p>{isEditMode ? 'Cập nhật hồ sơ cơ bản và vai trò nếu đủ quyền.' : 'Tạo tài khoản nội bộ; khách hàng vẫn đăng ký qua luồng public.'}</p>
+        </div>
+        <button disabled={actionLoading} type="button" onClick={closeForm}>
+          Đóng
+        </button>
+      </div>
 
-  return { prefix, number }
-}
+      <div className="admin-users-page__form-grid">
+        <label>
+          <span>Họ tên</span>
+          <input
+            aria-invalid={Boolean(formErrors.fullName) || undefined}
+            value={formValues.fullName}
+            onChange={(event) => updateFormField('fullName', event.target.value)}
+          />
+          {formErrors.fullName ? <em>{formErrors.fullName}</em> : null}
+        </label>
 
-function sortUsers(users, sortOrder) {
-  return [...users].sort((firstUser, secondUser) => {
-    if (sortOrder === 'name') {
-      return firstUser.name.localeCompare(secondUser.name, 'vi')
-    }
+        <label>
+          <span>Email</span>
+          <input
+            aria-invalid={Boolean(formErrors.email) || undefined}
+            disabled={isEditMode}
+            type="email"
+            value={formValues.email}
+            onChange={(event) => updateFormField('email', event.target.value)}
+          />
+          {formErrors.email ? <em>{formErrors.email}</em> : null}
+        </label>
 
-    return new Date(`${secondUser.joinedAt}T00:00:00+07:00`) -
-      new Date(`${firstUser.joinedAt}T00:00:00+07:00`)
-  })
+        <label>
+          <span>Số điện thoại</span>
+          <input
+            aria-invalid={Boolean(formErrors.phone) || undefined}
+            value={formValues.phone}
+            onChange={(event) => updateFormField('phone', event.target.value)}
+          />
+          {formErrors.phone ? <em>{formErrors.phone}</em> : null}
+        </label>
+
+        <label>
+          <span>Vai trò</span>
+          <select
+            aria-invalid={Boolean(formErrors.roleCode) || undefined}
+            disabled={!canEditRole}
+            value={formValues.roleCode}
+            onChange={(event) => updateFormField('roleCode', event.target.value)}
+          >
+            {formRoleOptions.map((option) => (
+              <option disabled={option.disabled} key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {formErrors.roleCode ? <em>{formErrors.roleCode}</em> : null}
+        </label>
+
+        {!isEditMode ? (
+          <label>
+            <span>Mật khẩu tạm thời</span>
+            <input
+              aria-invalid={Boolean(formErrors.password) || undefined}
+              type="password"
+              value={formValues.password}
+              onChange={(event) => updateFormField('password', event.target.value)}
+            />
+            {formErrors.password ? <em>{formErrors.password}</em> : null}
+          </label>
+        ) : null}
+      </div>
+
+      <div className="admin-users-page__form-actions">
+        <button disabled={actionLoading} type="button" onClick={closeForm}>
+          Hủy
+        </button>
+        <button disabled={actionLoading} type="submit">
+          {actionLoading ? 'Đang lưu...' : isEditMode ? 'Lưu thay đổi' : 'Tạo tài khoản'}
+        </button>
+      </div>
+    </form>
+  )
 }
 
 function AdminUsersFigmaPage() {
-  const [userItems, setUserItems] = useState(ADMIN_USERS)
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('all')
-  const [tier, setTier] = useState('all')
-  const [sortOrder, setSortOrder] = useState('newest')
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [checkedUserIds, setCheckedUserIds] = useState([])
-  const [feedback, setFeedback] = useState('')
-
-  const users = useMemo(() => {
-    const normalizedQuery = normalizeText(query.trim())
-    const filteredUsers = userItems.filter((user) => {
-      const matchesStatus = status === 'all' || user.status === status
-      const matchesTier = tier === 'all' || normalizeTier(user.tier) === tier
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        normalizeText(`${user.id} ${user.name} ${user.email} ${user.phone}`).includes(normalizedQuery)
-
-      return matchesStatus && matchesTier && matchesQuery
-    })
-
-    return sortUsers(filteredUsers, sortOrder)
-  }, [query, sortOrder, status, tier, userItems])
-
-  const allVisibleChecked = users.length > 0 && users.every((user) => checkedUserIds.includes(user.id))
-
-  function toggleAdvancedFilter() {
-    const nextTier = tier === 'VIP' ? 'all' : 'VIP'
-
-    setTier(nextTier)
-    setFeedback(nextTier === 'VIP' ? 'Đang lọc nhóm khách VIP.' : 'Đã bỏ lọc nâng cao.')
-  }
-
-  function toggleAllVisibleUsers() {
-    if (allVisibleChecked) {
-      setCheckedUserIds((currentIds) => currentIds.filter((id) => !users.some((user) => user.id === id)))
-      return
-    }
-
-    setCheckedUserIds((currentIds) => Array.from(new Set([
-      ...currentIds,
-      ...users.map((user) => user.id),
-    ])))
-  }
-
-  function toggleUserChecked(userId) {
-    setCheckedUserIds((currentIds) =>
-      currentIds.includes(userId)
-        ? currentIds.filter((id) => id !== userId)
-        : [...currentIds, userId],
-    )
-  }
-
-  function removeUser(user) {
-    setUserItems((currentUsers) => currentUsers.filter((currentUser) => currentUser.id !== user.id))
-    setCheckedUserIds((currentIds) => currentIds.filter((id) => id !== user.id))
-    setSelectedUserId('')
-    setFeedback(`Đã xóa tài khoản ${user.name} khỏi danh sách hiển thị.`)
-  }
+  const {
+    actionLoading,
+    allVisibleChecked,
+    canResendVerification,
+    checkedUserIds,
+    closeForm,
+    currentRole,
+    error,
+    feedback,
+    formErrors,
+    formRoleOptions,
+    formState,
+    formValues,
+    getStatusAction,
+    loading,
+    openCreateForm,
+    openEditForm,
+    pageNumbers,
+    pagination,
+    query,
+    reloadUsers,
+    removeUser,
+    resendVerification,
+    resetFilters,
+    resultRange,
+    roleFilter,
+    roleFilterOptions,
+    runStatusAction,
+    selectedUser,
+    selectedUserId,
+    setCurrentPage,
+    setQuery,
+    setRoleFilter,
+    setSortOrder,
+    setStatusFilter,
+    sortOrder,
+    statusFilter,
+    submitUserForm,
+    toggleAllVisibleUsers,
+    toggleUserChecked,
+    updateFormField,
+    users,
+    viewUser,
+  } = useAdminUsers()
 
   return (
     <main className="admin-system-page admin-users-page">
@@ -242,43 +304,71 @@ function AdminUsersFigmaPage() {
           <p>Quản lý tài khoản khách hàng và phân quyền truy cập hệ thống.</p>
         </div>
 
-        <button
-          className="admin-users-page__export"
-          type="button"
-          onClick={() => setFeedback('Đã chuẩn bị dữ liệu người dùng để xuất file.')}
-        >
-          <DownloadIcon />
-          <span>Xuất dữ liệu</span>
-        </button>
+        <div className="admin-users-page__header-actions">
+          <button
+            className="admin-users-page__export admin-users-page__export--primary"
+            disabled={loading || actionLoading}
+            type="button"
+            onClick={openCreateForm}
+          >
+            <PlusIcon />
+            <span>Thêm người dùng</span>
+          </button>
+          <button
+            className="admin-users-page__export"
+            type="button"
+            onClick={() => resetFilters()}
+          >
+            <RefreshIcon />
+            <span>Đặt lại</span>
+          </button>
+        </div>
       </section>
+
+      {formState.isOpen ? (
+        <UserForm
+          actionLoading={actionLoading}
+          closeForm={closeForm}
+          currentRole={currentRole}
+          formErrors={formErrors}
+          formRoleOptions={formRoleOptions}
+          formState={formState}
+          formValues={formValues}
+          submitUserForm={submitUserForm}
+          updateFormField={updateFormField}
+        />
+      ) : null}
 
       <form className="admin-users-page__toolbar" role="search" onSubmit={(event) => event.preventDefault()}>
         <label className="admin-users-page__search" htmlFor="admin-user-search">
           <span className="admin-users-page__sr-only">Tìm kiếm người dùng</span>
           <SearchIcon />
           <input
+            disabled={loading}
             id="admin-user-search"
-            placeholder="Tìm tên, email, sđt..."
+            placeholder="Tìm tên, email, số điện thoại..."
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
 
-        <button
-          className="admin-users-page__filter-button"
-          type="button"
-          aria-pressed={tier === 'VIP'}
-          onClick={toggleAdvancedFilter}
-        >
-          <FilterIcon />
-          <span>Lọc nâng cao</span>
-        </button>
+        <label className="admin-users-page__select">
+          <span className="admin-users-page__sr-only">Vai trò</span>
+          <select disabled={loading} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+            {roleFilterOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon />
+        </label>
 
         <label className="admin-users-page__select">
           <span className="admin-users-page__sr-only">Trạng thái</span>
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>
-            {USER_STATUS_OPTIONS.map((option) => (
+          <select disabled={loading} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            {ADMIN_USER_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -289,8 +379,8 @@ function AdminUsersFigmaPage() {
 
         <label className="admin-users-page__select admin-users-page__select--sort">
           <span className="admin-users-page__sr-only">Sắp xếp</span>
-          <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
-            {USER_SORT_OPTIONS.map((option) => (
+          <select disabled={loading} value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
+            {ADMIN_USER_SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -300,10 +390,31 @@ function AdminUsersFigmaPage() {
         </label>
       </form>
 
+      {error ? (
+        <div className="admin-users-page__result-note admin-users-page__result-note--error" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={reloadUsers}>Thử lại</button>
+        </div>
+      ) : null}
+
       {feedback ? (
         <p className="admin-users-page__result-note" role="status">
           {feedback}
         </p>
+      ) : null}
+
+      {selectedUser ? (
+        <section className="admin-users-page__detail" aria-label="Chi tiết người dùng đã chọn">
+          <div>
+            <strong>{selectedUser.name}</strong>
+            <span>{selectedUser.email}</span>
+          </div>
+          <div>
+            <span>Vai trò: {selectedUser.roleLabel}</span>
+            <span>Xác minh: {selectedUser.emailVerifiedAt ? formatDate(selectedUser.emailVerifiedAt) : 'Chưa xác minh'}</span>
+            <span>Đăng nhập cuối: {formatDate(selectedUser.lastLoginAt)}</span>
+          </div>
+        </section>
       ) : null}
 
       <section className="admin-users-page__table-shell" aria-label="Danh sách người dùng">
@@ -315,6 +426,7 @@ function AdminUsersFigmaPage() {
                   <input
                     aria-label="Chọn tất cả người dùng đang hiển thị"
                     checked={allVisibleChecked}
+                    disabled={loading || users.length === 0}
                     type="checkbox"
                     onChange={toggleAllVisibleUsers}
                   />
@@ -327,10 +439,20 @@ function AdminUsersFigmaPage() {
               </tr>
             </thead>
             <tbody>
-              {users.length > 0 ? users.map((user) => {
-                const statusMeta = ADMIN_USER_STATUS_META[user.status]
-                const idParts = splitUserId(user.id)
-                const avatar = USER_AVATARS[user.id]
+              {loading ? (
+                <tr>
+                  <td colSpan="6">
+                    <div className="admin-users-page__empty" role="status">
+                      <strong>Đang tải dữ liệu người dùng...</strong>
+                      <span>Hệ thống đang đồng bộ với backend.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : users.length > 0 ? users.map((user) => {
+                const statusMeta = getAdminUserStatusMeta(user.status)
+                const statusAction = getStatusAction(user)
+                const isLocked = user.status !== 'active'
+                const canResend = canResendVerification(user)
 
                 return (
                   <tr
@@ -347,15 +469,15 @@ function AdminUsersFigmaPage() {
                     </td>
                     <td>
                       <div className="admin-users-page__user">
-                        <span className={user.status === 'locked' ? 'admin-users-page__avatar admin-users-page__avatar--locked' : 'admin-users-page__avatar'}>
-                          {avatar ? <img src={avatar} alt="" /> : <LockedUserIcon />}
+                        <span className={isLocked ? 'admin-users-page__avatar admin-users-page__avatar--locked' : 'admin-users-page__avatar'}>
+                          {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : isLocked ? <LockedUserIcon /> : user.initials}
                         </span>
                         <span className="admin-users-page__identity">
-                          <strong className={user.status === 'locked' ? 'admin-users-page__name admin-users-page__name--locked' : 'admin-users-page__name'}>
+                          <strong className={isLocked ? 'admin-users-page__name admin-users-page__name--locked' : 'admin-users-page__name'}>
                             {user.name}
                           </strong>
-                          <span>ID: #{idParts.prefix}-<br />{idParts.number}</span>
-                          {user.tier === 'VIP' ? <em>VIP</em> : null}
+                          <span>ID: #{user.displayId}</span>
+                          <em>{user.roleLabel}</em>
                         </span>
                       </div>
                     </td>
@@ -367,33 +489,50 @@ function AdminUsersFigmaPage() {
                     </td>
                     <td>{formatDate(user.joinedAt)}</td>
                     <td>
-                      <span className={`admin-users-page__status admin-users-page__status--${user.status}`}>
+                      <span className={`admin-users-page__status admin-users-page__status--${statusMeta.className}`}>
                         {statusMeta.label}
                       </span>
                     </td>
                     <td>
                       <div className="admin-users-page__actions">
                         <button
+                          disabled={actionLoading}
                           type="button"
                           aria-label={`Xem chi tiết ${user.name}`}
-                          onClick={() => {
-                            setSelectedUserId(user.id)
-                            setFeedback(`Đang xem nhanh tài khoản ${user.name}.`)
-                          }}
+                          onClick={() => viewUser(user)}
                         >
                           <ViewIcon />
                         </button>
                         <button
+                          disabled={actionLoading}
                           type="button"
                           aria-label={`Sửa ${user.name}`}
-                          onClick={() => {
-                            setSelectedUserId(user.id)
-                            setFeedback(`Đang mở chế độ chỉnh sửa ${user.name}.`)
-                          }}
+                          onClick={() => openEditForm(user)}
                         >
                           <EditIcon />
                         </button>
+                        {statusAction ? (
+                          <button
+                            disabled={actionLoading}
+                            type="button"
+                            aria-label={`${statusAction.label} ${user.name}`}
+                            onClick={() => runStatusAction(user)}
+                          >
+                            {statusAction.nextStatus === 'active' ? <UnlockIcon /> : <LockIcon />}
+                          </button>
+                        ) : null}
+                        {canResend ? (
+                          <button
+                            disabled={actionLoading}
+                            type="button"
+                            aria-label={`Gửi lại email xác minh cho ${user.name}`}
+                            onClick={() => resendVerification(user)}
+                          >
+                            <MailIcon />
+                          </button>
+                        ) : null}
                         <button
+                          disabled={actionLoading}
                           type="button"
                           aria-label={`Xóa ${user.name}`}
                           onClick={() => removeUser(user)}
@@ -409,7 +548,7 @@ function AdminUsersFigmaPage() {
                   <td colSpan="6">
                     <div className="admin-users-page__empty" role="status">
                       <strong>Không có người dùng phù hợp</strong>
-                      <span>Thử đổi từ khóa, trạng thái hoặc bộ lọc nâng cao.</span>
+                      <span>Thử đổi từ khóa, trạng thái hoặc vai trò.</span>
                     </div>
                   </td>
                 </tr>
@@ -420,15 +559,32 @@ function AdminUsersFigmaPage() {
       </section>
 
       <nav className="admin-users-page__pagination" aria-label="Phân trang người dùng">
-        <p>Hiển thị {users.length} trong số {FIGMA_TOTAL_USERS} người dùng</p>
+        <p>{getFooterText({ pagination, resultRange, users })}</p>
         <div className="admin-users-page__page-buttons">
-          <button type="button" aria-label="Quay về trước 1 trang" disabled>
+          <button
+            type="button"
+            aria-label="Quay về trước 1 trang"
+            disabled={pagination.page <= 1}
+            onClick={() => setCurrentPage(Math.max(1, pagination.page - 1))}
+          >
             <ChevronLeftIcon />
           </button>
-          <button type="button" aria-current="page">1</button>
-          <button type="button">2</button>
-          <button type="button">3</button>
-          <button type="button" aria-label="Về sau 1 trang">
+          {pageNumbers.map((pageNumber) => (
+            <button
+              aria-current={pagination.page === pageNumber ? 'page' : undefined}
+              key={pageNumber}
+              type="button"
+              onClick={() => setCurrentPage(pageNumber)}
+            >
+              {pageNumber}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label="Về sau 1 trang"
+            disabled={pagination.page >= pagination.total_pages}
+            onClick={() => setCurrentPage(Math.min(pagination.total_pages, pagination.page + 1))}
+          >
             <ChevronRightIcon />
           </button>
         </div>

@@ -8,6 +8,7 @@ import {
   updateCartItem,
   validateCart,
 } from '../repositories/cartRepository.js'
+import { getAuthSession } from '../services/authSession.js'
 import {
   createCartSummaryPayload,
   mapCartResponseToView,
@@ -30,6 +31,14 @@ function buildServicesPath(isCustomer) {
   return isCustomer ? '/services?auth=customer' : '/services'
 }
 
+function getCartAuthState(searchParams) {
+  if (getAuthSession().isAuthenticated) {
+    return ROLES.customer
+  }
+
+  return searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+}
+
 function createFeedbackState(tone = 'info', message = '') {
   return {
     tone,
@@ -40,8 +49,7 @@ function createFeedbackState(tone = 'info', message = '') {
 export default function useCart() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+  const authState = getCartAuthState(searchParams)
   const isCustomer = authState === ROLES.customer
 
   const [cart, setCart] = useState(null)

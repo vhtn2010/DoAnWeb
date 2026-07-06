@@ -93,10 +93,10 @@ export function createAdminDashboardFeedback(tone = 'info', message = '') {
   return { tone, message }
 }
 
-export function createAdminDashboardAccessState(currentRole) {
+export function createAdminDashboardAccessState(currentRole, currentPermissions) {
   const currentRoleLabel = getAdminRoleLabel(currentRole)
 
-  if (!hasPermission(currentRole, ADMIN_PERMISSIONS.dashboardRead)) {
+  if (!hasPermission(currentRole, ADMIN_PERMISSIONS.dashboardRead, currentPermissions)) {
     return {
       canViewDashboard: false,
       currentRoleLabel,

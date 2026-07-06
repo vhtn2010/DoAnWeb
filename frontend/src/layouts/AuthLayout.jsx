@@ -75,8 +75,8 @@ const styles = {
 function AuthLayout() {
   const location = useLocation()
   const isLoginPage = location.pathname === '/login'
-  const isForgotPasswordPage = location.pathname === '/forgot-password'
-  const isRegisterPage = location.pathname === '/register'
+  const isForgotPasswordPage = ['/forgot-password', '/reset-password'].includes(location.pathname)
+  const isRegisterPage = ['/register', '/verify-email'].includes(location.pathname)
 
   if (isForgotPasswordPage) {
     return (

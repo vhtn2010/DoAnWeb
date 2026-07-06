@@ -9,10 +9,10 @@ import {
 
 const actionContentMap = {
   submit_review: {
-    eyebrow: 'Workflow mock',
+    eyebrow: 'Workflow dịch vụ',
     title: 'Gửi duyệt dịch vụ',
     description:
-      'Xác nhận chuyển dịch vụ từ bản nháp sang trạng thái chờ duyệt trên local state.',
+      'Xác nhận chuyển dịch vụ từ bản nháp sang trạng thái chờ duyệt trên hệ thống.',
     confirmLabel: 'Gửi duyệt',
     nextStatus: 'pending_review',
   },
@@ -20,7 +20,7 @@ const actionContentMap = {
     eyebrow: 'Phê duyệt dịch vụ',
     title: 'Duyệt dịch vụ',
     description:
-      'Trạng thái sẽ chuyển sang active. Có thể thêm ghi chú nội bộ trước khi tích hợp API thật.',
+      'Trạng thái sẽ chuyển sang active. Có thể thêm ghi chú nội bộ trước khi duyệt.',
     confirmLabel: 'Duyệt dịch vụ',
     nextStatus: 'active',
   },
@@ -30,21 +30,21 @@ const actionContentMap = {
     description: 'Trạng thái sẽ chuyển về draft. Vui lòng nhập lý do để QA flow rõ ràng hơn.',
     confirmLabel: 'Từ chối',
     nextStatus: 'draft',
-    warningText: 'Lý do từ chối sẽ được dùng làm dữ liệu mock cho bước phản hồi nhà cung cấp.',
+    warningText: 'Lý do từ chối sẽ được gửi lên backend để lưu vết thao tác.',
   },
   hide: {
     eyebrow: 'Ẩn dịch vụ',
     title: 'Ẩn dịch vụ',
-    description: 'Dịch vụ active sẽ được chuyển sang hidden trên local state.',
+    description: 'Dịch vụ active sẽ được chuyển sang hidden trên hệ thống.',
     confirmLabel: 'Tạm ẩn',
     nextStatus: 'hidden',
-    warningText: 'Dịch vụ sẽ không còn ở trạng thái hiển thị công khai sau khi tích hợp API thật.',
+    warningText: 'Dịch vụ sẽ không còn ở trạng thái hiển thị công khai sau thao tác này.',
   },
   restore: {
     eyebrow: 'Khôi phục dịch vụ',
     title: 'Khôi phục dịch vụ',
     description:
-      'Khôi phục dịch vụ hidden hoặc archived. Mặc định sẽ trả về active để bám workflow mock.',
+      'Khôi phục dịch vụ hidden hoặc archived. Mặc định sẽ trả về active.',
     confirmLabel: 'Khôi phục',
   },
   delete: {
@@ -69,6 +69,10 @@ function getInitialFormValues() {
 function getValidationError(actionKey, formValues) {
   if (actionKey === 'reject' && !formValues.reason.trim()) {
     return 'Vui lòng nhập lý do từ chối.'
+  }
+
+  if (actionKey === 'hide' && !formValues.reason.trim()) {
+    return 'Vui lòng nhập lý do ẩn dịch vụ.'
   }
 
   if (actionKey === 'delete' && !formValues.reason.trim()) {
@@ -248,7 +252,7 @@ function AdminServiceStatusActionModal({
                   <dd>{actorRoleLabel}</dd>
                 </div>
                 <div>
-                  <dt>Người thao tác mock</dt>
+                  <dt>Người thao tác</dt>
                   <dd>{actorName}</dd>
                 </div>
               </dl>

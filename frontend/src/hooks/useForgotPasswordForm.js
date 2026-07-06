@@ -1,14 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   buildPasswordResetRequestPayload,
   buildResetPasswordPayload,
   createForgotPasswordFormValues,
+  mapApiValidationErrors,
   validatePasswordResetRequestPayload,
   validateResetPasswordPayload,
 } from '../mappers/authMappers.js'
 import { requestPasswordReset, resetPassword } from '../repositories/authRepository.js'
 
 export default function useForgotPasswordForm() {
+  const [searchParams] = useSearchParams()
+  const resetToken = String(searchParams.get('token') ?? '').trim()
   const [formValues, setFormValues] = useState(() => createForgotPasswordFormValues())
   const [errors, setErrors] = useState({})
   const [feedbackMessage, setFeedbackMessage] = useState('')
@@ -18,6 +22,20 @@ export default function useForgotPasswordForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSendingCode, setIsSendingCode] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!resetToken) {
+      return
+    }
+
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      otp_code: currentValues.otp_code || resetToken,
+    }))
+    setSentCode(true)
+    setFeedbackMessage('Enter a new password to finish resetting your account.')
+    setFeedbackTone('info')
+  }, [resetToken])
 
   function handleFieldChange(event) {
     const { checked, name, type, value } = event.target
@@ -65,6 +83,15 @@ export default function useForgotPasswordForm() {
       setFeedbackMessage(response.message)
       setFeedbackTone(response.success ? 'success' : 'error')
     } catch (error) {
+      const apiFieldErrors = mapApiValidationErrors(error?.details)
+
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setErrors((currentErrors) => ({
+          ...currentErrors,
+          ...apiFieldErrors,
+        }))
+      }
+
       setSentCode(false)
       setFeedbackMessage(error?.message ?? 'Không thể gửi mã xác nhận lúc này.')
       setFeedbackTone('error')
@@ -105,6 +132,12 @@ export default function useForgotPasswordForm() {
         setShowConfirmPassword(false)
       }
     } catch (error) {
+      const apiFieldErrors = mapApiValidationErrors(error?.details)
+
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setErrors(apiFieldErrors)
+      }
+
       setFeedbackMessage(error?.message ?? 'Không thể đổi mật khẩu lúc này.')
       setFeedbackTone('error')
     } finally {

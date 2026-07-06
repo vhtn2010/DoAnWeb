@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
 import {
   AdminActionIconButton,
   AdminActionIconGroup,
   AdminButton,
   AdminCard,
   AdminEmptyState,
+  AdminErrorState,
   AdminField,
   AdminInput,
   AdminPageHeader,
@@ -15,11 +15,13 @@ import {
   AdminTextarea,
 } from '../../components/admin/ui/index.js'
 import {
-  ADMIN_REFUND_REQUESTS,
-  ADMIN_REFUND_STATUS_META,
   ADMIN_REFUND_STATUS_OPTIONS,
   ADMIN_REFUND_STATUSES,
-} from '../../fixtures/adminOperations.fixtures.js'
+} from '../../constants/adminRefunds.js'
+import useAdminRefunds from '../../hooks/useAdminRefunds.js'
+import {
+  getAdminRefundStatusMeta,
+} from '../../mappers/adminRefundMappers.js'
 
 const tableCurrencyFormatter = new Intl.NumberFormat('en-US')
 const panelCurrencyFormatter = new Intl.NumberFormat('vi-VN')
@@ -56,36 +58,6 @@ function ViewIcon() {
   )
 }
 
-function EditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path
-        d="m4 16.5-.8 4.3 4.3-.8L18.7 8.8 15.2 5.3 4 16.5ZM14 6.5l3.5 3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-    </svg>
-  )
-}
-
-function DeleteIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path
-        d="M4 7h16m-9 4v6m4-6v6M6 7l1 14h10l1-14M9 7l1-3h4l1 3"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-    </svg>
-  )
-}
-
 function CheckIcon() {
   return (
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -116,46 +88,54 @@ function XIcon() {
 }
 
 function formatTableCurrency(value) {
-  return `${tableCurrencyFormatter.format(value)}₫`
+  return `${tableCurrencyFormatter.format(Number(value || 0))}₫`
 }
 
 function formatPanelCurrency(value) {
-  return `${panelCurrencyFormatter.format(value)} ₫`
+  return `${panelCurrencyFormatter.format(Number(value || 0))} ₫`
 }
 
 function formatPanelAmount(value) {
-  return panelCurrencyFormatter.format(value)
+  return panelCurrencyFormatter.format(Number(value || 0))
 }
 
 function formatDate(value) {
-  return dateFormatter.format(new Date(`${value}T00:00:00+07:00`))
+  if (!value) {
+    return 'Chưa cập nhật'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Chưa cập nhật'
+  }
+
+  return dateFormatter.format(date)
 }
 
 function AdminRefundsPage() {
-  const [requests, setRequests] = useState(ADMIN_REFUND_REQUESTS)
-  const [selectedId, setSelectedId] = useState(ADMIN_REFUND_REQUESTS[1]?.id ?? '')
-  const [statusFilter, setStatusFilter] = useState(ADMIN_REFUND_STATUSES.all)
-  const [detailNote, setDetailNote] = useState('')
-  const selectedRequest =
-    requests.find((request) => request.id === selectedId) ?? requests[0]
-
-  const filteredRequests = useMemo(() => {
-    if (statusFilter === ADMIN_REFUND_STATUSES.all) {
-      return requests
-    }
-
-    return requests.filter((request) => request.status === statusFilter)
-  }, [requests, statusFilter])
-
-  function updateStatus(request, status) {
-    setRequests((currentRequests) =>
-      currentRequests.map((currentRequest) =>
-        currentRequest.id === request.id
-          ? { ...currentRequest, status }
-          : currentRequest,
-      ),
-    )
-  }
+  const {
+    actionConfig,
+    actionLoading,
+    currentPage,
+    detailLoading,
+    detailNote,
+    error,
+    feedback,
+    loading,
+    pageNumbers,
+    pagination,
+    refundStatusFilter,
+    refunds,
+    reloadRefunds,
+    runRefundAction,
+    selectRefund,
+    selectedRequest,
+    setCurrentPage,
+    setDetailNote,
+    setRefundStatusFilter,
+  } = useAdminRefunds()
+  const selectedStatus = getAdminRefundStatusMeta(selectedRequest?.status)
 
   return (
     <main className="admin-ops-page admin-refunds-page">
@@ -166,6 +146,7 @@ function AdminRefundsPage() {
         actions={
           <AdminButton
             className="admin-refunds-page__export"
+            disabled
             icon={<ExportIcon />}
             variant="secondary"
           >
@@ -173,6 +154,24 @@ function AdminRefundsPage() {
           </AdminButton>
         }
       />
+
+      {error ? (
+        <AdminErrorState
+          title="Không thể tải dữ liệu hoàn tiền"
+          description={error}
+          action={
+            <AdminButton loading={loading} variant="secondary" onClick={reloadRefunds}>
+              Thử lại
+            </AdminButton>
+          }
+        />
+      ) : null}
+
+      {feedback ? (
+        <p className="admin-ops-page__result-note" role="status">
+          {feedback}
+        </p>
+      ) : null}
 
       <div className="admin-ops-page__split">
         <AdminCard className="admin-ops-page__table-card" padding="lg">
@@ -198,17 +197,18 @@ function AdminRefundsPage() {
                 action={
                   <AdminButton
                     variant="secondary"
-                    onClick={() => setStatusFilter(ADMIN_REFUND_STATUSES.all)}
+                    onClick={() => setRefundStatusFilter(ADMIN_REFUND_STATUSES.all)}
                   >
                     Xem tất cả
                   </AdminButton>
                 }
               />
             }
-            rows={filteredRequests}
+            loading={loading}
+            rows={refunds}
           >
-            {filteredRequests.map((request) => {
-              const status = ADMIN_REFUND_STATUS_META[request.status]
+            {refunds.map((request) => {
+              const status = getAdminRefundStatusMeta(request.status)
 
               return (
                 <tr
@@ -219,14 +219,14 @@ function AdminRefundsPage() {
                   }
                   key={request.id}
                 >
-                  <td><strong>#{request.bookingCode}</strong></td>
+                  <td><strong>#{request.bookingCode || request.refundCode}</strong></td>
                   <td>
                     <div className="admin-ops-page__stack">
                       <strong>{request.customerName}</strong>
-                      <span>{request.customerEmail}</span>
+                      <span>{request.customerEmail || request.paymentCode}</span>
                     </div>
                   </td>
-                  <td><strong>{formatTableCurrency(request.originalAmount)}</strong></td>
+                  <td><strong>{formatTableCurrency(request.refundAmount)}</strong></td>
                   <td>{request.reason}</td>
                   <td>{formatDate(request.requestedAt)}</td>
                   <td>
@@ -236,21 +236,10 @@ function AdminRefundsPage() {
                     <AdminActionIconGroup className="admin-refunds-page__row-actions">
                       <AdminActionIconButton
                         label="Xem yêu cầu hoàn tiền"
-                        onClick={() => setSelectedId(request.id)}
+                        loading={detailLoading && selectedRequest?.id === request.id}
+                        onClick={() => selectRefund(request)}
                       >
                         <ViewIcon />
-                      </AdminActionIconButton>
-                      <AdminActionIconButton
-                        label="Sửa yêu cầu hoàn tiền"
-                        onClick={() => setSelectedId(request.id)}
-                      >
-                        <EditIcon />
-                      </AdminActionIconButton>
-                      <AdminActionIconButton
-                        label="Xóa yêu cầu hoàn tiền"
-                        onClick={() => setSelectedId(request.id)}
-                      >
-                        <DeleteIcon />
                       </AdminActionIconButton>
                     </AdminActionIconGroup>
                   </td>
@@ -262,12 +251,22 @@ function AdminRefundsPage() {
           <div className="admin-refunds-page__table-footer">
             <AdminSegmentedControl
               ariaLabel="Lọc trạng thái hoàn tiền"
+              disabled={loading}
               options={ADMIN_REFUND_STATUS_OPTIONS}
-              value={statusFilter}
-              onChange={setStatusFilter}
+              value={refundStatusFilter}
+              onChange={setRefundStatusFilter}
             />
-            <p>Hiển thị {filteredRequests.length} trong số 26 giao dịch</p>
-            <AdminPagination currentPage={1} pages={[1, 2, 3]} totalPages={3} />
+            <p>
+              {pagination.total > 0
+                ? `Hiển thị ${refunds.length} trong tổng ${pagination.total} yêu cầu`
+                : 'Chưa có yêu cầu để hiển thị'}
+            </p>
+            <AdminPagination
+              currentPage={pagination.page || currentPage}
+              pages={pageNumbers}
+              totalPages={pagination.total_pages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         </AdminCard>
 
@@ -276,11 +275,11 @@ function AdminRefundsPage() {
             <div className="admin-refunds-page__processor-hero">
               <div className="admin-refunds-page__processor-title">
                 <h2>Xử lý Hoàn tiền</h2>
-                <span aria-hidden="true">×</span>
+                <AdminStatusBadge tone={selectedStatus.tone}>{selectedStatus.label}</AdminStatusBadge>
               </div>
               <div className="admin-refunds-page__transaction-card">
-                <span>MÃ GIAO DỊCH</span>
-                <strong>#{selectedRequest.bookingCode}</strong>
+                <span>MÃ HOÀN TIỀN</span>
+                <strong>#{selectedRequest.refundCode}</strong>
               </div>
             </div>
 
@@ -288,16 +287,18 @@ function AdminRefundsPage() {
               <div className="admin-ops-page__summary-box">
                 <p><span>Khách hàng:</span> <strong>{selectedRequest.customerName}</strong></p>
                 <p><span>Dịch vụ:</span> <strong>{selectedRequest.serviceName}</strong></p>
+                <p><span>Thanh toán:</span> <strong>{selectedRequest.paymentCode || 'Chưa có'}</strong></p>
                 <p><span>Gốc:</span> <strong>{formatPanelCurrency(selectedRequest.originalAmount)}</strong></p>
               </div>
 
               <AdminField label="LÝ DO HOÀN TIỀN">
-                <AdminInput readOnly value="Khách hàng hủy dịch vụ (>24h)" />
+                <AdminInput readOnly value={selectedRequest.reason} />
               </AdminField>
 
-              <AdminField label="GHI CHÚ CHI TIẾT">
+              <AdminField label="GHI CHÚ XỬ LÝ">
                 <AdminTextarea
-                  placeholder="Nhập chi tiết lý do..."
+                  placeholder="Nhập ghi chú xử lý hoặc lý do từ chối/thất bại..."
+                  readOnly={detailLoading}
                   value={detailNote}
                   onChange={(event) => setDetailNote(event.target.value)}
                 />
@@ -305,7 +306,7 @@ function AdminRefundsPage() {
 
               <AdminField
                 className="admin-refunds-page__amount-field"
-                helper="* Đã trừ 10% phí dịch vụ theo chính sách hủy tour."
+                helper="Số tiền gửi lên backend khi duyệt yêu cầu hoàn tiền."
                 label="SỐ TIỀN HOÀN TRẢ (VND)"
               >
                 <div className="admin-refunds-page__amount-input">
@@ -315,22 +316,28 @@ function AdminRefundsPage() {
               </AdminField>
 
               <AdminActionIconGroup className="admin-ops-page__actions">
-                <AdminButton
-                  className="admin-refunds-page__confirm"
-                  icon={<CheckIcon />}
-                  variant="primary"
-                  onClick={() => updateStatus(selectedRequest, ADMIN_REFUND_STATUSES.completed)}
-                >
-                  XÁC NHẬN HOÀN TIỀN
-                </AdminButton>
-                <AdminButton
-                  className="admin-refunds-page__reject"
-                  icon={<XIcon />}
-                  variant="secondary"
-                  onClick={() => updateStatus(selectedRequest, ADMIN_REFUND_STATUSES.processing)}
-                >
-                  TỪ CHỐI YÊU CẦU
-                </AdminButton>
+                {actionConfig.primary ? (
+                  <AdminButton
+                    className="admin-refunds-page__confirm"
+                    icon={<CheckIcon />}
+                    loading={actionLoading}
+                    variant="primary"
+                    onClick={() => runRefundAction(actionConfig.primary.action)}
+                  >
+                    {actionConfig.primary.label}
+                  </AdminButton>
+                ) : null}
+                {actionConfig.secondary ? (
+                  <AdminButton
+                    className="admin-refunds-page__reject"
+                    icon={<XIcon />}
+                    loading={actionLoading}
+                    variant="secondary"
+                    onClick={() => runRefundAction(actionConfig.secondary.action)}
+                  >
+                    {actionConfig.secondary.label}
+                  </AdminButton>
+                ) : null}
               </AdminActionIconGroup>
             </div>
           </AdminCard>

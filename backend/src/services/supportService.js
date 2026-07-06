@@ -11,6 +11,12 @@ const {
 const { createSupportRepository } = require('../database/supportRepository');
 const { sendEmail } = require('./sendgridService');
 const AppError = require('../utils/AppError');
+const {
+  escapeHtml,
+  renderEmailInfoRows,
+  renderEmailLayout,
+  renderEmailSection,
+} = require('../utils/emailTemplate');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+()\-\s]{8,20}$/;
@@ -126,14 +132,6 @@ const buildRateLimitedError = (
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
 const pruneRateLimitEntries = (timestamps, nowMs) =>
   timestamps.filter((timestamp) => nowMs - timestamp < SUPPORT_MANUAL_EMAIL_RATE_LIMIT_WINDOW_MS);
-const escapeHtml = (value) =>
-  String(value).replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    '\'': '&#39;',
-  })[character]);
 
 const parseUuid = (field, value) => {
   if (value == null || value === '') {
@@ -718,21 +716,44 @@ const buildSupportManualEmailContent = ({
     ticket.customer_user_full_name ||
     'customer';
   const escapedMessage = escapeHtml(message).replace(/\n/g, '<br />');
-  const escapedSubject = escapeHtml(subject);
-  const escapedCustomerName = escapeHtml(customerName);
-  const escapedTicketCode = escapeHtml(ticket.ticket_code || ticket.id);
+  const ticketCode = ticket.ticket_code || ticket.id;
 
   return {
-    html: [
-      '<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6;">',
-      `<p>Xin chao ${escapedCustomerName},</p>`,
-      '<p>Day la email ho tro thu cong tu doi ngu Net Viet Travel.</p>',
-      `<p><strong>Ticket:</strong> ${escapedTicketCode}</p>`,
-      `<p><strong>Chu de:</strong> ${escapedSubject}</p>`,
-      `<div style="margin-top:16px;padding:16px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;">${escapedMessage}</div>`,
-      '<p style="margin-top:16px;">Neu can them ho tro, vui long phan hoi qua kenh cham soc khach hang cua chung toi.</p>',
-      '</div>',
-    ].join(''),
+    html: renderEmailLayout({
+      badge: 'Ho tro khach hang',
+      body: [
+        renderEmailSection({
+          title: 'Thong tin yeu cau',
+          children: renderEmailInfoRows([
+            {
+              label: 'Ticket',
+              value: ticket.ticket_code || ticket.id,
+            },
+            {
+              label: 'Chu de',
+              value: subject,
+            },
+          ]),
+        }),
+        renderEmailSection({
+          title: 'Noi dung tu doi ngu ho tro',
+          children: [
+            '<div style="padding:16px;border:1px solid #d1d5db;border-radius:12px;background:#ffffff;color:#1f2937;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.7;">',
+            escapedMessage,
+            '</div>',
+          ].join(''),
+        }),
+      ].join(''),
+      footerNote:
+        'Neu can them ho tro, vui long phan hoi qua kenh cham soc khach hang cua chung toi.',
+      greeting: `Xin chao ${customerName},`,
+      intro: [
+        'Day la email ho tro thu cong tu doi ngu Net Viet Travel.',
+        `Ticket ${ticketCode} dang duoc theo doi boi bo phan cham soc khach hang.`,
+      ],
+      preheader: `Cap nhat ho tro cho ticket ${ticketCode}.`,
+      title: subject,
+    }),
     subject,
     text: [
       `Xin chao ${customerName},`,

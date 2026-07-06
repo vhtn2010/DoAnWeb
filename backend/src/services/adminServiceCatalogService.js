@@ -11,8 +11,15 @@ const AppError = require('../utils/AppError');
 
 const DEFAULT_LIST_LIMIT = 20;
 const DEFAULT_LIST_PAGE = 1;
+const DEFAULT_LIST_SORT = 'newest';
 const MAX_LIST_LIMIT = 100;
 const MAX_QUERY_LENGTH = 100;
+const SERVICE_SORT_VALUES = Object.freeze([
+  'newest',
+  'oldest',
+  'price_asc',
+  'price_desc',
+]);
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DANGEROUS_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
@@ -366,6 +373,7 @@ const createAdminServiceCatalogService = ({
     limit,
     page,
     q,
+    sort,
     status,
     type,
   } = {}) => {
@@ -380,6 +388,11 @@ const createAdminServiceCatalogService = ({
       value: status,
     });
     const keyword = parseOptionalKeyword(q);
+    const serviceSort = parseOptionalEnum({
+      allowedValues: SERVICE_SORT_VALUES,
+      field: 'sort',
+      value: sort,
+    });
     const resolvedPage = parseBoundedInteger({
       defaultValue: DEFAULT_LIST_PAGE,
       field: 'page',
@@ -399,6 +412,7 @@ const createAdminServiceCatalogService = ({
       limit: resolvedLimit,
       offset,
       serviceStatus,
+      serviceSort: serviceSort || DEFAULT_LIST_SORT,
       serviceType,
     });
 

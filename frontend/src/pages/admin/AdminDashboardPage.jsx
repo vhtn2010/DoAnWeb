@@ -11,41 +11,6 @@ const rangeTabs = [
   { label: '7 Ngày', value: '7_days' },
 ]
 
-const fallbackActivities = [
-  {
-    author: 'Bởi: Admin Nguyễn Văn A',
-    icon: 'plus',
-    key: 'tour-created',
-    time: '10 phút trước',
-    title: 'Tạo mới Tour Vịnh Hạ Long',
-    tone: 'danger',
-  },
-  {
-    author: 'Bởi: Staff Trần Thị B',
-    icon: 'check',
-    key: 'partner-approved',
-    time: '45 phút trước',
-    title: 'Phê duyệt đối tác Khách sạn ABC',
-    tone: 'success',
-  },
-  {
-    author: 'Bởi: System (Auto)',
-    icon: 'history',
-    key: 'payment-config',
-    time: '2 giờ trước',
-    title: 'Cập nhật cấu hình Cổng thanh toán',
-    tone: 'neutral',
-  },
-  {
-    author: 'Hạ tầng hệ thống',
-    icon: 'warning',
-    key: 'server-warning',
-    time: '3 giờ trước',
-    title: 'Cảnh báo tải cao: Server Node 02',
-    tone: 'warning',
-  },
-]
-
 const iconPaths = {
   arrowRight: (
     <path
@@ -371,7 +336,7 @@ function getBookingActivityIcon(status) {
 
 function getActivityItems(recentBookings = []) {
   if (recentBookings.length === 0) {
-    return fallbackActivities
+    return []
   }
 
   return recentBookings.slice(0, 4).map((booking) => ({
@@ -399,7 +364,6 @@ function getChartSubtitle(selectedRange, periodLabel) {
 function AdminDashboardPage() {
   const {
     accessState,
-    currentRole,
     currentRoleLabel,
     dashboardOverview,
     error,
@@ -418,7 +382,7 @@ function AdminDashboardPage() {
   const chartGeometry = getChartGeometry(chartSeries)
   const systemMetrics = getSystemMetrics(dashboardOverview, metricCards)
   const activityItems = getActivityItems(recentBookings)
-  const auditLogPath = `/admin/audit-logs?role=${currentRole}`
+  const auditLogPath = '/admin/audit-logs'
 
   if (!accessState.canViewDashboard) {
     return (
@@ -583,22 +547,39 @@ function AdminDashboardPage() {
               </header>
 
               <div className="admin-system-dashboard__activity-list">
-                {activityItems.map((activity) => (
-                  <article className="admin-system-dashboard__activity-item" key={activity.key}>
+                {activityItems.length > 0 ? (
+                  activityItems.map((activity) => (
+                    <article className="admin-system-dashboard__activity-item" key={activity.key}>
+                      <span
+                        className={`admin-system-dashboard__activity-icon admin-system-dashboard__activity-icon--${activity.tone}`}
+                        aria-hidden="true"
+                      >
+                        <DashboardIcon name={activity.icon} />
+                      </span>
+
+                      <div className="admin-system-dashboard__activity-copy">
+                        <h3>{activity.title}</h3>
+                        <p>{activity.author}</p>
+                        <time>{activity.time}</time>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <article className="admin-system-dashboard__activity-item">
                     <span
-                      className={`admin-system-dashboard__activity-icon admin-system-dashboard__activity-icon--${activity.tone}`}
+                      className="admin-system-dashboard__activity-icon admin-system-dashboard__activity-icon--neutral"
                       aria-hidden="true"
                     >
-                      <DashboardIcon name={activity.icon} />
+                      <DashboardIcon name="history" />
                     </span>
 
                     <div className="admin-system-dashboard__activity-copy">
-                      <h3>{activity.title}</h3>
-                      <p>{activity.author}</p>
-                      <time>{activity.time}</time>
+                      <h3>Chưa có hoạt động gần đây</h3>
+                      <p>Dữ liệu sẽ hiển thị khi backend có booking mới.</p>
+                      <time>Không có dữ liệu</time>
                     </div>
                   </article>
-                ))}
+                )}
               </div>
             </aside>
           </section>
