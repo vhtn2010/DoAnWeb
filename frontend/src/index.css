@@ -12459,9 +12459,10 @@ select {
   color: #9e001f;
 }
 
-.train-detail-main {
+.train-detail-main,
+.train-detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 24px;
   align-items: start;
 }
@@ -12479,6 +12480,7 @@ select {
 .train-detail-sidebar {
   display: grid;
   gap: 16px;
+  padding-top: 96px;
 }
 
 .train-detail-card,
@@ -12559,13 +12561,14 @@ select {
 }
 
 .train-detail-header-card {
+  width: 100%;
   padding: 22px 24px;
 }
 
 .train-detail-header-card__content {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 24px;
 }
 
@@ -12592,6 +12595,7 @@ select {
 .train-detail-header-card__copy {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .train-detail-header-card__copy h1 {
@@ -12631,9 +12635,12 @@ select {
 }
 
 .train-detail-header-card__journey {
-  width: min(100%, 360px);
+  width: 100%;
+  min-width: 304px;
+  max-width: 372px;
   display: grid;
   gap: 14px;
+  justify-self: end;
 }
 
 .train-detail-header-card__timeline {
@@ -12922,11 +12929,11 @@ select {
 }
 
 .train-seat-options {
-  padding: 18px 20px 20px;
+  display: grid;
+  gap: 14px;
 }
 
 .train-seat-options__grid {
-  margin-top: 14px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
@@ -13141,6 +13148,8 @@ select {
   position: sticky;
   top: 108px;
   align-self: start;
+  width: 100%;
+  z-index: 1;
 }
 
 .train-booking-summary__card {
@@ -13238,6 +13247,7 @@ select {
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .train-booking-summary__button--primary {
@@ -13548,24 +13558,34 @@ select {
     padding-top: 28px;
   }
 
-  .train-detail-main {
+  .train-detail-main,
+  .train-detail-layout {
     grid-template-columns: 1fr;
   }
 
   .train-detail-sidebar {
     max-width: 420px;
+    padding-top: 0;
   }
 
   .train-booking-summary {
     position: static;
   }
 
-  .train-detail-header-card__content,
   .train-detail-header-card__journey,
   .train-seat-map__header {
     width: 100%;
-    flex-direction: column;
     align-items: flex-start;
+  }
+
+  .train-detail-header-card__content {
+    grid-template-columns: 1fr;
+  }
+
+  .train-detail-header-card__journey {
+    min-width: 0;
+    max-width: none;
+    justify-self: stretch;
   }
 
   .train-detail-header-card__timeline,
@@ -13637,6 +13657,10 @@ select {
   .train-detail-page__actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .train-detail-header-card__journey {
+    gap: 12px;
   }
 
   .train-seat-map__shell,

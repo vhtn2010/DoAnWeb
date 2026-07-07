@@ -53,6 +53,7 @@ function TrainDetailPage() {
   const {
     addToCartMock,
     bookNowMock,
+    bookingSummary,
     error,
     feedback,
     formatCurrency,
@@ -69,7 +70,6 @@ function TrainDetailPage() {
     selectedSeatOption,
     selectedSeatOptionId,
     train,
-    bookingSummary,
   } = useTrainDetail()
 
   const displayedSeatOptions = train
@@ -141,17 +141,13 @@ function TrainDetailPage() {
           </p>
         ) : null}
 
-        <div className="train-detail-main">
+        <div className="train-detail-main train-detail-layout">
           <div className="train-detail-main__content">
             <TrainDetailHeaderCard train={train} />
             <TrainCarTabs cars={train.cars} selectedCarId={selectedCarId} onSelectCar={selectCar} />
             <TrainSeatMap car={selectedCar} onSelectSeat={selectSeat} selectedSeatId={selectedSeatId} />
 
-            <section className="train-detail-card train-seat-options">
-              <div className="train-detail-section-heading">
-                <h2>Hạng vé và loại chỗ</h2>
-              </div>
-
+            <section className="train-seat-options" aria-label="Hạng vé và loại chỗ">
               <div className="train-seat-options__grid">
                 {displayedSeatOptions.map((seatOption) => (
                   <TrainSeatTypeCard

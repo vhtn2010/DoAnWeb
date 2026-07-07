@@ -31,6 +31,7 @@ function createSeatOption({
   seat_type = '',
   benefits = [],
   is_default = false,
+  is_primary = false,
 }) {
   return {
     id,
@@ -40,6 +41,7 @@ function createSeatOption({
     seat_type,
     benefits,
     is_default,
+    is_primary,
   }
 }
 
@@ -599,7 +601,7 @@ export const trainServiceFixtures = Object.freeze([
     id: 'train-sgn-han-tn1',
     service_code: 'TRAIN-SGN-HAN-TN1',
     title: 'TP. Hồ Chí Minh - Hà Nội',
-    slug: 'tau-tn1-sai-gon-ha-noi',
+    slug: 'tn1-tau-dia-phuong-sai-gon-ha-noi',
     short_description:
       'Tuyến địa phương nhiều điểm dừng cho hành khách muốn linh hoạt chặng nối.',
     description:
@@ -626,6 +628,9 @@ export const trainServiceFixtures = Object.freeze([
     updated_at: '2026-07-03T11:25:00+07:00',
     details: {
       train_type: 'local',
+      header_title: 'Tàu TN1 Tàu địa phương',
+      route_note: 'Tuyến địa phương nhiều điểm dừng, phù hợp hành trình nối chặng linh hoạt',
+      legacy_slugs: ['tau-tn1-sai-gon-ha-noi'],
       seat_options: [
         createSeatOption({
           id: 'tn1-hard-seat',
@@ -634,6 +639,7 @@ export const trainServiceFixtures = Object.freeze([
           seat_type: 'soft_seat',
           benefits: seatBenefits.soft_seat,
           is_default: true,
+          is_primary: true,
         }),
         createSeatOption({
           id: 'tn1-soft-seat',
@@ -641,6 +647,7 @@ export const trainServiceFixtures = Object.freeze([
           price: 1080000,
           seat_type: 'soft_seat',
           benefits: seatBenefits.soft_seat,
+          is_primary: true,
         }),
       ],
       carriage_info: 'Nhiều điểm dừng trung gian, phù hợp hành trình nối chặng.',
@@ -957,7 +964,7 @@ export const trainRelatedSlugMap = Object.freeze({
     'tau-se4-sai-gon-ha-noi',
     'tau-se8-sai-gon-ha-noi',
   ],
-  'tau-tn1-sai-gon-ha-noi': [
+  'tn1-tau-dia-phuong-sai-gon-ha-noi': [
     'se12-tau-thong-nhat-sai-gon-hue',
     'tau-se2-sai-gon-ha-noi',
     'tau-se6-sai-gon-ha-noi',

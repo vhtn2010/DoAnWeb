@@ -468,6 +468,10 @@ export async function buildTrainSelectionPayload(
   const childCount = Math.max(Number(searchState.passengers?.children ?? 0), 0)
   const infantCount = Math.max(Number(searchState.passengers?.infants ?? 0), 0)
   const serviceFee = Math.max(Number(train.details?.payment_summary?.service_fee ?? 0), 0)
+  const selectedCar =
+    (Array.isArray(train.details?.cars)
+      ? train.details.cars.find((car) => car.id === selectedSeat.car_id)
+      : null) ?? null
   const unitPriceSnapshot = Math.max(
     Number(selectedSeat.price ?? selectedSeatOption?.price ?? train.sale_price ?? 0),
     0,
@@ -500,6 +504,12 @@ export async function buildTrainSelectionPayload(
         train_number: train.train_number,
         departure_station: train.departure_station,
         arrival_station: train.arrival_station,
+        car_id: selectedSeat.car_id,
+        car_label: selectedCar?.name ?? '',
+        seat_id: selectedSeat.id,
+        seat_code: selectedSeat.code,
+        seat_option_id: selectedSeatOption?.id ?? '',
+        seat_option_name: selectedSeatOption?.name ?? train.seat_class,
         selected_car_id: selectedSeat.car_id,
         selected_seat_id: selectedSeat.id,
         selected_seat_code: selectedSeat.code,
