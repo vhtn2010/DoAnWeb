@@ -8434,6 +8434,17 @@ select {
   background: #e1e3e4;
 }
 
+.admin-review-card__details-trigger {
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-review-card__details-trigger:focus-visible {
+  outline: 3px solid rgba(200, 16, 46, 0.2);
+  outline-offset: -3px;
+}
+
 .admin-review-card__media::after {
   content: "";
   position: absolute;
@@ -8492,6 +8503,11 @@ select {
 .admin-review-card__body {
   display: grid;
   gap: 10px;
+}
+
+.admin-review-card__details-trigger--content {
+  padding: 0;
+  background: transparent;
 }
 
 .admin-review-card__body h2 {
@@ -8645,6 +8661,329 @@ select {
   font-size: 1rem;
 }
 
+.admin-service-review-page__modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgba(255, 215, 0, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(91, 16, 36, 0.24), rgba(15, 23, 42, 0.58));
+  backdrop-filter: blur(4px);
+}
+
+.admin-service-review-page__detail-modal {
+  position: relative;
+  width: min(100%, 880px);
+  max-height: calc(100vh - 48px);
+  display: grid;
+  gap: 20px;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid rgba(200, 16, 46, 0.14);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 215, 0, 0.16), transparent 26%),
+    radial-gradient(circle at bottom left, rgba(200, 16, 46, 0.08), transparent 30%),
+    linear-gradient(180deg, #fffdf8 0%, #fff7f5 100%);
+  box-shadow: 0 28px 70px rgba(91, 16, 36, 0.22);
+}
+
+.admin-service-review-page__detail-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 6px;
+  border-radius: 20px 20px 0 0;
+  background: linear-gradient(90deg, #c8102e, #ffd166 55%, #f4c542);
+}
+
+.admin-service-review-page__detail-header,
+.admin-service-review-page__detail-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-service-review-page__detail-header-body {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-service-review-page__detail-header p,
+.admin-service-review-page__detail-item span,
+.admin-service-review-page__detail-section p {
+  margin: 0;
+  color: #7a4b46;
+}
+
+.admin-service-review-page__detail-header p,
+.admin-service-review-page__detail-section h3 {
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: #c8102e;
+}
+
+.admin-service-review-page__detail-header h2,
+.admin-service-review-page__detail-section h3,
+.admin-service-review-page__detail-item strong {
+  margin: 0;
+  color: #191c1d;
+}
+
+.admin-service-review-page__detail-header h2 {
+  font-size: clamp(1.5rem, 2vw, 2rem);
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.admin-service-review-page__detail-subtitle {
+  color: #7a4b46;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.admin-service-review-page__detail-close {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(200, 16, 46, 0.16);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff8f5 0%, #fff1ec 100%);
+  color: #8a4a42;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(200, 16, 46, 0.08);
+}
+
+.admin-service-review-page__detail-close:hover,
+.admin-service-review-page__detail-close:focus-visible {
+  outline: none;
+  border-color: rgba(200, 16, 46, 0.3);
+  background: linear-gradient(180deg, #fff2ef 0%, #ffe2da 100%);
+  color: #c8102e;
+}
+
+.admin-service-review-page__detail-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-service-review-page__detail-hero {
+  position: relative;
+  min-height: 300px;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(200, 16, 46, 0.22), rgba(255, 209, 102, 0.3)),
+    #f3d8cf;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.admin-service-review-page__detail-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(92, 25, 32, 0.08), rgba(52, 16, 20, 0.76));
+}
+
+.admin-service-review-page__detail-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-service-review-page__detail-hero-content {
+  position: absolute;
+  inset-inline: 20px;
+  bottom: 18px;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-service-review-page__detail-hero-content p {
+  max-width: 58ch;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.admin-service-review-page__detail-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-service-review-page__detail-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-service-review-page__detail-fact {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid rgba(200, 16, 46, 0.14);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(200, 16, 46, 0.06);
+}
+
+.admin-service-review-page__detail-fact:nth-child(2),
+.admin-service-review-page__detail-fact:nth-child(4) {
+  background: #ffffff;
+}
+
+.admin-service-review-page__detail-fact span {
+  color: #b35b3e;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-service-review-page__detail-fact strong {
+  color: #8d1128;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.admin-service-review-page__detail-fact p {
+  margin: 0;
+  color: #7a4b46;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.admin-service-review-page__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-service-review-page__detail-item {
+  padding: 14px 16px;
+  border: 1px solid rgba(200, 16, 46, 0.14);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin-service-review-page__detail-item span {
+  color: #a54b38;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.admin-service-review-page__detail-item strong {
+  color: #2b1719;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.admin-service-review-page__detail-section {
+  display: grid;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid rgba(200, 16, 46, 0.1);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 246, 240, 0.9) 100%);
+  box-shadow: 0 16px 32px rgba(91, 16, 36, 0.05);
+}
+
+.admin-service-review-page__detail-section-header {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-service-review-page__detail-section-header p {
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.admin-service-review-page__detail-list-grid,
+.admin-service-review-page__detail-text-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-service-review-page__detail-list-block,
+.admin-service-review-page__detail-text-block {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(200, 16, 46, 0.12);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin-service-review-page__detail-list-block span,
+.admin-service-review-page__detail-text-block span {
+  color: #a54b38;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.admin-service-review-page__detail-list-block ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #2b1719;
+  line-height: 1.65;
+}
+
+.admin-service-review-page__detail-list-block li + li {
+  margin-top: 6px;
+}
+
+.admin-service-review-page__detail-section p {
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.admin-service-review-page__detail-actions-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px 20px 4px;
+  border-top: 1px solid rgba(200, 16, 46, 0.12);
+  background: linear-gradient(180deg, rgba(255, 250, 246, 0.76) 0%, rgba(255, 244, 238, 0.96) 100%);
+}
+
+.admin-service-review-page__detail-note {
+  margin: 0;
+}
+
+.admin-service-review-page__detail-textarea.admin-ui-textarea {
+  min-height: 92px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.admin-service-review-page__detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 960px) {
   .admin-service-review-page {
     padding-inline: 24px;
@@ -8661,6 +9000,16 @@ select {
 
   .admin-review-card__actions {
     justify-content: flex-start;
+  }
+
+  .admin-service-review-page__detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-service-review-page__detail-facts,
+  .admin-service-review-page__detail-list-grid,
+  .admin-service-review-page__detail-text-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -8686,6 +9035,20 @@ select {
     padding: 20px;
   }
 
+  .admin-service-review-page__modal-backdrop {
+    padding: 12px;
+  }
+
+  .admin-service-review-page__detail-modal {
+    max-height: calc(100vh - 24px);
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .admin-service-review-page__detail-hero {
+    min-height: 240px;
+  }
+
   .admin-review-card__actions {
     display: grid;
     grid-template-columns: 1fr;
@@ -8694,6 +9057,29 @@ select {
   .admin-review-card__button.admin-ui-button {
     width: 100%;
     min-width: 0;
+  }
+
+  .admin-service-review-page__detail-header,
+  .admin-service-review-page__detail-item {
+    flex-direction: column;
+  }
+
+  .admin-service-review-page__detail-item strong {
+    text-align: left;
+  }
+
+  .admin-service-review-page__detail-actions {
+    justify-content: stretch;
+  }
+
+  .admin-service-review-page__detail-actions .admin-ui-button {
+    width: 100%;
+  }
+
+  .admin-service-review-page__detail-facts,
+  .admin-service-review-page__detail-list-grid,
+  .admin-service-review-page__detail-text-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -8765,6 +9151,15 @@ select {
 .admin-system-page__search {
   min-width: min(100%, 340px);
   flex: 1 1 340px;
+}
+
+.admin-utility-page__search-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-utility-page__search.admin-ui-search-input {
+  width: min(100%, 360px);
 }
 
 .admin-system-dashboard__state-card {
@@ -9213,6 +9608,7 @@ select {
 .admin-settings-page__tabs button:focus-visible,
 .admin-settings-page__field input:focus,
 .admin-settings-page__field select:focus,
+.admin-settings-page__field textarea:focus,
 .admin-settings-page__switch:focus-visible,
 .admin-settings-page__save:focus-visible {
   outline: 3px solid rgba(200, 16, 46, 0.18);
@@ -9255,6 +9651,11 @@ select {
   gap: 20px;
 }
 
+.admin-settings-page__tab-panel {
+  display: grid;
+  gap: 20px;
+}
+
 .admin-settings-page__panel--company {
   min-height: 0;
 }
@@ -9267,6 +9668,12 @@ select {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.admin-settings-page__section-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
 }
 
 .admin-settings-page__section-icon {
@@ -9291,6 +9698,13 @@ select {
   font-weight: 800;
   line-height: 28px;
   letter-spacing: 0;
+}
+
+.admin-settings-page__panel-description {
+  margin: 0;
+  color: #5c403d;
+  font-size: 14px;
+  line-height: 22px;
 }
 
 .admin-settings-page__form-grid {
@@ -9319,7 +9733,8 @@ select {
 }
 
 .admin-settings-page__field input,
-.admin-settings-page__field select {
+.admin-settings-page__field select,
+.admin-settings-page__field textarea {
   width: 100%;
   min-width: 0;
   min-height: 46px;
@@ -9337,8 +9752,15 @@ select {
   padding: 10px 14px;
 }
 
+.admin-settings-page__field textarea {
+  min-height: 116px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
 .admin-settings-page__field input:hover,
-.admin-settings-page__field select:hover {
+.admin-settings-page__field select:hover,
+.admin-settings-page__field textarea:hover {
   border-color: rgba(200, 16, 46, 0.22);
 }
 
@@ -9350,10 +9772,18 @@ select {
 }
 
 .admin-settings-page__field input:disabled,
-.admin-settings-page__field select:disabled {
+.admin-settings-page__field select:disabled,
+.admin-settings-page__field textarea:disabled {
   cursor: not-allowed;
   background: #f8f9fa;
   color: #6b7280;
+}
+
+.admin-settings-page__field-help {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
 }
 
 .admin-settings-page__hint {
@@ -9417,6 +9847,104 @@ select {
 
 .admin-settings-page__status-list {
   display: grid;
+  gap: 12px;
+}
+
+.admin-settings-page__method-list {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-settings-page__method-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #eceef0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+}
+
+.admin-settings-page__method-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-settings-page__method-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-settings-page__method-copy h3,
+.admin-settings-page__method-copy p {
+  margin: 0;
+}
+
+.admin-settings-page__method-copy h3 {
+  color: #191c1d;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 26px;
+}
+
+.admin-settings-page__method-copy p {
+  color: #5c403d;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.admin-settings-page__method-note {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.admin-settings-page__method-code {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff0f2;
+  color: #c8102e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-settings-page__method-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-settings-page__method-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #eceef0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.admin-settings-page__method-state {
+  color: #191c1d;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.admin-settings-page__method-meta {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px);
   gap: 12px;
 }
 
@@ -9575,6 +10103,14 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .admin-settings-page__method-header {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings-page__method-meta {
+    grid-template-columns: 1fr;
+  }
+
   .admin-settings-page__section-title h2 {
     font-size: 21px;
     line-height: 28px;
@@ -9597,7 +10133,8 @@ select {
   }
 
   .admin-settings-page__field input,
-  .admin-settings-page__field select {
+  .admin-settings-page__field select,
+  .admin-settings-page__field textarea {
     font-size: 15px;
   }
 
@@ -17214,6 +17751,7 @@ select {
 .admin-revenue-page__actions,
 .admin-revenue-page__filters,
 .admin-revenue-page__filter-range,
+.admin-revenue-page__period-picker,
 .admin-revenue-page__period-button,
 .admin-revenue-page__card-header,
 .admin-revenue-page__breakdown-row,
@@ -17397,6 +17935,320 @@ select {
   border-color: rgba(200, 16, 46, 0.32);
   color: var(--admin-revenue-brand);
   box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.1);
+}
+
+.admin-revenue-page__period-button--open {
+  border-color: rgba(200, 16, 46, 0.42);
+  color: var(--admin-revenue-brand);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.12);
+}
+
+.admin-revenue-page__period-button--open svg:last-child {
+  transform: rotate(180deg);
+}
+
+.admin-revenue-page__period-picker {
+  position: relative;
+  flex: 0 1 auto;
+}
+
+.admin-revenue-page__period-popover {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: 20;
+  width: min(720px, calc(100vw - 56px));
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid rgba(200, 16, 46, 0.14);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98) 0%, rgba(255, 246, 240, 0.98) 100%);
+  box-shadow:
+    0 28px 48px rgba(92, 64, 63, 0.16),
+    0 10px 24px rgba(200, 16, 46, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.admin-revenue-page__period-popover-header,
+.admin-revenue-page__period-popover-nav,
+.admin-revenue-page__period-summary,
+.admin-revenue-page__period-actions {
+  display: flex;
+  align-items: center;
+}
+
+.admin-revenue-page__period-popover-header {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-revenue-page__period-popover-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-revenue-page__period-popover-copy h3,
+.admin-revenue-page__period-popover-copy p,
+.admin-revenue-page__calendar-month-label {
+  margin: 0;
+}
+
+.admin-revenue-page__period-popover-copy h3 {
+  color: var(--admin-revenue-text);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.admin-revenue-page__period-popover-copy p {
+  max-width: 480px;
+  color: var(--admin-revenue-soft);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.admin-revenue-page__period-popover-nav {
+  gap: 10px;
+}
+
+.admin-revenue-page__period-nav-button {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(200, 16, 46, 0.14);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--admin-revenue-brand);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-revenue-page__period-nav-button:hover,
+.admin-revenue-page__period-nav-button:focus-visible {
+  outline: none;
+  border-color: rgba(200, 16, 46, 0.3);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.1);
+  transform: translateY(-1px);
+}
+
+.admin-revenue-page__period-nav-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.admin-revenue-page__period-summary {
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.admin-revenue-page__period-summary-card {
+  min-width: 0;
+  flex: 1 1 220px;
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(200, 16, 46, 0.14);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.admin-revenue-page__period-summary-card span {
+  color: var(--admin-revenue-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.admin-revenue-page__period-summary-card strong {
+  color: var(--admin-revenue-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.admin-revenue-page__period-calendars {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-revenue-page__calendar-month {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(200, 16, 46, 0.14);
+  border-radius: 22px;
+  background: #fff;
+}
+
+.admin-revenue-page__calendar-month-label {
+  color: var(--admin-revenue-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.admin-revenue-page__calendar-weekdays,
+.admin-revenue-page__calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.admin-revenue-page__calendar-weekdays {
+  gap: 6px;
+}
+
+.admin-revenue-page__calendar-weekday {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #7c5e59;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.admin-revenue-page__calendar-weekday--sunday {
+  color: #cc4b37;
+}
+
+.admin-revenue-page__calendar-grid {
+  gap: 6px;
+}
+
+.admin-revenue-page__calendar-day {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--admin-revenue-text);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-revenue-page__calendar-day:hover,
+.admin-revenue-page__calendar-day:focus-visible {
+  outline: none;
+  border-color: rgba(200, 16, 46, 0.18);
+  background: rgba(200, 16, 46, 0.05);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.08);
+  transform: translateY(-1px);
+}
+
+.admin-revenue-page__calendar-day--outside {
+  color: #b5a9a6;
+}
+
+.admin-revenue-page__calendar-day--sunday {
+  color: #cc4b37;
+}
+
+.admin-revenue-page__calendar-day--in-range {
+  border-color: rgba(200, 16, 46, 0.1);
+  background: rgba(200, 16, 46, 0.08);
+}
+
+.admin-revenue-page__calendar-day--range-start,
+.admin-revenue-page__calendar-day--range-end {
+  border-color: rgba(200, 16, 46, 0.24);
+  background: linear-gradient(135deg, #c8102e 0%, #eb5757 100%);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(200, 16, 46, 0.2);
+}
+
+.admin-revenue-page__calendar-day--disabled,
+.admin-revenue-page__calendar-day:disabled {
+  background: transparent;
+  color: #ccc1be;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.admin-revenue-page__period-popover-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-revenue-page__period-reset,
+.admin-revenue-page__period-apply {
+  min-height: 44px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.admin-revenue-page__period-reset {
+  padding: 0 18px;
+  border: 1px solid rgba(200, 16, 46, 0.16);
+  background: #fff;
+  color: var(--admin-revenue-soft);
+}
+
+.admin-revenue-page__period-apply {
+  padding: 0 22px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #c8102e 0%, #eb5757 100%);
+  color: #fff;
+  box-shadow: 0 16px 28px rgba(200, 16, 46, 0.18);
+}
+
+.admin-revenue-page__period-reset:hover,
+.admin-revenue-page__period-reset:focus-visible,
+.admin-revenue-page__period-apply:hover,
+.admin-revenue-page__period-apply:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.admin-revenue-page__period-reset:hover,
+.admin-revenue-page__period-reset:focus-visible {
+  border-color: rgba(200, 16, 46, 0.28);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.08);
+}
+
+.admin-revenue-page__period-apply:hover,
+.admin-revenue-page__period-apply:focus-visible {
+  box-shadow:
+    0 18px 32px rgba(200, 16, 46, 0.22),
+    0 0 0 3px rgba(200, 16, 46, 0.1);
+}
+
+.admin-revenue-page__period-reset:disabled,
+.admin-revenue-page__period-apply:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .admin-revenue-page__metrics {
@@ -17831,6 +18683,31 @@ select {
     max-width: calc(100% - 32px);
     white-space: normal;
     text-align: center;
+  }
+
+  .admin-revenue-page__period-popover {
+    width: min(100vw - 32px, 720px);
+    right: auto;
+    left: 0;
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .admin-revenue-page__period-popover-header,
+  .admin-revenue-page__period-summary,
+  .admin-revenue-page__period-popover-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-revenue-page__period-popover-nav,
+  .admin-revenue-page__period-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .admin-revenue-page__period-calendars {
+    grid-template-columns: 1fr;
   }
 }
 

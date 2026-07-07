@@ -12,22 +12,22 @@ import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js
 
 const SETTINGS_TABS = Object.freeze([
   {
-    description: 'Quản lý phần hiển thị công khai của thương hiệu, hỗ trợ khách hàng và SEO cơ bản.',
+    description: 'Quan ly phan hien thi cong khai cua thuong hieu, ho tro khach hang va SEO co ban.',
     id: 'general',
-    label: 'Thiết lập chung',
-    summaryTitle: 'Thiết lập hiển thị công khai',
+    label: 'Thiet lap chung',
+    summaryTitle: 'Thiet lap hien thi cong khai',
   },
   {
-    description: 'Tập trung vào hồ sơ pháp lý, thông tin xuất hóa đơn và liên hệ doanh nghiệp nội bộ.',
+    description: 'Tap trung vao ho so phap ly, thong tin xuat hoa don va lien he doanh nghiep noi bo.',
     id: 'business',
-    label: 'Thông tin doanh nghiệp',
-    summaryTitle: 'Hồ sơ doanh nghiệp',
+    label: 'Thong tin doanh nghiep',
+    summaryTitle: 'Ho so doanh nghiep',
   },
   {
-    description: 'Bật hoặc tắt từng phương thức thu tiền trực tiếp và cấu hình nội dung hướng dẫn công khai.',
+    description: 'Bat hoac tat tung phuong thuc thu tien truc tiep va cau hinh noi dung huong dan cong khai.',
     id: 'direct-payment',
-    label: 'Thanh toán trực tiếp',
-    summaryTitle: 'Phương thức thu tiền trực tiếp',
+    label: 'Thanh toan truc tiep',
+    summaryTitle: 'Phuong thuc thu tien truc tiep',
   },
 ])
 
@@ -39,24 +39,15 @@ const SOCIAL_PLATFORM_FIELDS = Object.freeze([
 ])
 
 const DIRECT_PAYMENT_METHOD_LABELS = Object.freeze({
-  cash_at_office: 'Thanh toán tại văn phòng',
-  manual_bank_transfer: 'Chuyển khoản thủ công',
-  staff_collect: 'Nhân viên thu hộ',
+  cash_at_office: 'Thanh toan tai van phong',
+  manual_bank_transfer: 'Chuyen khoan thu cong',
+  staff_collect: 'Nhan vien thu ho',
 })
 
 const DIRECT_PAYMENT_METHOD_DESCRIPTIONS = Object.freeze({
-  cash_at_office: 'Dành cho khách ghé văn phòng hoặc điểm giao dịch để thanh toán trực tiếp.',
-  manual_bank_transfer: 'Hiển thị thông tin ngân hàng và nội dung chuyển khoản để khách tự thực hiện.',
-  staff_collect: 'Áp dụng khi nhân viên được phân công thu tiền theo booking hoặc đoàn khách.',
-})
-
-const DIRECT_PAYMENT_METHOD_REQUIREMENTS = Object.freeze({
-  cash_at_office:
-    'Khi bật, backend yêu cầu có địa chỉ văn phòng và thêm giờ làm việc hoặc hướng dẫn.',
-  manual_bank_transfer:
-    'Khi bật, backend yêu cầu tên ngân hàng, chủ tài khoản, số tài khoản và mẫu nội dung chuyển khoản.',
-  staff_collect:
-    'Khi bật, backend yêu cầu ít nhất điều kiện áp dụng hoặc hướng dẫn thực hiện.',
+  cash_at_office: 'Danh cho khach ghe van phong hoac diem giao dich de thanh toan truc tiep.',
+  manual_bank_transfer: 'Hien thi thong tin ngan hang va noi dung chuyen khoan de khach tu thuc hien.',
+  staff_collect: 'Ap dung khi nhan vien duoc phan cong thu tien theo booking hoac doan khach.',
 })
 
 function createEmptyForm() {
@@ -85,30 +76,19 @@ function createEmptyForm() {
   }
 }
 
-function createEmptyMetadata() {
-  return {
-    businessUpdatedAt: '',
-    businessUpdatedBy: '',
-    directPaymentUpdatedAt: '',
-    directPaymentUpdatedBy: '',
-    publicUpdatedAt: '',
-    publicUpdatedBy: '',
-  }
-}
-
 function getErrorMessage(error, fallback) {
   return error?.message || fallback
 }
 
 function formatDateTime(value) {
   if (!value) {
-    return 'Chưa cập nhật'
+    return 'Chua cap nhat'
   }
 
   const date = new Date(value)
 
   if (Number.isNaN(date.getTime())) {
-    return 'Chưa cập nhật'
+    return 'Chua cap nhat'
   }
 
   return new Intl.DateTimeFormat('vi-VN', {
@@ -301,7 +281,11 @@ function AdminSettingsPage() {
   const [activeTabId, setActiveTabId] = useState(SETTINGS_TABS[0].id)
   const [formValues, setFormValues] = useState(() => createEmptyForm())
   const [paymentMethods, setPaymentMethods] = useState([])
-  const [metadata, setMetadata] = useState(() => createEmptyMetadata())
+  const [metadata, setMetadata] = useState({
+    businessUpdatedAt: '',
+    directPaymentUpdatedAt: '',
+    publicUpdatedAt: '',
+  })
   const [fieldErrors, setFieldErrors] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -332,18 +316,6 @@ function AdminSettingsPage() {
     return metadata.publicUpdatedAt
   }, [activeTabId, metadata])
 
-  const activeTabUpdatedBy = useMemo(() => {
-    if (activeTabId === 'business') {
-      return metadata.businessUpdatedBy
-    }
-
-    if (activeTabId === 'direct-payment') {
-      return metadata.directPaymentUpdatedBy
-    }
-
-    return metadata.publicUpdatedBy
-  }, [activeTabId, metadata])
-
   useEffect(() => {
     let isActive = true
 
@@ -363,7 +335,7 @@ function AdminSettingsPage() {
         }
 
         if (!publicResponse?.success || !businessResponse?.success || !directPaymentResponse?.success) {
-          throw new Error('Không thể tải cấu hình hệ thống.')
+          throw new Error('Khong the tai cau hinh he thong.')
         }
 
         const publicSettings = publicResponse.data || {}
@@ -396,18 +368,15 @@ function AdminSettingsPage() {
         setPaymentMethods(Array.isArray(directPaymentResponse.data?.methods) ? directPaymentResponse.data.methods : [])
         setMetadata({
           businessUpdatedAt: businessSettings.updated_at || '',
-          businessUpdatedBy: businessSettings.updated_by || '',
           directPaymentUpdatedAt: directPaymentResponse.data?.updated_at || '',
-          directPaymentUpdatedBy: directPaymentResponse.data?.updated_by || '',
           publicUpdatedAt: publicSettings.updated_at || '',
-          publicUpdatedBy: publicSettings.updated_by || '',
         })
       } catch (loadError) {
         if (!isActive) {
           return
         }
 
-        setError(getErrorMessage(loadError, 'Không thể tải cấu hình hệ thống.'))
+        setError(getErrorMessage(loadError, 'Khong the tai cau hinh he thong.'))
       } finally {
         if (isActive) {
           setLoading(false)
@@ -460,7 +429,7 @@ function AdminSettingsPage() {
     event.preventDefault()
 
     if (!canWriteSettings) {
-      setFeedback('Tài khoản hiện tại chưa có quyền cập nhật cấu hình.')
+      setFeedback('Tai khoan hien tai chua co quyen cap nhat cau hinh.')
       return
     }
 
@@ -476,9 +445,8 @@ function AdminSettingsPage() {
         setMetadata((currentMetadata) => ({
           ...currentMetadata,
           publicUpdatedAt: response.data?.updated_at || currentMetadata.publicUpdatedAt,
-          publicUpdatedBy: response.data?.updated_by || currentMetadata.publicUpdatedBy,
         }))
-        setFeedback('Đã cập nhật thiết lập chung từ backend API.')
+        setFeedback('Da cap nhat thiet lap chung tu backend API.')
       }
 
       if (activeTabId === 'business') {
@@ -487,9 +455,8 @@ function AdminSettingsPage() {
         setMetadata((currentMetadata) => ({
           ...currentMetadata,
           businessUpdatedAt: response.data?.updated_at || currentMetadata.businessUpdatedAt,
-          businessUpdatedBy: response.data?.updated_by || currentMetadata.businessUpdatedBy,
         }))
-        setFeedback('Đã cập nhật thông tin doanh nghiệp từ backend API.')
+        setFeedback('Da cap nhat thong tin doanh nghiep tu backend API.')
       }
 
       if (activeTabId === 'direct-payment') {
@@ -499,14 +466,12 @@ function AdminSettingsPage() {
         setMetadata((currentMetadata) => ({
           ...currentMetadata,
           directPaymentUpdatedAt: response.data?.updated_at || currentMetadata.directPaymentUpdatedAt,
-          directPaymentUpdatedBy:
-            response.data?.updated_by || currentMetadata.directPaymentUpdatedBy,
         }))
-        setFeedback('Đã cập nhật cấu hình thanh toán trực tiếp từ backend API.')
+        setFeedback('Da cap nhat cau hinh thanh toan truc tiep tu backend API.')
       }
     } catch (saveError) {
       setFieldErrors(mapValidationDetails(saveError?.details, activeTabId))
-      setError(getErrorMessage(saveError, 'Không thể lưu cấu hình hệ thống.'))
+      setError(getErrorMessage(saveError, 'Khong the luu cau hinh he thong.'))
     } finally {
       setSaving(false)
     }
@@ -521,16 +486,16 @@ function AdminSettingsPage() {
               <SettingIcon type="general" />
             </span>
             <div className="admin-settings-page__section-copy">
-              <h2 id="settings-general-title">Thông tin public và liên hệ khách hàng</h2>
+              <h2 id="settings-general-title">Thong tin public va lien he khach hang</h2>
               <p className="admin-settings-page__panel-description">
-                Đây là nhóm nội dung xuất hiện ở website public và các điểm chạm hỗ trợ khách hàng.
+                Day la nhom noi dung xuat hien o website public va cac diem cham ho tro khach hang.
               </p>
             </div>
           </div>
 
           <div className="admin-settings-page__form-grid">
             <label className="admin-settings-page__field" htmlFor="settings-public-site-name">
-              <span>Tên website</span>
+              <span>Ten website</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-public-site-name"
@@ -552,7 +517,7 @@ function AdminSettingsPage() {
               {fieldErrors.public_logo_url || fieldErrors.logo_url ? <small>{fieldErrors.public_logo_url || fieldErrors.logo_url}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-public-hotline">
-              <span>Hotline công khai</span>
+              <span>Hotline cong khai</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-public-hotline"
@@ -562,7 +527,7 @@ function AdminSettingsPage() {
               {fieldErrors.public_hotline || fieldErrors.hotline ? <small>{fieldErrors.public_hotline || fieldErrors.hotline}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-public-support-email">
-              <span>Email hỗ trợ</span>
+              <span>Email ho tro</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-public-support-email"
@@ -573,7 +538,7 @@ function AdminSettingsPage() {
               {fieldErrors.public_support_email || fieldErrors.support_email ? <small>{fieldErrors.public_support_email || fieldErrors.support_email}</small> : null}
             </label>
             <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor="settings-public-address">
-              <span>Địa chỉ hiển thị</span>
+              <span>Dia chi hien thi</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-public-address"
@@ -591,9 +556,9 @@ function AdminSettingsPage() {
               <SettingIcon type="business" />
             </span>
             <div className="admin-settings-page__section-copy">
-              <h2 id="settings-branding-title">Thương hiệu, SEO và mạng xã hội</h2>
+              <h2 id="settings-branding-title">Thuong hieu, SEO va mang xa hoi</h2>
               <p className="admin-settings-page__panel-description">
-                Các trường bên dưới đã được backend hỗ trợ để quản lý footer, metadata và social links.
+                Cac truong ben duoi da duoc backend ho tro de quan ly footer, metadata va social links.
               </p>
             </div>
           </div>
@@ -610,7 +575,7 @@ function AdminSettingsPage() {
               {fieldErrors.seo_title ? <small>{fieldErrors.seo_title}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-business-hours">
-              <span>Giờ hoạt động / lịch hỗ trợ</span>
+              <span>Gio hoat dong / lich ho tro</span>
               <textarea
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-hours"
@@ -618,7 +583,7 @@ function AdminSettingsPage() {
                 value={formValues.business_hours}
                 onChange={(event) => updateField('business_hours', event.target.value)}
               />
-              <small className="admin-settings-page__field-help">Có thể nhập văn bản thường hoặc JSON nếu cần cấu trúc.</small>
+              <small className="admin-settings-page__field-help">Co the nhap van ban thuong hoac JSON neu can cau truc.</small>
               {fieldErrors.business_hours ? <small>{fieldErrors.business_hours}</small> : null}
             </label>
             <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor="settings-seo-description">
@@ -672,16 +637,16 @@ function AdminSettingsPage() {
               <SettingIcon type="business" />
             </span>
             <div className="admin-settings-page__section-copy">
-              <h2 id="settings-business-title">Thông tin pháp lý và xuất hóa đơn</h2>
+              <h2 id="settings-business-title">Thong tin phap ly va xuat hoa don</h2>
               <p className="admin-settings-page__panel-description">
-                Dựa trên business settings API, phần này hỗ trợ thêm người đại diện, giấy phép và ghi chú hóa đơn.
+                Dua tren business settings API, phan nay ho tro them nguoi dai dien, giay phep va ghi chu hoa don.
               </p>
             </div>
           </div>
 
           <div className="admin-settings-page__form-grid">
             <label className="admin-settings-page__field" htmlFor="settings-business-company-name">
-              <span>Tên doanh nghiệp</span>
+              <span>Ten doanh nghiep</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-company-name"
@@ -691,7 +656,7 @@ function AdminSettingsPage() {
               {fieldErrors.business_company_name || fieldErrors.company_name ? <small>{fieldErrors.business_company_name || fieldErrors.company_name}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-business-tax-code">
-              <span>Mã số thuế</span>
+              <span>Ma so thue</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-tax-code"
@@ -701,7 +666,7 @@ function AdminSettingsPage() {
               {fieldErrors.business_tax_code || fieldErrors.tax_code ? <small>{fieldErrors.business_tax_code || fieldErrors.tax_code}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-business-legal-representative">
-              <span>Người đại diện pháp luật</span>
+              <span>Nguoi dai dien phap luat</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-legal-representative"
@@ -711,7 +676,7 @@ function AdminSettingsPage() {
               {fieldErrors.legal_representative ? <small>{fieldErrors.legal_representative}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-business-license-no">
-              <span>Số giấy phép kinh doanh</span>
+              <span>So giay phep kinh doanh</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-license-no"
@@ -721,7 +686,7 @@ function AdminSettingsPage() {
               {fieldErrors.business_license_no ? <small>{fieldErrors.business_license_no}</small> : null}
             </label>
             <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor="settings-business-address">
-              <span>Địa chỉ doanh nghiệp / xuất hóa đơn</span>
+              <span>Dia chi doanh nghiep / xuat hoa don</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-address"
@@ -731,7 +696,7 @@ function AdminSettingsPage() {
               {fieldErrors.business_address ? <small>{fieldErrors.business_address}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-invoice-email">
-              <span>Email nhận hóa đơn</span>
+              <span>Email nhan hoa don</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-invoice-email"
@@ -742,7 +707,7 @@ function AdminSettingsPage() {
               {fieldErrors.invoice_email ? <small>{fieldErrors.invoice_email}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-invoice-phone">
-              <span>Số điện thoại xuất hóa đơn</span>
+              <span>So dien thoai xuat hoa don</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-invoice-phone"
@@ -752,7 +717,7 @@ function AdminSettingsPage() {
               {fieldErrors.invoice_phone ? <small>{fieldErrors.invoice_phone}</small> : null}
             </label>
             <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor="settings-invoice-note">
-              <span>Ghi chú hóa đơn</span>
+              <span>Ghi chu hoa don</span>
               <textarea
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-invoice-note"
@@ -773,7 +738,7 @@ function AdminSettingsPage() {
       return (
         <div className="admin-settings-page__form-grid admin-settings-page__form-grid--method">
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-bank-name`}>
-            <span>Tên ngân hàng</span>
+            <span>Ten ngan hang</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-bank-name`}
@@ -783,7 +748,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'bank_name') ? <small>{getMethodFieldError(index, 'bank_name')}</small> : null}
           </label>
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-account-holder`}>
-            <span>Chủ tài khoản</span>
+            <span>Chu tai khoan</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-account-holder`}
@@ -793,7 +758,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'account_holder') ? <small>{getMethodFieldError(index, 'account_holder')}</small> : null}
           </label>
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-account-number`}>
-            <span>Số tài khoản</span>
+            <span>So tai khoan</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-account-number`}
@@ -803,7 +768,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'account_number') ? <small>{getMethodFieldError(index, 'account_number')}</small> : null}
           </label>
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-branch`}>
-            <span>Chi nhánh</span>
+            <span>Chi nhanh</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-branch`}
@@ -813,11 +778,11 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'branch') ? <small>{getMethodFieldError(index, 'branch')}</small> : null}
           </label>
           <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-template`}>
-            <span>Mẫu nội dung chuyển khoản</span>
+            <span>Mau noi dung chuyen khoan</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-template`}
-              placeholder="Ví dụ: NVT {booking_code}"
+              placeholder="Vi du: NVT {booking_code}"
               value={method.transfer_content_template || ''}
               onChange={(event) => updatePaymentMethod(index, 'transfer_content_template', event.target.value)}
             />
@@ -836,7 +801,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'qr_code_url') ? <small>{getMethodFieldError(index, 'qr_code_url')}</small> : null}
           </label>
           <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-instructions`}>
-            <span>Hướng dẫn thanh toán</span>
+            <span>Huong dan thanh toan</span>
             <textarea
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-instructions`}
@@ -854,7 +819,7 @@ function AdminSettingsPage() {
       return (
         <div className="admin-settings-page__form-grid admin-settings-page__form-grid--method">
           <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-office-address`}>
-            <span>Địa chỉ văn phòng</span>
+            <span>Dia chi van phong</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-office-address`}
@@ -864,7 +829,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'office_address') ? <small>{getMethodFieldError(index, 'office_address')}</small> : null}
           </label>
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-working-hours`}>
-            <span>Khung giờ làm việc</span>
+            <span>Khung gio lam viec</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-working-hours`}
@@ -874,7 +839,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'working_hours') ? <small>{getMethodFieldError(index, 'working_hours')}</small> : null}
           </label>
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-hotline`}>
-            <span>Hotline hỗ trợ</span>
+            <span>Hotline ho tro</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-hotline`}
@@ -884,7 +849,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'hotline') ? <small>{getMethodFieldError(index, 'hotline')}</small> : null}
           </label>
           <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-instructions`}>
-            <span>Hướng dẫn nhận tiền</span>
+            <span>Huong dan nhan tien</span>
             <textarea
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-instructions`}
@@ -901,7 +866,7 @@ function AdminSettingsPage() {
     return (
       <div className="admin-settings-page__form-grid admin-settings-page__form-grid--method">
         <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-hotline`}>
-          <span>Hotline điều phối</span>
+          <span>Hotline dieu phoi</span>
           <input
             disabled={loading || saving || !canWriteSettings}
             id={`payment-${method.code}-hotline`}
@@ -911,7 +876,7 @@ function AdminSettingsPage() {
           {getMethodFieldError(index, 'hotline') ? <small>{getMethodFieldError(index, 'hotline')}</small> : null}
         </label>
         <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-conditions`}>
-          <span>Điều kiện áp dụng</span>
+          <span>Dieu kien ap dung</span>
           <textarea
             disabled={loading || saving || !canWriteSettings}
             id={`payment-${method.code}-conditions`}
@@ -922,7 +887,7 @@ function AdminSettingsPage() {
           {getMethodFieldError(index, 'conditions') ? <small>{getMethodFieldError(index, 'conditions')}</small> : null}
         </label>
         <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-instructions`}>
-          <span>Hướng dẫn thực hiện</span>
+          <span>Huong dan thuc hien</span>
           <textarea
             disabled={loading || saving || !canWriteSettings}
             id={`payment-${method.code}-instructions`}
@@ -945,15 +910,15 @@ function AdminSettingsPage() {
               <SettingIcon type="payment" />
             </span>
             <div className="admin-settings-page__section-copy">
-              <h2 id="settings-direct-payment-title">Cấu hình phương thức thanh toán trực tiếp</h2>
+              <h2 id="settings-direct-payment-title">Cau hinh phuong thuc thanh toan truc tiep</h2>
               <p className="admin-settings-page__panel-description">
-                Backend hiện hỗ trợ ba phương thức: tại văn phòng, chuyển khoản thủ công và nhân viên thu hộ.
+                Backend hien ho tro ba phuong thuc: tai van phong, chuyen khoan thu cong va nhan vien thu ho.
               </p>
             </div>
           </div>
 
           {paymentMethods.length === 0 ? (
-            <p className="admin-settings-page__hint">Chưa có cấu hình phương thức thanh toán trực tiếp.</p>
+            <p className="admin-settings-page__hint">Chua co cau hinh phuong thuc thanh toan truc tiep.</p>
           ) : (
             <div className="admin-settings-page__method-list">
               {paymentMethods.map((method, index) => (
@@ -962,15 +927,12 @@ function AdminSettingsPage() {
                     <div className="admin-settings-page__method-copy">
                       <span className="admin-settings-page__method-code">{method.code}</span>
                       <h3>{DIRECT_PAYMENT_METHOD_LABELS[method.code] || method.display_name || method.code}</h3>
-                      <p>{DIRECT_PAYMENT_METHOD_DESCRIPTIONS[method.code] || 'Cấu hình hiển thị và hướng dẫn công khai cho phương thức này.'}</p>
-                      <p className="admin-settings-page__method-note">
-                        {DIRECT_PAYMENT_METHOD_REQUIREMENTS[method.code]}
-                      </p>
+                      <p>{DIRECT_PAYMENT_METHOD_DESCRIPTIONS[method.code] || 'Cau hinh hien thi va huong dan cong khai cho phuong thuc nay.'}</p>
                     </div>
 
                     <div className="admin-settings-page__method-actions">
                       <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-display-name`}>
-                        <span>Tên hiển thị</span>
+                        <span>Ten hien thi</span>
                         <input
                           disabled={loading || saving || !canWriteSettings}
                           id={`payment-${method.code}-display-name`}
@@ -981,7 +943,7 @@ function AdminSettingsPage() {
                       </label>
 
                       <div className="admin-settings-page__method-toggle">
-                        <span className="admin-settings-page__method-state">{method.enabled ? 'Đang bật' : 'Đang tắt'}</span>
+                        <span className="admin-settings-page__method-state">{method.enabled ? 'Dang bat' : 'Dang tat'}</span>
                         <button
                           aria-checked={method.enabled}
                           className="admin-settings-page__switch"
@@ -998,7 +960,7 @@ function AdminSettingsPage() {
 
                   <div className="admin-settings-page__method-meta">
                     <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-sort-order`}>
-                      <span>Thứ tự hiển thị</span>
+                      <span>Thu tu hien thi</span>
                       <input
                         disabled={loading || saving || !canWriteSettings}
                         id={`payment-${method.code}-sort-order`}
@@ -1024,35 +986,35 @@ function AdminSettingsPage() {
   const summaryItems = useMemo(() => {
     if (activeTabId === 'business') {
       return [
-        ['Doanh nghiệp', formValues.business_company_name || 'Chưa cập nhật'],
-        ['Mã số thuế', formValues.business_tax_code || 'Chưa cập nhật'],
-        ['Email hóa đơn', formValues.invoice_email || 'Chưa cập nhật'],
+        ['Doanh nghiep', formValues.business_company_name || 'Chua cap nhat'],
+        ['Ma so thue', formValues.business_tax_code || 'Chua cap nhat'],
+        ['Email hoa don', formValues.invoice_email || 'Chua cap nhat'],
       ]
     }
 
     if (activeTabId === 'direct-payment') {
       return [
-        ['Phương thức đang bật', `${enabledPaymentCount}/${paymentMethods.length || 3}`],
-        ['Chuyển khoản thủ công', paymentMethods.find((method) => method.code === 'manual_bank_transfer')?.enabled ? 'Đang bật' : 'Đang tắt'],
-        ['Thu tại văn phòng', paymentMethods.find((method) => method.code === 'cash_at_office')?.enabled ? 'Đang bật' : 'Đang tắt'],
+        ['Phuong thuc dang bat', `${enabledPaymentCount}/${paymentMethods.length}`],
+        ['Chuyen khoan thu cong', paymentMethods.find((method) => method.code === 'manual_bank_transfer')?.enabled ? 'Dang bat' : 'Dang tat'],
+        ['Thu tai van phong', paymentMethods.find((method) => method.code === 'cash_at_office')?.enabled ? 'Dang bat' : 'Dang tat'],
       ]
     }
 
     return [
-      ['Tên website', formValues.public_site_name || 'Chưa cập nhật'],
-      ['Hotline công khai', formValues.public_hotline || 'Chưa cập nhật'],
-      ['Mạng xã hội', `${configuredSocialCount} kênh`],
+      ['Ten website', formValues.public_site_name || 'Chua cap nhat'],
+      ['Hotline cong khai', formValues.public_hotline || 'Chua cap nhat'],
+      ['Mang xa hoi', `${configuredSocialCount} kenh`],
     ]
   }, [activeTabId, configuredSocialCount, enabledPaymentCount, formValues, paymentMethods])
 
   return (
     <main className="admin-settings-page">
       <header className="admin-settings-page__header">
-        <h1>Cấu hình hệ thống</h1>
-        <p>Quản lý thông tin public, doanh nghiệp và trạng thái thanh toán trực tiếp từ backend API.</p>
+        <h1>Cau hinh he thong</h1>
+        <p>Quan ly thong tin public, doanh nghiep va trang thai thanh toan truc tiep tu backend API.</p>
       </header>
 
-      <nav className="admin-settings-page__tabs" aria-label="Nhóm cấu hình hệ thống">
+      <nav className="admin-settings-page__tabs" aria-label="Nhom cau hinh he thong">
         {SETTINGS_TABS.map((tab) => (
           <button
             aria-current={activeTabId === tab.id ? 'page' : undefined}
@@ -1082,16 +1044,12 @@ function AdminSettingsPage() {
 
           <div className="admin-settings-page__status-list">
             <div className="admin-settings-page__status-item">
-              <span>Tab đang mở</span>
+              <span>Tab dang mo</span>
               <strong>{activeTab.label}</strong>
             </div>
             <div className="admin-settings-page__status-item">
-              <span>Lần cập nhật gần nhất</span>
+              <span>Lan cap nhat gan nhat</span>
               <strong>{formatDateTime(activeTabUpdatedAt)}</strong>
-            </div>
-            <div className="admin-settings-page__status-item">
-              <span>Người cập nhật gần nhất</span>
-              <strong>{activeTabUpdatedBy || 'Chưa có dữ liệu'}</strong>
             </div>
             {summaryItems.map(([label, value]) => (
               <div className="admin-settings-page__status-item" key={label}>
@@ -1106,15 +1064,15 @@ function AdminSettingsPage() {
             disabled={loading || saving || !canWriteSettings}
             type="submit"
           >
-            {saving ? 'Đang lưu...' : `Lưu ${activeTab.label.toLowerCase()}`}
+            {saving ? 'Dang luu...' : `Luu ${activeTab.label.toLowerCase()}`}
           </button>
 
           {!canWriteSettings ? (
-            <p className="admin-settings-page__hint">Tài khoản hiện tại chỉ có quyền xem cấu hình, chưa thể chỉnh sửa.</p>
+            <p className="admin-settings-page__hint">Tai khoan hien tai chi co quyen xem cau hinh, chua the chinh sua.</p>
           ) : null}
         </aside>
 
-        {loading ? <p className="admin-settings-page__feedback" role="status">Đang tải cấu hình từ API...</p> : null}
+        {loading ? <p className="admin-settings-page__feedback" role="status">Dang tai cau hinh tu API...</p> : null}
       </form>
     </main>
   )

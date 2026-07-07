@@ -196,6 +196,20 @@ export default function useAdminServiceReview() {
     ? 'dịch vụ'
     : getAdminServiceReviewTypeLabel(activeType).toLowerCase()
 
+  useEffect(() => {
+    if (reviewTypeOptions.length === 0) {
+      return
+    }
+
+    if (!reviewTypeOptions.some((option) => option.value === activeType)) {
+      setActiveType(reviewTypeOptions[0].value)
+    }
+  }, [activeType, reviewTypeOptions])
+
+  function resetFilters() {
+    setActiveType(ADMIN_SERVICE_REVIEW_TYPE_ALL)
+  }
+
   return {
     actionLoadingKey,
     activeType,

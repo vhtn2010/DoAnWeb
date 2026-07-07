@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
   AdminButton,
@@ -9,6 +9,7 @@ import {
   AdminLoadingBlock,
   AdminPageHeader,
   AdminPagination,
+  AdminSearchInput,
   AdminSectionHeader,
   AdminStatusBadge,
   AdminTable,
@@ -185,8 +186,9 @@ const API_MODULE_CONFIG = Object.freeze({
   },
 })
 
-function useAdminUtilityApi(moduleId) {
+function useAdminUtilityApi(moduleId, options = {}) {
   const config = API_MODULE_CONFIG[moduleId]
+  const toEmail = options.toEmail || ''
   const [rows, setRows] = useState([])
   const [meta, setMeta] = useState({ page: 1, total: 0, total_pages: 1 })
   const [loading, setLoading] = useState(Boolean(config))
@@ -212,6 +214,7 @@ function useAdminUtilityApi(moduleId) {
           : await config.list({
               limit: PAGE_SIZE,
               page: meta.page,
+              ...(moduleId === 'emailLogs' && toEmail ? { to_email: toEmail } : {}),
             })
 
         if (!isActive) {
@@ -248,7 +251,7 @@ function useAdminUtilityApi(moduleId) {
     return () => {
       isActive = false
     }
-  }, [config, meta.page, moduleId, reloadKey])
+  }, [config, meta.page, moduleId, reloadKey, toEmail])
 
   async function runRowAction(row) {
     if (!config?.action || !row?.id) {
@@ -279,13 +282,21 @@ function useAdminUtilityApi(moduleId) {
     reload: () => setReloadKey((value) => value + 1),
     rows,
     runRowAction,
-    setPage: (page) => setMeta((currentMeta) => ({ ...currentMeta, page })),
+    setPage: useCallback(
+      (page) => setMeta((currentMeta) => (
+        currentMeta.page === page ? currentMeta : { ...currentMeta, page }
+      )),
+      [],
+    ),
   }
 }
 
 function ApiUtilityPage({ moduleId }) {
   const { currentPermissions, currentRole } = useOutletContext()
   const module = ADMIN_UTILITY_MODULES[moduleId]
+  const supportsEmailSearch = moduleId === 'emailLogs'
+  const [emailSearchInput, setEmailSearchInput] = useState('')
+  const [emailSearch, setEmailSearch] = useState('')
   const {
     actionId,
     config,
@@ -297,7 +308,7 @@ function ApiUtilityPage({ moduleId }) {
     rows,
     runRowAction,
     setPage,
-  } = useAdminUtilityApi(moduleId)
+  } = useAdminUtilityApi(moduleId, { toEmail: emailSearch })
   const pageNumbers = useMemo(
     () => createPageNumbers(meta.total_pages, meta.page),
     [meta.page, meta.total_pages],
@@ -307,6 +318,23 @@ function ApiUtilityPage({ moduleId }) {
     config.actionPermission,
     currentPermissions,
   )
+
+  useEffect(() => {
+    if (!supportsEmailSearch) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const normalizedQuery = emailSearchInput.trim()
+
+      setEmailSearch((currentValue) => (
+        currentValue === normalizedQuery ? currentValue : normalizedQuery
+      ))
+      setPage(1)
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [emailSearchInput, setPage, supportsEmailSearch])
 
   return (
     <main className="admin-system-page admin-utility-page">
@@ -328,6 +356,18 @@ function ApiUtilityPage({ moduleId }) {
             </AdminButton>
           }
         />
+
+        {supportsEmailSearch ? (
+          <div className="admin-utility-page__search-row">
+            <AdminSearchInput
+              aria-label="Tìm kiếm email"
+              className="admin-system-page__search admin-utility-page__search"
+              placeholder="Tìm email người nhận..."
+              value={emailSearchInput}
+              onChange={(event) => setEmailSearchInput(event.target.value)}
+            />
+          </div>
+        ) : null}
 
         {error ? (
           <AdminErrorState
