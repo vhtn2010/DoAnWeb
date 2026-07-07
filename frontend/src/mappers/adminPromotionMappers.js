@@ -35,6 +35,23 @@ function parseDateValue(value) {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+function getPromotionDefaultPriority(status) {
+  switch (status) {
+    case ADMIN_PROMOTION_STATUSES.active:
+      return 0
+    case ADMIN_PROMOTION_STATUSES.draft:
+      return 1
+    case ADMIN_PROMOTION_STATUSES.cancelled:
+      return 2
+    case ADMIN_PROMOTION_STATUSES.paused:
+      return 3
+    case ADMIN_PROMOTION_STATUSES.expired:
+      return 4
+    default:
+      return 5
+  }
+}
+
 function toDateTimeLocalValue(value) {
   const date = parseDateValue(value)
 
@@ -130,7 +147,28 @@ export function matchesAdminPromotionSearch(promotion, searchQuery) {
 
 export function sortAdminPromotions(promotions = [], sortOrder = 'default') {
   if (sortOrder === 'default') {
-    return promotions
+    return [...promotions].sort((firstPromotion, secondPromotion) => {
+      const priorityDifference =
+        getPromotionDefaultPriority(firstPromotion.status) -
+        getPromotionDefaultPriority(secondPromotion.status)
+
+      if (priorityDifference !== 0) {
+        return priorityDifference
+      }
+
+      const firstDate = parseDateValue(firstPromotion.createdAt)
+      const secondDate = parseDateValue(secondPromotion.createdAt)
+
+      if (!firstDate || !secondDate) {
+        if (!firstDate && !secondDate) {
+          return 0
+        }
+
+        return firstDate ? -1 : 1
+      }
+
+      return secondDate - firstDate
+    })
   }
 
   return [...promotions].sort((firstPromotion, secondPromotion) => {

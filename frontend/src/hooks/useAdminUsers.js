@@ -34,6 +34,13 @@ import {
 } from '../repositories/adminUserRepository.js'
 import { normalizeAdminRole } from '../utils/rolePermissions.js'
 
+const USER_ROLE_COUNTER_CODES = Object.freeze([
+  'system_admin',
+  'admin',
+  'staff',
+  'customer',
+])
+
 function createInitialPaginationState() {
   return {
     has_next: false,
@@ -64,6 +71,30 @@ function getStatusReason(status) {
   return undefined
 }
 
+function getResponseTotal(response) {
+  return Number(response?.meta?.total ?? 0)
+}
+
+async function loadUserRoleCounts() {
+  const countEntries = await Promise.all(
+    USER_ROLE_COUNTER_CODES.map(async (roleCode) => {
+      try {
+        const response = await listAdminUsers({
+          limit: 1,
+          page: 1,
+          role: roleCode,
+        })
+
+        return [roleCode, getResponseTotal(response)]
+      } catch {
+        return [roleCode, 0]
+      }
+    }),
+  )
+
+  return Object.fromEntries(countEntries)
+}
+
 export default function useAdminUsers() {
   const outletContext = useOutletContext()
   const currentRole = normalizeAdminRole(outletContext?.currentRole, 'guest')
@@ -83,6 +114,7 @@ export default function useAdminUsers() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const [roleCounts, setRoleCounts] = useState({})
   const [formState, setFormState] = useState(() => createClosedFormState())
   const [formValues, setFormValues] = useState(() =>
     createInitialAdminUserFormValues({ currentRole }),
@@ -110,13 +142,16 @@ export default function useAdminUsers() {
     setError('')
 
     try {
-      const response = await listAdminUsers({
-        limit: ADMIN_USER_PAGE_SIZE,
-        page: nextPage,
-        q: nextQuery,
-        role: nextRole,
-        status: nextStatus,
-      })
+      const [response, roleCountResult] = await Promise.all([
+        listAdminUsers({
+          limit: ADMIN_USER_PAGE_SIZE,
+          page: nextPage,
+          q: nextQuery,
+          role: nextRole,
+          status: nextStatus,
+        }),
+        loadUserRoleCounts(),
+      ])
 
       if (!response.success) {
         throw new Error(response.message || 'Không thể tải danh sách người dùng.')
@@ -124,6 +159,7 @@ export default function useAdminUsers() {
 
       setUsers(Array.isArray(response.data) ? response.data.map((user) => mapAdminUser(user)) : [])
       setPagination(response.meta ?? createInitialPaginationState())
+      setRoleCounts(roleCountResult)
 
       if ((response.meta?.page ?? nextPage) !== currentPage) {
         setCurrentPage(response.meta?.page ?? 1)
@@ -131,6 +167,7 @@ export default function useAdminUsers() {
     } catch (loadError) {
       setUsers([])
       setPagination(createInitialPaginationState())
+      setRoleCounts({})
       setError(loadError?.message ?? 'Không thể tải dữ liệu người dùng lúc này.')
     } finally {
       setLoading(false)
@@ -145,13 +182,16 @@ export default function useAdminUsers() {
       setError('')
 
       try {
-        const response = await listAdminUsers({
-          limit: ADMIN_USER_PAGE_SIZE,
-          page: currentPage,
-          q: debouncedQuery,
-          role: roleFilter,
-          status: statusFilter,
-        })
+        const [response, roleCountResult] = await Promise.all([
+          listAdminUsers({
+            limit: ADMIN_USER_PAGE_SIZE,
+            page: currentPage,
+            q: debouncedQuery,
+            role: roleFilter,
+            status: statusFilter,
+          }),
+          loadUserRoleCounts(),
+        ])
 
         if (!isActive) {
           return
@@ -163,6 +203,7 @@ export default function useAdminUsers() {
 
         setUsers(Array.isArray(response.data) ? response.data.map((user) => mapAdminUser(user)) : [])
         setPagination(response.meta ?? createInitialPaginationState())
+        setRoleCounts(roleCountResult)
 
         if ((response.meta?.page ?? currentPage) !== currentPage) {
           setCurrentPage(response.meta?.page ?? 1)
@@ -174,6 +215,7 @@ export default function useAdminUsers() {
 
         setUsers([])
         setPagination(createInitialPaginationState())
+        setRoleCounts({})
         setError(loadError?.message ?? 'Không thể tải dữ liệu người dùng lúc này.')
       } finally {
         if (isActive) {
@@ -248,26 +290,6 @@ export default function useAdminUsers() {
     }
 
     return mapAdminUser(response.data)
-  }
-
-  async function viewUser(user) {
-    setActionLoading(true)
-    setError('')
-
-    try {
-      const detail = await loadUserDetail(user)
-
-      setSelectedUser(detail)
-      setSelectedUserId(detail.id)
-      setFeedback(`Đã tải chi tiết tài khoản ${detail.name}.`)
-    } catch (viewError) {
-      const nextMessage = viewError?.message ?? 'Không thể tải chi tiết người dùng lúc này.'
-
-      setError(nextMessage)
-      setFeedback(nextMessage)
-    } finally {
-      setActionLoading(false)
-    }
   }
 
   function openCreateForm() {
@@ -554,6 +576,7 @@ export default function useAdminUsers() {
     resetFilters,
     resultRange,
     roleFilter,
+    roleCounts,
     roleFilterOptions,
     runStatusAction,
     selectedUser,
@@ -570,6 +593,5 @@ export default function useAdminUsers() {
     toggleUserChecked,
     updateFormField,
     users: visibleUsers,
-    viewUser,
   }
 }

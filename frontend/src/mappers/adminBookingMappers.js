@@ -156,6 +156,20 @@ function mapStatusLabel(status) {
   return ADMIN_BOOKING_STATUS_META[status]?.label ?? status
 }
 
+function mapStatusTone(status) {
+  return ADMIN_BOOKING_STATUS_META[status]?.tone ?? 'neutral'
+}
+
+function getSummaryServiceTitle(summary, primaryItem, itemCount) {
+  return (
+    summary.service_title ||
+    summary.primary_service_title ||
+    summary.service?.title ||
+    primaryItem?.title ||
+    `${itemCount || 1} dịch vụ trong đơn`
+  )
+}
+
 export function getAdminBookingListParams({
   currentPage,
   statusFilter,
@@ -175,7 +189,7 @@ export function mapAdminBookingSummary(summary = {}, detail = null) {
   const itemCount = Number(summary.item_count || items.length || 0)
   const totalQuantity = getTotalQuantity(items, itemCount)
   const { startDate, endDate } = getItemDateBounds(items)
-  const serviceTitle = primaryItem?.title || `${itemCount || 1} dịch vụ trong đơn`
+  const serviceTitle = getSummaryServiceTitle(summary, primaryItem, itemCount)
 
   return {
     bookingCode: summary.booking_code,
@@ -206,6 +220,7 @@ export function mapAdminBookingSummary(summary = {}, detail = null) {
     serviceTitle,
     status: summary.status,
     statusLabel: mapStatusLabel(summary.status),
+    statusTone: mapStatusTone(summary.status),
     totalAmount: Number(summary.total_amount || 0),
     transport: transportItem?.title || 'Theo từng dịch vụ',
     travelers: `${totalQuantity} lượt dịch vụ`,
@@ -263,14 +278,7 @@ export function getAdminBookingActionConfig(status) {
   }
 
   if (status === ADMIN_BOOKING_STATUSES.pendingPayment) {
-    return [
-      {
-        action: 'cancel',
-        icon: 'x',
-        label: 'Huỷ đơn',
-        tone: 'reject',
-      },
-    ]
+    return []
   }
 
   if (status === ADMIN_BOOKING_STATUSES.confirmed) {
@@ -279,7 +287,7 @@ export function getAdminBookingActionConfig(status) {
         action: 'start',
         icon: 'check',
         label: 'Bắt đầu',
-        tone: 'confirm',
+        tone: 'progress',
       },
     ]
   }
@@ -290,7 +298,7 @@ export function getAdminBookingActionConfig(status) {
         action: 'complete',
         icon: 'check',
         label: 'Hoàn thành',
-        tone: 'confirm',
+        tone: 'complete',
       },
     ]
   }

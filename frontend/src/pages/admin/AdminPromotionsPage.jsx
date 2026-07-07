@@ -22,6 +22,7 @@ import {
   ADMIN_PROMOTION_STATUSES,
   ADMIN_PROMOTION_TARGET_SERVICE_OPTIONS,
 } from '../../constants/adminPromotions.js'
+import useClickableSelectShell from '../../hooks/useClickableSelectShell.js'
 import useAdminPromotions from '../../hooks/useAdminPromotions.js'
 import {
   getAdminPromotionStatusAction,
@@ -420,8 +421,10 @@ function getFooterText({ pagination, promotions, resultRange, searchQuery }) {
 }
 
 function PromotionSelect({ ariaLabel, disabled = false, icon, onChange, options, value }) {
+  const { handlePointerDown, selectRef } = useClickableSelectShell(disabled)
+
   return (
-    <label className="admin-promotions-page__select-shell">
+    <label className="admin-promotions-page__select-shell" onPointerDown={handlePointerDown}>
       <span aria-hidden="true" className="admin-promotions-page__select-icon">
         {icon}
       </span>
@@ -430,6 +433,7 @@ function PromotionSelect({ ariaLabel, disabled = false, icon, onChange, options,
         className="admin-promotions-page__select"
         disabled={disabled}
         options={options}
+        ref={selectRef}
         value={value}
         onChange={onChange}
       />

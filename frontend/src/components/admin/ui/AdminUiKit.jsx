@@ -1,4 +1,5 @@
 import './adminUiKit.css'
+import { forwardRef } from 'react'
 
 function cx(...classNames) {
   return classNames.filter(Boolean).join(' ')
@@ -372,18 +373,19 @@ export function AdminTextarea({ className = '', invalid = false, rows = 4, ...pr
   )
 }
 
-export function AdminSelect({
+export const AdminSelect = forwardRef(function AdminSelect({
   children,
   className = '',
   invalid = false,
   options = [],
   placeholder = '',
   ...props
-}) {
+}, ref) {
   return (
     <select
       className={cx('admin-ui-select', invalid && 'admin-ui-input--invalid', className)}
       aria-invalid={invalid || undefined}
+      ref={ref}
       {...props}
     >
       {placeholder ? <option value="">{placeholder}</option> : null}
@@ -395,7 +397,7 @@ export function AdminSelect({
       {children}
     </select>
   )
-}
+})
 
 export function AdminSegmentedControl({
   ariaLabel,

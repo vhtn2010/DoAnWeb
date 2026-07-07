@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   AdminButton,
   AdminCard,
@@ -5,6 +6,7 @@ import {
   AdminLoadingBlock,
 } from '../../components/admin/ui/index.js'
 import useAdminDashboard from '../../hooks/useAdminDashboard.js'
+import { listAdminAuditLogs } from '../../repositories/adminUtilityRepository.js'
 
 const rangeTabs = [
   { label: '30 Ngày', value: '30_days' },
@@ -48,6 +50,15 @@ const iconPaths = {
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="2.4"
+    />
+  ),
+  close: (
+    <path
+      d="m6 6 12 12M18 6 6 18"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="2.2"
     />
   ),
   history: (
@@ -223,6 +234,32 @@ function formatRelativeTime(value) {
   return `${days} ngày trước`
 }
 
+function formatAuditDateTime(value) {
+  const dateValue = value ? new Date(value) : null
+
+  if (!dateValue || Number.isNaN(dateValue.getTime())) {
+    return 'Chưa cập nhật'
+  }
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(dateValue)
+}
+
+function mapAuditLogItem(item = {}) {
+  return {
+    actor: item.actor?.email || item.user_email || item.user_id || 'System',
+    entity: item.entity_name || item.entity_type || 'system',
+    id: item.id || `${item.action}-${item.created_at}`,
+    time: formatAuditDateTime(item.created_at),
+    title: item.action || 'Audit event',
+  }
+}
+
 function getChartGeometry(series = []) {
   const width = 548
   const height = 360
@@ -362,6 +399,10 @@ function getChartSubtitle(selectedRange, periodLabel) {
 }
 
 function AdminDashboardPage() {
+  const [auditError, setAuditError] = useState('')
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditRows, setAuditRows] = useState([])
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false)
   const {
     accessState,
     currentRoleLabel,
@@ -382,7 +423,53 @@ function AdminDashboardPage() {
   const chartGeometry = getChartGeometry(chartSeries)
   const systemMetrics = getSystemMetrics(dashboardOverview, metricCards)
   const activityItems = getActivityItems(recentBookings)
-  const auditLogPath = '/admin/audit-logs'
+
+  useEffect(() => {
+    if (!isAuditModalOpen) {
+      return undefined
+    }
+
+    let isActive = true
+
+    async function loadAuditLogs() {
+      setAuditLoading(true)
+      setAuditError('')
+
+      try {
+        const response = await listAdminAuditLogs({
+          limit: 8,
+          page: 1,
+        })
+
+        if (!isActive) {
+          return
+        }
+
+        if (!response?.success) {
+          throw new Error(response?.message || 'Không thể tải audit logs.')
+        }
+
+        setAuditRows((response.data || []).map(mapAuditLogItem))
+      } catch (loadError) {
+        if (!isActive) {
+          return
+        }
+
+        setAuditRows([])
+        setAuditError(loadError?.message || 'Không thể tải audit logs.')
+      } finally {
+        if (isActive) {
+          setAuditLoading(false)
+        }
+      }
+    }
+
+    loadAuditLogs()
+
+    return () => {
+      isActive = false
+    }
+  }, [isAuditModalOpen])
 
   if (!accessState.canViewDashboard) {
     return (
@@ -540,10 +627,14 @@ function AdminDashboardPage() {
             <aside className="admin-system-dashboard__activity-card" aria-label="Hoạt động gần đây">
               <header className="admin-system-dashboard__activity-header">
                 <h2>Hoạt động gần đây</h2>
-                <a className="admin-system-dashboard__activity-link" href={auditLogPath}>
+                <button
+                  className="admin-system-dashboard__activity-link"
+                  type="button"
+                  onClick={() => setIsAuditModalOpen(true)}
+                >
                   Xem tất cả
                   <DashboardIcon name="arrowRight" />
-                </a>
+                </button>
               </header>
 
               <div className="admin-system-dashboard__activity-list">
@@ -584,6 +675,73 @@ function AdminDashboardPage() {
             </aside>
           </section>
         </>
+      ) : null}
+
+      {isAuditModalOpen ? (
+        <div
+          className="admin-system-dashboard__modal-backdrop"
+          role="presentation"
+          onClick={() => setIsAuditModalOpen(false)}
+        >
+          <section
+            aria-label="Audit logs gần đây"
+            aria-modal="true"
+            className="admin-system-dashboard__audit-modal"
+            role="dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="admin-system-dashboard__audit-modal-header">
+              <div>
+                <p>Audit logs</p>
+                <h2>Hoạt động gần đây</h2>
+              </div>
+              <button
+                aria-label="Đóng audit logs"
+                className="admin-system-dashboard__modal-close"
+                type="button"
+                onClick={() => setIsAuditModalOpen(false)}
+              >
+                <DashboardIcon name="close" />
+              </button>
+            </header>
+
+            {auditLoading ? (
+              <div className="admin-system-dashboard__audit-state">
+                Đang tải audit logs...
+              </div>
+            ) : null}
+
+            {auditError ? (
+              <div className="admin-system-dashboard__audit-state admin-system-dashboard__audit-state--error">
+                {auditError}
+              </div>
+            ) : null}
+
+            {!auditLoading && !auditError ? (
+              <div className="admin-system-dashboard__audit-list">
+                {auditRows.length > 0 ? (
+                  auditRows.map((row) => (
+                    <article className="admin-system-dashboard__audit-row" key={row.id}>
+                      <span className="admin-system-dashboard__audit-row-icon" aria-hidden="true">
+                        <DashboardIcon name="history" />
+                      </span>
+                      <div>
+                        <h3>{row.title}</h3>
+                        <p>{row.entity}</p>
+                      </div>
+                      <time>{row.time}</time>
+                      <strong>{row.actor}</strong>
+                    </article>
+                  ))
+                ) : (
+                  <div className="admin-system-dashboard__audit-state">
+                    Chưa có audit logs gần đây.
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </section>
+        </div>
       ) : null}
     </main>
   )

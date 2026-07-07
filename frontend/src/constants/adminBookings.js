@@ -19,9 +19,8 @@ export const ADMIN_BOOKING_STATUSES = Object.freeze({
 
 export const ADMIN_BOOKING_STATUS_OPTIONS = Object.freeze([
   { value: ADMIN_BOOKING_STATUSES.all, label: 'Tất cả' },
-  { value: ADMIN_BOOKING_STATUSES.pendingPayment, label: 'Chờ thanh toán' },
-  { value: ADMIN_BOOKING_STATUSES.paymentProcessing, label: 'Đang thanh toán' },
   { value: ADMIN_BOOKING_STATUSES.paid, label: 'Chờ xác nhận' },
+  { value: ADMIN_BOOKING_STATUSES.pendingPayment, label: 'Chờ thanh toán' },
   { value: ADMIN_BOOKING_STATUSES.confirmed, label: 'Đã xác nhận' },
   { value: ADMIN_BOOKING_STATUSES.inProgress, label: 'Đang thực hiện' },
   { value: ADMIN_BOOKING_STATUSES.completed, label: 'Đã hoàn thành' },

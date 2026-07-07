@@ -6,10 +6,8 @@ import {
   AdminErrorState,
   AdminField,
   AdminFilterBar,
-  AdminPageHeader,
   AdminPagination,
   AdminSectionHeader,
-  AdminSegmentedControl,
   AdminSearchInput,
   AdminStatusBadge,
   AdminTable,
@@ -32,6 +30,29 @@ const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
   month: '2-digit',
   year: 'numeric',
 })
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path
+        d="M12 3v11m0 0 4-4m-4 4-4-4"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M5 16v3h14v-3"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  )
+}
 
 function DetailIcon() {
   return (
@@ -95,13 +116,48 @@ function AdminPaymentsPage() {
   } = useAdminPayments()
 
   return (
-    <main className="admin-ops-page">
-      <AdminPageHeader
-        eyebrow="Tài chính"
-        title="Lịch sử Giao dịch & Hoàn tiền"
-        subtitle="Theo dõi dòng tiền và xử lý các yêu cầu hoàn trả dịch vụ từ khách hàng."
-        actions={<AdminButton disabled variant="secondary">Xuất báo cáo</AdminButton>}
-      />
+    <main className="admin-ops-page admin-payments-page">
+      <header className="admin-payments-page__header">
+        <div className="admin-payments-page__header-copy">
+          <h1>Lịch sử Giao dịch & Hoàn tiền</h1>
+          <p>Theo dõi dòng tiền và xử lý các yêu cầu hoàn trả dịch vụ từ khách hàng.</p>
+        </div>
+
+        <AdminButton
+          className="admin-payments-page__export"
+          disabled
+          icon={<DownloadIcon />}
+          variant="secondary"
+        >
+          Xuất báo cáo
+        </AdminButton>
+
+        <div
+          className="admin-payments-page__status-tabs"
+          role="group"
+          aria-label="Lọc trạng thái giao dịch"
+        >
+          {ADMIN_PAYMENT_STATUS_OPTIONS.map((option) => {
+            const isActive = option.value === statusFilter
+
+            return (
+              <button
+                className={[
+                  'admin-payments-page__status-tab',
+                  isActive ? 'admin-payments-page__status-tab--active' : '',
+                ].filter(Boolean).join(' ')}
+                disabled={loading || option.disabled}
+                key={option.value}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => setStatusFilter(option.value)}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>
+      </header>
 
       {error ? (
         <AdminErrorState
@@ -129,13 +185,6 @@ function AdminPaymentsPage() {
           </AdminButton>
         }
       >
-        <AdminSegmentedControl
-          ariaLabel="Lọc trạng thái giao dịch"
-          disabled={loading}
-          options={ADMIN_PAYMENT_STATUS_OPTIONS}
-          value={statusFilter}
-          onChange={setStatusFilter}
-        />
         <AdminField className="admin-ops-page__search" label="Tìm kiếm">
           <AdminSearchInput
             placeholder="Mã giao dịch, khách hàng, mã đơn..."

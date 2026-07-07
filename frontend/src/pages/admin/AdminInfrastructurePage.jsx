@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getAdminUploadUsage } from '../../repositories/adminUtilityRepository.js'
 
 const SYSTEM_LOGS = Object.freeze([
   {
@@ -36,6 +37,75 @@ const LOG_SEVERITY_LABELS = Object.freeze({
   info: 'INFO',
   warning: 'WARNING',
 })
+
+function formatBytes(value) {
+  const bytes = Number(value || 0)
+
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return '0 B'
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const amount = bytes / (1024 ** unitIndex)
+
+  return `${amount.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+function formatUploadDateTime(value) {
+  const dateValue = value ? new Date(value) : null
+
+  if (!dateValue || Number.isNaN(dateValue.getTime())) {
+    return 'Chưa cập nhật'
+  }
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(dateValue)
+}
+
+function createUploadUsageRows(data = {}) {
+  const storage = data.storage_usage || {}
+  const bandwidth = data.bandwidth_usage || {}
+  const breakdown = data.resource_breakdown || {}
+
+  return [
+    {
+      id: 'storage',
+      label: 'Dung lượng lưu trữ',
+      meta: data.cached ? 'Cached' : formatUploadDateTime(data.fetched_at),
+      value: `${formatBytes(storage.used_bytes)} / ${formatBytes(storage.limit_bytes)}`,
+    },
+    {
+      id: 'bandwidth',
+      label: 'Băng thông',
+      meta: data.provider || 'cloudinary',
+      value: `${formatBytes(bandwidth.used_bytes)} / ${formatBytes(bandwidth.limit_bytes)}`,
+    },
+    {
+      id: 'assets',
+      label: 'Tổng assets',
+      meta: `Image ${breakdown.image ?? 0} · Video ${breakdown.video ?? 0} · Raw ${breakdown.raw ?? 0}`,
+      value: `${Number(data.asset_count || 0).toLocaleString('vi-VN')} tài nguyên`,
+    },
+  ]
+}
+
+function getStoragePercent(data = {}) {
+  const storage = data.storage_usage || {}
+  const usedBytes = Number(storage.used_bytes || 0)
+  const limitBytes = Number(storage.limit_bytes || 0)
+
+  if (!Number.isFinite(usedBytes) || !Number.isFinite(limitBytes) || limitBytes <= 0) {
+    return 0
+  }
+
+  return Math.min(100, Math.round((usedBytes / limitBytes) * 100))
+}
 
 function RefreshIcon() {
   return (
@@ -96,6 +166,13 @@ function ApiIcon() {
 function AdminInfrastructurePage() {
   const [lastCheckedAt, setLastCheckedAt] = useState('10:42')
   const [feedback, setFeedback] = useState('')
+  const [isStorageModalOpen, setIsStorageModalOpen] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploadLoading, setUploadLoading] = useState(false)
+  const [uploadUsage, setUploadUsage] = useState(null)
+
+  const uploadRows = createUploadUsageRows(uploadUsage || {})
+  const storagePercent = getStoragePercent(uploadUsage || {})
 
   function refreshInfrastructure() {
     const nextCheckedAt = new Intl.DateTimeFormat('vi-VN', {
@@ -105,6 +182,34 @@ function AdminInfrastructurePage() {
 
     setLastCheckedAt(nextCheckedAt)
     setFeedback(`Đã làm mới trạng thái hạ tầng lúc ${nextCheckedAt}.`)
+  }
+
+  async function loadUploadUsage() {
+    setUploadLoading(true)
+    setUploadError('')
+
+    try {
+      const response = await getAdminUploadUsage()
+
+      if (!response?.success) {
+        throw new Error(response?.message || 'Không thể tải thông tin uploads.')
+      }
+
+      setUploadUsage(response.data || {})
+    } catch (loadError) {
+      setUploadUsage(null)
+      setUploadError(loadError?.message || 'Không thể tải thông tin uploads.')
+    } finally {
+      setUploadLoading(false)
+    }
+  }
+
+  function openStorageModal() {
+    setIsStorageModalOpen(true)
+
+    if (!uploadUsage && !uploadLoading) {
+      loadUploadUsage()
+    }
   }
 
   return (
@@ -189,7 +294,11 @@ function AdminInfrastructurePage() {
           </div>
         </article>
 
-        <article className="admin-infrastructure-page__metric-card">
+        <button
+          className="admin-infrastructure-page__metric-card admin-infrastructure-page__metric-card--button"
+          type="button"
+          onClick={openStorageModal}
+        >
           <div className="admin-infrastructure-page__metric-heading">
             <h2>Lưu trữ (SSD)</h2>
             <span className="admin-infrastructure-page__metric-icon">
@@ -211,8 +320,9 @@ function AdminInfrastructurePage() {
             <span className="admin-infrastructure-page__track admin-infrastructure-page__track--brand">
               <span />
             </span>
+            <small>Nhấn để xem Cloudinary uploads</small>
           </div>
-        </article>
+        </button>
 
         <article className="admin-infrastructure-page__metric-card">
           <div className="admin-infrastructure-page__metric-heading">
@@ -289,6 +399,77 @@ function AdminInfrastructurePage() {
         </div>
         <p className="admin-infrastructure-page__updated">Cập nhật lúc {lastCheckedAt}</p>
       </section>
+
+      {isStorageModalOpen ? (
+        <div
+          className="admin-infrastructure-page__modal-backdrop"
+          role="presentation"
+          onClick={() => setIsStorageModalOpen(false)}
+        >
+          <section
+            aria-label="Thông tin lưu trữ uploads"
+            aria-modal="true"
+            className="admin-infrastructure-page__storage-modal"
+            role="dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="admin-infrastructure-page__modal-header">
+              <div>
+                <p>Lưu trữ</p>
+                <h2>Cloudinary uploads</h2>
+              </div>
+              <button
+                aria-label="Đóng thông tin uploads"
+                className="admin-infrastructure-page__modal-close"
+                type="button"
+                onClick={() => setIsStorageModalOpen(false)}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="admin-infrastructure-page__upload-meter">
+              <div>
+                <span>Dung lượng đã dùng</span>
+                <strong>{storagePercent}%</strong>
+              </div>
+              <span className="admin-infrastructure-page__upload-track">
+                <span style={{ width: `${storagePercent}%` }} />
+              </span>
+            </div>
+
+            {uploadLoading ? (
+              <p className="admin-infrastructure-page__upload-state">Đang tải thông tin uploads...</p>
+            ) : null}
+
+            {uploadError ? (
+              <p className="admin-infrastructure-page__upload-state admin-infrastructure-page__upload-state--error">
+                {uploadError}
+              </p>
+            ) : null}
+
+            {!uploadLoading && !uploadError ? (
+              <div className="admin-infrastructure-page__upload-list">
+                {uploadRows.map((row) => (
+                  <article className="admin-infrastructure-page__upload-row" key={row.id}>
+                    <div>
+                      <h3>{row.label}</h3>
+                      <p>{row.meta}</p>
+                    </div>
+                    <strong>{row.value}</strong>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+
+            <footer className="admin-infrastructure-page__modal-footer">
+              <button type="button" disabled={uploadLoading} onClick={loadUploadUsage}>
+                Làm mới usage
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }

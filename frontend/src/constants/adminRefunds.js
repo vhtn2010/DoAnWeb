@@ -13,12 +13,9 @@ export const ADMIN_REFUND_STATUSES = Object.freeze({
 
 export const ADMIN_REFUND_STATUS_OPTIONS = Object.freeze([
   { value: ADMIN_REFUND_STATUSES.all, label: 'Tất cả' },
-  { value: ADMIN_REFUND_STATUSES.requested, label: 'Chờ duyệt' },
-  { value: ADMIN_REFUND_STATUSES.approved, label: 'Đã duyệt' },
-  { value: ADMIN_REFUND_STATUSES.processing, label: 'Đang xử lý' },
   { value: ADMIN_REFUND_STATUSES.success, label: 'Đã hoàn tiền' },
-  { value: ADMIN_REFUND_STATUSES.rejected, label: 'Từ chối' },
-  { value: ADMIN_REFUND_STATUSES.failed, label: 'Thất bại' },
+  { value: ADMIN_REFUND_STATUSES.requested, label: 'Chờ xử lý' },
+  { value: ADMIN_REFUND_STATUSES.rejected, label: 'Đã từ chối' },
 ])
 
 export const ADMIN_REFUND_STATUS_META = Object.freeze({
@@ -26,7 +23,7 @@ export const ADMIN_REFUND_STATUS_META = Object.freeze({
   [ADMIN_REFUND_STATUSES.cancelled]: { label: 'Đã hủy', tone: 'neutral' },
   [ADMIN_REFUND_STATUSES.failed]: { label: 'Thất bại', tone: 'danger' },
   [ADMIN_REFUND_STATUSES.processing]: { label: 'Đang xử lý', tone: 'warning' },
-  [ADMIN_REFUND_STATUSES.rejected]: { label: 'Từ chối', tone: 'danger' },
-  [ADMIN_REFUND_STATUSES.requested]: { label: 'Chờ duyệt', tone: 'warning' },
+  [ADMIN_REFUND_STATUSES.rejected]: { label: 'Đã từ chối', tone: 'danger' },
+  [ADMIN_REFUND_STATUSES.requested]: { label: 'Chờ xử lý', tone: 'warning' },
   [ADMIN_REFUND_STATUSES.success]: { label: 'Đã hoàn tiền', tone: 'success' },
 })

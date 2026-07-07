@@ -3,12 +3,39 @@ import {
   ADMIN_USER_SORT_OPTIONS,
   ADMIN_USER_STATUS_OPTIONS,
 } from '../../constants/adminUsers.js'
+import useClickableSelectShell from '../../hooks/useClickableSelectShell.js'
 import useAdminUsers from '../../hooks/useAdminUsers.js'
 import {
   getAdminUserStatusMeta,
 } from '../../mappers/adminUserMappers.js'
 
 const dateFormatter = new Intl.DateTimeFormat('vi-VN')
+const ROLE_OVERVIEW_CARDS = Object.freeze([
+  {
+    code: 'system_admin',
+    helper: 'Quản trị hệ thống',
+    label: 'System Admin',
+    tone: 'green',
+  },
+  {
+    code: 'admin',
+    helper: 'Quản trị viên',
+    label: 'Admin',
+    tone: 'blue',
+  },
+  {
+    code: 'staff',
+    helper: 'Nhân viên nội bộ',
+    label: 'Staff',
+    tone: 'gold',
+  },
+  {
+    code: 'customer',
+    helper: 'Tài khoản khách hàng',
+    label: 'Khách hàng',
+    tone: 'soft',
+  },
+])
 
 function RefreshIcon() {
   return (
@@ -58,19 +85,18 @@ function ChevronRightIcon() {
   )
 }
 
-function ViewIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
-      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
-    </svg>
-  )
-}
-
 function EditIcon() {
   return (
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
       <path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
     </svg>
   )
 }
@@ -277,6 +303,7 @@ function AdminUsersFigmaPage() {
     resetFilters,
     resultRange,
     roleFilter,
+    roleCounts,
     roleFilterOptions,
     runStatusAction,
     selectedUser,
@@ -293,8 +320,14 @@ function AdminUsersFigmaPage() {
     toggleUserChecked,
     updateFormField,
     users,
-    viewUser,
   } = useAdminUsers()
+  const roleOverviewCards = ROLE_OVERVIEW_CARDS.map((card) => ({
+    ...card,
+    count: roleCounts[card.code] ?? 0,
+  }))
+  const { handlePointerDown: handleRoleSelectPointerDown, selectRef: roleSelectRef } = useClickableSelectShell(loading)
+  const { handlePointerDown: handleStatusSelectPointerDown, selectRef: statusSelectRef } = useClickableSelectShell(loading)
+  const { handlePointerDown: handleSortSelectPointerDown, selectRef: sortSelectRef } = useClickableSelectShell(loading)
 
   return (
     <main className="admin-system-page admin-users-page">
@@ -325,18 +358,47 @@ function AdminUsersFigmaPage() {
         </div>
       </section>
 
+      <section className="admin-users-page__overview" aria-label="Tổng quan số lượng người dùng theo vai trò">
+        {roleOverviewCards.map((card) => (
+          <article className={`admin-users-page__overview-card admin-users-page__overview-card--${card.tone}`} key={card.code}>
+            <span>{card.label}</span>
+            <strong>{loading ? '...' : card.count}</strong>
+            <p>{card.helper}</p>
+          </article>
+        ))}
+      </section>
+
       {formState.isOpen ? (
-        <UserForm
-          actionLoading={actionLoading}
-          closeForm={closeForm}
-          currentRole={currentRole}
-          formErrors={formErrors}
-          formRoleOptions={formRoleOptions}
-          formState={formState}
-          formValues={formValues}
-          submitUserForm={submitUserForm}
-          updateFormField={updateFormField}
-        />
+        <div className="admin-users-page__modal-backdrop" onClick={closeForm}>
+          <section
+            className="admin-users-page__form-modal"
+            role="dialog"
+            aria-label={formState.mode === 'edit' ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              className="admin-users-page__modal-close"
+              disabled={actionLoading}
+              type="button"
+              aria-label="Đóng popup người dùng"
+              onClick={closeForm}
+            >
+              <CloseIcon />
+            </button>
+            <UserForm
+              actionLoading={actionLoading}
+              closeForm={closeForm}
+              currentRole={currentRole}
+              formErrors={formErrors}
+              formRoleOptions={formRoleOptions}
+              formState={formState}
+              formValues={formValues}
+              submitUserForm={submitUserForm}
+              updateFormField={updateFormField}
+            />
+          </section>
+        </div>
       ) : null}
 
       <form className="admin-users-page__toolbar" role="search" onSubmit={(event) => event.preventDefault()}>
@@ -353,9 +415,9 @@ function AdminUsersFigmaPage() {
           />
         </label>
 
-        <label className="admin-users-page__select">
+        <label className="admin-users-page__select" onPointerDown={handleRoleSelectPointerDown}>
           <span className="admin-users-page__sr-only">Vai trò</span>
-          <select disabled={loading} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+          <select disabled={loading} ref={roleSelectRef} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
             {roleFilterOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -365,9 +427,9 @@ function AdminUsersFigmaPage() {
           <ChevronDownIcon />
         </label>
 
-        <label className="admin-users-page__select">
+        <label className="admin-users-page__select" onPointerDown={handleStatusSelectPointerDown}>
           <span className="admin-users-page__sr-only">Trạng thái</span>
-          <select disabled={loading} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <select disabled={loading} ref={statusSelectRef} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             {ADMIN_USER_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -377,9 +439,9 @@ function AdminUsersFigmaPage() {
           <ChevronDownIcon />
         </label>
 
-        <label className="admin-users-page__select admin-users-page__select--sort">
+        <label className="admin-users-page__select admin-users-page__select--sort" onPointerDown={handleSortSelectPointerDown}>
           <span className="admin-users-page__sr-only">Sắp xếp</span>
-          <select disabled={loading} value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
+          <select disabled={loading} ref={sortSelectRef} value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
             {ADMIN_USER_SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -495,14 +557,6 @@ function AdminUsersFigmaPage() {
                     </td>
                     <td>
                       <div className="admin-users-page__actions">
-                        <button
-                          disabled={actionLoading}
-                          type="button"
-                          aria-label={`Xem chi tiết ${user.name}`}
-                          onClick={() => viewUser(user)}
-                        >
-                          <ViewIcon />
-                        </button>
                         <button
                           disabled={actionLoading}
                           type="button"

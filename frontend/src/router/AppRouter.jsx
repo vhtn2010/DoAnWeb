@@ -28,13 +28,9 @@ import AdminSettingsPage from '../pages/admin/AdminSettingsPage.jsx'
 import AdminSupportPage from '../pages/admin/AdminSupportFigmaPage.jsx'
 import AdminUsersPage from '../pages/admin/AdminUsersFigmaPage.jsx'
 import {
-  AdminAuditLogsPage,
   AdminEmailLogsPage,
   AdminInventoryPage,
   AdminNotificationsPage,
-  AdminPermissionsPage,
-  AdminRolesPage,
-  AdminUploadsPage,
 } from '../pages/admin/AdminUtilityPages.jsx'
 import AdminRouteGate from '../pages/admin/AdminRouteGate.jsx'
 import ProtectedRoute from './ProtectedRoute.jsx'
@@ -193,38 +189,6 @@ function AppRouter() {
               element={
                 <AdminRouteGate routeId="accessControl">
                   <AdminAccessControlPage />
-                </AdminRouteGate>
-              }
-            />
-            <Route
-              path="/admin/roles"
-              element={
-                <AdminRouteGate routeId="roles">
-                  <AdminRolesPage />
-                </AdminRouteGate>
-              }
-            />
-            <Route
-              path="/admin/permissions"
-              element={
-                <AdminRouteGate routeId="permissions">
-                  <AdminPermissionsPage />
-                </AdminRouteGate>
-              }
-            />
-            <Route
-              path="/admin/audit-logs"
-              element={
-                <AdminRouteGate routeId="auditLogs">
-                  <AdminAuditLogsPage />
-                </AdminRouteGate>
-              }
-            />
-            <Route
-              path="/admin/uploads"
-              element={
-                <AdminRouteGate routeId="uploads">
-                  <AdminUploadsPage />
                 </AdminRouteGate>
               }
             />
