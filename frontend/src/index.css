@@ -15568,9 +15568,8 @@ select {
   min-height: 62vh;
   margin: -24px;
   padding: 24px 24px 8px;
-  background:
-    linear-gradient(rgba(255, 250, 245, 0.78), rgba(251, 247, 242, 0.86)),
-    url('../../templateUI/user/user_account/images/v39_6093.png') center top / cover no-repeat;
+  background: url('../../templateUI/user/user_account/images/v39_6093.png') center top / cover
+    no-repeat;
   overflow: hidden;
 }
 
