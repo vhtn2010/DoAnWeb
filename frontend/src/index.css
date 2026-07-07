@@ -5501,35 +5501,41 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 40px;
   padding: 24px 32px;
   border-bottom: 1px solid var(--refund-border);
 }
 
 .admin-refunds-page__table-heading h2 {
   margin: 0;
+  flex: 0 0 auto;
   color: var(--refund-text);
   font-size: 18px;
   font-weight: 700;
   line-height: 24px;
+  white-space: nowrap;
 }
 
 .admin-refunds-page__status-tabs.admin-ui-segmented-control--tabs {
-  width: min(100%, 420px);
+  width: auto;
+  max-width: 100%;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  flex: 0 1 420px;
+  grid-template-columns: repeat(4, 118px);
+  column-gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
   border-bottom: 0;
 }
 
 .admin-refunds-page__status-tabs.admin-ui-segmented-control--tabs .admin-ui-segmented-control__item {
   min-height: 52px;
-  padding: 14px 16px 12px;
+  padding: 14px 8px 12px;
   color: var(--refund-muted);
   font-size: 13px;
   font-weight: 700;
   line-height: 18px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .admin-refunds-page__status-tabs.admin-ui-segmented-control--tabs .admin-ui-segmented-control__item--selected {
@@ -6032,7 +6038,13 @@ select {
 
   .admin-refunds-page__status-tabs.admin-ui-segmented-control--tabs {
     width: 100%;
+    display: grid;
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 8px;
     flex-basis: auto;
+    margin-left: 0;
   }
 
   .admin-refunds-page__table-footer {
