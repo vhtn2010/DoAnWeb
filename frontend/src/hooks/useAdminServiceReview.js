@@ -90,10 +90,6 @@ export default function useAdminServiceReview() {
     setReloadKey((currentKey) => currentKey + 1)
   }
 
-  function resetFilters() {
-    setActiveType(ADMIN_SERVICE_REVIEW_TYPE_ALL)
-  }
-
   function updateNote(itemId, value) {
     setNotes((currentNotes) => ({
       ...currentNotes,
