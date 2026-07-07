@@ -6,6 +6,7 @@ import {
   DEFAULT_HOTEL_SORT,
   HOTEL_SORT_OPTIONS,
 } from '../constants/hotels.js'
+import { mapHotelSummaryToCardView } from '../mappers/hotelMappers.js'
 import { ROLES } from '../constants/roles.js'
 import { listHotels } from '../repositories/hotelRepository.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
@@ -121,13 +122,6 @@ function buildHotelSearchParams({
   return nextSearchParams
 }
 
-function mapHotelsForList(hotels) {
-  return hotels.map((hotel) => ({
-    ...hotel,
-    displayRatingValue: Number(hotel.details?.star_rating ?? 0),
-  }))
-}
-
 export default function useHotelList() {
   const [searchParams, setSearchParams] = useSearchParams()
   const authState =
@@ -145,11 +139,8 @@ export default function useHotelList() {
   const [selectedSort, setSelectedSort] = useState(
     () => searchParams.get('sort') ?? DEFAULT_HOTEL_SORT,
   )
-  const [currentPage, setCurrentPage] = useState(
-    () => Number(searchParams.get('page') ?? 1),
-  )
+  const [currentPage, setCurrentPage] = useState(() => Number(searchParams.get('page') ?? 1))
   const [favoriteIds, setFavoriteIds] = useState([])
-  const [feedbackMessage, setFeedbackMessage] = useState('')
   const [responseState, setResponseState] = useState({
     data: [],
     meta: {
@@ -309,13 +300,14 @@ export default function useHotelList() {
     )
   }
 
-  function handleBookNow() {
-    setFeedbackMessage('Chi tiết khách sạn sẽ được hoàn thiện ở Task 17B.')
-  }
-
   const visibleHotels = useMemo(
-    () => mapHotelsForList(responseState.data),
-    [responseState.data],
+    () =>
+      responseState.data.map((hotel) =>
+        mapHotelSummaryToCardView(hotel, {
+          detailPath: buildPreviewPath(`/hotels/${hotel.slug}`, isCustomer),
+        }),
+      ),
+    [isCustomer, responseState.data],
   )
   const totalPages = responseState.meta.total_pages ?? 1
   const safeCurrentPage = responseState.meta.page ?? currentPage
@@ -337,12 +329,10 @@ export default function useHotelList() {
     currentPage: safeCurrentPage,
     errorMessage,
     favoriteIds,
-    feedbackMessage,
     filterDraft,
     formatCurrency: formatCurrencyVND,
     handleApplyFilters,
     handleApplySearch,
-    handleBookNow,
     handlePageChange,
     handleSearchFieldChange,
     handleSidebarLocationChange,

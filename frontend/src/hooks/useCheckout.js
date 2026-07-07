@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CHECKOUT_VALID_VOUCHER_CODES } from '../constants/checkout.js'
 import { ROLES } from '../constants/roles.js'
 import {
@@ -24,6 +24,7 @@ function clearFieldError(currentErrors, fieldName) {
 
 export default function useCheckout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const authState =
     searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
@@ -56,6 +57,14 @@ export default function useCheckout() {
   const [submitFeedback, setSubmitFeedback] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  function preserveAuthQuery(pathname) {
+    if (authState !== ROLES.customer) {
+      return pathname
+    }
+
+    return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
+  }
 
   useEffect(() => {
     let isActive = true
@@ -271,9 +280,19 @@ export default function useCheckout() {
     try {
       const response = await submitCheckout(checkoutPayload)
 
-      setSubmitFeedback(
-        `${response.message} Màn xác nhận đơn hàng/thanh toán sẽ làm ở task tiếp theo.`,
-      )
+      setSubmitFeedback(response.message)
+      navigate(preserveAuthQuery('/booking-confirmation'), {
+        state: {
+          cartSummaryPayload: {
+            cart_id: checkoutDraft.cart_id,
+            summary: {
+              ...(checkoutDraft.summary ?? {}),
+            },
+          },
+          checkoutPayload: response.data?.checkout_payload ?? checkoutPayload,
+          selectedCartItemIds,
+        },
+      })
     } catch (submitError) {
       setSubmitFeedback(submitError?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.')
     }
