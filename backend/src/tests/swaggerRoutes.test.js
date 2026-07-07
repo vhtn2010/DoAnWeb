@@ -59,6 +59,34 @@ test('GET /swagger-ui/openapi.json returns the OpenAPI document', async () => {
     assert.ok(payload.paths['/auth/login']);
     assert.ok(payload.paths['/services']);
     assert.ok(payload.paths['/tours']);
+    assert.deepEqual(
+      payload.paths['/auth/login'].post.requestBody.content['application/json'].example,
+      {
+        email: 'customer@example.com',
+        password: 'Password123!',
+      },
+    );
+    assert.deepEqual(
+      payload.paths['/uploads/signature'].post.requestBody.content['application/json'].example,
+      {
+        folder: 'services',
+        resource_type: 'image',
+      },
+    );
+    const requestBodyOperations = Object.values(payload.paths).flatMap((methods) =>
+      Object.values(methods).filter((operation) => operation.requestBody),
+    );
+
+    assert.ok(requestBodyOperations.length > 0);
+    assert.equal(
+      requestBodyOperations.every((operation) =>
+        Object.prototype.hasOwnProperty.call(
+          operation.requestBody.content['application/json'],
+          'example',
+        ),
+      ),
+      true,
+    );
     assert.equal(payload.paths['/swagger-ui/openapi.json'], undefined);
     assert.equal(payload.paths['/docs/index.html'], undefined);
   } finally {

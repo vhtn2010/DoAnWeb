@@ -268,7 +268,7 @@ const createAdminRefundRepository = ({
         FROM refunds
         WHERE payment_id = $1
           AND id <> $2
-          AND status = ANY($3::text[])
+          AND status = ANY($3::refund_status[])
       `,
       [paymentId, excludedRefundId, ACTIVE_REFUND_STATUSES],
     );
@@ -375,7 +375,7 @@ const createAdminRefundRepository = ({
         SELECT id
         FROM refunds
         WHERE payment_id = $1
-          AND status = ANY($2::text[])
+          AND status = ANY($2::refund_status[])
         FOR UPDATE
       `,
       [paymentId, ACTIVE_REFUND_STATUSES],
@@ -434,7 +434,7 @@ const createAdminRefundRepository = ({
         FROM refunds
         WHERE booking_id = $1
           AND id <> $2
-          AND status = ANY($3::text[])
+          AND status = ANY($3::refund_status[])
       `,
       [bookingId, refundId, ACTIVE_REFUND_STATUSES],
     );
@@ -573,7 +573,7 @@ const createAdminRefundRepository = ({
         UPDATE booking_items
         SET status = $2
         WHERE booking_id = $1
-          AND status = ANY($3::text[])
+          AND status = ANY($3::booking_item_status[])
       `,
       [
         bookingId,
@@ -724,7 +724,7 @@ const createAdminRefundRepository = ({
           FROM refunds
           WHERE payment_id = $1
             AND id <> $2
-            AND status = ANY($3::text[])
+            AND status = ANY($3::refund_status[])
         `,
         [currentRefund.payment_id, refund.id, ACTIVE_REFUND_STATUSES],
       );
