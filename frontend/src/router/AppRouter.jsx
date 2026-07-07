@@ -15,6 +15,7 @@ import HotelDetailPage from '../pages/hotels/HotelDetailPage.jsx'
 import HotelListPage from '../pages/hotels/HotelListPage.jsx'
 import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.jsx'
 import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
+import ProfilePage from '../pages/profile/ProfilePage.jsx'
 import TrainDetailPage from '../pages/trains/TrainDetailPage.jsx'
 import TrainListPage from '../pages/trains/TrainListPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
@@ -51,6 +52,7 @@ function AppRouter() {
             path="/payment-success/:paymentCode"
             element={<PaymentSuccessPage />}
           />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/flights" element={<FlightListPage />} />
           <Route path="/flights/:slug" element={<FlightDetailPage />} />
           <Route path="/trains" element={<TrainListPage />} />
