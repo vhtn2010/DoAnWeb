@@ -211,12 +211,15 @@ export default function useTrainDetail() {
     const serviceFee = Math.max(Number(train.payment_summary?.service_fee ?? 0), 0)
 
     return {
+      title: train.header_title,
       line_title: `${train.train_number_label} | ${selectedSeatOption?.name ?? train.seat_class}`,
       line_subtitle: `${train.departure_station_code} - ${train.arrival_station_code}`,
+      seat_class_label: selectedSeatOption?.name ?? train.seat_class,
       seat_label: selectedSeat
         ? `${selectedCar?.name ?? 'Toa'} - Chỗ ${selectedSeat.number}`
         : 'Chưa chọn chỗ',
       seat_code: selectedSeat?.code ?? 'Vui lòng chọn chỗ',
+      base_price_label: 'Giá chỗ',
       service_fee_label: train.payment_summary?.fee_label ?? 'Phí dịch vụ',
       service_fee: serviceFee,
       base_price: seatPrice,

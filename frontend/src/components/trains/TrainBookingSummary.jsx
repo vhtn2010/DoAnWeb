@@ -13,11 +13,16 @@ function TrainBookingSummary({
       <div className="train-detail-card train-booking-summary__card">
         <div className="train-booking-summary__header">
           <h2>Tóm tắt đặt chỗ</h2>
+          <small>{bookingSummary.title}</small>
           <p>{bookingSummary.line_title}</p>
           <span>{bookingSummary.line_subtitle}</span>
         </div>
 
         <div className="train-booking-summary__rows">
+          <div>
+            <span>Hạng chỗ</span>
+            <strong>{bookingSummary.seat_class_label}</strong>
+          </div>
           <div>
             <span>Chỗ đang chọn</span>
             <strong>{bookingSummary.seat_code}</strong>
@@ -25,6 +30,10 @@ function TrainBookingSummary({
           <div>
             <span>Vị trí</span>
             <strong>{bookingSummary.seat_label}</strong>
+          </div>
+          <div>
+            <span>{bookingSummary.base_price_label}</span>
+            <strong>{formatCurrency(bookingSummary.base_price)}</strong>
           </div>
           <div>
             <span>{bookingSummary.service_fee_label}</span>
