@@ -1,6 +1,6 @@
 function TrainScheduleCard({ schedule = [] }) {
   return (
-    <section className="train-detail-card train-schedule-card">
+    <section className="train-detail-card train-schedule-card train-detail-section">
       <div className="train-detail-section-heading">
         <h2>Lịch trình chuyến đi</h2>
       </div>

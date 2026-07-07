@@ -131,8 +131,12 @@ function TrainDetailPage() {
   return (
     <div className="train-detail-page">
       <div className="train-detail-shell">
-        <section className="train-detail-page__topbar">
-          <TrainDetailTopActions />
+        <section className="train-detail-hero">
+          <TrainDetailHeaderCard train={train} />
+
+          <div className="train-detail-page__topbar">
+            <TrainDetailTopActions />
+          </div>
         </section>
 
         {feedback.message ? (
@@ -141,14 +145,13 @@ function TrainDetailPage() {
           </p>
         ) : null}
 
-        <div className="train-detail-main train-detail-layout">
-          <div className="train-detail-main__content">
-            <TrainDetailHeaderCard train={train} />
+        <div className="train-detail-layout">
+          <div className="train-detail-main">
             <TrainCarTabs cars={train.cars} selectedCarId={selectedCarId} onSelectCar={selectCar} />
             <TrainSeatMap car={selectedCar} onSelectSeat={selectSeat} selectedSeatId={selectedSeatId} />
 
-            <section className="train-seat-options" aria-label="Hạng vé và loại chỗ">
-              <div className="train-seat-options__grid">
+            <section className="train-seat-options train-detail-section" aria-label="Hạng vé và loại chỗ">
+              <div className="train-seat-options__grid train-seat-options-grid">
                 {displayedSeatOptions.map((seatOption) => (
                   <TrainSeatTypeCard
                     key={seatOption.id}
@@ -161,12 +164,12 @@ function TrainDetailPage() {
               </div>
             </section>
 
-            <section className="train-detail-card train-detail-notes">
+            <section className="train-detail-card train-detail-notes train-detail-section">
               <div className="train-detail-section-heading">
                 <h2>Tiện ích và chính sách</h2>
               </div>
 
-              <div className="train-detail-notes__grid">
+              <div className="train-detail-notes__grid train-detail-info-grid">
                 <article className="train-detail-notes__panel">
                   <h3>Thông tin toa</h3>
                   <p>{train.carriage_info}</p>
@@ -194,7 +197,7 @@ function TrainDetailPage() {
             <TrainRelatedRoutes formatCurrency={formatCurrency} trains={relatedTrains} />
           </div>
 
-          <div className="train-detail-sidebar">
+          <aside className="train-detail-sidebar">
             <TrainBookingSummary
               bookingSummary={bookingSummary}
               formatCurrency={formatCurrency}
@@ -202,7 +205,7 @@ function TrainDetailPage() {
               onBookNow={bookNowMock}
             />
             <TrainMemberDiscountCard memberDiscount={train.member_discount} />
-          </div>
+          </aside>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 function TrainCarTabs({ cars = [], selectedCarId, onSelectCar }) {
   return (
-    <section className="train-detail-card train-car-tabs">
+    <section className="train-detail-card train-car-tabs train-detail-section">
       <div className="train-car-tabs__list" role="tablist" aria-label="Chọn toa tàu">
         {cars.map((car) => {
           const isActive = car.id === selectedCarId
