@@ -280,6 +280,14 @@ export function buildPaymentResultPayload(payment) {
   }
 }
 
+export function buildPaymentContactForm(booking = {}) {
+  return {
+    contact_name: normalizeText(booking?.contact_name),
+    contact_email: normalizeText(booking?.contact_email),
+    contact_phone: normalizePhoneDisplay(booking?.contact_phone),
+  }
+}
+
 export function buildMockQrPayload({
   amount,
   bookingCode,
