@@ -21,14 +21,17 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
         </span>
         <div>
           <h2 className="payment-contact-card__title">Thông tin liên hệ</h2>
-          <p className="payment-contact-card__subtitle">Xác nhận lại thông tin để gửi biên nhận thanh toán.</p>
+          <p className="payment-contact-card__subtitle">
+            Xác nhận lại thông tin để gửi biên nhận thanh toán.
+          </p>
         </div>
       </header>
 
-      <div className="payment-contact-card__grid">
+      <div className="payment-contact-grid">
         <label className="payment-contact-card__field">
-          <span>Họ và Tên</span>
+          <span className="payment-contact-label">Họ và Tên *</span>
           <input
+            className="payment-contact-input"
             name="contact_name"
             placeholder="Nguyễn Văn A"
             type="text"
@@ -39,20 +42,9 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
         </label>
 
         <label className="payment-contact-card__field">
-          <span>Địa chỉ Email</span>
+          <span className="payment-contact-label">Số Điện Thoại *</span>
           <input
-            name="contact_email"
-            placeholder="Example@gmail.com"
-            type="email"
-            value={contactForm.contact_email}
-            onChange={onChange}
-          />
-          {errors.contact_email ? <small>{errors.contact_email}</small> : null}
-        </label>
-
-        <label className="payment-contact-card__field">
-          <span>Số điện thoại</span>
-          <input
+            className="payment-contact-input"
             name="contact_phone"
             placeholder="090 123 4567"
             type="text"
@@ -60,6 +52,19 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
             onChange={onChange}
           />
           {errors.contact_phone ? <small>{errors.contact_phone}</small> : null}
+        </label>
+
+        <label className="payment-contact-card__field payment-contact-field--full">
+          <span className="payment-contact-label">Email *</span>
+          <input
+            className="payment-contact-input"
+            name="contact_email"
+            placeholder="example@gmail.com"
+            type="email"
+            value={contactForm.contact_email}
+            onChange={onChange}
+          />
+          {errors.contact_email ? <small>{errors.contact_email}</small> : null}
         </label>
       </div>
     </section>

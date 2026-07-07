@@ -7,6 +7,7 @@ import {
 } from '../constants/payments.js'
 import {
   buildPaymentConfirmationViewModel,
+  buildPaymentContactForm,
   buildMockQrPayload,
   buildPaymentSummary,
   clonePaymentValue,
@@ -144,11 +145,7 @@ export default function usePaymentConfirmation() {
         )
         setVoucherCode(nextPaymentSummary.voucher_code ?? '')
         setPaymentSummary(nextPaymentSummary)
-        setContactForm({
-          contact_name: '',
-          contact_email: '',
-          contact_phone: '',
-        })
+        setContactForm(buildPaymentContactForm(nextBooking))
         setCardNumber(
           nextPayment?.metadata?.preset_card_number ?? PAYMENT_DEFAULT_CARD_NUMBER,
         )
@@ -354,27 +351,31 @@ export default function usePaymentConfirmation() {
         },
       }
 
+      const nextBooking = booking
+        ? {
+            ...booking,
+            contact_name: contactForm.contact_name,
+            contact_email: contactForm.contact_email,
+            contact_phone: contactForm.contact_phone,
+            booking_status: response.data.booking_status,
+            payment_status: response.data.payment_status,
+            total_amount: paymentSummary?.total_amount ?? booking.total_amount,
+            discount_amount: paymentSummary?.discount_amount ?? booking.discount_amount,
+          }
+        : booking
+
       setPayment(nextPayment)
-      setBooking((currentBooking) =>
-        currentBooking
-          ? {
-              ...currentBooking,
-              contact_name: contactForm.contact_name,
-              contact_email: contactForm.contact_email,
-              contact_phone: contactForm.contact_phone,
-              booking_status: response.data.booking_status,
-              payment_status: response.data.payment_status,
-              total_amount: paymentSummary?.total_amount ?? currentBooking.total_amount,
-              discount_amount: paymentSummary?.discount_amount ?? currentBooking.discount_amount,
-            }
-          : currentBooking,
-      )
+      setBooking(nextBooking)
       setIsPaid(true)
 
       const resultPayload = await buildPaymentResultPayload(nextPayment)
-      setFeedback(resultPayload.data?.payment_code
-        ? `${response.message} Mã thanh toán: ${resultPayload.data.payment_code}.`
-        : response.message)
+      navigate(preserveAuthPath('/payment-success', authState), {
+        state: {
+          booking: nextBooking,
+          payment: nextPayment,
+          paymentResultPayload: resultPayload.data,
+        },
+      })
     } catch (confirmError) {
       setFeedback(confirmError?.message ?? 'Không thể ghi nhận thanh toán lúc này.')
     }

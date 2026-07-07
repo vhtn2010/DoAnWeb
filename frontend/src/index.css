@@ -9038,10 +9038,15 @@ select {
   margin: 0;
 }
 
-.payment-contact-card__grid {
+.payment-contact-grid {
   display: grid;
-  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
   padding-top: 22px;
+}
+
+.payment-contact-field--full {
+  grid-column: 1 / -1;
 }
 
 .payment-contact-card__field {
@@ -9049,7 +9054,7 @@ select {
   gap: 10px;
 }
 
-.payment-contact-card__field span,
+.payment-contact-label,
 .payment-method-panel__card-field span,
 .payment-order-summary__voucher-label {
   color: #453635;
@@ -9057,20 +9062,37 @@ select {
   font-weight: 800;
 }
 
-.payment-contact-card__field input,
+.payment-contact-input,
 .payment-method-panel__card-input,
 .payment-order-summary__voucher-controls input {
   border: 1px solid rgba(182, 190, 204, 0.72);
   border-radius: 999px;
   background: #f3f4f6;
-  min-height: 52px;
+  min-height: 58px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.payment-contact-card__field input,
+.payment-contact-input,
 .payment-method-panel__card-input input,
 .payment-order-summary__voucher-controls input {
   width: 100%;
+  color: #7f8a9c;
+  padding: 0 24px;
+  font-size: 1rem;
+  outline: none;
+}
+
+.payment-contact-input::placeholder {
+  color: #97a0af;
+}
+
+.payment-contact-input:focus {
+  border-color: #d62828;
+  background: #fff;
+}
+
+.payment-method-panel__card-input input,
+.payment-order-summary__voucher-controls input {
   border: none;
   background: transparent;
   color: #241716;
@@ -9078,11 +9100,6 @@ select {
   font-size: 0.98rem;
 }
 
-.payment-contact-card__field input::placeholder {
-  color: #97a0af;
-}
-
-.payment-contact-card__field input:focus,
 .payment-method-panel__card-input input:focus,
 .payment-order-summary__voucher-controls input:focus {
   outline: none;
@@ -9100,6 +9117,69 @@ select {
   color: #b91c1c;
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.payment-success-page {
+  min-height: 52vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 0 12px;
+}
+
+.payment-success-page__card {
+  width: min(560px, 100%);
+  padding: 32px 28px;
+  border: 1px solid rgba(244, 223, 222, 0.92);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 36px rgba(115, 79, 78, 0.08);
+  text-align: center;
+}
+
+.payment-success-page__eyebrow {
+  display: inline-flex;
+  margin-bottom: 12px;
+  color: #d62828;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.payment-success-page__card h1 {
+  margin: 0;
+  color: #241716;
+  font-size: clamp(1.9rem, 3vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.payment-success-page__card p {
+  margin: 14px 0 0;
+  color: #6f6262;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.payment-success-page__meta {
+  font-weight: 700;
+}
+
+.payment-success-page__button {
+  width: fit-content;
+  min-height: 48px;
+  margin: 24px auto 0;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #d91f23, #de2a2a);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.96rem;
+  font-weight: 800;
+  box-shadow: 0 12px 24px rgba(217, 31, 35, 0.18);
 }
 
 .payment-method-panel__options {
@@ -9439,6 +9519,14 @@ select {
   .payment-confirmation-page__hero {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .payment-contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-contact-field--full {
+    grid-column: auto;
   }
 }
 
