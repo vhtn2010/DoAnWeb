@@ -12,6 +12,7 @@ import FlightDetailPage from '../pages/flights/FlightDetailPage.jsx'
 import FlightListPage from '../pages/flights/FlightListPage.jsx'
 import HotelDetailPage from '../pages/hotels/HotelDetailPage.jsx'
 import HotelListPage from '../pages/hotels/HotelListPage.jsx'
+import TrainListPage from '../pages/trains/TrainListPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
 import ServiceDetailPage from '../pages/service/ServiceDetailPage.jsx'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx'
@@ -27,6 +28,7 @@ function AppRouter() {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/flights" element={<FlightListPage />} />
           <Route path="/flights/:slug" element={<FlightDetailPage />} />
+          <Route path="/trains" element={<TrainListPage />} />
           <Route path="/hotels" element={<HotelListPage />} />
           <Route path="/hotels/:slug" element={<HotelDetailPage />} />
           <Route path="/services" element={<ServiceListPage />} />
