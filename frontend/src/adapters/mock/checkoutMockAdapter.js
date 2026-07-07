@@ -2,10 +2,7 @@ import { ROLES } from '../../constants/roles.js'
 import {
   CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
 } from '../../constants/checkout.js'
-import {
-  customerActiveCartFixture,
-  guestActiveCartFixture,
-} from '../../fixtures/cart.fixtures.js'
+import { getCartSnapshotByAuthState as getMockCartSnapshotByAuthState } from './cartMockAdapter.js'
 import { checkoutVoucherFixtures } from '../../fixtures/checkout.fixtures.js'
 import {
   buildCheckoutDraftFromCartSnapshot,
@@ -16,9 +13,7 @@ import {
 } from '../../mappers/checkoutMappers.js'
 
 function getCartSnapshotByAuthState(authState = ROLES.guest) {
-  return authState === ROLES.customer
-    ? customerActiveCartFixture
-    : guestActiveCartFixture
+  return getMockCartSnapshotByAuthState(authState)
 }
 
 export async function getCheckoutDraft({

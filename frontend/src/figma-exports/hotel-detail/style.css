@@ -1,0 +1,745 @@
+:root {
+  --page-bg: #fbf9f8;
+  --surface: #ffffff;
+  --surface-soft: #f5f3f3;
+  --text: #1b1c1c;
+  --muted: #5f5e5e;
+  --brand: #c8102e;
+  --brand-dark: #9e001f;
+  --brand-soft: #e5bdbb;
+  --footer: #d62828;
+  --footer-accent: #f4c542;
+  --secondary-outline: #f0bc4d;
+  --shadow-header: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-panel: 0 4px 6px -4px rgba(0, 0, 0, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --shell-main: 1152px;
+  --shell-footer: 1120px;
+  --font-base: "Be Vietnam Pro", "Be Vietnam", "Segoe UI", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: var(--font-base);
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+}
+
+.reference-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid rgba(27, 28, 28, 0.08);
+  background: rgba(252, 248, 249, 0.8);
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-header);
+}
+
+.reference-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(var(--shell-footer), calc(100% - 48px));
+  min-height: 96px;
+  margin: 0 auto;
+  gap: 24px;
+}
+
+.reference-header__brand {
+  display: block;
+  width: 240px;
+  flex: 0 0 auto;
+}
+
+.reference-header__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.reference-header__nav a {
+  position: relative;
+  color: #5b4541;
+}
+
+.reference-header__nav a.is-active {
+  color: var(--brand);
+}
+
+.reference-header__nav a.is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -14px;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--brand);
+  content: "";
+}
+
+.reference-header__tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.reference-header__tools button,
+.hotel-hero__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(91, 69, 65, 0.35);
+  border-radius: 10px;
+  background: var(--surface);
+  color: #5b4541;
+  cursor: default;
+}
+
+.reference-header__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3b2f2b, #a58b78);
+  color: var(--surface);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.reference-main {
+  width: min(var(--shell-main), calc(100% - 32px));
+  margin: 32px auto 0;
+  padding-bottom: 72px;
+}
+
+.hotel-hero {
+  display: grid;
+  gap: 16px;
+}
+
+.hotel-hero__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.hotel-hero__headline {
+  flex: 1 1 auto;
+  max-width: 724px;
+}
+
+.hotel-hero__stars {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  color: var(--brand-dark);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.hotel-hero__headline h1,
+.hotel-section h2,
+.rooms-section h2,
+.reviews-section__heading h2,
+.booking-panel__card h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.hotel-hero__headline h1 {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 52.8px;
+  letter-spacing: -0.96px;
+}
+
+.hotel-hero__address {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-family: "Be Vietnam", var(--font-base);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.hotel-hero__pin {
+  color: var(--brand);
+}
+
+.hotel-hero__address a,
+.reviews-section__heading button {
+  color: var(--brand);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.hotel-hero__summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.hotel-hero__actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 1px;
+}
+
+.hotel-hero__price {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  text-align: right;
+}
+
+.hotel-hero__price strong,
+.room-card__price strong {
+  color: var(--brand-dark);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 28px;
+}
+
+.hotel-hero__price span {
+  display: block;
+  color: #7c6661;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 17px;
+}
+
+.hotel-hero__price small {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.hotel-gallery {
+  display: grid;
+  grid-template-columns: 570px 279px 279px;
+  grid-template-rows: 200px 200px;
+  gap: 12px;
+}
+
+.hotel-gallery figure {
+  position: relative;
+  overflow: hidden;
+  margin: 0;
+  border-radius: var(--radius-md);
+}
+
+.hotel-gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hotel-gallery__main {
+  grid-row: 1 / span 2;
+}
+
+.hotel-gallery__side--overlay::after {
+  position: absolute;
+  inset: 0;
+  background: rgba(27, 28, 28, 0.18);
+  content: "";
+}
+
+.hotel-gallery__side--overlay span {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--surface);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.hotel-content {
+  display: grid;
+  grid-template-columns: 757px 363px;
+  gap: 32px;
+  margin-top: 31px;
+}
+
+.hotel-content__copy {
+  display: grid;
+  gap: 24px;
+}
+
+.hotel-section h2,
+.rooms-section h2,
+.reviews-section__heading h2,
+.booking-panel__card h2 {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 31.2px;
+}
+
+.hotel-section p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-family: "Be Vietnam", var(--font-base);
+  font-size: 18px;
+  line-height: 29.25px;
+}
+
+.hotel-section--amenities h2 {
+  margin-bottom: 8px;
+}
+
+.amenity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.amenity-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 16px;
+  border: 1px solid var(--brand-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 17px;
+}
+
+.amenity-chip span {
+  color: var(--brand);
+}
+
+.booking-panel {
+  align-self: start;
+}
+
+.booking-panel__card {
+  padding: 16px;
+  border: 1px solid #e2dfde;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.booking-panel__rows {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.booking-panel__rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.booking-panel__rows strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.booking-panel__button,
+.room-card__footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 49px;
+  border-radius: var(--radius-sm);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.booking-panel__button {
+  margin-top: 16px;
+}
+
+.booking-panel__button--primary,
+.room-card__footer button {
+  border: 0;
+  background: var(--brand);
+  color: var(--surface);
+}
+
+.booking-panel__button--secondary {
+  border: 2px solid var(--secondary-outline);
+  background: var(--surface);
+  color: var(--brand);
+}
+
+.rooms-section {
+  margin-top: 70px;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.room-card {
+  overflow: hidden;
+  border: 1px solid var(--brand-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.room-card__image {
+  width: 100%;
+  height: 192px;
+  object-fit: cover;
+}
+
+.room-card__body {
+  padding: 16px;
+}
+
+.room-card__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.room-card__heading h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28.8px;
+}
+
+.room-card__badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #e4e2e2;
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.room-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 17px;
+}
+
+.room-card__footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 17px;
+  border-top: 1px solid rgba(91, 69, 65, 0.16);
+}
+
+.room-card__price {
+  display: grid;
+  gap: 2px;
+}
+
+.room-card__price small {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 18px;
+}
+
+.room-card__footer button {
+  width: auto;
+  min-width: 87px;
+  min-height: 33px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.reviews-section {
+  margin-top: 48px;
+}
+
+.reviews-section__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.reviews-section__heading button {
+  border: 0;
+  background: transparent;
+}
+
+.review-card {
+  width: min(568px, 100%);
+  margin-top: 16px;
+  padding: 16px 16px 24px;
+  border: 1px solid var(--brand-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.review-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-card__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: #e4e2e2;
+  color: var(--brand-dark);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.review-card__header strong {
+  display: block;
+  font-size: 14px;
+  line-height: 16.8px;
+}
+
+.review-card__header span:last-child {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.review-card__stars {
+  margin-top: 12px;
+  color: var(--brand);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.reference-footer {
+  padding: 80px 0 40px;
+  background: var(--footer);
+}
+
+.reference-footer__content,
+.reference-footer__bottom {
+  width: min(var(--shell-footer), calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.reference-footer__content {
+  display: grid;
+  grid-template-columns: 244px repeat(3, 1fr);
+  gap: 48px;
+}
+
+.reference-footer__brand h2 {
+  margin: 0;
+  color: var(--surface);
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.reference-footer__brand p {
+  margin: 24px 0 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 26px;
+}
+
+.reference-footer__socials {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+  color: var(--footer-accent);
+  font-size: 26px;
+}
+
+.reference-footer section h3 {
+  margin: 0 0 24px;
+  color: var(--footer-accent);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  letter-spacing: 1.4px;
+}
+
+.reference-footer section a,
+.reference-footer section p {
+  display: block;
+  margin: 0 0 16px;
+  color: var(--surface);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.reference-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 64px;
+  padding-top: 33px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 20px;
+}
+
+.reference-footer__bottom div {
+  display: flex;
+  gap: 32px;
+}
+
+@media (max-width: 1220px) {
+  .hotel-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 320px repeat(2, 200px);
+  }
+
+  .hotel-gallery__main {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .hotel-content {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-panel {
+    max-width: 420px;
+  }
+
+  .rooms-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reference-footer__content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .reference-header__inner,
+  .hotel-hero__top,
+  .reviews-section__heading,
+  .reference-footer__bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .reference-header__nav {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .hotel-hero__summary {
+    align-items: flex-start;
+  }
+
+  .amenity-grid,
+  .rooms-grid,
+  .reference-footer__content {
+    grid-template-columns: 1fr;
+  }
+
+  .review-card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .reference-main,
+  .reference-header__inner,
+  .reference-footer__content,
+  .reference-footer__bottom {
+    width: calc(100% - 24px);
+  }
+
+  .hotel-hero__headline h1 {
+    font-size: 36px;
+    line-height: 42px;
+    letter-spacing: -0.5px;
+  }
+
+  .hotel-gallery {
+    grid-template-columns: 1fr;
+    grid-template-rows: 260px repeat(4, 180px);
+  }
+
+  .hotel-gallery__main {
+    grid-column: auto;
+  }
+
+  .room-card__footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .room-card__footer button {
+    width: 100%;
+  }
+}

@@ -26,19 +26,38 @@ function buildRequestUrl(path, query = {}) {
   const queryString = searchParams.toString()
   const requestPath = `${baseUrl}${normalizedPath}`
 
-  return queryString ? `${requestPath}?${queryString}` : requestPath
+  if (!queryString) {
+    return requestPath
+  }
+
+  const separator = requestPath.includes('?') ? '&' : '?'
+  return `${requestPath}${separator}${queryString}`
 }
 
-export async function apiGet(path, { query } = {}) {
+async function parseJsonSafely(response) {
+  const contentType = response.headers.get('content-type') || ''
+
+  if (!contentType.includes('application/json')) {
+    return null
+  }
+
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
+async function requestJson(path, { method = 'GET', query } = {}) {
   const response = await fetch(buildRequestUrl(path, query), {
+    method,
     headers: {
       Accept: 'application/json',
     },
   })
+  const payload = await parseJsonSafely(response)
 
-  const payload = await response.json().catch(() => null)
-
-  if (!response.ok || payload?.success !== true) {
+  if (!response.ok || payload?.success === false) {
     const error = new Error(payload?.message ?? 'Khong the ket noi den he thong.')
     error.code = payload?.error?.code ?? 'API_ERROR'
     error.details = Array.isArray(payload?.error?.details) ? payload.error.details : []
@@ -47,4 +66,12 @@ export async function apiGet(path, { query } = {}) {
   }
 
   return payload
+}
+
+export function apiGet(path, options) {
+  return requestJson(path, options)
+}
+
+export function getJson(path) {
+  return requestJson(path)
 }
