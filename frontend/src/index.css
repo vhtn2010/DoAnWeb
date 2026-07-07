@@ -8748,9 +8748,9 @@ select {
 }
 
 .payment-confirmation-stepper__marker--completed {
-  border-color: rgba(215, 0, 24, 0.18);
-  background: linear-gradient(135deg, #d70018, #f97316);
-  box-shadow: 0 16px 28px rgba(215, 0, 24, 0.18);
+  border-color: rgba(22, 163, 74, 0.18);
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  box-shadow: 0 16px 28px rgba(22, 163, 74, 0.18);
 }
 
 .payment-confirmation-stepper__label {
@@ -8764,9 +8764,12 @@ select {
   font-weight: 800;
 }
 
-.payment-confirmation-stepper__label--active,
-.payment-confirmation-stepper__label--completed {
+.payment-confirmation-stepper__label--active {
   color: #d70018;
+}
+
+.payment-confirmation-stepper__label--completed {
+  color: #166534;
 }
 
 .payment-confirmation-stepper__line {
@@ -8781,7 +8784,12 @@ select {
 }
 
 .payment-confirmation-stepper__line--completed {
-  background: linear-gradient(90deg, #d70018, #ef4444);
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.payment-confirmation-stepper__marker svg {
+  width: 18px;
+  height: 18px;
 }
 
 .payment-confirmation-page__hero {
@@ -9011,13 +9019,6 @@ select {
   white-space: nowrap;
 }
 
-.payment-choice-card__action-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.payment-choice-card__action-row button,
 .payment-choice-card__empty button {
   border: none;
   background: none;
@@ -9027,8 +9028,6 @@ select {
   font-weight: 800;
 }
 
-.payment-choice-card__action-row button:hover,
-.payment-choice-card__action-row button:focus-visible,
 .payment-choice-card__empty button:hover,
 .payment-choice-card__empty button:focus-visible {
   color: #a50012;
@@ -9065,7 +9064,6 @@ select {
 }
 
 .payment-contact-card__field input,
-.payment-contact-card__phone-row,
 .payment-method-panel__card-input,
 .payment-order-summary__voucher-controls input {
   border: 1px solid rgba(228, 212, 210, 0.96);
@@ -9091,19 +9089,10 @@ select {
   outline: none;
 }
 
-.payment-contact-card__phone-row,
 .payment-method-panel__card-input,
 .payment-order-summary__voucher-controls {
   display: flex;
   align-items: center;
-}
-
-.payment-contact-card__phone-prefix {
-  min-width: 64px;
-  padding-left: 18px;
-  color: #756868;
-  font-size: 0.96rem;
-  font-weight: 800;
 }
 
 .payment-contact-card__field small,
@@ -9112,11 +9101,6 @@ select {
   color: #b91c1c;
   font-size: 0.84rem;
   font-weight: 700;
-}
-
-.payment-contact-card__phone-row input {
-  min-width: 0;
-  padding-left: 8px;
 }
 
 .payment-method-panel__options {
@@ -9186,6 +9170,52 @@ select {
   display: grid;
   gap: 10px;
   padding-top: 22px;
+}
+
+.payment-qr-code-panel {
+  display: grid;
+  gap: 14px;
+  padding-top: 22px;
+}
+
+.payment-qr-code-panel__surface {
+  width: min(240px, 100%);
+  padding: 14px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 249, 246, 0.98));
+  border: 1px solid rgba(241, 225, 222, 0.98);
+  box-shadow: 0 16px 28px rgba(60, 24, 24, 0.08);
+}
+
+.payment-qr-code-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(17, 1fr);
+  gap: 3px;
+  aspect-ratio: 1;
+  background: #fff;
+  padding: 10px;
+  border-radius: 18px;
+}
+
+.payment-qr-code-panel__cell {
+  border-radius: 2px;
+  background: rgba(255, 245, 240, 0.92);
+}
+
+.payment-qr-code-panel__cell--filled {
+  background: #241716;
+}
+
+.payment-qr-code-panel__copy {
+  display: grid;
+  gap: 6px;
+  color: #6e6060;
+  font-size: 0.92rem;
+}
+
+.payment-qr-code-panel__copy strong {
+  color: #241716;
+  font-size: 1rem;
 }
 
 .payment-method-panel__card-lock {

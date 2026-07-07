@@ -279,3 +279,14 @@ export function buildPaymentResultPayload(payment) {
     paid_at: payment?.paid_at ?? null,
   }
 }
+
+export function buildMockQrPayload({
+  amount,
+  bookingCode,
+  currency = PAYMENT_DEFAULT_CURRENCY,
+  paymentCode,
+} = {}) {
+  return `NETVIET|PAYMENT|METHOD=EWALLET|AMOUNT=${resolveNumber(
+    amount,
+  )}|CURRENCY=${currency}|BOOKING=${bookingCode ?? ''}|PAYMENT=${paymentCode ?? ''}`
+}

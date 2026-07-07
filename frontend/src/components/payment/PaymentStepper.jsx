@@ -1,5 +1,19 @@
 import { PAYMENT_CONFIRMATION_STEPS } from '../../constants/payments.js'
 
+function CompletedStepIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="m5.2 10.3 3.1 3.1 6.4-6.6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  )
+}
+
 function PaymentStepper({ activeStep = 3 }) {
   return (
     <div className="payment-confirmation-stepper" aria-label="Tiến trình thanh toán">
@@ -16,7 +30,7 @@ function PaymentStepper({ activeStep = 3 }) {
                 isCompleted ? 'payment-confirmation-stepper__marker--completed' : ''
               }`}
             >
-              {step.id}
+              {isCompleted ? <CompletedStepIcon /> : step.id}
             </div>
 
             <span

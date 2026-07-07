@@ -1,3 +1,6 @@
+import { PAYMENT_METHOD_CODES } from '../../constants/payments.js'
+import PaymentQrCodePanel from './PaymentQrCodePanel.jsx'
+
 function PaymentIcon() {
   return (
     <svg fill="none" viewBox="0 0 24 24">
@@ -43,13 +46,18 @@ function LockIcon() {
 }
 
 function PaymentMethodPanel({
+  amountLabel,
+  bookingCode,
   cardNumber,
   errors,
   methods,
   onCardNumberChange,
   onSelectMethod,
+  qrPayload,
   selectedMethod,
 }) {
+  const isCardMethod = selectedMethod === PAYMENT_METHOD_CODES.card
+
   return (
     <section className="payment-method-panel">
       <header className="payment-method-panel__header">
@@ -94,16 +102,29 @@ function PaymentMethodPanel({
         <p className="payment-method-panel__error">{errors.selected_payment_method}</p>
       ) : null}
 
-      <label className="payment-method-panel__card-field">
-        <span>Số thẻ</span>
-        <div className="payment-method-panel__card-input">
-          <input type="text" value={cardNumber} onChange={onCardNumberChange} />
-          <span className="payment-method-panel__card-lock" aria-hidden="true">
-            <LockIcon />
-          </span>
-        </div>
-        {errors.card_number ? <small>{errors.card_number}</small> : null}
-      </label>
+      {isCardMethod ? (
+        <label className="payment-method-panel__card-field">
+          <span>Số thẻ</span>
+          <div className="payment-method-panel__card-input">
+            <input
+              placeholder="0000 0000 0000 0000"
+              type="text"
+              value={cardNumber}
+              onChange={onCardNumberChange}
+            />
+            <span className="payment-method-panel__card-lock" aria-hidden="true">
+              <LockIcon />
+            </span>
+          </div>
+          {errors.card_number ? <small>{errors.card_number}</small> : null}
+        </label>
+      ) : (
+        <PaymentQrCodePanel
+          amountLabel={amountLabel}
+          bookingCode={bookingCode}
+          payload={qrPayload}
+        />
+      )}
     </section>
   )
 }
