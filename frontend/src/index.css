@@ -15562,3 +15562,543 @@ select {
     font-size: 24px;
   }
 }
+
+.profile-page {
+  position: relative;
+  min-height: 62vh;
+  margin: -24px;
+  padding: 24px 24px 8px;
+  background:
+    radial-gradient(circle at top left, rgba(244, 197, 66, 0.12), transparent 24%),
+    linear-gradient(180deg, #fffaf5 0%, #fbf7f2 58%, #fffaf6 100%);
+  overflow: hidden;
+}
+
+.profile-page::before,
+.profile-page::after {
+  position: absolute;
+  pointer-events: none;
+  content: '';
+}
+
+.profile-page::before {
+  left: -80px;
+  bottom: 28px;
+  width: 320px;
+  height: 320px;
+  border-radius: 48% 52% 46% 54%;
+  background:
+    radial-gradient(circle at 40% 38%, rgba(215, 0, 24, 0.08), transparent 30%),
+    linear-gradient(180deg, rgba(229, 217, 190, 0.28), rgba(255, 255, 255, 0));
+}
+
+.profile-page::after {
+  top: 22px;
+  right: -36px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, rgba(214, 40, 40, 0.05), transparent 50%),
+    radial-gradient(circle at 65% 65%, rgba(115, 76, 64, 0.04), transparent 40%);
+}
+
+.profile-shell {
+  position: relative;
+  z-index: 1;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
+
+.profile-page__status {
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(234, 211, 203, 0.96);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #625350;
+  box-shadow: 0 14px 28px rgba(102, 73, 66, 0.05);
+}
+
+.profile-page__status--error {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-page__status--error p,
+.profile-page__status--feedback {
+  margin: 0;
+}
+
+.profile-page__status--error button {
+  justify-self: start;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(215, 0, 24, 0.16);
+  border-radius: 999px;
+  background: #fff7f6;
+  color: #d70018;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.profile-page__status--feedback {
+  color: #6d5d59;
+}
+
+.profile-hero {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-hero__eyebrow {
+  margin: 0;
+  color: #d70018;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.profile-hero__title {
+  margin: 0;
+  color: #241716;
+  font-size: clamp(2rem, 4vw, 2.7rem);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.profile-hero__subtitle {
+  margin: 0;
+  color: #75625d;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.profile-content-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.profile-main-column {
+  display: grid;
+  gap: 22px;
+}
+
+.profile-favorites-card,
+.profile-upcoming-trip,
+.profile-history,
+.profile-guest-gate__card {
+  border: 1px solid rgba(235, 218, 210, 0.96);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 36px rgba(108, 78, 72, 0.06);
+}
+
+.profile-favorites-card {
+  padding: 20px 18px;
+}
+
+.profile-favorites-card__header,
+.profile-upcoming-trip__header,
+.profile-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.profile-favorites-card__header h2,
+.profile-upcoming-trip__header h2,
+.profile-history__header h2 {
+  margin: 0;
+  color: #241716;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.profile-favorites-card__header-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(215, 0, 24, 0.08);
+  color: #d70018;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-favorites-card__header-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.profile-favorites-card__list {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.profile-favorites-card__item {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  text-align: left;
+}
+
+.profile-favorites-card__item img {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.profile-favorites-card__item-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.profile-favorites-card__item-copy strong {
+  color: #241716;
+  font-size: 1rem;
+}
+
+.profile-favorites-card__item-copy small {
+  color: #7a6863;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.profile-upcoming-trip {
+  padding: 20px;
+}
+
+.profile-upcoming-trip__header button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #d70018;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.profile-upcoming-trip__card {
+  position: relative;
+  min-height: 330px;
+  margin-top: 18px;
+  border-radius: 26px;
+  background-position: center;
+  background-size: cover;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.profile-upcoming-trip__overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(35, 20, 18, 0.1), rgba(129, 23, 23, 0.78)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 44%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.profile-upcoming-trip__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 26px;
+  color: #fff;
+  display: grid;
+  gap: 12px;
+}
+
+.profile-upcoming-trip__badge {
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f4c542, #f7d978);
+  color: #7c4f08;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.profile-upcoming-trip__code {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.profile-upcoming-trip__content h3 {
+  margin: 0;
+  max-width: 420px;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.2;
+}
+
+.profile-upcoming-trip__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.profile-upcoming-trip__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.profile-upcoming-trip__actions button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  color: #241716;
+  font-size: 0.92rem;
+  font-weight: 800;
+  box-shadow: 0 12px 24px rgba(20, 10, 10, 0.12);
+}
+
+.profile-upcoming-trip__actions .profile-upcoming-trip__secondary-action {
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+}
+
+.profile-history {
+  padding: 20px;
+}
+
+.profile-history__list {
+  margin-top: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.profile-history-item {
+  width: 100%;
+  padding: 18px 20px;
+  border: 1px solid rgba(240, 225, 219, 0.94);
+  border-radius: 999px;
+  background: #fff;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  text-align: left;
+  box-shadow: 0 10px 22px rgba(95, 68, 61, 0.05);
+}
+
+.profile-history-item__icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: rgba(215, 0, 24, 0.08);
+  color: #d70018;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-history-item__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.profile-history-item__copy {
+  display: grid;
+  gap: 6px;
+}
+
+.profile-history-item__copy strong {
+  color: #241716;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.profile-history-item__copy small {
+  color: #7a6863;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.profile-history-item__meta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.profile-history-item__price {
+  color: #241716;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.profile-history-item__status {
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(244, 197, 66, 0.18);
+  color: #a16207;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.profile-history-item__arrow {
+  color: #d70018;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-history-item__arrow svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-guest-gate {
+  min-height: 54vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-guest-gate__card {
+  width: min(540px, 100%);
+  padding: 34px 28px;
+  text-align: center;
+}
+
+.profile-guest-gate__eyebrow {
+  display: inline-flex;
+  margin-bottom: 14px;
+  color: #d70018;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.profile-guest-gate__card h1 {
+  margin: 0;
+  color: #241716;
+  font-size: clamp(1.8rem, 3vw, 2.25rem);
+  line-height: 1.2;
+}
+
+.profile-guest-gate__card p {
+  margin: 14px 0 0;
+  color: #786863;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.profile-guest-gate__actions {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.profile-guest-gate__button {
+  min-height: 46px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #d70018, #df2424);
+  color: #fff;
+  font-size: 0.94rem;
+  font-weight: 800;
+  box-shadow: 0 14px 28px rgba(215, 0, 24, 0.16);
+}
+
+.profile-guest-gate__button--secondary {
+  border: 1px solid rgba(215, 0, 24, 0.2);
+  background: #fff;
+  color: #d70018;
+  box-shadow: none;
+}
+
+.profile-favorites-card__item:hover,
+.profile-favorites-card__item:focus-visible,
+.profile-upcoming-trip__header button:hover,
+.profile-upcoming-trip__header button:focus-visible,
+.profile-upcoming-trip__actions button:hover,
+.profile-upcoming-trip__actions button:focus-visible,
+.profile-history-item:hover,
+.profile-history-item:focus-visible,
+.profile-guest-gate__button:hover,
+.profile-guest-gate__button:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1024px) {
+  .profile-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .profile-page {
+    margin: -24px -16px;
+    padding: 24px 16px 8px;
+  }
+}
+
+@media (max-width: 720px) {
+  .profile-page {
+    padding-top: 20px;
+  }
+
+  .profile-shell {
+    gap: 20px;
+  }
+
+  .profile-favorites-card,
+  .profile-upcoming-trip,
+  .profile-history,
+  .profile-guest-gate__card {
+    border-radius: 22px;
+  }
+
+  .profile-history-item {
+    border-radius: 28px;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .profile-history-item__meta {
+    justify-items: start;
+  }
+
+  .profile-history-item__arrow {
+    display: none;
+  }
+
+  .profile-upcoming-trip__card {
+    min-height: 280px;
+  }
+}

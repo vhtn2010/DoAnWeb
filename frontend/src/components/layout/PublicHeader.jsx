@@ -70,9 +70,11 @@ function PublicHeader() {
   }
 
   const customerCartPath = preserveAuthPath('/cart')
+  const customerProfilePath = preserveAuthPath('/profile')
   const isCartPreview = location.pathname === '/cart'
   const isCheckoutPreview = location.pathname === '/checkout'
   const isHotelPreview = location.pathname.startsWith('/hotels')
+  const isProfilePreview = location.pathname === '/profile'
   const isTicketActive =
     location.pathname.startsWith('/flights') || location.pathname.startsWith('/trains')
   const isFlightPreview = location.pathname.startsWith('/flights')
@@ -187,18 +189,18 @@ function PublicHeader() {
                 <circle cx="16.1" cy="18.2" fill="currentColor" r="1.3" />
               </HeaderActionIcon>
 
-              <span
-                aria-label={
-                  isCartPreview || isCheckoutPreview || isHotelPreview || isTicketActive
-                    ? 'Tài khoản người dùng trên trang preview'
-                    : 'Tài khoản người dùng'
-                }
-                className="public-header__profile"
-                role="img"
-              >
-                <span className="public-header__profile-ring">
-                  <span className="public-header__profile-avatar">NV</span>
-                </span>
+              <span className="public-header__profile">
+                <Link
+                  aria-label={
+                    isCartPreview || isCheckoutPreview || isHotelPreview || isTicketActive || isProfilePreview
+                      ? 'Tài khoản người dùng trên trang preview'
+                      : 'Tài khoản người dùng'
+                  }
+                  className="public-header__profile-ring"
+                  to={customerProfilePath}
+                >
+                  <span className="public-header__profile-avatar">MQ</span>
+                </Link>
               </span>
             </div>
           ) : (
