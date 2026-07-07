@@ -6,7 +6,7 @@ function TrainRelatedRoutes({ formatCurrency, trains = [] }) {
   }
 
   return (
-    <section className="train-detail-card train-related-routes">
+    <section className="train-detail-card train-related-routes train-detail-section">
       <div className="train-detail-section-heading">
         <h2>Các tàu khác trên tuyến này</h2>
       </div>

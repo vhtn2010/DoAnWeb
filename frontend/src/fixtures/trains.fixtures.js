@@ -278,6 +278,12 @@ const se12Cars = [
   }),
 ]
 
+const se12FeaturedSeatOptions = se12SeatOptions.filter(
+  (seatOption) => seatOption.id !== 'seat-option-soft-seat',
+)
+
+const se12FeaturedCars = se12Cars.filter((car) => car.id !== 'car-se12-4')
+
 export const trainStationFixtures = Object.freeze(VIETNAM_TRAIN_STATION_OPTIONS)
 
 export const trainServiceFixtures = Object.freeze([
@@ -374,8 +380,8 @@ export const trainServiceFixtures = Object.freeze([
       header_title: 'Tàu SE12 Tàu Thống Nhất',
       route_note: 'Dịch vụ Sài Gòn - Hà Nội, hành trình hằng ngày',
       legacy_slugs: ['tau-se12-sai-gon-ha-noi'],
-      seat_options: se12SeatOptions,
-      cars: se12Cars,
+      seat_options: se12FeaturedSeatOptions,
+      cars: se12FeaturedCars,
       carriage_info: 'Khoang nằm mềm và toa ghế ngồi được phân bổ rõ để tiện chọn chỗ.',
       baggage_policy:
         'Miễn phí 20kg hành lý xách tay, hành lý cồng kềnh áp dụng theo quy định riêng của ga.',

@@ -4,7 +4,7 @@ function TrainMemberDiscountCard({ memberDiscount }) {
   }
 
   return (
-    <section className="train-detail-card train-member-discount-card">
+    <section className="train-detail-card train-member-discount-card train-detail-section">
       <h3>{memberDiscount.title}</h3>
       <p>{memberDiscount.description}</p>
       <button type="button">{memberDiscount.link_label}</button>

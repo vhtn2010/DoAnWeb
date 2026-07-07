@@ -103,7 +103,7 @@ function TrainSeatMap({ car, onSelectSeat, selectedSeatId }) {
   const shouldUseCompartments = car.seat_type !== 'soft_seat'
 
   return (
-    <section className="train-detail-card train-seat-map">
+    <section className="train-detail-card train-seat-map train-detail-section">
       <div className="train-seat-map__header">
         <div>
           <h2>Sơ đồ {car.name}</h2>
