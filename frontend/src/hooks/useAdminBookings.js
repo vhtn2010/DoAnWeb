@@ -33,6 +33,15 @@ function getActionReason(action) {
   return 'Admin cập nhật trạng thái đơn hàng từ trang Quản lý Đơn hàng.'
 }
 
+function prioritizePendingConfirmationBookings(bookings) {
+  return [...bookings].sort((left, right) => {
+    const leftPriority = left.status === ADMIN_BOOKING_STATUSES.paid ? 0 : 1
+    const rightPriority = right.status === ADMIN_BOOKING_STATUSES.paid ? 0 : 1
+
+    return leftPriority - rightPriority
+  })
+}
+
 export default function useAdminBookings() {
   const [bookings, setBookings] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
@@ -79,7 +88,9 @@ export default function useAdminBookings() {
         }
 
         setBookings(
-          response.data.map((booking) => mapAdminBookingSummary(booking)),
+          prioritizePendingConfirmationBookings(
+            response.data.map((booking) => mapAdminBookingSummary(booking)),
+          ),
         )
         setPaginationMeta(mapAdminBookingPaginationMeta(response.meta))
       } catch (loadError) {

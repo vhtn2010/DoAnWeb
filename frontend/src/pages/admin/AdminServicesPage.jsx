@@ -2,6 +2,7 @@ import AdminServiceFormModal from '../../components/admin/services/AdminServiceF
 import AdminServiceStatusActionModal from '../../components/admin/services/AdminServiceStatusActionModal.jsx'
 import { AdminEmptyState, AdminErrorState } from '../../components/admin/ui/index.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
+import useClickableSelectShell from '../../hooks/useClickableSelectShell.js'
 import useAdminServices from '../../hooks/useAdminServices.js'
 
 const servicePriceFormatter = new Intl.NumberFormat('en-US', {
@@ -255,6 +256,9 @@ function AdminServicesPage() {
   const typeTabs = typeOptions.filter((option) => visibleTypeTabs.has(option.value))
   const typeSelectOptions = getTypeSelectOptions(typeOptions)
   const statusSelectOptions = getStatusSelectOptions(statusOptions)
+  const { handlePointerDown: handleTypeSelectPointerDown, selectRef: typeSelectRef } = useClickableSelectShell(loading)
+  const { handlePointerDown: handleStatusSelectPointerDown, selectRef: statusSelectRef } = useClickableSelectShell(loading)
+  const { handlePointerDown: handleDestinationSelectPointerDown, selectRef: destinationSelectRef } = useClickableSelectShell(loading)
 
   return (
     <main className="admin-services-page admin-services-page--figma">
@@ -327,9 +331,10 @@ function AdminServicesPage() {
             />
           </label>
 
-          <label className="admin-services-page__select-control">
+          <label className="admin-services-page__select-control" onPointerDown={handleTypeSelectPointerDown}>
             <select
               aria-label="Danh mục dịch vụ"
+              ref={typeSelectRef}
               value={filters.type}
               onChange={(event) => setTypeFilter(event.target.value)}
             >
@@ -342,9 +347,10 @@ function AdminServicesPage() {
             <ChevronDownIcon />
           </label>
 
-          <label className="admin-services-page__select-control">
+          <label className="admin-services-page__select-control" onPointerDown={handleStatusSelectPointerDown}>
             <select
               aria-label="Trạng thái dịch vụ"
+              ref={statusSelectRef}
               value={filters.status}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
@@ -357,9 +363,10 @@ function AdminServicesPage() {
             <ChevronDownIcon />
           </label>
 
-          <label className="admin-services-page__select-control">
+          <label className="admin-services-page__select-control" onPointerDown={handleDestinationSelectPointerDown}>
             <select
               aria-label="Điểm đến"
+              ref={destinationSelectRef}
               value={filters.destination}
               onChange={(event) => setDestinationFilter(event.target.value)}
             >

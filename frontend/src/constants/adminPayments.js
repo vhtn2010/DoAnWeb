@@ -19,10 +19,8 @@ export const ADMIN_PAYMENT_STATUS_OPTIONS = Object.freeze([
   { value: ADMIN_PAYMENT_STATUSES.pending, label: 'Chờ thanh toán' },
   { value: ADMIN_PAYMENT_STATUSES.processing, label: 'Đang xử lý' },
   { value: ADMIN_PAYMENT_STATUSES.success, label: 'Thành công' },
-  { value: ADMIN_PAYMENT_STATUSES.reconciled, label: 'Đã đối soát' },
-  { value: ADMIN_PAYMENT_STATUSES.refunded, label: 'Đã hoàn' },
+  { value: ADMIN_PAYMENT_STATUSES.refunded, label: 'Đã hoàn tiền' },
   { value: ADMIN_PAYMENT_STATUSES.failed, label: 'Thất bại' },
-  { value: ADMIN_PAYMENT_STATUSES.expired, label: 'Hết hạn' },
 ])
 
 export const ADMIN_PAYMENT_STATUS_META = Object.freeze({
@@ -37,6 +35,6 @@ export const ADMIN_PAYMENT_STATUS_META = Object.freeze({
   [ADMIN_PAYMENT_STATUSES.pending]: { label: 'Chờ thanh toán', tone: 'warning' },
   [ADMIN_PAYMENT_STATUSES.processing]: { label: 'Đang xử lý', tone: 'info' },
   [ADMIN_PAYMENT_STATUSES.reconciled]: { label: 'Đã đối soát', tone: 'success' },
-  [ADMIN_PAYMENT_STATUSES.refunded]: { label: 'Đã hoàn', tone: 'success' },
+  [ADMIN_PAYMENT_STATUSES.refunded]: { label: 'Đã hoàn tiền', tone: 'success' },
   [ADMIN_PAYMENT_STATUSES.success]: { label: 'Thành công', tone: 'success' },
 })

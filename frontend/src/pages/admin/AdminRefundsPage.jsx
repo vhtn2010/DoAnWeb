@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   AdminActionIconButton,
   AdminActionIconGroup,
@@ -114,6 +115,7 @@ function formatDate(value) {
 }
 
 function AdminRefundsPage() {
+  const [isProcessorOpen, setIsProcessorOpen] = useState(false)
   const {
     actionConfig,
     actionLoading,
@@ -136,6 +138,24 @@ function AdminRefundsPage() {
     setRefundStatusFilter,
   } = useAdminRefunds()
   const selectedStatus = getAdminRefundStatusMeta(selectedRequest?.status)
+
+  function openRefundProcessor(request) {
+    selectRefund(request)
+    setIsProcessorOpen(true)
+  }
+
+  function closeRefundProcessor() {
+    if (!actionLoading) {
+      setIsProcessorOpen(false)
+    }
+  }
+
+  function handleRefundRowKeyDown(event, request) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openRefundProcessor(request)
+    }
+  }
 
   return (
     <main className="admin-ops-page admin-refunds-page">
@@ -173,10 +193,18 @@ function AdminRefundsPage() {
         </p>
       ) : null}
 
-      <div className="admin-ops-page__split">
+      <div className="admin-refunds-page__content">
         <AdminCard className="admin-ops-page__table-card" padding="lg">
           <div className="admin-refunds-page__table-heading">
             <h2>Danh sách Yêu cầu hoàn tiền</h2>
+            <AdminSegmentedControl
+              ariaLabel="Lọc trạng thái hoàn tiền"
+              className="admin-refunds-page__status-tabs"
+              disabled={loading}
+              options={ADMIN_REFUND_STATUS_OPTIONS}
+              value={refundStatusFilter}
+              onChange={setRefundStatusFilter}
+            />
           </div>
 
           <AdminTable
@@ -214,10 +242,13 @@ function AdminRefundsPage() {
                 <tr
                   className={
                     request.id === selectedRequest?.id
-                      ? 'admin-ops-table__row admin-ops-table__row--selected'
-                      : 'admin-ops-table__row'
+                      ? 'admin-ops-table__row admin-ops-table__row--selected admin-refunds-page__clickable-row'
+                      : 'admin-ops-table__row admin-refunds-page__clickable-row'
                   }
                   key={request.id}
+                  tabIndex={0}
+                  onClick={() => openRefundProcessor(request)}
+                  onKeyDown={(event) => handleRefundRowKeyDown(event, request)}
                 >
                   <td><strong>#{request.bookingCode || request.refundCode}</strong></td>
                   <td>
@@ -237,7 +268,10 @@ function AdminRefundsPage() {
                       <AdminActionIconButton
                         label="Xem yêu cầu hoàn tiền"
                         loading={detailLoading && selectedRequest?.id === request.id}
-                        onClick={() => selectRefund(request)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openRefundProcessor(request)
+                        }}
                       >
                         <ViewIcon />
                       </AdminActionIconButton>
@@ -249,13 +283,6 @@ function AdminRefundsPage() {
           </AdminTable>
 
           <div className="admin-refunds-page__table-footer">
-            <AdminSegmentedControl
-              ariaLabel="Lọc trạng thái hoàn tiền"
-              disabled={loading}
-              options={ADMIN_REFUND_STATUS_OPTIONS}
-              value={refundStatusFilter}
-              onChange={setRefundStatusFilter}
-            />
             <p>
               {pagination.total > 0
                 ? `Hiển thị ${refunds.length} trong tổng ${pagination.total} yêu cầu`
@@ -269,14 +296,36 @@ function AdminRefundsPage() {
             />
           </div>
         </AdminCard>
+      </div>
 
-        {selectedRequest ? (
-          <AdminCard className="admin-refunds-page__processor" padding="lg">
+      {isProcessorOpen && selectedRequest ? (
+        <div
+          className="admin-refunds-page__modal-backdrop"
+          role="presentation"
+          onClick={closeRefundProcessor}
+        >
+          <AdminCard
+            className="admin-refunds-page__processor admin-refunds-page__processor--modal"
+            padding="lg"
+            role="dialog"
+            aria-labelledby="admin-refunds-processor-title"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="admin-refunds-page__processor-hero">
               <div className="admin-refunds-page__processor-title">
-                <h2>Xử lý Hoàn tiền</h2>
+                <h2 id="admin-refunds-processor-title">Xử lý Hoàn tiền</h2>
                 <AdminStatusBadge tone={selectedStatus.tone}>{selectedStatus.label}</AdminStatusBadge>
               </div>
+              <button
+                className="admin-refunds-page__modal-close"
+                disabled={actionLoading}
+                type="button"
+                aria-label="Đóng popup xử lý hoàn tiền"
+                onClick={closeRefundProcessor}
+              >
+                <XIcon />
+              </button>
               <div className="admin-refunds-page__transaction-card">
                 <span>MÃ HOÀN TIỀN</span>
                 <strong>#{selectedRequest.refundCode}</strong>
@@ -341,8 +390,8 @@ function AdminRefundsPage() {
               </AdminActionIconGroup>
             </div>
           </AdminCard>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </main>
   )
 }

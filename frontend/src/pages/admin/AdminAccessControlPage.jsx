@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import useClickableSelectShell from '../../hooks/useClickableSelectShell.js'
 import useAdminAccessControl from '../../hooks/useAdminAccessControl.js'
 
 function RefreshIcon() {
@@ -16,19 +18,18 @@ function ChevronDownIcon() {
   )
 }
 
-function ViewIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
-      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
-    </svg>
-  )
-}
-
 function EditIcon() {
   return (
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
       <path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
     </svg>
   )
 }
@@ -67,6 +68,7 @@ function getRoleStatus(role) {
 }
 
 function AdminAccessControlPage() {
+  const [isRolePermissionDialogOpen, setIsRolePermissionDialogOpen] = useState(false)
   const {
     actionLoading,
     countRolePermissionsForModule,
@@ -98,6 +100,24 @@ function AdminAccessControlPage() {
   const isBusy = loading || actionLoading
   const canResetFilters = roleFilter !== 'all' || moduleFilter !== 'all'
   const canEditSelectedRole = Boolean(selectedRole) && !selectedRole.isProtected
+  const { handlePointerDown: handleRoleSelectPointerDown, selectRef: roleSelectRef } = useClickableSelectShell(isBusy)
+  const { handlePointerDown: handleModuleSelectPointerDown, selectRef: moduleSelectRef } = useClickableSelectShell(isBusy)
+  function openRolePermissionDialog(role) {
+    selectRole(role)
+    setIsRolePermissionDialogOpen(true)
+  }
+
+  function closeRolePermissionDialog() {
+    if (actionLoading) {
+      return
+    }
+
+    if (isDirty) {
+      resetSelectedRolePermissions()
+    }
+
+    setIsRolePermissionDialogOpen(false)
+  }
 
   return (
     <main className="admin-system-page admin-access-control-page">
@@ -123,9 +143,9 @@ function AdminAccessControlPage() {
         aria-label="Bộ lọc phân quyền truy cập"
         onSubmit={(event) => event.preventDefault()}
       >
-        <label className="admin-access-control-page__select">
+        <label className="admin-access-control-page__select" onPointerDown={handleRoleSelectPointerDown}>
           <span className="admin-access-control-page__sr-only">Vai trò</span>
-          <select disabled={isBusy} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+          <select disabled={isBusy} ref={roleSelectRef} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
             {roleOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -135,9 +155,9 @@ function AdminAccessControlPage() {
           <ChevronDownIcon />
         </label>
 
-        <label className="admin-access-control-page__select">
+        <label className="admin-access-control-page__select" onPointerDown={handleModuleSelectPointerDown}>
           <span className="admin-access-control-page__sr-only">Module</span>
-          <select disabled={isBusy} value={moduleFilter} onChange={(event) => setModuleFilter(event.target.value)}>
+          <select disabled={isBusy} ref={moduleSelectRef} value={moduleFilter} onChange={(event) => setModuleFilter(event.target.value)}>
             {moduleOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -172,14 +192,13 @@ function AdminAccessControlPage() {
                   <th scope="col">Vai trò</th>
                   <th scope="col">Cấp</th>
                   <th scope="col">Quyền hạn</th>
-                  <th scope="col">Trạng thái</th>
                   <th scope="col">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="5">
+                    <td colSpan="4">
                       <div className="admin-access-control-page__empty" role="status">
                         <strong>Đang tải dữ liệu RBAC...</strong>
                         <span>Hệ thống đang lấy roles và permissions từ backend.</span>
@@ -190,7 +209,7 @@ function AdminAccessControlPage() {
 
                 {!loading && error ? (
                   <tr>
-                    <td colSpan="5">
+                    <td colSpan="4">
                       <div className="admin-access-control-page__empty" role="alert">
                         <strong>Không thể tải phân quyền</strong>
                         <span>{error}</span>
@@ -200,7 +219,6 @@ function AdminAccessControlPage() {
                 ) : null}
 
                 {!loading && !error && filteredRoles.length > 0 ? filteredRoles.map((role) => {
-                  const status = getRoleStatus(role)
                   const rolePermissionCount = countRolePermissionsForModule(role)
 
                   return (
@@ -209,11 +227,7 @@ function AdminAccessControlPage() {
                       key={role.id}
                     >
                       <td>
-                        <button
-                          className="admin-access-control-page__identity admin-access-control-page__permission-button"
-                          type="button"
-                          onClick={() => selectRole(role)}
-                        >
+                        <div className="admin-access-control-page__identity">
                           <span className={`admin-access-control-page__avatar admin-access-control-page__avatar--${getRoleTone(role)}`}>
                             {role.initials}
                           </span>
@@ -221,7 +235,7 @@ function AdminAccessControlPage() {
                             <strong>{role.name}</strong>
                             <span>{role.code}</span>
                           </span>
-                        </button>
+                        </div>
                       </td>
                       <td>{role.level}</td>
                       <td>
@@ -230,27 +244,16 @@ function AdminAccessControlPage() {
                         </span>
                       </td>
                       <td>
-                        <span className={`admin-access-control-page__status admin-access-control-page__status--${status.className}`}>
-                          {status.label}
-                        </span>
-                      </td>
-                      <td>
                         <div className="admin-access-control-page__actions">
                           <button
-                            disabled={isBusy}
-                            type="button"
-                            aria-label={`Xem quyền của ${role.name}`}
-                            onClick={() => selectRole(role)}
-                          >
-                            <ViewIcon />
-                          </button>
-                          <button
+                            className="admin-access-control-page__edit-permission"
                             disabled={isBusy}
                             type="button"
                             aria-label={`Chỉnh quyền của ${role.name}`}
-                            onClick={() => selectRole(role)}
+                            onClick={() => openRolePermissionDialog(role)}
                           >
                             <EditIcon />
+                            <span>Sửa quyền</span>
                           </button>
                         </div>
                       </td>
@@ -260,7 +263,7 @@ function AdminAccessControlPage() {
 
                 {!loading && !error && filteredRoles.length === 0 ? (
                   <tr>
-                    <td colSpan="5">
+                    <td colSpan="4">
                       <div className="admin-access-control-page__empty" role="status">
                         <strong>Không có vai trò phù hợp</strong>
                         <span>Thử đổi bộ lọc vai trò hoặc module để xem dữ liệu phân quyền.</span>
@@ -279,7 +282,24 @@ function AdminAccessControlPage() {
           </div>
         </section>
 
-        <aside className="admin-access-control-page__role-detail" aria-label="Chi tiết phân quyền vai trò">
+        {isRolePermissionDialogOpen && selectedRole ? (
+          <div className="admin-access-control-page__modal-backdrop" onClick={closeRolePermissionDialog}>
+            <aside
+              className="admin-access-control-page__role-detail admin-access-control-page__role-detail--modal"
+              role="dialog"
+              aria-label={`Chi tiết phân quyền vai trò ${selectedRole.name}`}
+              aria-modal="true"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                className="admin-access-control-page__modal-close"
+                disabled={actionLoading}
+                type="button"
+                aria-label="Đóng popup phân quyền"
+                onClick={closeRolePermissionDialog}
+              >
+                <CloseIcon />
+              </button>
           {selectedRole ? (
             <>
               <div className="admin-access-control-page__detail-header">
@@ -371,7 +391,9 @@ function AdminAccessControlPage() {
               <span>Chọn một role trong bảng để xem và chỉnh permission.</span>
             </div>
           )}
-        </aside>
+            </aside>
+          </div>
+        ) : null}
       </section>
     </main>
   )

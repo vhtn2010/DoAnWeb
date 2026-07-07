@@ -441,6 +441,7 @@ const sanitizeBookingSummary = (booking) => ({
   expires_at: booking.expires_at,
   id: booking.id,
   item_count: Number(booking.item_count || 0),
+  service_title: booking.service_title || null,
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
   total_amount: roundMoney(booking.total_amount),

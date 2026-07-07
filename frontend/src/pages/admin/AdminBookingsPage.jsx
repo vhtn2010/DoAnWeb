@@ -1,16 +1,18 @@
-import { Link, useOutletContext } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import {
   AdminButton,
   AdminEmptyState,
   AdminErrorState,
   AdminLoadingBlock,
 } from '../../components/admin/ui/index.js'
-import { buildAdminPath } from '../../constants/adminRoutes.js'
 import {
   ADMIN_BOOKING_STATUSES,
   ADMIN_BOOKING_STATUS_OPTIONS,
 } from '../../constants/adminBookings.js'
 import useAdminBookings from '../../hooks/useAdminBookings.js'
+import { mapAdminBookingDetail } from '../../mappers/adminBookingMappers.js'
+import { getAdminBookingDetail } from '../../repositories/adminBookingRepository.js'
 import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN')
@@ -154,6 +156,27 @@ function BookingInfoItem({ icon, label, value }) {
   )
 }
 
+function getStatusDisplayIcon(tone) {
+  if (tone === 'danger') {
+    return 'x'
+  }
+
+  if (tone === 'success' || tone === 'brand') {
+    return 'check'
+  }
+
+  return 'clock'
+}
+
+function DetailField({ label, value }) {
+  return (
+    <div className="admin-booking-detail-modal__field">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
 function AdminBookingsPage() {
   const { currentPermissions, currentRole } = useOutletContext()
   const {
@@ -179,6 +202,87 @@ function AdminBookingsPage() {
   )
   const currentBookings = bookings
   const totalPages = paginationMeta.totalPages
+  const [activeBooking, setActiveBooking] = useState(null)
+  const [detailBooking, setDetailBooking] = useState(null)
+  const [detailError, setDetailError] = useState('')
+  const [detailLoading, setDetailLoading] = useState(false)
+
+  useEffect(() => {
+    if (!activeBooking) {
+      return undefined
+    }
+
+    let isActive = true
+
+    async function loadBookingDetail() {
+      setDetailLoading(true)
+      setDetailError('')
+      setDetailBooking(null)
+
+      try {
+        const response = await getAdminBookingDetail(activeBooking.id)
+
+        if (!isActive) {
+          return
+        }
+
+        if (!response.success || !response.data) {
+          throw new Error(response.message || 'Không thể tải chi tiết đơn hàng lúc này.')
+        }
+
+        setDetailBooking(mapAdminBookingDetail(response.data))
+      } catch (loadError) {
+        if (!isActive) {
+          return
+        }
+
+        setDetailError(loadError?.message ?? 'Không thể tải chi tiết đơn hàng lúc này.')
+      } finally {
+        if (isActive) {
+          setDetailLoading(false)
+        }
+      }
+    }
+
+    loadBookingDetail()
+
+    return () => {
+      isActive = false
+    }
+  }, [activeBooking])
+
+  useEffect(() => {
+    if (!activeBooking) {
+      return undefined
+    }
+
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') {
+        setActiveBooking(null)
+      }
+    }
+
+    window.addEventListener('keydown', closeOnEscape)
+
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [activeBooking])
+
+  function openBookingDetail(booking) {
+    setDetailBooking(null)
+    setDetailError('')
+    setActiveBooking(booking)
+  }
+
+  function handleOpenZoneKeyDown(event, booking) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openBookingDetail(booking)
+    }
+  }
+
+  const modalBooking = detailBooking ?? activeBooking
 
   return (
     <main className="admin-bookings-page admin-bookings-page--figma">
@@ -236,11 +340,26 @@ function AdminBookingsPage() {
 
               return (
                 <article className="admin-booking-card" key={booking.id}>
-                  <div className="admin-booking-card__media">
+                  <div
+                    className="admin-booking-card__media admin-booking-card__open-zone"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Xem chi tiết đơn hàng ${booking.bookingCode}`}
+                    onClick={() => openBookingDetail(booking)}
+                    onKeyDown={(event) => handleOpenZoneKeyDown(event, booking)}
+                  >
                     <img alt={booking.serviceTitle} src={booking.imageUrl} />
                   </div>
 
                   <div className="admin-booking-card__content">
+                    <div
+                      className="admin-booking-card__body-open-zone admin-booking-card__open-zone"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Xem chi tiết đơn hàng ${booking.bookingCode}`}
+                      onClick={() => openBookingDetail(booking)}
+                      onKeyDown={(event) => handleOpenZoneKeyDown(event, booking)}
+                    >
                     <header className="admin-booking-card__header">
                       <div className="admin-booking-card__heading">
                         <h2 className="admin-booking-card__title">
@@ -251,18 +370,14 @@ function AdminBookingsPage() {
                           <span className="admin-booking-card__code">
                             Mã đơn #{booking.bookingCode}
                           </span>
-                          <span className="admin-booking-card__time">
+                          <span
+                            className={`admin-booking-card__status admin-booking-card__status--${booking.statusTone}`}
+                          >
                             {booking.statusLabel}
                           </span>
                           <span className="admin-booking-card__time">
                             {booking.createdLabel}
                           </span>
-                          <Link
-                            className="admin-booking-card__detail-link"
-                            to={buildAdminPath(`/admin/bookings/${booking.id}`, currentRole)}
-                          >
-                            Xem chi tiết
-                          </Link>
                         </div>
 
                         <div className="admin-booking-card__meta">
@@ -308,6 +423,8 @@ function AdminBookingsPage() {
                       Tổng cộng: {formatCurrency(booking.totalAmount)}
                     </p>
 
+                    </div>
+
                     <footer className="admin-booking-card__footer">
                       <div className="admin-booking-card__note">
                         <strong>Ghi chú:</strong>
@@ -337,7 +454,16 @@ function AdminBookingsPage() {
                             </button>
                           ))}
                         </div>
-                      ) : null}
+                      ) : (
+                        <div className="admin-booking-card__actions">
+                          <span
+                            className={`admin-booking-card__state-action admin-booking-card__state-action--${booking.statusTone}`}
+                          >
+                            <BookingIcon name={getStatusDisplayIcon(booking.statusTone)} />
+                            {booking.statusLabel}
+                          </span>
+                        </div>
+                      )}
                     </footer>
                   </div>
                 </article>
@@ -407,6 +533,108 @@ function AdminBookingsPage() {
           </button>
         </nav>
       </footer>
+
+      {activeBooking ? (
+        <div
+          className="admin-booking-detail-modal"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setActiveBooking(null)
+            }
+          }}
+        >
+          <section
+            className="admin-booking-detail-modal__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-booking-detail-modal-title"
+          >
+            <header className="admin-booking-detail-modal__header">
+              <div>
+                <span>Đơn hàng #{modalBooking?.bookingCode}</span>
+                <h2 id="admin-booking-detail-modal-title">{modalBooking?.serviceTitle}</h2>
+              </div>
+              <button
+                className="admin-booking-detail-modal__close"
+                type="button"
+                aria-label="Đóng chi tiết đơn hàng"
+                onClick={() => setActiveBooking(null)}
+              >
+                ×
+              </button>
+            </header>
+
+            {detailLoading ? (
+              <div className="admin-booking-detail-modal__state" role="status">
+                Đang tải chi tiết đơn hàng...
+              </div>
+            ) : null}
+
+            {detailError ? (
+              <div className="admin-booking-detail-modal__state admin-booking-detail-modal__state--error">
+                <p>{detailError}</p>
+                <button type="button" onClick={() => setActiveBooking({ ...activeBooking })}>
+                  Thử lại
+                </button>
+              </div>
+            ) : null}
+
+            {!detailLoading && !detailError && modalBooking ? (
+              <div className="admin-booking-detail-modal__body">
+                <div className="admin-booking-detail-modal__hero">
+                  <img alt={modalBooking.serviceTitle} src={modalBooking.imageUrl} />
+                  <div>
+                    <span
+                      className={`admin-booking-card__status admin-booking-card__status--${modalBooking.statusTone}`}
+                    >
+                      {modalBooking.statusLabel}
+                    </span>
+                    <h3>{modalBooking.serviceTitle}</h3>
+                    <p>{`${modalBooking.destination} · ${modalBooking.duration} · ${modalBooking.transport}`}</p>
+                    <strong>{formatCurrency(modalBooking.totalAmount)}</strong>
+                  </div>
+                </div>
+
+                <div className="admin-booking-detail-modal__field-grid">
+                  <DetailField label="Khách hàng" value={modalBooking.customerName} />
+                  <DetailField label="Email" value={modalBooking.customerEmail} />
+                  <DetailField label="SĐT" value={modalBooking.customerPhone} />
+                  <DetailField label="Ngày đi" value={modalBooking.departureLabel} />
+                  <DetailField label="Ngày về" value={modalBooking.returnLabel} />
+                  <DetailField label="Hành khách" value={modalBooking.travelers} />
+                </div>
+
+                <div className="admin-booking-detail-modal__line-items">
+                  {(modalBooking.serviceItems ?? []).length > 0 ? (
+                    modalBooking.serviceItems.map((item) => (
+                      <article
+                        className="admin-booking-detail-modal__line-item"
+                        key={`${item.label}-${item.title}`}
+                      >
+                        <div>
+                          <span>{item.label}</span>
+                          <h4>{item.title}</h4>
+                          <p>{item.description}</p>
+                        </div>
+                        <strong>{formatCurrency(item.price)}</strong>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="admin-booking-detail-modal__empty">
+                      Backend chưa trả chi tiết dịch vụ cho đơn hàng này.
+                    </p>
+                  )}
+                </div>
+
+                <p className="admin-booking-detail-modal__note">
+                  <strong>Ghi chú:</strong> {modalBooking.note}
+                </p>
+              </div>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }
