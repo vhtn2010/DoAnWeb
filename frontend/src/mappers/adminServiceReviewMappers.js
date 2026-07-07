@@ -96,7 +96,8 @@ export function getAdminServiceReviewTypeLabel(serviceType) {
 }
 
 export function mapAdminServiceReviewItem(service = {}) {
-  const serviceType = service.service_type ?? SERVICE_TYPES.tour
+  const rawServiceType = service.service_type ?? SERVICE_TYPES.tour
+  const serviceType = rawServiceType
   const price = Number(service.sale_price ?? service.base_price ?? 0)
 
   return {
@@ -105,13 +106,17 @@ export function mapAdminServiceReviewItem(service = {}) {
     description: service.short_description || service.description || 'Chưa có mô tả kiểm duyệt.',
     duration: getReviewDuration(service),
     id: service.id,
-    imageUrl: service.image_url || FALLBACK_IMAGE_BY_TYPE[serviceType] || FALLBACK_IMAGE_BY_TYPE.tour,
+    imageUrl:
+      service.image_url ||
+      FALLBACK_IMAGE_BY_TYPE[rawServiceType] ||
+      FALLBACK_IMAGE_BY_TYPE[serviceType] ||
+      FALLBACK_IMAGE_BY_TYPE.tour,
     location: service.location_text || 'Chưa cập nhật',
     partnerName: service.provider_name || 'Chưa cập nhật',
     price,
     raw: service,
     serviceCode: service.service_code || 'Chưa có mã',
-    tag: getAdminServiceReviewTypeLabel(serviceType),
+    tag: ADMIN_SERVICE_TYPE_DISPLAY_NAMES[serviceType] ?? getAdminServiceReviewTypeLabel(serviceType),
     title: service.title || service.service_code || 'Dịch vụ chưa có tên',
     type: serviceType,
   }
@@ -120,7 +125,9 @@ export function mapAdminServiceReviewItem(service = {}) {
 export function createAdminServiceReviewTypeOptions(items = []) {
   const baseOptions = [
     { value: ADMIN_SERVICE_REVIEW_TYPE_ALL, label: 'Tất cả' },
-    ...ADMIN_SERVICE_TYPE_OPTIONS.filter((option) => option.value !== ADMIN_SERVICE_REVIEW_TYPE_ALL),
+    ...ADMIN_SERVICE_TYPE_OPTIONS.filter(
+      (option) => option.value !== ADMIN_SERVICE_REVIEW_TYPE_ALL && option.value !== SERVICE_TYPES.combo,
+    ),
   ]
 
   return baseOptions.map((option) => {

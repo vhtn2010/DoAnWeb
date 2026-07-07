@@ -20,7 +20,7 @@ import AdminInfrastructurePage from '../pages/admin/AdminInfrastructurePage.jsx'
 import AdminPaymentsPage from '../pages/admin/AdminPaymentsPage.jsx'
 import AdminPromotionsPage from '../pages/admin/AdminPromotionsPage.jsx'
 import AdminRefundsPage from '../pages/admin/AdminRefundsPage.jsx'
-import AdminRevenuePage from '../pages/admin/AdminRevenuePage.jsx'
+import AdminRevenuePage from '../pages/admin/AdminRevenuePageInteractive.jsx'
 import AdminServiceCreatePage from '../pages/admin/AdminServiceCreatePage.jsx'
 import AdminServiceReviewPage from '../pages/admin/AdminServiceReviewFigmaPage.jsx'
 import AdminServicesPage from '../pages/admin/AdminServicesPage.jsx'
@@ -30,7 +30,6 @@ import AdminUsersPage from '../pages/admin/AdminUsersFigmaPage.jsx'
 import {
   AdminEmailLogsPage,
   AdminInventoryPage,
-  AdminNotificationsPage,
 } from '../pages/admin/AdminUtilityPages.jsx'
 import AdminRouteGate from '../pages/admin/AdminRouteGate.jsx'
 import ProtectedRoute from './ProtectedRoute.jsx'
@@ -178,11 +177,7 @@ function AppRouter() {
             />
             <Route
               path="/admin/notifications"
-              element={
-                <AdminRouteGate routeId="notifications">
-                  <AdminNotificationsPage />
-                </AdminRouteGate>
-              }
+              element={<Navigate replace to="/admin" />}
             />
             <Route
               path="/admin/access-control"
