@@ -25,16 +25,15 @@ function TrainResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
 function TrainListPage() {
   const {
     applyFilters,
-    continueBookingMock,
     currentPage,
     defaults,
     draftFilters,
     error,
     feedback,
     formatCurrency,
-    goToTrainDetailMock,
     hasMore,
     loading,
+    openTrainDetail,
     resultSummary,
     retry,
     searchState,
@@ -114,8 +113,7 @@ function TrainListPage() {
                       formatCurrency={formatCurrency}
                       isSelected={selectedTrainId === train.id}
                       train={train}
-                      onContinueBooking={continueBookingMock}
-                      onOpenDetail={goToTrainDetailMock}
+                      onOpenDetail={openTrainDetail}
                       onSelect={selectTrain}
                     />
                   ))}

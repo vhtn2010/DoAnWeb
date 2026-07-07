@@ -11636,7 +11636,6 @@ select {
 .train-filter-sidebar__button:focus-visible,
 .train-card:focus-visible,
 .train-card__button:focus-visible,
-.train-card__detail-link:focus-visible,
 .train-results__retry:focus-visible,
 .train-results__load-more:focus-visible,
 .train-passenger-selector__counter button:focus-visible,
@@ -12207,13 +12206,7 @@ select {
 
 .train-card__service {
   display: grid;
-  gap: 8px;
-}
-
-.train-card__service span {
-  color: #5c4742;
-  font-size: 16px;
-  font-weight: 700;
+  gap: 10px;
 }
 
 .train-card__service strong {
@@ -12223,22 +12216,10 @@ select {
   line-height: 1;
 }
 
-.train-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.train-card__meta span {
-  min-height: 30px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: #fff3f2;
-  color: #75615d;
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 800;
+.train-card__service span {
+  color: #5c4742;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .train-card__time-block {
@@ -12325,15 +12306,6 @@ select {
   cursor: pointer;
 }
 
-.train-card__detail-link {
-  border: none;
-  background: transparent;
-  color: #de2a2a;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
 .train-card__seat-note {
   color: #de2a2a;
   font-size: 12px;
@@ -12401,7 +12373,6 @@ select {
 .train-search-card__submit:focus-visible,
 .train-filter-sidebar__button:hover,
 .train-card__button:hover,
-.train-card__detail-link:hover,
 .train-results__retry:hover,
 .train-results__load-more:hover,
 .train-passenger-selector__counter button:hover,
@@ -12409,6 +12380,60 @@ select {
 .train-calendar__today:hover,
 .train-calendar__done:hover {
   transform: translateY(-1px);
+}
+
+.train-detail-coming-soon {
+  display: flex;
+  justify-content: center;
+  padding: 52px 0 28px;
+}
+
+.train-detail-coming-soon__card {
+  width: min(640px, 100%);
+  padding: 32px 28px;
+  border: 1px solid rgba(244, 223, 222, 0.88);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 32px rgba(124, 88, 81, 0.08);
+  text-align: center;
+}
+
+.train-detail-coming-soon__eyebrow {
+  margin: 0 0 10px;
+  color: #de2a2a;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.train-detail-coming-soon__card h1 {
+  margin: 0;
+  color: #261d1b;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.train-detail-coming-soon__slug {
+  margin: 16px 0 0;
+  color: #75615d;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.train-detail-coming-soon__back {
+  min-height: 48px;
+  margin-top: 24px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #d91f23, #de2a2a);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(217, 31, 35, 0.18);
 }
 
 .train-results__load-more:disabled,

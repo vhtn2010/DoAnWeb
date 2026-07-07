@@ -48,8 +48,6 @@ export function mapTrainToCardView(train) {
     departure_station_label: formatStationLabel(train.departure_station, train.departure_city),
     arrival_station_label: formatStationLabel(train.arrival_station, train.arrival_city),
     train_number_label: String(train.train_number ?? '').toUpperCase(),
-    seat_label: train.seat_class || 'Ngồi mềm điều hòa',
-    carriage_label: train.carriage_type || 'Toa tiêu chuẩn',
     availability_label: `Chỉ còn ${train.available_seats} chỗ`,
     route_label: `${train.departure_city} - ${train.arrival_city}`,
   }

@@ -9,10 +9,8 @@ import {
   TRAIN_SORT_OPTIONS,
 } from '../constants/trains.js'
 import { mapTrainToCardView } from '../mappers/trainMappers.js'
-import { addCartItemPreview } from '../repositories/cartRepository.js'
 import {
   buildTrainSearchParams,
-  buildTrainSelectionPayload,
   getTrainSearchDefaults,
   listTrains,
 } from '../repositories/trainRepository.js'
@@ -128,32 +126,6 @@ function addDaysToDate(dateKey, days) {
 function getStationLabel(stations, stationCode) {
   const station = stations.find((item) => item.code === stationCode)
   return station?.city ?? stationCode ?? '---'
-}
-
-function buildTrainCartItem({ payload, train }) {
-  return {
-    id: `cart-item-train-${Date.now()}`,
-    service_id: payload.service_id,
-    service_type: payload.service_type,
-    reference_id: payload.reference_id,
-    start_at: payload.start_at,
-    end_at: payload.end_at,
-    quantity: payload.quantity,
-    unit_price_snapshot: payload.unit_price_snapshot,
-    options: {
-      ...(payload.options ?? {}),
-    },
-    created_at: new Date().toISOString(),
-    service: {
-      service_code: train.service_code,
-      title: `${train.train_name} ${train.train_number_label}`,
-      slug: train.slug,
-      short_description: train.short_description,
-      location_text: `${train.departure_station_label} - ${train.arrival_station_label}`,
-      image_url: train.image_url,
-      status: train.status,
-    },
-  }
 }
 
 export default function useTrainList() {
@@ -418,64 +390,17 @@ export default function useTrainList() {
     )
   }
 
-  async function continueBookingMock(train = null) {
-    const selectedTrain =
-      train ?? trains.find((currentTrain) => currentTrain.id === selectedTrainId) ?? null
-
-    if (!selectedTrain) {
-      setFeedback(createFeedbackState('error', 'Vui lòng chọn một chuyến tàu trước khi tiếp tục.'))
-      return
-    }
-
-    const payloadResponse = await buildTrainSelectionPayload(selectedTrain, searchState)
-
-    if (!payloadResponse.success || !payloadResponse.data) {
-      setFeedback(
-        createFeedbackState(
-          'error',
-          payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến tàu mock.',
-        ),
-      )
-      return
-    }
-
-    const cartItem = buildTrainCartItem({
-      payload: payloadResponse.data,
-      train: selectedTrain,
-    })
-
-    await addCartItemPreview({
-      authState,
-      item: cartItem,
-    })
-
-    setSelectedTrainId(selectedTrain.id)
-    setFeedback(
-      createFeedbackState(
-        'success',
-        'Đã tạo payload mock theo chuyến tàu đã chọn và lưu vào giỏ hàng preview.',
-      ),
-    )
-
-    navigate(preserveAuthQuery('/cart'))
-  }
-
-  function goToTrainDetailMock(train = null) {
+  function openTrainDetail(train = null) {
     const nextTrain =
       train ?? trains.find((currentTrain) => currentTrain.id === selectedTrainId) ?? null
 
     if (!nextTrain) {
-      setFeedback(createFeedbackState('info', 'Màn chi tiết vé tàu sẽ được thực hiện ở task sau.'))
+      setFeedback(createFeedbackState('error', 'Không tìm thấy chuyến tàu để mở chi tiết.'))
       return
     }
 
     setSelectedTrainId(nextTrain.id)
-    setFeedback(
-      createFeedbackState(
-        'info',
-        `Chi tiết cho chuyến ${nextTrain.train_number_label} sẽ được mở ở task detail sau.`,
-      ),
-    )
+    navigate(preserveAuthQuery(`/trains/${nextTrain.slug}`))
   }
 
   function retry() {
@@ -502,16 +427,15 @@ export default function useTrainList() {
 
   return {
     applyFilters,
-    continueBookingMock,
     currentPage: meta.page ?? currentPage,
     defaults,
     draftFilters,
     error,
     feedback,
     formatCurrency: formatCurrencyVND,
-    goToTrainDetailMock,
     hasMore: Boolean(meta.has_next),
     loading,
+    openTrainDetail,
     preserveAuthQuery,
     resetFilters,
     resultSummary,
