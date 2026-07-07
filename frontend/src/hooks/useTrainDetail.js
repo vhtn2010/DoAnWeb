@@ -63,7 +63,12 @@ function buildTrainCartItem({
     options: {
       ...(payload.options ?? {}),
       seat_class: selectedSeatOption?.name ?? train.seat_class,
+      car_id: selectedCar?.id ?? '',
       car_label: selectedCar?.name ?? '',
+      seat_id: selectedSeat?.id ?? '',
+      seat_code: selectedSeat?.code ?? '',
+      seat_option_id: selectedSeatOption?.id ?? '',
+      seat_option_name: selectedSeatOption?.name ?? train.seat_class,
       seat_label: selectedSeat ? `${selectedCar?.name ?? 'Toa'} - Chỗ ${selectedSeat.number}` : '',
     },
     created_at: new Date().toISOString(),
@@ -307,83 +312,100 @@ export default function useTrainDetail() {
     )
   }
 
-  async function buildMockBooking() {
+  async function buildMockBooking({
+    missingSeatMessage = 'Vui lòng chọn chỗ trước khi tiếp tục.',
+  } = {}) {
     if (!train || !selectedCar || !selectedSeat || !selectedSeatOption) {
-      setFeedback(createFeedbackState('error', 'Vui lòng chọn chỗ trước khi tiếp tục.'))
+      setFeedback(createFeedbackState('error', missingSeatMessage))
       return {
         success: false,
       }
     }
 
-    // TODO: replace mock train availability with train availability API in integration phase.
-    const availabilityResponse = await checkTrainAvailability({
-      selected_train_id: train.id,
-      selected_car_id: selectedCar.id,
-      selected_seat_id: selectedSeat.id,
-    })
+    try {
+      // TODO: replace mock train availability with train availability API in integration phase.
+      const availabilityResponse = await checkTrainAvailability({
+        selected_train_id: train.id,
+        selected_car_id: selectedCar.id,
+        selected_seat_id: selectedSeat.id,
+      })
 
-    if (!availabilityResponse.success || !availabilityResponse.data?.is_available) {
+      if (!availabilityResponse.success || !availabilityResponse.data?.is_available) {
+        setFeedback(
+          createFeedbackState(
+            'error',
+            availabilityResponse.message ??
+              'Chỗ ngồi hiện không còn khả dụng trong dữ liệu mock.',
+          ),
+        )
+        return {
+          success: false,
+        }
+      }
+
+      // TODO: replace mock cart payload with POST /cart/items in integration phase.
+      const payloadResponse = await buildTrainSelectionPayload(
+        train,
+        selectedSeat,
+        selectedSeatOption,
+        createDefaultSearchState(train),
+      )
+
+      if (!payloadResponse.success || !payloadResponse.data) {
+        setFeedback(
+          createFeedbackState(
+            'error',
+            payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến tàu mock.',
+          ),
+        )
+        return {
+          success: false,
+        }
+      }
+
+      const cartItem = buildTrainCartItem({
+        payload: payloadResponse.data,
+        selectedCar,
+        selectedSeat,
+        selectedSeatOption,
+        train,
+      })
+
+      await addCartItemPreview({
+        authState,
+        item: cartItem,
+      })
+
+      setFeedback(
+        createFeedbackState(
+          'success',
+          'Đã tạo payload mock theo chỗ đã chọn và lưu vào giỏ hàng preview.',
+        ),
+      )
+
+      return {
+        success: true,
+        cartItem,
+        payload: payloadResponse.data,
+      }
+    } catch (bookingError) {
       setFeedback(
         createFeedbackState(
           'error',
-          availabilityResponse.message ??
-            'Chỗ ngồi hiện không còn khả dụng trong dữ liệu mock.',
+          bookingError?.message ?? 'Không thể xử lý vé tàu trong luồng mock lúc này.',
         ),
       )
+
       return {
         success: false,
       }
-    }
-
-    // TODO: replace mock cart payload with POST /cart/items in integration phase.
-    const payloadResponse = await buildTrainSelectionPayload(
-      train,
-      selectedSeat,
-      selectedSeatOption,
-      createDefaultSearchState(train),
-    )
-
-    if (!payloadResponse.success || !payloadResponse.data) {
-      setFeedback(
-        createFeedbackState(
-          'error',
-          payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến tàu mock.',
-        ),
-      )
-      return {
-        success: false,
-      }
-    }
-
-    const cartItem = buildTrainCartItem({
-      payload: payloadResponse.data,
-      selectedCar,
-      selectedSeat,
-      selectedSeatOption,
-      train,
-    })
-
-    await addCartItemPreview({
-      authState,
-      item: cartItem,
-    })
-
-    setFeedback(
-      createFeedbackState(
-        'success',
-        'Đã tạo payload mock theo chỗ đã chọn và lưu vào giỏ hàng preview.',
-      ),
-    )
-
-    return {
-      success: true,
-      cartItem,
-      payload: payloadResponse.data,
     }
   }
 
   async function addToCartMock() {
-    const result = await buildMockBooking()
+    const result = await buildMockBooking({
+      missingSeatMessage: 'Vui lòng chọn chỗ trước khi thêm vào giỏ hàng.',
+    })
 
     if (!result.success) {
       return
@@ -393,7 +415,9 @@ export default function useTrainDetail() {
   }
 
   async function bookNowMock() {
-    const result = await buildMockBooking()
+    const result = await buildMockBooking({
+      missingSeatMessage: 'Vui lòng chọn chỗ trước khi tiếp tục.',
+    })
 
     if (!result.success) {
       return

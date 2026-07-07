@@ -4,8 +4,24 @@ function TrainSeatTypeCard({
   option,
   selected,
 }) {
+  function handleSelect() {
+    onSelect(option.id)
+  }
+
   return (
-    <article className={selected ? 'train-seat-type-card train-seat-type-card--selected' : 'train-seat-type-card'}>
+    <article
+      className={selected ? 'train-seat-type-card train-seat-type-card--selected' : 'train-seat-type-card'}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      onClick={handleSelect}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          handleSelect()
+        }
+      }}
+    >
       <div className="train-seat-type-card__header">
         <div>
           <h3>{option.name}</h3>
@@ -20,7 +36,14 @@ function TrainSeatTypeCard({
         ))}
       </ul>
 
-      <button className="train-seat-type-card__button" type="button" onClick={() => onSelect(option.id)}>
+      <button
+        className="train-seat-type-card__button"
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          handleSelect()
+        }}
+      >
         {selected ? 'Đang chọn' : 'Chọn hạng vé'}
       </button>
     </article>
