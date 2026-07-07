@@ -12,6 +12,7 @@ const {
 const {
   requireAdminAuth,
   requireAdminPermissions,
+  requireAdminRoles,
 } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { createRateLimiter } = require('../middleware/rateLimit');
@@ -79,6 +80,7 @@ router.post(
 router.post(
   '/admin/payments/:payment_id/mark-reconciled',
   requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
   requireAdminPermissions(['payment.reconcile']),
   adminPaymentProcessRateLimit,
   asyncHandler(markAdminPaymentReconciled),

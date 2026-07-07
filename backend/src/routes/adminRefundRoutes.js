@@ -12,6 +12,7 @@ const {
 const {
   requireAdminAuth,
   requireAdminPermissions,
+  requireAdminRoles,
 } = require('../middleware/adminAuth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { createRateLimiter } = require('../middleware/rateLimit');
@@ -47,6 +48,7 @@ router.get(
 router.post(
   '/admin/refunds/:refund_id/approve',
   requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
   requireAdminPermissions(['refund.approve']),
   adminRefundProcessRateLimit,
   asyncHandler(approveAdminRefund),
@@ -55,6 +57,7 @@ router.post(
 router.post(
   '/admin/refunds/:refund_id/reject',
   requireAdminAuth,
+  requireAdminRoles(['admin', 'system_admin']),
   requireAdminPermissions(['refund.reject']),
   adminRefundProcessRateLimit,
   asyncHandler(rejectAdminRefund),

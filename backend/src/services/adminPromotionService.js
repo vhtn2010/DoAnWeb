@@ -22,6 +22,7 @@ const PROMOTION_UPDATE_PERMISSION = 'promotion.update';
 const PROMOTION_DELETE_PERMISSION = 'promotion.delete';
 const PROMOTION_READ_PERMISSION = 'promotion.read';
 const VOUCHER_READ_ALL_PERMISSION = 'voucher.read_all';
+const PROMOTION_DELETE_ROLE_CODES = Object.freeze(['admin', 'system_admin']);
 const PROMOTION_STATUS_CHANGE_PERMISSIONS = Object.freeze([
   'promotion.change_status',
 ]);
@@ -597,6 +598,20 @@ const resolveActorPermissions = async (queryImpl, actor) => {
 
 const ensureActorHasAnyPermission = (permissions, requiredPermissions) => {
   if (requiredPermissions.some((permission) => permissions.includes(permission))) {
+    return;
+  }
+
+  throw buildForbiddenError();
+};
+
+const normalizeActorRoleCode = (actor) => {
+  const roleCode = actor?.role_code || actor?.roleCode || actor?.role;
+
+  return typeof roleCode === 'string' ? roleCode.trim().toLowerCase() : null;
+};
+
+const ensureActorHasAnyRole = (actor, allowedRoleCodes) => {
+  if (allowedRoleCodes.includes(normalizeActorRoleCode(actor))) {
     return;
   }
 
@@ -1320,8 +1335,10 @@ const createAdminPromotionService = ({
     payload,
     promotionId,
     userAgent,
-  }) =>
-    withTransactionImpl(async (client) => {
+  }) => {
+    ensureActorHasAnyRole(actor, PROMOTION_DELETE_ROLE_CODES);
+
+    return withTransactionImpl(async (client) => {
       const queryExecutor = client.query.bind(client);
       const permissions = await resolveActorPermissions(queryExecutor, actor);
 
@@ -1380,6 +1397,7 @@ const createAdminPromotionService = ({
         status: deletedPromotion.status,
       };
     });
+  };
 
   const changePromotionStatus = async ({
     actor,

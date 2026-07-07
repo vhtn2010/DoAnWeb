@@ -1,13 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const migrationPath = path.join(
-  __dirname,
-  'migrations',
-  '001_initial_schema.up.sql',
-);
-
-const sql = fs.readFileSync(migrationPath, 'utf8');
+const migrationsDir = path.join(__dirname, 'migrations');
+const migrationFiles = fs
+  .readdirSync(migrationsDir)
+  .filter((fileName) => fileName.endsWith('.up.sql'))
+  .sort((left, right) => left.localeCompare(right));
+const sql = migrationFiles
+  .map((fileName) => fs.readFileSync(path.join(migrationsDir, fileName), 'utf8'))
+  .join('\n');
 
 const expectedTables = [
   'users',
@@ -35,6 +36,7 @@ const expectedTables = [
   'support_replies',
   'notifications',
   'email_logs',
+  'settings_store',
 ];
 
 const expectedEnums = [
@@ -95,6 +97,9 @@ const expectedIndexes = [
   'idx_notifications_user_status',
   'idx_email_logs_user_status',
   'uq_service_images_one_primary_per_service',
+  'uq_settings_store_setting_key',
+  'idx_settings_store_updated_at',
+  'idx_settings_store_updated_by',
 ];
 
 const expectedFunctions = [
@@ -184,3 +189,4 @@ console.log(`- tables: ${expectedTables.length}`);
 console.log(`- enums: ${expectedEnums.length}`);
 console.log(`- indexes: ${expectedIndexes.length}`);
 console.log(`- functions: ${expectedFunctions.length}`);
+console.log(`- migration files: ${migrationFiles.length}`);

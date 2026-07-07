@@ -6,9 +6,16 @@ import HomePage from '../pages/public/HomePage.jsx'
 import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
+import BookingConfirmationPage from '../pages/booking/BookingConfirmationPage.jsx'
+import PaymentConfirmationPlaceholderPage from '../pages/booking/PaymentConfirmationPlaceholderPage.jsx'
 import CartPage from '../pages/cart/CartPage.jsx'
 import CheckoutPage from '../pages/checkout/CheckoutPage.jsx'
+import FlightDetailPage from '../pages/flights/FlightDetailPage.jsx'
+import FlightListPage from '../pages/flights/FlightListPage.jsx'
+import HotelDetailPage from '../pages/hotels/HotelDetailPage.jsx'
 import HotelListPage from '../pages/hotels/HotelListPage.jsx'
+import TrainDetailPage from '../pages/trains/TrainDetailPage.jsx'
+import TrainListPage from '../pages/trains/TrainListPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
 import ServiceDetailPage from '../pages/service/ServiceDetailPage.jsx'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx'
@@ -22,7 +29,21 @@ function AppRouter() {
           <Route path="/" element={<HomePage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
+          <Route
+            path="/booking-confirmation/:bookingCode"
+            element={<BookingConfirmationPage />}
+          />
+          <Route
+            path="/payment-confirmation"
+            element={<PaymentConfirmationPlaceholderPage />}
+          />
+          <Route path="/flights" element={<FlightListPage />} />
+          <Route path="/flights/:slug" element={<FlightDetailPage />} />
+          <Route path="/trains" element={<TrainListPage />} />
+          <Route path="/trains/:slug" element={<TrainDetailPage />} />
           <Route path="/hotels" element={<HotelListPage />} />
+          <Route path="/hotels/:slug" element={<HotelDetailPage />} />
           <Route path="/services" element={<ServiceListPage />} />
           <Route path="/services/:slug" element={<ServiceDetailPage />} />
         </Route>

@@ -973,6 +973,7 @@ test('deleteVoucher validates required reason and disables voucher', async () =>
   const result = await service.deleteVoucher({
     actor: {
       permissions: ['voucher.delete'],
+      role_code: 'admin',
     },
     actorUserId: 'admin-4',
     ipAddress: '127.0.0.1',
@@ -995,4 +996,35 @@ test('deleteVoucher validates required reason and disables voucher', async () =>
   assert.ok(
     queries.some((entry) => entry.sql.includes('INSERT INTO user_logs')),
   );
+});
+
+test('deleteVoucher rejects staff even with delete permission', async () => {
+  let transactionStarted = false;
+  const service = createAdminVoucherService({
+    withTransactionImpl: async () => {
+      transactionStarted = true;
+      throw new Error('deleteVoucher should reject before starting a transaction');
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.deleteVoucher({
+        actor: {
+          permissions: ['voucher.delete'],
+          role_code: 'staff',
+        },
+        actorUserId: 'staff-1',
+        ipAddress: '127.0.0.1',
+        payload: {
+          reason: 'Campaign ended early',
+        },
+        userAgent: 'admin-test',
+        voucherId: '11111111-1111-4111-8111-111111111111',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+  assert.equal(transactionStarted, false);
 });

@@ -601,6 +601,7 @@ const createSettingsRepository = ({
               UPDATE ${PUBLIC_SETTINGS_TABLE_SCHEMA}.${PUBLIC_SETTINGS_TABLE_NAME}
               SET ${assignments.join(', ')}
               WHERE LOWER(${quoteIdentifier(record.plan.keyColumn)}::text) = ANY($${params.length + 1}::text[])
+                AND $1::text IS NOT NULL
               RETURNING *
             `,
             [...params, rowKeyCandidates],
