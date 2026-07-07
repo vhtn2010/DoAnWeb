@@ -68,15 +68,15 @@ function createBookingConfirmationFixture({
     payment_options: [
       {
         id: 'payment-option-bank-transfer',
-        code: 'bank_transfer',
-        label: 'Chuyển khoản',
-        description: 'Thanh toán chuyển khoản và xác nhận ở bước tiếp theo.',
+        code: 'card',
+        label: 'Thẻ Tín dụng / Ghi nợ',
+        description: 'Visa, Mastercard, JCB.',
       },
       {
         id: 'payment-option-card',
-        code: 'credit_card',
-        label: 'Thẻ nội địa/quốc tế',
-        description: 'Chuyển tiếp sang màn thanh toán thẻ ở task tiếp theo.',
+        code: 'wallet',
+        label: 'Ví điện tử / Momo / VNPay',
+        description: 'Nhanh chóng & An toàn.',
       },
     ],
   }

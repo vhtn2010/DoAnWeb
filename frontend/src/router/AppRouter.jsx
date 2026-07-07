@@ -7,13 +7,13 @@ import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
 import BookingConfirmationPage from '../pages/booking/BookingConfirmationPage.jsx'
-import PaymentConfirmationPlaceholderPage from '../pages/booking/PaymentConfirmationPlaceholderPage.jsx'
 import CartPage from '../pages/cart/CartPage.jsx'
 import CheckoutPage from '../pages/checkout/CheckoutPage.jsx'
 import FlightDetailPage from '../pages/flights/FlightDetailPage.jsx'
 import FlightListPage from '../pages/flights/FlightListPage.jsx'
 import HotelDetailPage from '../pages/hotels/HotelDetailPage.jsx'
 import HotelListPage from '../pages/hotels/HotelListPage.jsx'
+import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.jsx'
 import TrainDetailPage from '../pages/trains/TrainDetailPage.jsx'
 import TrainListPage from '../pages/trains/TrainListPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
@@ -36,7 +36,11 @@ function AppRouter() {
           />
           <Route
             path="/payment-confirmation"
-            element={<PaymentConfirmationPlaceholderPage />}
+            element={<PaymentConfirmationPage />}
+          />
+          <Route
+            path="/payment-confirmation/:paymentCode"
+            element={<PaymentConfirmationPage />}
           />
           <Route path="/flights" element={<FlightListPage />} />
           <Route path="/flights/:slug" element={<FlightDetailPage />} />
