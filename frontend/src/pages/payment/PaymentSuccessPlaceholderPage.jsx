@@ -21,7 +21,7 @@ function PaymentSuccessPlaceholderPage() {
       <div className="payment-success-page__card">
         <span className="payment-success-page__eyebrow">Thanh toán thành công</span>
         <h1>Thanh toán thành công</h1>
-        <p>Màn thanh toán thành công sẽ được hoàn thiện ở task tiếp theo.</p>
+        <p>Đơn hàng của bạn đã được ghi nhận trong dữ liệu mock.</p>
         {bookingCode ? (
           <p className="payment-success-page__meta">Mã đơn: {bookingCode}</p>
         ) : null}
