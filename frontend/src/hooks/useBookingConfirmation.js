@@ -134,8 +134,8 @@ export default function useBookingConfirmation() {
     setReloadToken((currentToken) => currentToken + 1)
   }
 
-  function goBackToCheckout() {
-    navigate(preserveAuthPath('/checkout', authState), {
+  function goBackToCart() {
+    navigate(preserveAuthPath('/cart', authState), {
       state: {
         cartSummaryPayload,
         checkoutPayload,
@@ -145,8 +145,8 @@ export default function useBookingConfirmation() {
   }
 
   function editBookingItemMock(itemId) {
-    setFeedback(`Đang quay lại checkout để chỉnh sửa mục ${itemId}.`)
-    goBackToCheckout()
+    setFeedback(`Đang quay lại giỏ hàng để chỉnh sửa mục ${itemId}.`)
+    goBackToCart()
   }
 
   function removeBookingItemMock(itemId) {
@@ -245,7 +245,7 @@ export default function useBookingConfirmation() {
       confirmBookingMock,
       copyBookingCode,
       editBookingItemMock,
-      goBackToCheckout,
+      goBackToCart,
       removeBookingItemMock,
       retry,
     },

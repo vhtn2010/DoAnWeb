@@ -21,7 +21,6 @@ function BookingConfirmationPage() {
 
         <header className="booking-confirmation-page__hero">
           <div>
-            <p className="booking-confirmation-page__eyebrow">User - Xác nhận đơn hàng</p>
             <h1 className="booking-confirmation-page__title">Xác nhận đơn hàng của bạn</h1>
           </div>
 
@@ -62,7 +61,7 @@ function BookingConfirmationPage() {
                 itemCountLabel={viewModel.itemCountLabel}
                 items={viewModel.items}
                 onEdit={actions.editBookingItemMock}
-                onGoBack={actions.goBackToCheckout}
+                onReturnToCart={actions.goBackToCart}
                 onRemove={actions.removeBookingItemMock}
               />
             </div>
