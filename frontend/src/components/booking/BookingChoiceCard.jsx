@@ -21,7 +21,7 @@ function BookingChoiceCard({
   itemCountLabel,
   items,
   onEdit,
-  onGoBack,
+  onReturnToCart,
   onRemove,
 }) {
   const hasItems = items.length > 0
@@ -45,10 +45,6 @@ function BookingChoiceCard({
         <div className="booking-choice-card__list">
           {items.map((item) => (
             <article className="booking-choice-card__item" key={item.id}>
-              <label className="booking-choice-card__check">
-                <input aria-label="Mục đã được chọn" checked readOnly type="checkbox" />
-              </label>
-
               <img
                 alt={item.service_title}
                 className="booking-choice-card__image"
@@ -77,9 +73,9 @@ function BookingChoiceCard({
         </div>
       ) : (
         <div className="booking-choice-card__empty">
-          <p>Đơn hàng hiện chưa có dịch vụ nào. Bạn có thể quay lại checkout để chọn lại.</p>
-          <button type="button" onClick={onGoBack}>
-            Quay lại checkout
+          <p>Đơn hàng hiện chưa có dịch vụ nào. Bạn có thể quay lại giỏ hàng để chọn lại.</p>
+          <button type="button" onClick={onReturnToCart}>
+            Quay lại giỏ hàng
           </button>
         </div>
       )}
