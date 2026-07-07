@@ -22,6 +22,8 @@ function renderSeatButton({ onSelectSeat, seat, selectedSeatId }) {
       key={seat.id}
       className={className}
       type="button"
+      aria-pressed={isSelected}
+      aria-label={`Chỗ ${seat.number}`}
       onClick={() => onSelectSeat(seat.id)}
     >
       <span>{seat.number}</span>
@@ -29,15 +31,21 @@ function renderSeatButton({ onSelectSeat, seat, selectedSeatId }) {
   )
 }
 
-function renderCompartmentGroups({ car, onSelectSeat, selectedSeatId }) {
-  const compartments = chunkItems(car.seats, 4)
+function renderSeatGroups({ car, layout, onSelectSeat, selectedSeatId }) {
+  const groupSize = Math.max(Number(layout.group_size ?? 4), 1)
+  const groupColumns = Math.max(Number(layout.group_columns ?? 2), 1)
+  const seatGroups = chunkItems(car.seats, groupSize)
 
   return (
-    <div className="train-seat-map__compartments">
-      {compartments.map((compartment, compartmentIndex) => (
-        <div key={`${car.id}-compartment-${compartmentIndex + 1}`} className="train-seat-map__compartment">
-          <div className="train-seat-map__compartment-seats">
-            {compartment.map((seat) =>
+    <div className="train-seat-map__board">
+      <div className="train-seat-map__groups">
+        {seatGroups.map((seatGroup, groupIndex) => (
+          <div
+            key={`${car.id}-group-${groupIndex + 1}`}
+            className="train-seat-map__group"
+            style={{ gridTemplateColumns: `repeat(${groupColumns}, 42px)` }}
+          >
+            {seatGroup.map((seat) =>
               renderSeatButton({
                 onSelectSeat,
                 seat,
@@ -45,51 +53,8 @@ function renderCompartmentGroups({ car, onSelectSeat, selectedSeatId }) {
               }),
             )}
           </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function renderRowGroups({ car, layout, onSelectSeat, selectedSeatId }) {
-  const rowSize = Math.max(Number(layout.row_size ?? 4), 1)
-  const aisleAfter = Math.max(Number(layout.aisle_after ?? 2), 0)
-  const rows = chunkItems(car.seats, rowSize)
-
-  return (
-    <div className="train-seat-map__rows">
-      {rows.map((row, rowIndex) => (
-        <div key={`${car.id}-row-${rowIndex + 1}`} className="train-seat-map__row">
-          <div className="train-seat-map__seat-group">
-            {row
-              .slice(0, aisleAfter || row.length)
-              .map((seat) =>
-                renderSeatButton({
-                  onSelectSeat,
-                  seat,
-                  selectedSeatId,
-                }),
-              )}
-          </div>
-
-          {aisleAfter > 0 && aisleAfter < row.length ? (
-            <>
-              <div className="train-seat-map__aisle" aria-hidden="true" />
-              <div className="train-seat-map__seat-group">
-                {row
-                  .slice(aisleAfter)
-                  .map((seat) =>
-                    renderSeatButton({
-                      onSelectSeat,
-                      seat,
-                      selectedSeatId,
-                    }),
-                  )}
-              </div>
-            </>
-          ) : null}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
@@ -100,7 +65,6 @@ function TrainSeatMap({ car, onSelectSeat, selectedSeatId }) {
   }
 
   const layout = car.layout ?? {}
-  const shouldUseCompartments = car.seat_type !== 'soft_seat'
 
   return (
     <section className="train-detail-card train-seat-map train-detail-section">
@@ -132,18 +96,12 @@ function TrainSeatMap({ car, onSelectSeat, selectedSeatId }) {
             <strong>{car.label}</strong>
           </div>
 
-          {shouldUseCompartments
-            ? renderCompartmentGroups({
-                car,
-                onSelectSeat,
-                selectedSeatId,
-              })
-            : renderRowGroups({
-                car,
-                layout,
-                onSelectSeat,
-                selectedSeatId,
-              })}
+          {renderSeatGroups({
+            car,
+            layout,
+            onSelectSeat,
+            selectedSeatId,
+          })}
         </div>
       </div>
     </section>

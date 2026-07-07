@@ -174,11 +174,14 @@ function normalizeCars(train, seatOptions) {
         id: carId,
         name: `Toa ${index + 1}`,
         label: `Toa ${index + 1}: ${seatOption.name} (${totalSeats})`,
+        tab_label: `Toa ${index + 1}`,
         seat_type: seatOption.seat_type ?? 'soft_seat',
         total_seats: totalSeats,
         layout: {
           row_size: seatOption.seat_type === 'soft_sleeper' ? 6 : 4,
           aisle_after: seatOption.seat_type === 'soft_sleeper' ? 3 : 2,
+          group_size: seatOption.seat_type === 'hard_sleeper' ? 6 : 4,
+          group_columns: 2,
         },
         seats: createFallbackSeats({
           carId,
@@ -200,6 +203,7 @@ function normalizeCars(train, seatOptions) {
     return {
       id: car.id ?? `${train.id}-car-${index + 1}`,
       name: car.name ?? `Toa ${index + 1}`,
+      tab_label: car.tab_label ?? car.name ?? `Toa ${index + 1}`,
       label:
         car.label ??
         `${car.name ?? `Toa ${index + 1}`}: ${matchingSeatOption?.name ?? 'Hạng chỗ'} (${totalSeats})`,
@@ -208,6 +212,8 @@ function normalizeCars(train, seatOptions) {
       layout: {
         row_size: Math.max(Number(car.layout?.row_size ?? 4), 1),
         aisle_after: Math.max(Number(car.layout?.aisle_after ?? 2), 0),
+        group_size: Math.max(Number(car.layout?.group_size ?? 4), 1),
+        group_columns: Math.max(Number(car.layout?.group_columns ?? 2), 1),
       },
       seats: seats.map((seat, seatIndex) => ({
         id: seat.id ?? `${car.id ?? train.id}-seat-${seatIndex + 1}`,
