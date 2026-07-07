@@ -23,7 +23,7 @@ function TrainIcon() {
 function TrainDetailHeaderCard({ train }) {
   return (
     <section className="train-detail-card train-detail-header-card">
-      <div className="train-detail-header-card__top">
+      <div className="train-detail-header-card__content">
         <div className="train-detail-header-card__brand">
           <div className="train-detail-header-card__brand-mark" aria-hidden="true">
             <TrainIcon />
@@ -39,35 +39,37 @@ function TrainDetailHeaderCard({ train }) {
           </div>
         </div>
 
-        <div className="train-detail-header-card__tag">
-          <span>{train.route_code_label}</span>
-        </div>
-      </div>
-
-      <div className="train-detail-header-card__timeline">
-        <div className="train-detail-header-card__point">
-          <strong>{train.departure_time_label}</strong>
-          <span>{train.departure_station_code}</span>
-          <p>{train.departure_station_label}</p>
-        </div>
-
-        <div className="train-detail-header-card__line">
-          <p>{train.duration_display}</p>
-          <div className="train-detail-header-card__track">
-            <span className="train-detail-header-card__dot train-detail-header-card__dot--outline" />
-            <span className="train-detail-header-card__dot" />
+        <div className="train-detail-header-card__journey">
+          <div className="train-detail-header-card__tag">
+            <span>{train.route_code_label}</span>
           </div>
-        </div>
 
-        <div className="train-detail-header-card__point train-detail-header-card__point--arrival">
-          <strong>
-            {train.arrival_time_label}
-            {train.arrival_day_offset_label ? (
-              <small>{train.arrival_day_offset_label}</small>
-            ) : null}
-          </strong>
-          <span>{train.arrival_station_code}</span>
-          <p>{train.arrival_station_label}</p>
+          <div className="train-detail-header-card__timeline">
+            <div className="train-detail-header-card__point">
+              <strong>{train.departure_time_label}</strong>
+              <span>{train.departure_station_code}</span>
+              <p>{train.departure_station_label}</p>
+            </div>
+
+            <div className="train-detail-header-card__line">
+              <p>{train.duration_display}</p>
+              <div className="train-detail-header-card__track">
+                <span className="train-detail-header-card__dot train-detail-header-card__dot--outline" />
+                <span className="train-detail-header-card__dot" />
+              </div>
+            </div>
+
+            <div className="train-detail-header-card__point train-detail-header-card__point--arrival">
+              <strong>
+                {train.arrival_time_label}
+                {train.arrival_day_offset_label ? (
+                  <small>{train.arrival_day_offset_label}</small>
+                ) : null}
+              </strong>
+              <span>{train.arrival_station_code}</span>
+              <p>{train.arrival_station_label}</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>

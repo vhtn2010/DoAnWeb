@@ -136,6 +136,10 @@ function normalizeSeatOptions(train) {
       seat_type: seatOption.seat_type ?? '',
       benefits: Array.isArray(seatOption.benefits) ? seatOption.benefits : [],
       is_default: Boolean(seatOption.is_default),
+      is_primary:
+        typeof seatOption.is_primary === 'boolean'
+          ? seatOption.is_primary
+          : index < 2,
     }
   })
 }
@@ -324,11 +328,13 @@ export function mapTrainDetailResponseToView(
   }
 
   const seatOptions = normalizeSeatOptions(train)
+  const featuredSeatOptions = seatOptions.filter((seatOption) => seatOption.is_primary)
   const cars = normalizeCars(train, seatOptions)
   const mappedTrain = {
     ...buildBaseTrainView(train),
     detail_path: `${detailPathPrefix}/${train.slug}`,
     seat_options: seatOptions,
+    featured_seat_options: featuredSeatOptions.length ? featuredSeatOptions : seatOptions.slice(0, 2),
     cars,
     schedule: normalizeSchedule(train),
     amenities: Array.isArray(train.details?.amenities) ? train.details.amenities : [],

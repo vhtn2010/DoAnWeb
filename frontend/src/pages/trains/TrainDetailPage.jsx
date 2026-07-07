@@ -66,10 +66,27 @@ function TrainDetailPage() {
     selectedCar,
     selectedCarId,
     selectedSeatId,
+    selectedSeatOption,
     selectedSeatOptionId,
     train,
     bookingSummary,
   } = useTrainDetail()
+
+  const displayedSeatOptions = train
+    ? (() => {
+        const featuredOptions = Array.isArray(train.featured_seat_options)
+          ? train.featured_seat_options
+          : train.seat_options
+
+        if (!selectedSeatOption) {
+          return featuredOptions
+        }
+
+        return featuredOptions.some((seatOption) => seatOption.id === selectedSeatOption.id)
+          ? featuredOptions
+          : [...featuredOptions, selectedSeatOption]
+      })()
+    : []
 
   if (error) {
     return (
@@ -136,7 +153,7 @@ function TrainDetailPage() {
               </div>
 
               <div className="train-seat-options__grid">
-                {train.seat_options.map((seatOption) => (
+                {displayedSeatOptions.map((seatOption) => (
                   <TrainSeatTypeCard
                     key={seatOption.id}
                     formatCurrency={formatCurrency}
