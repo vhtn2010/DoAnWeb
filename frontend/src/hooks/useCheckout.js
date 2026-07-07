@@ -274,22 +274,23 @@ export default function useCheckout() {
 
     setFormErrors({})
 
-    // TODO: replace mock checkout submit with POST /bookings/checkout in API integration phase.
+    // TODO: replace mock handoff with POST /bookings/checkout response in API integration phase.
     const checkoutPayload = buildCheckoutPayload(checkoutDraft)
 
     try {
       const response = await submitCheckout(checkoutPayload)
 
+      if (!response.success || !response.data) {
+        setSubmitFeedback(response.message ?? 'Không thể chuẩn bị bước thanh toán lúc này.')
+        return
+      }
+
       setSubmitFeedback(response.message)
-      navigate(preserveAuthQuery('/booking-confirmation'), {
+      navigate(preserveAuthQuery(response.data.next_route ?? '/payment-confirmation'), {
         state: {
-          cartSummaryPayload: {
-            cart_id: checkoutDraft.cart_id,
-            summary: {
-              ...(checkoutDraft.summary ?? {}),
-            },
-          },
-          checkoutPayload: response.data?.checkout_payload ?? checkoutPayload,
+          checkoutPayload: response.data.checkout_payload ?? checkoutPayload,
+          booking: response.data.booking_handoff,
+          paymentRedirectPayload: response.data.payment_redirect_payload,
           selectedCartItemIds,
         },
       })
@@ -311,6 +312,7 @@ export default function useCheckout() {
     handleSubmitCheckout,
     handleVoucherChange,
     loading,
+    preserveAuthQuery,
     submitFeedback,
     summaryService: checkoutDraft?.summary_service ?? null,
     voucherFeedback,

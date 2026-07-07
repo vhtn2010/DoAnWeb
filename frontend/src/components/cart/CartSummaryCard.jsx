@@ -1,4 +1,4 @@
-function CartSummaryCard({ feedbackHint, onContinue, summary }) {
+function CartSummaryCard({ feedbackHint, isContinueDisabled, onContinue, summary }) {
   return (
     <section className="cart-summary-card">
       <div className="cart-summary-card__accent" aria-hidden="true" />
@@ -18,7 +18,12 @@ function CartSummaryCard({ feedbackHint, onContinue, summary }) {
         </div>
       </div>
 
-      <button className="cart-summary-card__button" type="button" onClick={onContinue}>
+      <button
+        className="cart-summary-card__button"
+        disabled={isContinueDisabled}
+        type="button"
+        onClick={onContinue}
+      >
         Tiếp tục
       </button>
 

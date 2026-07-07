@@ -22,12 +22,16 @@ const EMPTY_SUMMARY = Object.freeze({
   selected_item_count: 0,
 })
 
-function buildCheckoutPath(isCustomer) {
-  return isCustomer ? '/checkout?auth=customer' : '/checkout'
+function preserveAuthPath(pathname, authState) {
+  if (authState !== ROLES.customer) {
+    return pathname
+  }
+
+  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
 }
 
-function buildServicesPath(isCustomer) {
-  return isCustomer ? '/services?auth=customer' : '/services'
+function buildServicesPath(authState) {
+  return preserveAuthPath('/services', authState)
 }
 
 function createFeedbackState(tone = 'info', message = '') {
@@ -42,7 +46,6 @@ export default function useCart() {
   const [searchParams] = useSearchParams()
   const authState =
     searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-  const isCustomer = authState === ROLES.customer
 
   const [cart, setCart] = useState(null)
   const [cartItems, setCartItems] = useState([])
@@ -218,7 +221,7 @@ export default function useCart() {
         return
       }
 
-      navigate(buildCheckoutPath(isCustomer), {
+      navigate(preserveAuthPath('/booking-confirmation', authState), {
         state: {
           selectedCartItemIds: response.data.selected_item_ids,
           cartSummaryPayload: createCartSummaryPayload(
@@ -242,7 +245,7 @@ export default function useCart() {
       return
     }
 
-    navigate(buildServicesPath(isCustomer))
+    navigate(buildServicesPath(authState))
   }
 
   const formattedSummary = useMemo(
@@ -254,8 +257,11 @@ export default function useCart() {
     [summary],
   )
 
+  const canContinue = selectedItemIds.length > 0
+
   return {
     authState,
+    canContinue,
     cart,
     cartItems,
     error,
@@ -266,8 +272,8 @@ export default function useCart() {
     handleGoBack,
     handleRemoveItem,
     handleToggleItem,
-    isCustomer,
     loading,
+    preserveAuthQuery: (pathname) => preserveAuthPath(pathname, authState),
     reloadCart,
     selectedItemIds,
   }
