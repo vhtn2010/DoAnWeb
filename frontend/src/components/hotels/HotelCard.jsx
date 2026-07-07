@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 function HeartIcon({ isActive }) {
   return (
     <svg fill={isActive ? 'currentColor' : 'none'} viewBox="0 0 24 24">
@@ -28,22 +30,26 @@ function PinIcon() {
 
 function HotelCard({
   hotel,
-  isFavorite,
-  onBookNow,
+  isFavorite = false,
   onToggleFavorite,
   ratingValue,
   formatCurrency,
+  actionLabel = 'Đặt ngay',
 }) {
+  const detailPath = hotel.detail_path ?? `/hotels/${hotel.slug}`
+
   return (
     <article className="hotel-card">
       <div className="hotel-card__media">
-        <img alt={hotel.title} className="hotel-card__image" src={hotel.image_url} />
+        <Link className="hotel-card__media-link" to={detailPath}>
+          <img alt={hotel.title} className="hotel-card__image" src={hotel.image_url} />
+        </Link>
         <span className="hotel-card__badge">{ratingValue.toFixed(1)} Đánh giá</span>
         <button
           aria-label={isFavorite ? 'Bỏ yêu thích khách sạn' : 'Thêm khách sạn vào yêu thích'}
           className={`hotel-card__favorite ${isFavorite ? 'hotel-card__favorite--active' : ''}`}
           type="button"
-          onClick={() => onToggleFavorite(hotel.id)}
+          onClick={() => onToggleFavorite?.(hotel.id)}
         >
           <HeartIcon isActive={isFavorite} />
         </button>
@@ -52,19 +58,23 @@ function HotelCard({
       <div className="hotel-card__body">
         <div className="hotel-card__location">
           <PinIcon />
-          <span>{hotel.details.address}</span>
+          <span>{hotel.displayAddress ?? hotel.address}</span>
         </div>
 
-        <h3 className="hotel-card__title">{hotel.title}</h3>
+        <h3 className="hotel-card__title">
+          <Link className="hotel-card__title-link" to={detailPath}>
+            {hotel.title}
+          </Link>
+        </h3>
 
         <div className="hotel-card__pricing">
           <span className="hotel-card__price-old">{formatCurrency(hotel.base_price)}</span>
           <strong className="hotel-card__price-sale">{formatCurrency(hotel.sale_price)}</strong>
         </div>
 
-        <button className="hotel-card__button" type="button" onClick={() => onBookNow(hotel)}>
-          Đặt ngay
-        </button>
+        <Link className="hotel-card__button" to={detailPath}>
+          {actionLabel}
+        </Link>
       </div>
     </article>
   )

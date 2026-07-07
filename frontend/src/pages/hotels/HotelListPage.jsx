@@ -52,12 +52,10 @@ function HotelListPage() {
     currentPage,
     errorMessage,
     favoriteIds,
-    feedbackMessage,
     filterDraft,
     formatCurrency,
     handleApplyFilters,
     handleApplySearch,
-    handleBookNow,
     handlePageChange,
     handleSearchFieldChange,
     handleSidebarLocationChange,
@@ -103,12 +101,6 @@ function HotelListPage() {
       </div>
 
       <section className="hotel-list-page__body">
-        {feedbackMessage ? (
-          <p className="hotel-list-page__feedback" role="status">
-            {feedbackMessage}
-          </p>
-        ) : null}
-
         <div className="hotel-list-page__layout">
           <HotelFilterSidebar
             filters={filterDraft}
@@ -156,7 +148,6 @@ function HotelListPage() {
                       hotel={hotel}
                       isFavorite={favoriteIds.includes(hotel.id)}
                       ratingValue={hotel.displayRatingValue}
-                      onBookNow={handleBookNow}
                       onToggleFavorite={handleToggleFavorite}
                     />
                   ))}
