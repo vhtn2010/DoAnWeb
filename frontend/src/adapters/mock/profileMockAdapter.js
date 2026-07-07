@@ -24,6 +24,8 @@ function getCustomerEnvelope() {
       favorite_destinations: fixture.favorite_destinations,
       upcoming_trip: fixture.upcoming_trip,
       booking_history: fixture.booking_history,
+      travel_utilities: fixture.travel_utilities,
+      support_links: fixture.support_links,
     },
   }
 }
