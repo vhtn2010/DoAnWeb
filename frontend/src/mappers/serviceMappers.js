@@ -7,6 +7,8 @@ const TRANSPORT_TYPE_LABELS = Object.freeze({
   mixed: 'Xe Limousine',
 })
 
+const FALLBACK_SERVICE_IMAGE_URL = '/assets/template/service/list/tour-mien-trung.png'
+
 const TOUR_UI_META_BY_SLUG = Object.freeze({
   'di-san-mien-trung-da-nang-hoi-an-hue': {
     badgeText: 'Di sản nổi bật',
@@ -55,6 +57,10 @@ const TOUR_UI_META_BY_SLUG = Object.freeze({
 })
 
 function getDurationGroup(durationDays) {
+  if (!Number.isFinite(durationDays) || durationDays <= 0) {
+    return ''
+  }
+
   if (durationDays >= 1 && durationDays <= 3) {
     return '1-3'
   }
@@ -67,13 +73,25 @@ function getDurationGroup(durationDays) {
 }
 
 function buildDurationText(durationDays, durationNights) {
+  if (
+    !Number.isFinite(durationDays) ||
+    durationDays <= 0 ||
+    !Number.isFinite(durationNights) ||
+    durationNights < 0
+  ) {
+    return 'Dang cap nhat'
+  }
+
   return `${durationDays} ngày ${durationNights} đêm`
 }
 
 function normalizeDetails(details = {}) {
+  const durationDays = Number(details.duration_days)
+  const durationNights = Number(details.duration_nights)
+
   return {
-    duration_days: details.duration_days ?? 0,
-    duration_nights: details.duration_nights ?? 0,
+    duration_days: Number.isFinite(durationDays) ? durationDays : 0,
+    duration_nights: Number.isFinite(durationNights) ? durationNights : 0,
     transport_type: details.transport_type ?? '',
     departure_location: details.departure_location ?? '',
     destination_location: details.destination_location ?? '',
@@ -86,12 +104,15 @@ function normalizeDetails(details = {}) {
 }
 
 export function normalizeTourService(service) {
+  const imageUrl = service.image_url ?? service.primary_image ?? FALLBACK_SERVICE_IMAGE_URL
+
   return {
     ...service,
+    image_url: imageUrl,
     gallery_images:
       Array.isArray(service.gallery_images) && service.gallery_images.length
         ? service.gallery_images
-        : [service.image_url].filter(Boolean),
+        : [imageUrl].filter(Boolean),
     review_samples: Array.isArray(service.review_samples) ? service.review_samples : [],
     details: normalizeDetails(service.details),
   }
@@ -120,6 +141,6 @@ export function mapTourServiceToView(service, { detailPath } = {}) {
     sort_order: uiMeta.sortOrder ?? 999,
     tour_type: uiMeta.tourType ?? normalizedService.provider_name,
     transport_text:
-      TRANSPORT_TYPE_LABELS[details.transport_type] ?? details.transport_type ?? '',
+      TRANSPORT_TYPE_LABELS[details.transport_type] || details.transport_type || 'Dang cap nhat',
   }
 }
