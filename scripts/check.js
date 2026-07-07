@@ -1,18 +1,40 @@
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
+
+const resolveNodeTool = (workspace, toolSegments) => {
+  const candidates = [
+    path.join(rootDir, 'node_modules', ...toolSegments),
+    path.join(rootDir, workspace, 'node_modules', ...toolSegments),
+  ];
+  const toolPath = candidates.find((candidate) => fs.existsSync(candidate));
+
+  if (!toolPath) {
+    throw new Error(
+      `Cannot find ${toolSegments.join('/')} in root or ${workspace} node_modules. Run npm ci first.`,
+    );
+  }
+
+  return toolPath;
+};
 
 const tasks = [
   {
     cwd: 'frontend',
     command: process.execPath,
-    args: [path.join(rootDir, 'node_modules', 'oxlint', 'bin', 'oxlint')],
+    args: [resolveNodeTool('frontend', ['oxlint', 'bin', 'oxlint'])],
   },
   {
     cwd: 'frontend',
     command: process.execPath,
-    args: [path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js'), 'build', '--configLoader', 'native'],
+    args: [
+      resolveNodeTool('frontend', ['vite', 'bin', 'vite.js']),
+      'build',
+      '--configLoader',
+      'native',
+    ],
   },
   {
     cwd: 'backend',
