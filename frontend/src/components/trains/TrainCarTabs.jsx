@@ -14,7 +14,7 @@ function TrainCarTabs({ cars = [], selectedCarId, onSelectCar }) {
               aria-selected={isActive}
               onClick={() => onSelectCar(car.id)}
             >
-              {car.label}
+              {car.tab_label ?? car.label}
             </button>
           )
         })}

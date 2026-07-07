@@ -12398,7 +12398,7 @@ select {
 
 .train-detail-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 24px;
   align-items: start;
 }
@@ -12470,7 +12470,7 @@ select {
 
 .train-detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 24px;
   align-items: start;
 }
@@ -12481,7 +12481,8 @@ select {
 }
 
 .train-detail-main {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
 }
 
@@ -12495,8 +12496,10 @@ select {
 }
 
 .train-detail-sidebar {
+  position: sticky;
+  top: 96px;
   display: grid;
-  gap: 16px;
+  gap: 18px;
   align-content: start;
   align-self: start;
 }
@@ -12580,15 +12583,15 @@ select {
 
 .train-detail-header-card {
   width: 100%;
-  padding: 20px 22px;
+  padding: 24px 26px;
   align-self: start;
 }
 
 .train-detail-header-card__content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 380px;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
 }
 
 .train-detail-header-card__brand {
@@ -12600,9 +12603,9 @@ select {
 }
 
 .train-detail-header-card__brand-mark {
-  width: 50px;
-  height: 50px;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   background: #fff1f0;
   color: #d62828;
   display: inline-flex;
@@ -12620,9 +12623,9 @@ select {
 .train-detail-header-card__copy h1 {
   margin: 0;
   color: #1b1c1c;
-  font-size: 24px;
+  font-size: 27px;
   font-weight: 800;
-  line-height: 1.18;
+  line-height: 1.16;
 }
 
 .train-detail-header-card__copy p,
@@ -12655,8 +12658,8 @@ select {
 
 .train-detail-header-card__journey {
   width: 100%;
-  min-width: 288px;
-  max-width: 352px;
+  min-width: 0;
+  max-width: 380px;
   display: grid;
   gap: 12px;
   justify-self: end;
@@ -12664,8 +12667,8 @@ select {
 
 .train-detail-header-card__timeline {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 104px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
 }
 
@@ -12680,7 +12683,7 @@ select {
 
 .train-detail-header-card__point strong {
   color: #9e001f;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 900;
   line-height: 1;
 }
@@ -12755,11 +12758,12 @@ select {
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 
 .train-car-tabs__tab {
   min-height: 34px;
-  padding: 0 16px;
+  padding: 0 14px;
   border: none;
   border-radius: 999px;
   background: #f1efee;
@@ -12844,9 +12848,10 @@ select {
 
 .train-seat-map__shell {
   margin-top: 16px;
-  padding: 18px;
-  border-radius: 12px;
-  background: #f7f3f2;
+  padding: 28px 34px;
+  border-radius: 16px;
+  background: #f4f1f0;
+  overflow-x: auto;
 }
 
 .train-seat-map__coach {
@@ -12876,56 +12881,36 @@ select {
   display: block;
 }
 
-.train-seat-map__compartments {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+.train-seat-map__board {
+  min-width: min-content;
   margin-top: 16px;
 }
 
-.train-seat-map__compartment {
-  padding: 10px;
-  border: 1px solid rgba(239, 207, 202, 0.78);
-  border-radius: 10px;
-  background: #fcf9f8;
-}
-
-.train-seat-map__compartment-seats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.train-seat-map__rows {
-  display: grid;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.train-seat-map__row {
+.train-seat-map__groups {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 32px;
+  min-width: 620px;
+  width: max-content;
+}
+
+.train-seat-map__group {
+  display: grid;
+  grid-auto-rows: 42px;
   gap: 12px;
-}
-
-.train-seat-map__seat-group {
-  display: flex;
-  gap: 6px;
-}
-
-.train-seat-map__aisle {
-  width: 20px;
-  height: 2px;
-  border-radius: 999px;
-  background: rgba(214, 40, 40, 0.18);
+  padding: 16px;
+  border: 1px solid #f1c7c2;
+  border-radius: 12px;
+  background: #fffafa;
+  flex-shrink: 0;
 }
 
 .train-seat-map__seat {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   border: 1px solid #efcfca;
-  border-radius: 6px;
+  border-radius: 7px;
   background: #fff;
   color: #261d1b;
   display: inline-flex;
@@ -12958,12 +12943,13 @@ select {
 .train-seat-options__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
+  gap: 18px;
+  align-items: stretch;
 }
 
 .train-seat-type-card {
-  min-height: 100%;
+  min-height: 0;
+  height: auto;
   padding: 18px 18px 16px;
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -13066,10 +13052,10 @@ select {
 }
 
 .train-detail-notes__grid {
-  margin-top: 14px;
+  margin-top: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 18px;
   align-items: start;
 }
 
@@ -13173,8 +13159,7 @@ select {
 }
 
 .train-booking-summary {
-  position: sticky;
-  top: 108px;
+  position: static;
   align-self: start;
   width: 100%;
 }
@@ -13297,20 +13282,24 @@ select {
 }
 
 .train-member-discount-card {
-  padding: 18px;
-  border-color: rgba(239, 207, 202, 0.88);
+  width: 100%;
+  margin-top: 0;
+  padding: 22px;
+  border-color: rgba(50, 31, 31, 0.75);
+  border-radius: 14px;
+  box-shadow: 0 12px 24px rgba(33, 20, 20, 0.18);
   background:
-    radial-gradient(circle at top right, rgba(214, 40, 40, 0.14), transparent 36%),
-    linear-gradient(180deg, #fff 0%, #fff6f4 100%);
+    radial-gradient(circle at top right, rgba(214, 40, 40, 0.18), transparent 38%),
+    linear-gradient(135deg, #1e1b1b, #3a2525);
 }
 
 .train-member-discount-card h3,
 .train-member-discount-card p {
-  color: #261d1b;
+  color: #fff;
 }
 
 .train-member-discount-card p {
-  color: #7d6863;
+  color: #f2dddd;
   font-size: 13px;
 }
 
@@ -13319,7 +13308,7 @@ select {
   padding: 0;
   border: none;
   background: transparent;
-  color: #d62828;
+  color: #fff;
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
@@ -13531,11 +13520,11 @@ select {
   }
 
   .train-detail-hero {
-    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-columns: minmax(0, 1fr) 300px;
   }
 
-  .train-seat-map__compartments {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .train-seat-map__groups {
+    min-width: 560px;
   }
 }
 
@@ -13611,12 +13600,9 @@ select {
   }
 
   .train-detail-sidebar {
+    position: static;
     max-width: 420px;
     padding-top: 0;
-  }
-
-  .train-booking-summary {
-    position: static;
   }
 
   .train-detail-header-card__journey,
@@ -13643,8 +13629,11 @@ select {
     grid-template-columns: 1fr;
   }
 
-  .train-seat-map__compartments {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .train-seat-map__groups {
+    min-width: 0;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 16px;
   }
 
   .train-detail-header-card__point--arrival {
@@ -13653,12 +13642,6 @@ select {
 
   .train-seat-map__legend {
     justify-content: flex-start;
-  }
-
-  .train-seat-map__row,
-  .train-seat-map__seat-group {
-    flex-wrap: wrap;
-    justify-content: center;
   }
 
   .train-booking-summary__total strong {
@@ -13715,8 +13698,19 @@ select {
     padding: 14px;
   }
 
-  .train-seat-map__compartments {
-    grid-template-columns: 1fr;
+  .train-seat-map__groups {
+    justify-content: flex-start;
+    gap: 14px;
+  }
+
+  .train-seat-map__group {
+    grid-auto-rows: 38px;
+    padding: 14px;
+  }
+
+  .train-seat-map__seat {
+    width: 38px;
+    height: 38px;
   }
 
   .train-booking-summary__button {

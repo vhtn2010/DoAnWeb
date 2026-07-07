@@ -66,6 +66,7 @@ function createCar({
   id,
   name,
   label,
+  tab_label = '',
   seat_type,
   total_seats,
   price,
@@ -73,6 +74,8 @@ function createCar({
   code_prefix,
   row_size = 4,
   aisle_after = 2,
+  group_size = 4,
+  group_columns = 2,
 }) {
   const bookedSeatSet = new Set(booked_seat_numbers)
 
@@ -80,11 +83,14 @@ function createCar({
     id,
     name,
     label,
+    tab_label,
     seat_type,
     total_seats,
     layout: {
       row_size,
       aisle_after,
+      group_size,
+      group_columns,
     },
     seats: Array.from({ length: total_seats }, (_, index) =>
       createSeat({
@@ -230,6 +236,7 @@ const se12SeatOptions = [
 const se12Cars = [
   createCar({
     id: 'car-se12-1',
+    tab_label: 'Toa 1: Nằm mềm (4)',
     name: 'Toa 1',
     label: 'Toa 1: Nằm mềm (42)',
     seat_type: 'soft_sleeper',
@@ -239,9 +246,12 @@ const se12Cars = [
     code_prefix: 'NM1-',
     row_size: 6,
     aisle_after: 3,
+    group_size: 4,
+    group_columns: 2,
   }),
   createCar({
     id: 'car-se12-2',
+    tab_label: 'Toa 2: Nằm mềm (4)',
     name: 'Toa 2',
     label: 'Toa 2: Nằm mềm (42)',
     seat_type: 'soft_sleeper',
@@ -251,9 +261,12 @@ const se12Cars = [
     code_prefix: 'NM2-',
     row_size: 6,
     aisle_after: 3,
+    group_size: 4,
+    group_columns: 2,
   }),
   createCar({
     id: 'car-se12-3',
+    tab_label: 'Toa 3: Nằm cứng (6)',
     name: 'Toa 3',
     label: 'Toa 3: Nằm cứng (32)',
     seat_type: 'hard_sleeper',
@@ -263,9 +276,12 @@ const se12Cars = [
     code_prefix: 'NC3-',
     row_size: 4,
     aisle_after: 2,
+    group_size: 6,
+    group_columns: 2,
   }),
   createCar({
     id: 'car-se12-4',
+    tab_label: 'Toa 4: Ngồi mềm',
     name: 'Toa 4',
     label: 'Toa 4: Ngồi mềm',
     seat_type: 'soft_seat',
@@ -275,14 +291,10 @@ const se12Cars = [
     code_prefix: 'NM4-',
     row_size: 4,
     aisle_after: 2,
+    group_size: 4,
+    group_columns: 2,
   }),
 ]
-
-const se12FeaturedSeatOptions = se12SeatOptions.filter(
-  (seatOption) => seatOption.id !== 'seat-option-soft-seat',
-)
-
-const se12FeaturedCars = se12Cars.filter((car) => car.id !== 'car-se12-4')
 
 export const trainStationFixtures = Object.freeze(VIETNAM_TRAIN_STATION_OPTIONS)
 
@@ -380,8 +392,8 @@ export const trainServiceFixtures = Object.freeze([
       header_title: 'Tàu SE12 Tàu Thống Nhất',
       route_note: 'Dịch vụ Sài Gòn - Hà Nội, hành trình hằng ngày',
       legacy_slugs: ['tau-se12-sai-gon-ha-noi'],
-      seat_options: se12FeaturedSeatOptions,
-      cars: se12FeaturedCars,
+      seat_options: se12SeatOptions,
+      cars: se12Cars,
       carriage_info: 'Khoang nằm mềm và toa ghế ngồi được phân bổ rõ để tiện chọn chỗ.',
       baggage_policy:
         'Miễn phí 20kg hành lý xách tay, hành lý cồng kềnh áp dụng theo quy định riêng của ga.',

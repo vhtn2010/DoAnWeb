@@ -9,7 +9,7 @@ function TrainBookingSummary({
   }
 
   return (
-    <aside className="train-booking-summary train-detail-section">
+    <section className="train-booking-summary train-detail-section">
       <div className="train-detail-card train-booking-summary__card">
         <div className="train-booking-summary__header">
           <h2>Tóm tắt đặt chỗ</h2>
@@ -65,7 +65,7 @@ function TrainBookingSummary({
 
         <p className="train-booking-summary__security">{bookingSummary.security_note}</p>
       </div>
-    </aside>
+    </section>
   )
 }
 
