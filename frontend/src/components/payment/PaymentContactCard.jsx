@@ -30,6 +30,7 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
           <span>Họ và Tên</span>
           <input
             name="contact_name"
+            placeholder="Nguyễn Văn A"
             type="text"
             value={contactForm.contact_name}
             onChange={onChange}
@@ -41,6 +42,7 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
           <span>Địa chỉ Email</span>
           <input
             name="contact_email"
+            placeholder="Example@gmail.com"
             type="email"
             value={contactForm.contact_email}
             onChange={onChange}
@@ -50,15 +52,13 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
 
         <label className="payment-contact-card__field">
           <span>Số điện thoại</span>
-          <div className="payment-contact-card__phone-row">
-            <span className="payment-contact-card__phone-prefix">+84</span>
-            <input
-              name="contact_phone"
-              type="text"
-              value={contactForm.contact_phone}
-              onChange={onChange}
-            />
-          </div>
+          <input
+            name="contact_phone"
+            placeholder="090 123 4567"
+            type="text"
+            value={contactForm.contact_phone}
+            onChange={onChange}
+          />
           {errors.contact_phone ? <small>{errors.contact_phone}</small> : null}
         </label>
       </div>

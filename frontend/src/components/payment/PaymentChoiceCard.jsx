@@ -19,8 +19,6 @@ function ChoiceIcon() {
 function PaymentChoiceCard({
   itemCountLabel,
   items,
-  onEdit,
-  onRemove,
   onReturn,
 }) {
   const hasItems = items.length > 0
@@ -58,14 +56,6 @@ function PaymentChoiceCard({
 
               <div className="payment-choice-card__actions">
                 <strong className="payment-choice-card__price">{item.total_amount_label}</strong>
-                <div className="payment-choice-card__action-row">
-                  <button type="button" onClick={() => onEdit(item.id)}>
-                    Chỉnh sửa
-                  </button>
-                  <button type="button" onClick={() => onRemove(item.id)}>
-                    Xóa
-                  </button>
-                </div>
               </div>
             </article>
           ))}

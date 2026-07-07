@@ -7,6 +7,7 @@ import {
 } from '../constants/payments.js'
 import {
   buildPaymentConfirmationViewModel,
+  buildMockQrPayload,
   buildPaymentSummary,
   clonePaymentValue,
   normalizePhoneDisplay,
@@ -144,9 +145,9 @@ export default function usePaymentConfirmation() {
         setVoucherCode(nextPaymentSummary.voucher_code ?? '')
         setPaymentSummary(nextPaymentSummary)
         setContactForm({
-          contact_name: nextBooking?.contact_name ?? '',
-          contact_email: nextBooking?.contact_email ?? '',
-          contact_phone: normalizePhoneDisplay(nextBooking?.contact_phone ?? ''),
+          contact_name: '',
+          contact_email: '',
+          contact_phone: '',
         })
         setCardNumber(
           nextPayment?.metadata?.preset_card_number ?? PAYMENT_DEFAULT_CARD_NUMBER,
@@ -184,6 +185,22 @@ export default function usePaymentConfirmation() {
         paymentSummary,
       }),
     [bookingItems, paymentSummary],
+  )
+
+  const qrPayload = useMemo(
+    () =>
+      buildMockQrPayload({
+        amount: paymentSummary?.total_amount,
+        bookingCode: booking?.booking_code,
+        currency: paymentSummary?.currency,
+        paymentCode: payment?.payment_code,
+      }),
+    [
+      booking?.booking_code,
+      payment?.payment_code,
+      paymentSummary?.currency,
+      paymentSummary?.total_amount,
+    ],
   )
 
   function retry() {
@@ -377,6 +394,7 @@ export default function usePaymentConfirmation() {
     payment,
     paymentMethods,
     paymentSummary,
+    qrPayload,
     preserveAuthQuery: (pathname) => preserveAuthPath(pathname, authState),
     selectedPaymentMethod,
     viewModel,

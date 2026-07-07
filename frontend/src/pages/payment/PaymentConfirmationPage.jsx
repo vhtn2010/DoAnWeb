@@ -18,6 +18,8 @@ function PaymentConfirmationPage() {
     selectedPaymentMethod,
     cardNumber,
     contactForm,
+    booking,
+    qrPayload,
     viewModel,
     voucherCode,
   } = usePaymentConfirmation()
@@ -66,8 +68,6 @@ function PaymentConfirmationPage() {
               <PaymentChoiceCard
                 itemCountLabel={viewModel.itemCountLabel}
                 items={viewModel.items}
-                onEdit={actions.goBackToBookingConfirmation}
-                onRemove={actions.removePaymentItemMock}
                 onReturn={actions.goBackToBookingConfirmation}
               />
 
@@ -78,11 +78,14 @@ function PaymentConfirmationPage() {
               />
 
               <PaymentMethodPanel
+                amountLabel={viewModel.summary.total_amount}
+                bookingCode={booking?.booking_code}
                 cardNumber={cardNumber}
                 errors={fieldErrors}
                 methods={paymentMethods}
                 onCardNumberChange={actions.updateCardNumber}
                 onSelectMethod={actions.selectPaymentMethod}
+                qrPayload={qrPayload}
                 selectedMethod={selectedPaymentMethod}
               />
             </div>
