@@ -2,7 +2,6 @@ function ProfileGuestGate({ message, onGoHome, onGoLogin }) {
   return (
     <section className="profile-guest-gate">
       <div className="profile-guest-gate__card">
-        <span className="profile-guest-gate__eyebrow">Tài khoản cá nhân</span>
         <h1>Vui lòng đăng nhập để xem tài khoản cá nhân</h1>
         <p>{message}</p>
 
