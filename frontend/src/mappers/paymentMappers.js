@@ -4,6 +4,7 @@ import {
   PAYMENT_DEFAULT_CARD_NUMBER,
   PAYMENT_DEFAULT_CURRENCY,
   PAYMENT_METHOD_CODES,
+  PAYMENT_METHOD_OPTIONS,
   PAYMENT_PROVIDER_BY_METHOD,
   PAYMENT_VALID_VOUCHERS,
 } from '../constants/payments.js'
@@ -34,6 +35,39 @@ function formatDurationLabel(item) {
   const diffDays = Math.max(Math.ceil(diffMs / (1000 * 60 * 60 * 24)), 1)
 
   return diffDays <= 1 ? '1 ngày' : `${diffDays} ngày ${Math.max(diffDays - 1, 1)} đêm`
+}
+
+function formatCurrencyVndSuffix(amount = 0, currency = PAYMENT_DEFAULT_CURRENCY) {
+  const formattedNumber = new Intl.NumberFormat('vi-VN', {
+    maximumFractionDigits: 0,
+  }).format(resolveNumber(amount))
+
+  return `${formattedNumber} ${currency}`
+}
+
+function formatLongVietnameseDate(dateValue) {
+  if (!dateValue) {
+    return '12 tháng 10, 2024'
+  }
+
+  const parsedDate = new Date(dateValue)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '12 tháng 10, 2024'
+  }
+
+  return `${parsedDate.getDate()} tháng ${parsedDate.getMonth() + 1}, ${parsedDate.getFullYear()}`
+}
+
+function resolvePaymentMethodLabel(methodCode, fallbackLabel = '') {
+  const normalizedMethod = normalizePaymentMethod(methodCode)
+  const matchedMethod = PAYMENT_METHOD_OPTIONS.find((method) => method.code === normalizedMethod)
+
+  if (normalizedMethod === PAYMENT_METHOD_CODES.card) {
+    return 'Thẻ tín dụng (Visa/Mastercard)'
+  }
+
+  return fallbackLabel || matchedMethod?.label || 'Ví điện tử / Momo / VNPay'
 }
 
 export function clonePaymentValue(value) {
@@ -285,6 +319,151 @@ export function buildPaymentContactForm(booking = {}) {
     contact_name: normalizeText(booking?.contact_name),
     contact_email: normalizeText(booking?.contact_email),
     contact_phone: normalizePhoneDisplay(booking?.contact_phone),
+  }
+}
+
+export function buildPaymentSuccessData({
+  basePaymentSuccessData,
+  payment,
+  booking,
+  bookingItems,
+  paymentResultPayload,
+} = {}) {
+  const fallbackPaymentSuccess = clonePaymentValue(basePaymentSuccessData?.payment_success ?? {})
+  const fallbackBooking = fallbackPaymentSuccess.booking ?? {}
+  const fallbackCustomer = fallbackPaymentSuccess.customer ?? {}
+  const fallbackBookingItems = Array.isArray(fallbackPaymentSuccess.booking_items)
+    ? fallbackPaymentSuccess.booking_items
+    : []
+  const normalizedBookingItems =
+    Array.isArray(bookingItems) && bookingItems.length > 0 ? bookingItems : fallbackBookingItems
+  const primaryBookingItem = normalizedBookingItems[0] ?? fallbackBookingItems[0] ?? {}
+  const resolvedCurrency =
+    payment?.currency ??
+    paymentResultPayload?.currency ??
+    booking?.currency ??
+    fallbackPaymentSuccess.currency ??
+    fallbackBooking.currency ??
+    PAYMENT_DEFAULT_CURRENCY
+  const resolvedAmount = resolveNumber(
+    payment?.amount,
+    paymentResultPayload?.amount,
+    booking?.total_amount,
+    fallbackPaymentSuccess.amount,
+    fallbackBooking.total_amount,
+  )
+  const resolvedBookingCode =
+    booking?.booking_code ?? payment?.booking_code ?? fallbackPaymentSuccess.booking_code
+  const resolvedPaymentCode =
+    payment?.payment_code ??
+    paymentResultPayload?.payment_code ??
+    fallbackPaymentSuccess.payment_code
+  const resolvedPaidAt =
+    payment?.paid_at ?? paymentResultPayload?.paid_at ?? fallbackPaymentSuccess.paid_at ?? null
+  const resolvedPaymentMethod = payment?.payment_method ?? fallbackPaymentSuccess.payment_method
+
+  return {
+    payment_id: payment?.id ?? fallbackPaymentSuccess.payment_id ?? '',
+    payment_code: resolvedPaymentCode ?? '',
+    booking_id: booking?.id ?? booking?.booking_id ?? fallbackPaymentSuccess.booking_id ?? '',
+    booking_code: resolvedBookingCode ?? '',
+    payment_status:
+      payment?.payment_status ??
+      paymentResultPayload?.payment_status ??
+      fallbackPaymentSuccess.payment_status ??
+      PAYMENT_STATUSES.success,
+    booking_status: booking?.booking_status ?? fallbackPaymentSuccess.booking_status ?? 'paid',
+    amount: resolvedAmount,
+    currency: resolvedCurrency,
+    payment_method: resolvedPaymentMethod,
+    paid_at: resolvedPaidAt,
+    invoice_code: fallbackPaymentSuccess.invoice_code ?? null,
+    customer: {
+      contact_name: normalizeText(booking?.contact_name) || fallbackCustomer.contact_name,
+      contact_email: normalizeText(booking?.contact_email) || fallbackCustomer.contact_email,
+      contact_phone:
+        normalizePhoneDisplay(booking?.contact_phone) || fallbackCustomer.contact_phone,
+    },
+    booking: {
+      booking_code: resolvedBookingCode ?? '',
+      service_title: primaryBookingItem.service_title ?? fallbackBooking.service_title ?? '',
+      departure_date: primaryBookingItem.start_at ?? fallbackBooking.departure_date ?? '',
+      departure_date_label:
+        fallbackBooking.departure_date_label ??
+        formatLongVietnameseDate(primaryBookingItem.start_at ?? fallbackBooking.departure_date),
+      traveller_summary:
+        fallbackBooking.traveller_summary ??
+        `${String(resolveNumber(primaryBookingItem.quantity, 1)).padStart(2, '0')} Người lớn`,
+      payment_method_label: resolvePaymentMethodLabel(
+        resolvedPaymentMethod,
+        fallbackBooking.payment_method_label,
+      ),
+      total_amount: resolvedAmount,
+      currency: resolvedCurrency,
+    },
+    booking_items: normalizedBookingItems.map((item) => ({
+      ...item,
+      total_amount: resolveNumber(
+        item.total_amount,
+        resolveNumber(item.unit_price_snapshot) * resolveNumber(item.quantity, 1),
+      ),
+    })),
+  }
+}
+
+export function buildPaymentSuccessViewModel(paymentSuccess = {}) {
+  return {
+    title: 'Thanh toán thành công!',
+    description:
+      'Cảm ơn quý khách đã tin tưởng lựa chọn Nét Việt Travel. Chúng tôi rất hân hạnh được đồng hành cùng bạn trong hành trình sắp tới.',
+    orderInfo: {
+      sectionTitle: 'Thông tin đơn đặt tour',
+      leftColumn: [
+        {
+          label: 'Mã đơn hàng',
+          value: paymentSuccess.booking?.booking_code ?? '',
+        },
+        {
+          label: 'Ngày khởi hành',
+          value:
+            paymentSuccess.booking?.departure_date_label ??
+            formatLongVietnameseDate(paymentSuccess.booking?.departure_date),
+        },
+        {
+          label: 'Khách hàng',
+          value: paymentSuccess.customer?.contact_name ?? '',
+        },
+      ],
+      rightColumn: [
+        {
+          label: 'Tên tour',
+          value: paymentSuccess.booking?.service_title ?? '',
+          tone: 'brand',
+        },
+        {
+          label: 'Số lượng khách',
+          value: paymentSuccess.booking?.traveller_summary ?? '',
+        },
+        {
+          label: 'Phương thức thanh toán',
+          value: paymentSuccess.booking?.payment_method_label ?? '',
+        },
+      ],
+      totalLabel: 'Tổng thanh toán',
+      totalAmount: formatCurrencyVndSuffix(
+        paymentSuccess.booking?.total_amount ?? paymentSuccess.amount,
+        paymentSuccess.booking?.currency ?? paymentSuccess.currency,
+      ),
+    },
+  }
+}
+
+export function buildInvoiceDownloadPayload(paymentSuccess = {}) {
+  return {
+    booking_code: paymentSuccess.booking_code ?? paymentSuccess.booking?.booking_code ?? '',
+    payment_code: paymentSuccess.payment_code ?? '',
+    invoice_code: paymentSuccess.invoice_code ?? null,
+    download_url: null,
   }
 }
 
