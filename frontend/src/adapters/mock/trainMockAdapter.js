@@ -6,12 +6,33 @@ import {
 import { SERVICE_STATUSES } from '../../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
 import {
+  getTrainFixtureBySlug,
+  trainRelatedSlugMap,
   trainSearchDefaultsFixture,
   trainServiceFixtures,
 } from '../../fixtures/trains.fixtures.js'
 
 function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function getRelatedTrains(trainSlug) {
+  const relatedSlugs = trainRelatedSlugMap[trainSlug] ?? []
+
+  return relatedSlugs.filter(Boolean).reduce((relatedTrains, slug) => {
+    const train = getTrainFixtureBySlug(slug)
+
+    if (
+      !train ||
+      train.service_type !== SERVICE_TYPES.train ||
+      train.status !== SERVICE_STATUSES.active
+    ) {
+      return relatedTrains
+    }
+
+    relatedTrains.push(train)
+    return relatedTrains
+  }, [])
 }
 
 function getDepartureHour(dateTimeValue) {
@@ -139,6 +160,26 @@ function shouldUseFigmaDisplayTotal({
     !price_ranges.length &&
     !departure_windows.length
   )
+}
+
+function resolveSelectedSeatArgument(selectedSeatOrSearchState = null) {
+  if (
+    selectedSeatOrSearchState &&
+    typeof selectedSeatOrSearchState === 'object' &&
+    !Array.isArray(selectedSeatOrSearchState) &&
+    ('trip_type' in selectedSeatOrSearchState ||
+      'passengers' in selectedSeatOrSearchState ||
+      'departure_date' in selectedSeatOrSearchState ||
+      'return_date' in selectedSeatOrSearchState)
+  ) {
+    return {
+      selectedSeat: null,
+      selectedSeatOption: null,
+      searchState: selectedSeatOrSearchState,
+    }
+  }
+
+  return null
 }
 
 export async function listTrains({
@@ -309,8 +350,77 @@ export function buildTrainSearchParams({
   return searchParams
 }
 
-export async function buildTrainSelectionPayload(train, searchState = {}) {
-  // TODO: replace mock train selection payload with POST /cart/items in API integration phase.
+export async function getTrainDetailBySlug(slug) {
+  // TODO: replace mock train detail with GET /services/{slug} in API integration phase.
+  const train = getTrainFixtureBySlug(slug)
+
+  if (
+    !train ||
+    train.service_type !== SERVICE_TYPES.train ||
+    train.status !== SERVICE_STATUSES.active
+  ) {
+    return {
+      success: false,
+      message: 'Không tìm thấy chuyến tàu.',
+      data: null,
+    }
+  }
+
+  return {
+    success: true,
+    message: 'OK',
+    data: {
+      train: cloneValue(train),
+      related_trains: cloneValue(getRelatedTrains(train.slug)),
+    },
+  }
+}
+
+export async function checkTrainAvailability({
+  selected_train_id = '',
+  selected_car_id = '',
+  selected_seat_id = '',
+} = {}) {
+  // TODO: replace mock train availability with train availability API in integration phase.
+  const train = trainServiceFixtures.find((item) => item.id === selected_train_id)
+
+  if (!train || train.service_type !== SERVICE_TYPES.train) {
+    return {
+      success: false,
+      message: 'Không tìm thấy chuyến tàu.',
+      data: null,
+    }
+  }
+
+  const cars = Array.isArray(train.details?.cars) ? train.details.cars : []
+  const selectedCar = cars.find((car) => car.id === selected_car_id) ?? null
+  const selectedSeat = selectedCar?.seats?.find((seat) => seat.id === selected_seat_id) ?? null
+  const isAvailable =
+    train.status === SERVICE_STATUSES.active &&
+    Boolean(selectedCar) &&
+    Boolean(selectedSeat) &&
+    selectedSeat.status === 'available'
+
+  return {
+    success: true,
+    message: isAvailable
+      ? 'Chỗ ngồi còn khả dụng trong dữ liệu mock.'
+      : 'Chỗ ngồi này hiện không còn khả dụng trong dữ liệu mock.',
+    data: {
+      is_available: isAvailable,
+      selected_seat_id: selectedSeat?.id ?? '',
+      selected_car_id: selectedCar?.id ?? '',
+    },
+  }
+}
+
+export async function buildTrainSelectionPayload(
+  train,
+  selectedSeatOrSearchState = null,
+  selectedSeatOptionOrSearchState = null,
+  maybeSearchState = {},
+) {
+  // TODO: replace mock cart payload with POST /cart/items in integration phase.
   if (!train || train.service_type !== SERVICE_TYPES.train) {
     return {
       success: false,
@@ -327,10 +437,41 @@ export async function buildTrainSelectionPayload(train, searchState = {}) {
     }
   }
 
+  const legacyArguments = resolveSelectedSeatArgument(selectedSeatOrSearchState)
+  let selectedSeat = legacyArguments?.selectedSeat ?? selectedSeatOrSearchState
+  let selectedSeatOption = legacyArguments?.selectedSeatOption ?? selectedSeatOptionOrSearchState
+  let searchState = legacyArguments?.searchState ?? maybeSearchState ?? {}
+
+  if (
+    !legacyArguments &&
+    selectedSeatOptionOrSearchState &&
+    typeof selectedSeatOptionOrSearchState === 'object' &&
+    !Array.isArray(selectedSeatOptionOrSearchState) &&
+    ('trip_type' in selectedSeatOptionOrSearchState ||
+      'passengers' in selectedSeatOptionOrSearchState ||
+      'departure_date' in selectedSeatOptionOrSearchState ||
+      'return_date' in selectedSeatOptionOrSearchState)
+  ) {
+    selectedSeatOption = null
+    searchState = selectedSeatOptionOrSearchState
+  }
+
+  if (!selectedSeat) {
+    return {
+      success: false,
+      message: 'Vui lòng chọn chỗ trước khi tiếp tục.',
+      data: null,
+    }
+  }
+
   const adultCount = Math.max(Number(searchState.passengers?.adults ?? 1), 1)
   const childCount = Math.max(Number(searchState.passengers?.children ?? 0), 0)
   const infantCount = Math.max(Number(searchState.passengers?.infants ?? 0), 0)
-  const payingPassengers = Math.max(adultCount + childCount, 1)
+  const serviceFee = Math.max(Number(train.details?.payment_summary?.service_fee ?? 0), 0)
+  const unitPriceSnapshot = Math.max(
+    Number(selectedSeat.price ?? selectedSeatOption?.price ?? train.sale_price ?? 0),
+    0,
+  )
 
   return {
     success: true,
@@ -341,12 +482,12 @@ export async function buildTrainSelectionPayload(train, searchState = {}) {
       reference_id: train.train_number,
       start_at: train.departure_at,
       end_at: train.arrival_at,
-      quantity: payingPassengers,
-      unit_price_snapshot: Math.max(Number(train.sale_price ?? 0), 0),
+      quantity: 1,
+      unit_price_snapshot: unitPriceSnapshot,
       options: {
         trip_type: searchState.trip_type ?? DEFAULT_TRAIN_TRIP_TYPE,
         route_label: `${train.departure_city} - ${train.arrival_city}`,
-        seat_class: train.seat_class,
+        seat_class: selectedSeatOption?.name ?? train.seat_class,
         carriage_type: train.carriage_type,
         adult_count: adultCount,
         child_count: childCount,
@@ -359,7 +500,15 @@ export async function buildTrainSelectionPayload(train, searchState = {}) {
         train_number: train.train_number,
         departure_station: train.departure_station,
         arrival_station: train.arrival_station,
-        seat_options: Array.isArray(train.details?.seat_options) ? train.details.seat_options : [],
+        selected_car_id: selectedSeat.car_id,
+        selected_seat_id: selectedSeat.id,
+        selected_seat_code: selectedSeat.code,
+        selected_seat_number: selectedSeat.number,
+        selected_seat_option_id: selectedSeatOption?.id ?? '',
+        selected_seat_option_name: selectedSeatOption?.name ?? train.seat_class,
+        selected_seat_price: unitPriceSnapshot,
+        service_fee: serviceFee,
+        total_amount: unitPriceSnapshot + serviceFee,
         amenities: Array.isArray(train.details?.amenities) ? train.details.amenities : [],
       },
     },

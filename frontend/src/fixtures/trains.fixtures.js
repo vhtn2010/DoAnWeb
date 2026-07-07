@@ -10,6 +10,92 @@ import {
 import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 
+function padNumber(value) {
+  return String(value).padStart(2, '0')
+}
+
+function slugifyValue(value = '') {
+  return String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function createSeatOption({
+  id,
+  name,
+  badge = '',
+  price = 0,
+  seat_type = '',
+  benefits = [],
+  is_default = false,
+}) {
+  return {
+    id,
+    name,
+    badge,
+    price,
+    seat_type,
+    benefits,
+    is_default,
+  }
+}
+
+function createSeat({
+  carId,
+  number,
+  price,
+  status = 'available',
+  codePrefix = '',
+}) {
+  return {
+    id: `${carId}-seat-${padNumber(number)}`,
+    code: `${codePrefix}${padNumber(number)}`,
+    number: padNumber(number),
+    status,
+    price,
+    car_id: carId,
+  }
+}
+
+function createCar({
+  id,
+  name,
+  label,
+  seat_type,
+  total_seats,
+  price,
+  booked_seat_numbers = [],
+  code_prefix,
+  row_size = 4,
+  aisle_after = 2,
+}) {
+  const bookedSeatSet = new Set(booked_seat_numbers)
+
+  return {
+    id,
+    name,
+    label,
+    seat_type,
+    total_seats,
+    layout: {
+      row_size,
+      aisle_after,
+    },
+    seats: Array.from({ length: total_seats }, (_, index) =>
+      createSeat({
+        carId: id,
+        number: index + 1,
+        price,
+        status: bookedSeatSet.has(index + 1) ? 'booked' : 'available',
+        codePrefix: code_prefix,
+      }),
+    ),
+  }
+}
+
 function createTrainFixture({
   id,
   service_code,
@@ -72,15 +158,120 @@ function createTrainFixture({
     updated_at,
     details: {
       train_type: 'express',
+      route_note: '',
       seat_options: [],
+      cars: [],
+      schedule: [],
       carriage_info: '',
       baggage_policy: '',
       refund_policy: '',
+      payment_summary: {},
+      member_discount: {},
+      related_trains: [],
       amenities: [],
+      policies: [],
       ...(details ?? {}),
     },
   }
 }
+
+const seatBenefits = Object.freeze({
+  soft_sleeper: [
+    '4 người một khoang',
+    'Cung cấp đầy đủ chăn ga gối',
+    'Ổ điện riêng & đèn đọc sách',
+    'Nước khoáng miễn phí',
+  ],
+  hard_sleeper: [
+    '6 người một khoang',
+    'Không gian riêng tư vừa đủ',
+    'Ổ điện chung trong toa',
+    'Khoang điều hòa suốt hành trình',
+  ],
+  soft_seat: [
+    'Ghế ngả lưng êm ái',
+    'Tựa đầu và gác tay thoải mái',
+    'Khu vực để hành lý gần chỗ ngồi',
+    'Phù hợp hành trình ngắn đến trung bình',
+  ],
+})
+
+const se12SeatOptions = [
+  createSeatOption({
+    id: 'seat-option-soft-sleeper',
+    name: 'Nằm mềm',
+    badge: 'Phổ biến',
+    price: 850000,
+    seat_type: 'soft_sleeper',
+    benefits: seatBenefits.soft_sleeper,
+    is_default: true,
+  }),
+  createSeatOption({
+    id: 'seat-option-hard-sleeper',
+    name: 'Nằm cứng',
+    price: 620000,
+    seat_type: 'hard_sleeper',
+    benefits: seatBenefits.hard_sleeper,
+  }),
+  createSeatOption({
+    id: 'seat-option-soft-seat',
+    name: 'Ngồi mềm',
+    price: 540000,
+    seat_type: 'soft_seat',
+    benefits: seatBenefits.soft_seat,
+  }),
+]
+
+const se12Cars = [
+  createCar({
+    id: 'car-se12-1',
+    name: 'Toa 1',
+    label: 'Toa 1: Nằm mềm (42)',
+    seat_type: 'soft_sleeper',
+    total_seats: 42,
+    price: 850000,
+    booked_seat_numbers: [5, 6, 11, 12, 18, 21, 22, 31, 35, 36],
+    code_prefix: 'NM1-',
+    row_size: 6,
+    aisle_after: 3,
+  }),
+  createCar({
+    id: 'car-se12-2',
+    name: 'Toa 2',
+    label: 'Toa 2: Nằm mềm (42)',
+    seat_type: 'soft_sleeper',
+    total_seats: 42,
+    price: 850000,
+    booked_seat_numbers: [2, 3, 10, 17, 20, 24, 25, 32, 33, 41],
+    code_prefix: 'NM2-',
+    row_size: 6,
+    aisle_after: 3,
+  }),
+  createCar({
+    id: 'car-se12-3',
+    name: 'Toa 3',
+    label: 'Toa 3: Nằm cứng (32)',
+    seat_type: 'hard_sleeper',
+    total_seats: 32,
+    price: 620000,
+    booked_seat_numbers: [4, 8, 9, 14, 15, 16, 23, 28],
+    code_prefix: 'NC3-',
+    row_size: 4,
+    aisle_after: 2,
+  }),
+  createCar({
+    id: 'car-se12-4',
+    name: 'Toa 4',
+    label: 'Toa 4: Ngồi mềm',
+    seat_type: 'soft_seat',
+    total_seats: 24,
+    price: 540000,
+    booked_seat_numbers: [1, 2, 6, 9, 13, 14, 20],
+    code_prefix: 'NM4-',
+    row_size: 4,
+    aisle_after: 2,
+  }),
+]
 
 export const trainStationFixtures = Object.freeze(VIETNAM_TRAIN_STATION_OPTIONS)
 
@@ -90,7 +281,8 @@ export const trainServiceFixtures = Object.freeze([
     service_code: 'TRAIN-SGN-HAN-SE2',
     title: 'TP. Hồ Chí Minh - Hà Nội',
     slug: 'tau-se2-sai-gon-ha-noi',
-    short_description: 'Chuyến tàu đêm phổ biến cho hành trình xuyên Việt với thời gian đẹp.',
+    short_description:
+      'Chuyến tàu đêm phổ biến cho hành trình xuyên Việt với thời gian đẹp.',
     description:
       'SE2 là chuyến tàu nhanh đường dài nổi bật với khoang điều hòa ổn định, phù hợp cho hành trình xuyên Việt dài ngày.',
     provider_name: 'Net Viet Rail',
@@ -115,36 +307,58 @@ export const trainServiceFixtures = Object.freeze([
     updated_at: '2026-07-03T11:00:00+07:00',
     details: {
       train_type: 'fast',
-      seat_options: ['Ngồi mềm điều hòa', 'Nằm khoang 4', 'Nằm khoang 6'],
+      route_note: 'Dịch vụ tàu nhanh Bắc - Nam, hành trình ổn định mỗi ngày.',
+      seat_options: [
+        createSeatOption({
+          id: 'se2-soft-seat',
+          name: 'Ngồi mềm điều hòa',
+          price: 850000,
+          seat_type: 'soft_seat',
+          benefits: seatBenefits.soft_seat,
+          is_default: true,
+        }),
+        createSeatOption({
+          id: 'se2-soft-sleeper',
+          name: 'Nằm mềm điều hòa',
+          price: 1280000,
+          seat_type: 'soft_sleeper',
+          benefits: seatBenefits.soft_sleeper,
+        }),
+      ],
       carriage_info: 'Toa 6 giường điều hòa, ưu tiên khoang trung tâm.',
       baggage_policy: 'Hành khách mang tối đa 20kg hành lý xách tay miễn phí.',
       refund_policy: 'Hỗ trợ đổi vé trước giờ khởi hành theo chính sách của nhà ga.',
       amenities: ['Điều hòa', 'Ổ cắm điện', 'Nước uống', 'WC khép kín'],
+      policies: [
+        'Có mặt tại ga ít nhất 30 phút trước giờ tàu chạy.',
+        'Mỗi vé chỉ áp dụng cho một hành khách trong dữ liệu mock.',
+      ],
     },
   }),
   createTrainFixture({
     id: 'train-sgn-han-se12',
     service_code: 'TRAIN-SGN-HAN-SE12',
-    title: 'TP. Hồ Chí Minh - Hà Nội',
+    title: 'Tàu SE12 Tàu Thống Nhất',
     slug: 'tau-se12-sai-gon-ha-noi',
-    short_description: 'Lựa chọn khởi hành muộn với giá tốt cho chuyến xuyên tuyến.',
+    short_description:
+      'Dịch vụ Sài Gòn - Hà Nội, hành trình hằng ngày với khoang giường phổ biến.',
     description:
-      'SE12 phục vụ hành trình Sài Gòn - Hà Nội với giá mềm, phù hợp cho khách muốn giữ lịch trình linh hoạt vào buổi tối.',
+      'SE12 phục vụ hành trình Sài Gòn - Hà Nội với nhiều lựa chọn toa giường và ghế ngồi, phù hợp cho khách muốn chủ động chọn chỗ trước khi thanh toán.',
     provider_name: 'Net Viet Rail',
     train_number: 'SE12',
-    train_name: 'Tàu tốc hành',
+    train_name: 'Tàu Thống Nhất',
     departure_station: 'Ga Sài Gòn',
     departure_station_code: 'SGN',
     departure_city: 'TP. Hồ Chí Minh',
     arrival_station: 'Ga Hà Nội',
     arrival_station_code: 'HAN',
     arrival_city: 'Hà Nội',
-    departure_at: '2026-10-12T22:15:00+07:00',
+    departure_at: '2026-10-12T22:25:00+07:00',
     arrival_at: '2026-10-14T11:00:00+07:00',
-    duration_minutes: 2205,
-    seat_class: 'Nằm khoang 6 điều hòa',
-    carriage_type: 'Toa nhanh chất lượng',
-    available_seats: 9,
+    duration_minutes: 2195,
+    seat_class: 'Nằm mềm điều hòa',
+    carriage_type: 'Toa giường chất lượng',
+    available_seats: 19,
     base_price: 1100000,
     sale_price: 850000,
     image_url: '/assets/template/home/v39_1679.png',
@@ -152,11 +366,66 @@ export const trainServiceFixtures = Object.freeze([
     updated_at: '2026-07-03T11:05:00+07:00',
     details: {
       train_type: 'express',
-      seat_options: ['Nằm khoang 6 điều hòa', 'Nằm khoang 4'],
-      carriage_info: 'Khoang 6 giường phù hợp nhóm bạn và gia đình nhỏ.',
-      baggage_policy: 'Hỗ trợ hành lý xách tay miễn phí, hành lý cồng kềnh theo quy định ga.',
-      refund_policy: 'Đổi trả trước giờ tàu chạy, áp dụng phí xử lý theo quy định.',
-      amenities: ['Điều hòa', 'Chăn gối', 'Ổ sạc USB'],
+      header_title: 'Tàu SE12 Tàu Thống Nhất',
+      route_note: 'Dịch vụ Sài Gòn - Hà Nội, hành trình hằng ngày',
+      seat_options: se12SeatOptions,
+      cars: se12Cars,
+      carriage_info: 'Khoang nằm mềm và toa ghế ngồi được phân bổ rõ để tiện chọn chỗ.',
+      baggage_policy:
+        'Miễn phí 20kg hành lý xách tay, hành lý cồng kềnh áp dụng theo quy định riêng của ga.',
+      refund_policy:
+        'Đổi hoặc trả vé trước giờ tàu chạy, áp dụng phí xử lý theo hạng chỗ trong dữ liệu mock.',
+      amenities: ['Điều hòa', 'Chăn ga gối', 'Ổ sạc USB', 'Đèn đọc sách'],
+      policies: [
+        'Mỗi hành khách trong mock hiện tại chọn một chỗ để tiếp tục.',
+        'Ghế đã đặt không thể chọn lại trong dữ liệu mock.',
+        'Tàu hỗ trợ đổi vé trước 24 giờ khởi hành.',
+      ],
+      schedule: [
+        {
+          station_name: 'Ga Sài Gòn',
+          city: 'TP. Hồ Chí Minh',
+          time: '22:25',
+          note: 'Khởi hành',
+        },
+        {
+          station_name: 'Ga Nha Trang',
+          city: 'Khánh Hòa',
+          time: '05:40',
+          note: 'Dừng đón khách',
+        },
+        {
+          station_name: 'Ga Đà Nẵng',
+          city: 'Đà Nẵng',
+          time: '18:15',
+          note: 'Dừng kỹ thuật',
+        },
+        {
+          station_name: 'Ga Huế',
+          city: 'Thừa Thiên Huế',
+          time: '20:45',
+          note: 'Điểm dừng trung chuyển',
+        },
+        {
+          station_name: 'Ga Hà Nội',
+          city: 'Hà Nội',
+          time: '11:00',
+          note: 'Đến nơi',
+        },
+      ],
+      payment_summary: {
+        fee_label: 'Phí dịch vụ',
+        service_fee: 15000,
+        cta_primary: 'Đặt ngay',
+        cta_secondary: 'Thêm vào giỏ hàng',
+        security_note: 'Thanh toán bảo mật SSL 256-bit',
+      },
+      member_discount: {
+        title: 'Giảm giá thành viên',
+        description:
+          'Đăng nhập để tiết kiệm 10% cho tất cả các tuyến tàu nội địa trong hè này.',
+        link_label: 'Tìm hiểu thêm',
+      },
     },
   }),
   createTrainFixture({
@@ -164,7 +433,8 @@ export const trainServiceFixtures = Object.freeze([
     service_code: 'TRAIN-SGN-HAN-SE8',
     title: 'TP. Hồ Chí Minh - Hà Nội',
     slug: 'tau-se8-sai-gon-ha-noi',
-    short_description: 'Khởi hành sáng sớm, phù hợp khách muốn chủ động thời gian ban ngày.',
+    short_description:
+      'Khởi hành sáng sớm, phù hợp khách muốn chủ động thời gian ban ngày.',
     description:
       'SE8 có thời gian xuất phát sáng sớm, thuận tiện cho hành khách muốn đến ga trước giờ cao điểm buổi tối.',
     provider_name: 'Net Viet Rail',
@@ -189,7 +459,23 @@ export const trainServiceFixtures = Object.freeze([
     updated_at: '2026-07-03T11:10:00+07:00',
     details: {
       train_type: 'express',
-      seat_options: ['Ngồi mềm điều hòa', 'Nằm khoang 6'],
+      seat_options: [
+        createSeatOption({
+          id: 'se8-soft-seat',
+          name: 'Ngồi mềm điều hòa',
+          price: 1120000,
+          seat_type: 'soft_seat',
+          benefits: seatBenefits.soft_seat,
+          is_default: true,
+        }),
+        createSeatOption({
+          id: 'se8-soft-sleeper',
+          name: 'Nằm mềm điều hòa',
+          price: 1380000,
+          seat_type: 'soft_sleeper',
+          benefits: seatBenefits.soft_sleeper,
+        }),
+      ],
       carriage_info: 'Toa tiêu chuẩn có quầy đồ ăn nhẹ gần khu vực giữa tàu.',
       baggage_policy: 'Mỗi hành khách được mang theo 20kg hành lý xách tay.',
       refund_policy: 'Không hỗ trợ hoàn tiền sát giờ tàu chạy.',
@@ -201,7 +487,8 @@ export const trainServiceFixtures = Object.freeze([
     service_code: 'TRAIN-SGN-HAN-SE4',
     title: 'TP. Hồ Chí Minh - Hà Nội',
     slug: 'tau-se4-sai-gon-ha-noi',
-    short_description: 'Tàu nhanh chất lượng cao với số chỗ thoáng hơn trong khoang.',
+    short_description:
+      'Tàu nhanh chất lượng cao với số chỗ thoáng hơn trong khoang.',
     description:
       'SE4 ưu tiên khoang giường mềm điều hòa chất lượng cao, phù hợp khách chú trọng sự riêng tư và ổn định hành trình.',
     provider_name: 'Net Viet Rail',
@@ -226,7 +513,24 @@ export const trainServiceFixtures = Object.freeze([
     updated_at: '2026-07-03T11:15:00+07:00',
     details: {
       train_type: 'quality_fast',
-      seat_options: ['Nằm khoang 4 điều hòa', 'Nằm khoang 2'],
+      seat_options: [
+        createSeatOption({
+          id: 'se4-soft-sleeper',
+          name: 'Nằm khoang 4 điều hòa',
+          badge: 'Riêng tư',
+          price: 1680000,
+          seat_type: 'soft_sleeper',
+          benefits: seatBenefits.soft_sleeper,
+          is_default: true,
+        }),
+        createSeatOption({
+          id: 'se4-hard-sleeper',
+          name: 'Nằm cứng điều hòa',
+          price: 1240000,
+          seat_type: 'hard_sleeper',
+          benefits: seatBenefits.hard_sleeper,
+        }),
+      ],
       carriage_info: 'Khoang VIP 4 giường, riêng tư và yên tĩnh hơn.',
       baggage_policy: 'Bao gồm 25kg hành lý cá nhân.',
       refund_policy: 'Đổi vé linh hoạt trước 24 giờ.',
@@ -238,7 +542,8 @@ export const trainServiceFixtures = Object.freeze([
     service_code: 'TRAIN-SGN-HAN-SE6',
     title: 'TP. Hồ Chí Minh - Hà Nội',
     slug: 'tau-se6-sai-gon-ha-noi',
-    short_description: 'Khung giờ chiều cho hành khách muốn kết hợp làm việc và nghỉ đêm trên tàu.',
+    short_description:
+      'Khung giờ chiều cho hành khách muốn kết hợp làm việc và nghỉ đêm trên tàu.',
     description:
       'SE6 giữ nhịp chạy ổn định với giá hợp lý cho khách chọn hành trình từ chiều muộn tới sáng hai ngày sau.',
     provider_name: 'Net Viet Rail',
@@ -263,7 +568,23 @@ export const trainServiceFixtures = Object.freeze([
     updated_at: '2026-07-03T11:20:00+07:00',
     details: {
       train_type: 'fast',
-      seat_options: ['Ngồi mềm điều hòa', 'Nằm khoang 6'],
+      seat_options: [
+        createSeatOption({
+          id: 'se6-soft-seat',
+          name: 'Ngồi mềm điều hòa',
+          price: 1210000,
+          seat_type: 'soft_seat',
+          benefits: seatBenefits.soft_seat,
+          is_default: true,
+        }),
+        createSeatOption({
+          id: 'se6-soft-sleeper',
+          name: 'Nằm mềm điều hòa',
+          price: 1460000,
+          seat_type: 'soft_sleeper',
+          benefits: seatBenefits.soft_sleeper,
+        }),
+      ],
       carriage_info: 'Toa phổ thông tiết kiệm, phù hợp khách đi một chiều.',
       baggage_policy: 'Bao gồm 20kg hành lý xách tay.',
       refund_policy: 'Hỗ trợ đổi vé trước 24 giờ.',
@@ -275,7 +596,8 @@ export const trainServiceFixtures = Object.freeze([
     service_code: 'TRAIN-SGN-HAN-TN1',
     title: 'TP. Hồ Chí Minh - Hà Nội',
     slug: 'tau-tn1-sai-gon-ha-noi',
-    short_description: 'Tuyến địa phương nhiều điểm dừng cho hành khách muốn linh hoạt chặng nối.',
+    short_description:
+      'Tuyến địa phương nhiều điểm dừng cho hành khách muốn linh hoạt chặng nối.',
     description:
       'TN1 là lựa chọn phù hợp cho khách cần nhiều điểm lên xuống dọc tuyến với mức giá tiết kiệm hơn.',
     provider_name: 'Net Viet Rail',
@@ -300,7 +622,23 @@ export const trainServiceFixtures = Object.freeze([
     updated_at: '2026-07-03T11:25:00+07:00',
     details: {
       train_type: 'local',
-      seat_options: ['Ngồi cứng điều hòa', 'Ngồi mềm điều hòa'],
+      seat_options: [
+        createSeatOption({
+          id: 'tn1-hard-seat',
+          name: 'Ngồi cứng điều hòa',
+          price: 980000,
+          seat_type: 'soft_seat',
+          benefits: seatBenefits.soft_seat,
+          is_default: true,
+        }),
+        createSeatOption({
+          id: 'tn1-soft-seat',
+          name: 'Ngồi mềm điều hòa',
+          price: 1080000,
+          seat_type: 'soft_seat',
+          benefits: seatBenefits.soft_seat,
+        }),
+      ],
       carriage_info: 'Nhiều điểm dừng trung gian, phù hợp hành trình nối chặng.',
       baggage_policy: 'Hành lý tiêu chuẩn 15kg.',
       refund_policy: 'Áp dụng theo từng chặng nối.',
@@ -337,11 +675,41 @@ export const trainServiceFixtures = Object.freeze([
     updated_at: '2026-07-03T11:30:00+07:00',
     details: {
       train_type: 'express',
-      seat_options: ['Ngồi mềm điều hòa'],
+      route_note: 'Chặng ngắn ngắm đèo Hải Vân, thuận tiện đi trong ngày.',
+      seat_options: [
+        createSeatOption({
+          id: 'hd1-soft-seat',
+          name: 'Ngồi mềm điều hòa',
+          price: 320000,
+          seat_type: 'soft_seat',
+          benefits: seatBenefits.soft_seat,
+          is_default: true,
+        }),
+      ],
       carriage_info: 'Khoang ngắm cảnh qua đèo Hải Vân.',
       baggage_policy: 'Hành lý tiêu chuẩn 15kg.',
       refund_policy: 'Đổi trả trước 6 giờ khởi hành.',
       amenities: ['Điều hòa', 'Cửa sổ panorama'],
+      schedule: [
+        {
+          station_name: 'Ga Huế',
+          city: 'Huế',
+          time: '08:10',
+          note: 'Khởi hành',
+        },
+        {
+          station_name: 'Ga Lăng Cô',
+          city: 'Thừa Thiên Huế',
+          time: '09:20',
+          note: 'Ngắm cảnh',
+        },
+        {
+          station_name: 'Ga Đà Nẵng',
+          city: 'Đà Nẵng',
+          time: '11:00',
+          note: 'Đến nơi',
+        },
+      ],
     },
   }),
   createTrainFixture({
@@ -377,6 +745,68 @@ export const trainServiceFixtures = Object.freeze([
     },
   }),
 ])
+
+export const trainRelatedSlugMap = Object.freeze({
+  'tau-se2-sai-gon-ha-noi': [
+    'tau-se12-sai-gon-ha-noi',
+    'tau-se4-sai-gon-ha-noi',
+    'tau-se8-sai-gon-ha-noi',
+  ],
+  'tau-se12-sai-gon-ha-noi': [
+    'tau-se2-sai-gon-ha-noi',
+    'tau-se4-sai-gon-ha-noi',
+    'tau-se6-sai-gon-ha-noi',
+  ],
+  'tau-se8-sai-gon-ha-noi': [
+    'tau-se12-sai-gon-ha-noi',
+    'tau-se2-sai-gon-ha-noi',
+    'tau-se6-sai-gon-ha-noi',
+  ],
+  'tau-se4-sai-gon-ha-noi': [
+    'tau-se12-sai-gon-ha-noi',
+    'tau-se2-sai-gon-ha-noi',
+    'tau-se6-sai-gon-ha-noi',
+  ],
+  'tau-se6-sai-gon-ha-noi': [
+    'tau-se12-sai-gon-ha-noi',
+    'tau-se4-sai-gon-ha-noi',
+    'tau-se8-sai-gon-ha-noi',
+  ],
+  'tau-tn1-sai-gon-ha-noi': [
+    'tau-se12-sai-gon-ha-noi',
+    'tau-se2-sai-gon-ha-noi',
+    'tau-se6-sai-gon-ha-noi',
+  ],
+  'tau-hd1-hue-da-nang': [
+    'tau-se12-sai-gon-ha-noi',
+    'tau-se8-sai-gon-ha-noi',
+    'tau-se4-sai-gon-ha-noi',
+  ],
+})
+
+export function getTrainFixtureBySlug(slug = '') {
+  return trainServiceFixtures.find((train) => train.slug === slug) ?? null
+}
+
+export function buildDefaultSeatOptionFromString(optionLabel = '', index = 0, train = null) {
+  const normalizedLabel = String(optionLabel).trim()
+  const normalizedKey = slugifyValue(normalizedLabel)
+  const seatType =
+    normalizedKey.includes('nam-mem')
+      ? 'soft_sleeper'
+      : normalizedKey.includes('nam-cung')
+        ? 'hard_sleeper'
+        : 'soft_seat'
+
+  return createSeatOption({
+    id: `${train?.id ?? 'train'}-seat-option-${normalizedKey || index + 1}`,
+    name: normalizedLabel || `Hạng chỗ ${index + 1}`,
+    price: Math.max(Number(train?.sale_price ?? 0) + index * 90000, 300000),
+    seat_type: seatType,
+    benefits: seatBenefits[seatType] ?? seatBenefits.soft_seat,
+    is_default: index === 0,
+  })
+}
 
 export const trainSearchDefaultsFixture = Object.freeze({
   trip_types: TRAIN_TRIP_TYPE_OPTIONS,
