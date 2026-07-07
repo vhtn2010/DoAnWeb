@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Figma Reference - User Chi tiết vé máy bay</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="flight-detail-reference">
+      <header class="reference-header">
+        <div class="reference-header__inner">
+          <a class="reference-header__brand" href="#" aria-label="Nét Việt">
+            <img
+              src="https://www.figma.com/api/mcp/asset/91b5528f-bd92-4d3b-ad9d-807a55a436af"
+              alt="Nét Việt"
+            />
+          </a>
+
+          <nav class="reference-header__nav" aria-label="Điều hướng chính">
+            <a href="#">Trang chủ</a>
+            <a href="#">Tour</a>
+            <a class="is-active" href="#">Đặt vé</a>
+            <a href="#">Khách sạn</a>
+          </nav>
+
+          <div class="reference-header__tools" aria-label="Công cụ người dùng">
+            <button type="button" aria-label="Ngôn ngữ">
+              <span>◌</span>
+            </button>
+            <button type="button" aria-label="Yêu thích">
+              <span>♡</span>
+            </button>
+            <button type="button" aria-label="Giỏ hàng">
+              <span>🛒</span>
+            </button>
+            <span class="reference-header__avatar" aria-hidden="true">MQ</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="reference-main">
+        <section class="flight-topbar">
+          <div class="flight-topbar__spacer"></div>
+          <div class="flight-topbar__actions" aria-label="Tác vụ vé máy bay">
+            <button type="button" aria-label="Chia sẻ">⇪</button>
+            <button type="button" aria-label="Lưu vé">♡</button>
+          </div>
+        </section>
+
+        <section class="flight-main">
+          <div class="flight-main__content">
+            <article class="flight-card">
+              <div class="flight-card__header">
+                <div class="flight-card__brand">
+                  <div class="flight-card__brand-mark">
+                    <img
+                      src="https://www.figma.com/api/mcp/asset/a594c8eb-b7d2-404c-94a8-fb06bbf6cbdf"
+                      alt="Vietnam Airlines"
+                    />
+                  </div>
+
+                  <div class="flight-card__brand-copy">
+                    <h1>Vietnam Airlines</h1>
+                    <p>VN213</p>
+                    <span>•</span>
+                    <p>Airbus A350-900</p>
+                  </div>
+                </div>
+
+                <div class="flight-card__tag">
+                  <span>✦</span>
+                  <p>Đội bay thân thiện môi trường</p>
+                </div>
+              </div>
+
+              <div class="flight-path">
+                <div class="flight-path__point flight-path__point--departure">
+                  <strong>06:00</strong>
+                  <span class="flight-path__code">HAN</span>
+                  <span class="flight-path__airport">Nội Bài</span>
+                  <span class="flight-path__terminal">Nhà ga T1</span>
+                </div>
+
+                <div class="flight-path__line">
+                  <p class="flight-path__duration">2giờ 10phút</p>
+                  <p class="flight-path__type">Bay thẳng</p>
+                  <div class="flight-path__track">
+                    <span class="flight-path__dot flight-path__dot--outline"></span>
+                    <span class="flight-path__plane">✈</span>
+                    <span class="flight-path__dot"></span>
+                  </div>
+                </div>
+
+                <div class="flight-path__point flight-path__point--arrival">
+                  <strong>08:10</strong>
+                  <span class="flight-path__code">SGN</span>
+                  <span class="flight-path__airport">Tân Sơn Nhất</span>
+                  <span class="flight-path__terminal">Nhà ga T2</span>
+                </div>
+              </div>
+            </article>
+
+            <section class="fare-section">
+              <div class="fare-section__heading">
+                <h2>Chọn Hạng Vé</h2>
+                <a href="#">Điều kiện giá vé</a>
+              </div>
+
+              <div class="fare-grid">
+                <article class="fare-card">
+                  <div class="fare-card__copy">
+                    <h3>PHỔ THÔNG TIẾT KIỆM</h3>
+                    <p class="fare-card__price">1tr250<span>đ</span></p>
+                  </div>
+
+                  <ul class="fare-card__features">
+                    <li class="is-negative">Không bao gồm hành lý ký gửi</li>
+                    <li class="is-positive">12kg Hành lý xách tay</li>
+                    <li class="is-negative">Không hoàn vé</li>
+                    <li class="is-negative">Không chọn chỗ trước</li>
+                  </ul>
+
+                  <button type="button">Chọn</button>
+                </article>
+
+                <article class="fare-card fare-card--featured">
+                  <div class="fare-card__badge">PHỔ BIẾN NHẤT</div>
+
+                  <div class="fare-card__copy">
+                    <h3>PHỔ THÔNG TIÊU CHUẨN</h3>
+                    <p class="fare-card__price">1tr850<span>đ</span></p>
+                  </div>
+
+                  <ul class="fare-card__features">
+                    <li class="is-positive">23kg Hành lý ký gửi</li>
+                    <li class="is-positive">12kg Hành lý xách tay</li>
+                    <li class="is-positive">Thay đổi vé (Có phí)</li>
+                    <li class="is-positive">Chọn chỗ tiêu chuẩn</li>
+                    <li class="is-positive">Bao gồm suất ăn nóng</li>
+                  </ul>
+
+                  <button type="button" class="is-selected">Đã chọn</button>
+                </article>
+
+                <article class="fare-card">
+                  <div class="fare-card__copy">
+                    <h3>THƯƠNG GIA</h3>
+                    <p class="fare-card__price">4tr200<span>đ</span></p>
+                  </div>
+
+                  <ul class="fare-card__features">
+                    <li class="is-positive">40kg Hành lý ký gửi</li>
+                    <li class="is-positive">Sử dụng Phòng chờ</li>
+                    <li class="is-positive">Ưu tiên làm thủ tục</li>
+                    <li class="is-positive">Ẩm thực cao cấp</li>
+                  </ul>
+
+                  <button type="button">Chọn</button>
+                </article>
+              </div>
+            </section>
+
+            <section class="flight-info-grid">
+              <article class="info-card">
+                <div class="info-card__title">
+                  <span>○</span>
+                  <h3>Thông tin chuyến bay</h3>
+                </div>
+                <p>
+                  Chuyến bay được khai thác bằng máy bay Airbus A350-900 hiện đại.
+                  Hành khách sẽ được tận hưởng khoang cabin rộng rãi, cửa sổ lớn hơn
+                  và hệ thống lọc không khí tiên tiến giúp giảm mệt mỏi.
+                </p>
+              </article>
+
+              <article class="info-card">
+                <div class="info-card__title">
+                  <span>◔</span>
+                  <h3>Tiện ích trên chuyến bay</h3>
+                </div>
+
+                <div class="info-card__chips">
+                  <span>WiFi trên máy bay</span>
+                  <span>Cổng sạc USB</span>
+                  <span>Phim ảnh</span>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <aside class="payment-panel" aria-label="Tóm tắt thanh toán">
+            <div class="payment-panel__card">
+              <div class="payment-panel__header">
+                <h2>Tóm tắt thanh toán</h2>
+              </div>
+
+              <div class="payment-panel__rows">
+                <div>
+                  <span>Người lớn (x1)</span>
+                  <strong>1.450.000 đ</strong>
+                </div>
+                <div>
+                  <span>Thuế &amp; Phí</span>
+                  <strong>400.000 đ</strong>
+                </div>
+                <div>
+                  <span>Dịch vụ bổ sung</span>
+                  <strong>0 đ</strong>
+                </div>
+              </div>
+
+              <div class="payment-panel__total">
+                <span>Tổng cộng</span>
+                <div>
+                  <strong>1.850.000</strong>
+                  <small>đ</small>
+                </div>
+              </div>
+
+              <button class="payment-panel__button payment-panel__button--primary" type="button">
+                Đặt ngay
+              </button>
+              <button class="payment-panel__button payment-panel__button--secondary" type="button">
+                Thêm vào giỏ hàng
+              </button>
+            </div>
+          </aside>
+        </section>
+
+        <section class="destination-section">
+          <div class="destination-section__copy">
+            <h2>Khám phá TP. Hồ Chí Minh</h2>
+            <p>
+              Được mệnh danh là Hòn ngọc Viễn Đông, Sài Gòn là sự hòa quyện giữa
+              lịch sử, văn hóa và nhịp sống sôi động không ngừng nghỉ. Từ những công
+              trình kiến trúc thời Pháp thuộc đến chợ Bến Thành tấp nập, mỗi góc phố
+              đều kể một câu chuyện về quá khứ và tương lai của Việt Nam.
+            </p>
+
+            <div class="destination-section__meta">
+              <span>⟟ 29°C Nắng</span>
+              <span>◔ Múi giờ GMT +7</span>
+            </div>
+          </div>
+
+          <div class="destination-section__media">
+            <img
+              src="https://www.figma.com/api/mcp/asset/3d526acd-0278-407e-8c38-74f4cec5826d"
+              alt="TP. Hồ Chí Minh"
+            />
+          </div>
+        </section>
+      </main>
+
+      <footer class="reference-footer">
+        <div class="reference-footer__content">
+          <section class="reference-footer__brand">
+            <h2>NÉT VIỆT</h2>
+            <p>
+              Hành trình từ tâm, nâng tầm trải nghiệm Việt. Khám phá vẻ đẹp bất tận
+              của mảnh đất chữ S cùng chúng tôi.
+            </p>
+            <div class="reference-footer__socials" aria-label="Mạng xã hội">
+              <span>◎</span>
+              <span>◉</span>
+              <span>◌</span>
+            </div>
+          </section>
+
+          <section>
+            <h3>VỀ CÔNG TY</h3>
+            <a href="#">Câu chuyện thương hiệu</a>
+            <a href="#">Tin tức &amp; Sự kiện</a>
+            <a href="#">Cơ hội nghề nghiệp</a>
+            <a href="#">Đối tác chiến lược</a>
+          </section>
+
+          <section>
+            <h3>HỖ TRỢ KHÁCH HÀNG</h3>
+            <a href="#">Chính sách bảo mật</a>
+            <a href="#">Điều khoản sử dụng</a>
+            <a href="#">Câu hỏi thường gặp</a>
+            <a href="#">Hotline 24 / 7</a>
+          </section>
+
+          <section>
+            <h3>LIÊN HỆ</h3>
+            <p>📍 Trụ sở: Nét Việt, Q1, TP. Hồ Chí Minh</p>
+            <p>✉ hellonetviet@gmail.com</p>
+            <p>📞 1990 888 999</p>
+          </section>
+        </div>
+
+        <div class="reference-footer__bottom">
+          <span>© 2026 Nét Việt.</span>
+          <div>
+            <a href="#">Chính sách</a>
+            <a href="#">Cài đặt</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

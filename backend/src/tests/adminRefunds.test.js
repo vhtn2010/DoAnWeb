@@ -1886,6 +1886,16 @@ test('admin refund process routes forward auth, body, and headers to service met
     serviceScopeIds: ['service-1'],
     userId: 'staff-user-9',
   });
+  const staffApproveToken = createAccessToken({
+    permissions: ['refund.approve'],
+    roleCode: 'staff',
+    userId: 'staff-user-10',
+  });
+  const staffRejectToken = createAccessToken({
+    permissions: ['refund.reject'],
+    roleCode: 'staff',
+    userId: 'staff-user-11',
+  });
   let capturedApproveContext;
   let capturedMarkFailedContext;
   let capturedMarkProcessingContext;
@@ -1974,6 +1984,33 @@ test('admin refund process routes forward auth, body, and headers to service met
   };
 
   try {
+    const forbiddenApproveResponse = await request(
+      server,
+      `${apiPrefix}/admin/refunds/${REFUND_ID}/approve`,
+      {
+        body: {
+          approved_amount: 180000,
+          note: 'Staff should not approve',
+        },
+        headers: {
+          Authorization: `Bearer ${staffApproveToken}`,
+        },
+        method: 'POST',
+      },
+    );
+    const forbiddenRejectResponse = await request(
+      server,
+      `${apiPrefix}/admin/refunds/${REFUND_ID}/reject`,
+      {
+        body: {
+          reason: 'Staff should not reject',
+        },
+        headers: {
+          Authorization: `Bearer ${staffRejectToken}`,
+        },
+        method: 'POST',
+      },
+    );
     const approveResponse = await request(
       server,
       `${apiPrefix}/admin/refunds/${REFUND_ID}/approve`,
@@ -2057,6 +2094,11 @@ test('admin refund process routes forward auth, body, and headers to service met
         method: 'PATCH',
       },
     );
+
+    assert.equal(forbiddenApproveResponse.statusCode, 403);
+    assert.equal(forbiddenApproveResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
+    assert.equal(forbiddenRejectResponse.statusCode, 403);
+    assert.equal(forbiddenRejectResponse.body.error.code, API_ERROR_CODES.FORBIDDEN);
 
     assert.equal(approveResponse.statusCode, 200);
     assert.equal(approveResponse.body.message, 'Admin refund approved successfully');
