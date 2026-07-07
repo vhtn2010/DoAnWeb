@@ -100,3 +100,59 @@ export const paymentConfirmationFixtures = Object.freeze([
   guestPaymentConfirmationFixture,
   customerPaymentConfirmationFixture,
 ])
+
+function createPaymentSuccessFixture(paymentConfirmationFixture, overrides = {}) {
+  const primaryBookingItem = paymentConfirmationFixture.booking_items?.[0] ?? {}
+  const paymentMethodLabel =
+    paymentConfirmationFixture.payment.payment_method === PAYMENT_METHOD_CODES.wallet
+      ? 'Ví điện tử / Momo / VNPay'
+      : 'Thẻ tín dụng (Visa/Mastercard)'
+
+  return {
+    payment_success: {
+      payment_id: paymentConfirmationFixture.payment.id,
+      payment_code: paymentConfirmationFixture.payment.payment_code,
+      booking_id: paymentConfirmationFixture.booking.id,
+      booking_code: overrides.booking_code ?? 'NV-2024-8892',
+      payment_status: PAYMENT_STATUSES.success,
+      booking_status: BOOKING_STATUSES.paid,
+      amount: 15550000,
+      currency: 'VND',
+      payment_method: paymentConfirmationFixture.payment.payment_method,
+      paid_at: '2026-07-07T10:30:00+07:00',
+      invoice_code: overrides.invoice_code ?? 'INV-NV-2024-8892',
+      customer: {
+        contact_name: paymentConfirmationFixture.booking.contact_name,
+        contact_email: paymentConfirmationFixture.booking.contact_email,
+        contact_phone: paymentConfirmationFixture.booking.contact_phone,
+      },
+      booking: {
+        booking_code: overrides.booking_code ?? 'NV-2024-8892',
+        service_title: primaryBookingItem.service_title ?? 'Du thuyền Hạ Long Heritage',
+        departure_date: primaryBookingItem.start_at ?? '2026-10-12T09:00:00+07:00',
+        departure_date_label: overrides.departure_date_label ?? '12 tháng 10, 2024',
+        traveller_summary: overrides.traveller_summary ?? '02 Người lớn',
+        payment_method_label: overrides.payment_method_label ?? paymentMethodLabel,
+        total_amount: 15550000,
+        currency: 'VND',
+      },
+      booking_items: paymentConfirmationFixture.booking_items.map((item) => ({ ...item })),
+    },
+  }
+}
+
+export const guestPaymentSuccessFixture = Object.freeze(
+  createPaymentSuccessFixture(guestPaymentConfirmationFixture),
+)
+
+export const customerPaymentSuccessFixture = Object.freeze(
+  createPaymentSuccessFixture(customerPaymentConfirmationFixture, {
+    booking_code: 'NV-2024-8893',
+    invoice_code: 'INV-NV-2024-8893',
+  }),
+)
+
+export const paymentSuccessFixtures = Object.freeze([
+  guestPaymentSuccessFixture,
+  customerPaymentSuccessFixture,
+])

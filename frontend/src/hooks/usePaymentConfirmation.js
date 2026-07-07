@@ -372,6 +372,7 @@ export default function usePaymentConfirmation() {
       navigate(preserveAuthPath('/payment-success', authState), {
         state: {
           booking: nextBooking,
+          bookingItems,
           payment: nextPayment,
           paymentResultPayload: resultPayload.data,
         },
