@@ -15569,8 +15569,8 @@ select {
   margin: -24px;
   padding: 24px 24px 8px;
   background:
-    radial-gradient(circle at top left, rgba(244, 197, 66, 0.12), transparent 24%),
-    linear-gradient(180deg, #fffaf5 0%, #fbf7f2 58%, #fffaf6 100%);
+    linear-gradient(rgba(255, 250, 245, 0.78), rgba(251, 247, 242, 0.86)),
+    url('../../templateUI/user/user_account/images/v39_6093.png') center top / cover no-repeat;
   overflow: hidden;
 }
 
@@ -15588,7 +15588,7 @@ select {
   height: 320px;
   border-radius: 48% 52% 46% 54%;
   background:
-    radial-gradient(circle at 40% 38%, rgba(215, 0, 24, 0.08), transparent 30%),
+    radial-gradient(circle at 40% 38%, rgba(215, 0, 24, 0.05), transparent 30%),
     linear-gradient(180deg, rgba(229, 217, 190, 0.28), rgba(255, 255, 255, 0));
 }
 
@@ -15599,8 +15599,8 @@ select {
   height: 280px;
   border-radius: 50%;
   background:
-    radial-gradient(circle at center, rgba(214, 40, 40, 0.05), transparent 50%),
-    radial-gradient(circle at 65% 65%, rgba(115, 76, 64, 0.04), transparent 40%);
+    radial-gradient(circle at center, rgba(214, 40, 40, 0.03), transparent 50%),
+    radial-gradient(circle at 65% 65%, rgba(115, 76, 64, 0.03), transparent 40%);
 }
 
 .profile-shell {
