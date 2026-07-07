@@ -1,17 +1,11 @@
 function TrainCard({
   formatCurrency,
   isSelected,
-  onContinueBooking,
   onOpenDetail,
   onSelect,
   train,
 }) {
   function handleBookingClick(event) {
-    event.stopPropagation()
-    onContinueBooking(train)
-  }
-
-  function handleDetailClick(event) {
     event.stopPropagation()
     onOpenDetail(train)
   }
@@ -35,10 +29,6 @@ function TrainCard({
         <div className="train-card__service">
           <span>{train.train_name}</span>
           <strong>{train.train_number_label}</strong>
-          <div className="train-card__meta">
-            <span>{train.seat_label}</span>
-            <span>{train.carriage_label}</span>
-          </div>
         </div>
 
         <div className="train-card__time-block">
@@ -63,9 +53,6 @@ function TrainCard({
         <strong>{formatCurrency(train.sale_price)}</strong>
         <button className="train-card__button" type="button" onClick={handleBookingClick}>
           Chọn chuyến
-        </button>
-        <button className="train-card__detail-link" type="button" onClick={handleDetailClick}>
-          Xem chi tiết
         </button>
         <span className="train-card__seat-note">{train.availability_label.toUpperCase()}</span>
       </div>
