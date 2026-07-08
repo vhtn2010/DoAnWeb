@@ -459,6 +459,14 @@ const parseReferenceId = (value) => {
   return value.trim();
 };
 
+const parseOptionalReferenceId = (value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  return parseReferenceId(value);
+};
+
 const parseOptionalGuestCount = (field, value) => {
   if (value == null) {
     return null;
@@ -804,6 +812,7 @@ const mapHotelDetail = (detail) => ({
 });
 
 const mapFlightDetail = (detail) => ({
+  id: detail.id,
   airline_name: detail.airline_name,
   flight_number: detail.flight_number,
   departure_airport: detail.departure_airport,
@@ -978,17 +987,23 @@ const buildPaginationMeta = ({ limit, page, total }) => {
   };
 };
 
-const parseTransportRouteQuery = ({ departureDate, from, to }) => {
-  const resolvedFrom = parseRequiredTextField({
+const parseOptionalTransportRouteQuery = ({ departureDate, from, to }) => {
+  const resolvedFrom = parseTextFilter({
     field: 'from',
+    maxLength: MAX_LOCATION_LENGTH,
+    rejectDangerousCharacters: true,
     value: from,
   });
-  const resolvedTo = parseRequiredTextField({
+  const resolvedTo = parseTextFilter({
     field: 'to',
+    maxLength: MAX_LOCATION_LENGTH,
+    rejectDangerousCharacters: true,
     value: to,
   });
 
   if (
+    resolvedFrom &&
+    resolvedTo &&
     resolvedFrom.toLocaleLowerCase(LOCALE) ===
     resolvedTo.toLocaleLowerCase(LOCALE)
   ) {
@@ -996,10 +1011,38 @@ const parseTransportRouteQuery = ({ departureDate, from, to }) => {
   }
 
   return {
-    departureDate: parseDepartureDate(departureDate),
+    departureDate:
+      departureDate == null || departureDate === ''
+        ? null
+        : parseDepartureDate(departureDate),
     from: resolvedFrom,
     to: resolvedTo,
   };
+};
+
+const parseTransportRouteQuery = ({ departureDate, from, to }) => {
+  const resolvedRoute = parseOptionalTransportRouteQuery({
+    departureDate,
+    from,
+    to,
+  });
+
+  if (!resolvedRoute.from) {
+    throw buildValidationError('from', 'from is required');
+  }
+
+  if (!resolvedRoute.to) {
+    throw buildValidationError('to', 'to is required');
+  }
+
+  if (!resolvedRoute.departureDate) {
+    throw buildValidationError(
+      'departure_date',
+      'departure_date is required',
+    );
+  }
+
+  return resolvedRoute;
 };
 
 const parseComboFilters = ({
@@ -1423,8 +1466,12 @@ const createLookupService = ({
     });
   };
 
-  const getServiceDetail = async ({ slug } = {}) => {
+  const getServiceDetail = async ({
+    reference_id: referenceId,
+    slug,
+  } = {}) => {
     const resolvedSlug = parseSlug(slug);
+    const resolvedReferenceId = parseOptionalReferenceId(referenceId);
     const service = await repository.getPublicServiceBySlug(resolvedSlug);
 
     if (!service) {
@@ -1466,9 +1513,11 @@ const createLookupService = ({
     }
 
     if (service.service_type === SERVICE_TYPE.FLIGHT) {
-      const detail = await repository.getFlightDetail(service.id);
+      const detail = resolvedReferenceId
+        ? await repository.getFlightDetailById(resolvedReferenceId)
+        : await repository.getFlightDetail(service.id);
 
-      if (!detail) {
+      if (!detail || detail.service_id !== service.id) {
         console.error(
           `Active public service ${service.id} (${service.slug}) is missing flight_details.`,
         );
@@ -2081,7 +2130,7 @@ const createLookupService = ({
     from,
     to,
   } = {}) => {
-    const resolvedRoute = parseTransportRouteQuery({
+    const resolvedRoute = parseOptionalTransportRouteQuery({
       departureDate,
       from,
       to,
@@ -2091,16 +2140,29 @@ const createLookupService = ({
       CABIN_CLASS_VALUES,
       cabinClass,
     );
-    const departureRange = buildVietnamDateRange(
-      resolvedRoute.departureDate,
-    );
-    const rows = await repository.searchFlights({
-      cabinClass: resolvedCabinClass,
-      departureDateEnd: departureRange.end,
-      departureDateStart: departureRange.start,
-      from: resolvedRoute.from.toLocaleLowerCase(LOCALE),
-      to: resolvedRoute.to.toLocaleLowerCase(LOCALE),
-    });
+    const repositoryFilters = {};
+
+    if (resolvedCabinClass) {
+      repositoryFilters.cabinClass = resolvedCabinClass;
+    }
+
+    if (resolvedRoute.departureDate) {
+      const departureRange = buildVietnamDateRange(
+        resolvedRoute.departureDate,
+      );
+      repositoryFilters.departureDateEnd = departureRange.end;
+      repositoryFilters.departureDateStart = departureRange.start;
+    }
+
+    if (resolvedRoute.from) {
+      repositoryFilters.from = resolvedRoute.from.toLocaleLowerCase(LOCALE);
+    }
+
+    if (resolvedRoute.to) {
+      repositoryFilters.to = resolvedRoute.to.toLocaleLowerCase(LOCALE);
+    }
+
+    const rows = await repository.searchFlights(repositoryFilters);
 
     return rows.map(mapFlightSearchResult);
   };

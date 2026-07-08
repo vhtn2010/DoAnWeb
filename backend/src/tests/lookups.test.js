@@ -727,6 +727,54 @@ test('lookupService.searchFlights validates input and returns mapped flight resu
   ]);
 });
 
+test('lookupService.searchFlights returns all open flights when query is omitted', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchFlights: async (filters) => {
+        assert.deepEqual(filters, {});
+
+        return [
+          {
+            airline_name: 'VietJet Air',
+            arrival_airport: 'HAN',
+            arrival_at: '2099-07-21T03:30:00.000Z',
+            cabin_class: 'economy',
+            currency: 'VND',
+            departure_airport: 'SGN',
+            departure_at: '2099-07-21T01:00:00.000Z',
+            fare_price: '2300000',
+            flight_detail_id: 'flight-detail-2',
+            flight_number: 'VJ456',
+            seats_available: '11',
+            service_id: 'flight-service-2',
+            slug: 'flight-sgn-han',
+          },
+        ];
+      },
+    },
+  });
+
+  const result = await service.searchFlights();
+
+  assert.deepEqual(result, [
+    {
+      airline_name: 'VietJet Air',
+      arrival_airport: 'HAN',
+      arrival_at: '2099-07-21T03:30:00.000Z',
+      cabin_class: 'economy',
+      currency: 'VND',
+      departure_airport: 'SGN',
+      departure_at: '2099-07-21T01:00:00.000Z',
+      fare_price: 2300000,
+      flight_detail_id: 'flight-detail-2',
+      flight_number: 'VJ456',
+      seats_available: 11,
+      service_id: 'flight-service-2',
+      slug: 'flight-sgn-han',
+    },
+  ]);
+});
+
 test('lookupService.searchFlights rejects invalid route, date, and cabin class', async () => {
   const service = lookupService.createLookupService({
     repository: {
@@ -977,6 +1025,7 @@ test('lookupService.getServiceDetail returns mapped tour detail for a public ser
 test('lookupService.getServiceDetail computes flight is_bookable and sanitizes combo metadata', async () => {
   const service = lookupService.createLookupService({
     repository: {
+      getFlightDetailById: async () => null,
       getFlightDetail: async () => ({
         airline_name: 'Vietnam Airlines',
         arrival_airport: 'DAD',
@@ -1070,6 +1119,60 @@ test('lookupService.getServiceDetail computes flight is_bookable and sanitizes c
       },
     ],
   });
+});
+
+test('lookupService.getServiceDetail resolves flight detail by reference_id when provided', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getFlightDetail: async () => {
+        assert.fail('getFlightDetail should not be used when reference_id is provided');
+      },
+      getFlightDetailById: async (referenceId) => {
+        assert.equal(referenceId, '11111111-1111-4111-8111-111111111111');
+
+        return {
+          airline_name: 'Vietnam Airlines',
+          arrival_airport: 'HAN',
+          arrival_at: '2099-07-21T11:30:00.000Z',
+          cabin_class: 'economy',
+          departure_airport: 'DAD',
+          departure_at: '2099-07-21T09:00:00.000Z',
+          fare_price: '2100000',
+          flight_number: 'VN456',
+          id: '11111111-1111-4111-8111-111111111111',
+          seats_available: 8,
+          service_id: 'flight-service-2',
+          status: 'open',
+        };
+      },
+      getPublicServiceBySlug: async (slug) => ({
+        base_price: '2300000',
+        cancellation_policy: null,
+        currency: 'VND',
+        description: 'Flight detail',
+        id: 'flight-service-2',
+        location_text: 'Ha Noi',
+        metadata: null,
+        primary_image: null,
+        provider_name: 'Vietnam Airlines',
+        public_price: '2100000',
+        sale_price: '2100000',
+        service_type: 'flight',
+        short_description: 'Morning flight',
+        slug,
+        title: 'Flight DAD - HAN',
+      }),
+    },
+  });
+
+  const result = await service.getServiceDetail({
+    reference_id: '11111111-1111-4111-8111-111111111111',
+    slug: 'flight-dad-han',
+  });
+
+  assert.equal(result.details.id, '11111111-1111-4111-8111-111111111111');
+  assert.equal(result.details.flight_number, 'VN456');
+  assert.equal(result.details.departure_airport, 'DAD');
 });
 
 test('lookupService.getServiceDetail rejects invalid slug and missing public detail', async () => {
@@ -2226,26 +2329,60 @@ test('GET /api/services/flights/search returns public flight search results', as
   }
 });
 
-test('GET /api/services/flights/search validates required query without token', async () => {
+test('GET /api/services/flights/search without query returns all public flights', async () => {
+  const originalSearchFlights = lookupService.searchFlights;
   const server = app.listen(0);
+
+  lookupService.searchFlights = async (query) => {
+    assert.deepEqual({ ...query }, {});
+
+    return [
+      {
+        airline_name: 'VietJet Air',
+        arrival_airport: 'HAN',
+        arrival_at: '2099-07-21T03:30:00.000Z',
+        cabin_class: 'economy',
+        currency: 'VND',
+        departure_airport: 'SGN',
+        departure_at: '2099-07-21T01:00:00.000Z',
+        fare_price: 2300000,
+        flight_detail_id: 'flight-detail-2',
+        flight_number: 'VJ456',
+        seats_available: 11,
+        service_id: 'flight-service-2',
+        slug: 'flight-sgn-han',
+      },
+    ];
+  };
 
   try {
     const response = await request(
       server,
-      `${apiPrefix}/services/flights/search?to=DAD&departure_date=2099-07-20`,
+      `${apiPrefix}/services/flights/search`,
     );
 
-    assert.equal(response.statusCode, 400);
-    assert.equal(response.body.success, false);
-    assert.equal(response.body.message, 'Validation failed');
-    assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
-    assert.deepEqual(response.body.error.details, [
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Flights retrieved successfully');
+    assert.deepEqual(response.body.data, [
       {
-        field: 'from',
-        message: 'from is required',
+        airline_name: 'VietJet Air',
+        arrival_airport: 'HAN',
+        arrival_at: '2099-07-21T03:30:00.000Z',
+        cabin_class: 'economy',
+        currency: 'VND',
+        departure_airport: 'SGN',
+        departure_at: '2099-07-21T01:00:00.000Z',
+        fare_price: 2300000,
+        flight_detail_id: 'flight-detail-2',
+        flight_number: 'VJ456',
+        seats_available: 11,
+        service_id: 'flight-service-2',
+        slug: 'flight-sgn-han',
       },
     ]);
   } finally {
+    lookupService.searchFlights = originalSearchFlights;
     server.close();
   }
 });
@@ -2383,6 +2520,64 @@ test('GET /api/services/{slug} returns public service detail and cache headers',
     assert.equal(response.body.data.slug, 'tour-da-lat-3n2d');
     assert.equal(response.body.data.details.transport_type, 'bus');
     assert.match(response.headers['cache-control'], /max-age=900/);
+  } finally {
+    lookupService.getServiceDetail = originalGetServiceDetail;
+    server.close();
+  }
+});
+
+test('GET /api/services/{slug} forwards reference_id query to service detail lookup', async () => {
+  const originalGetServiceDetail = lookupService.getServiceDetail;
+  const server = app.listen(0);
+
+  lookupService.getServiceDetail = async (params) => {
+    assert.deepEqual({ ...params }, {
+      reference_id: '11111111-1111-4111-8111-111111111111',
+      slug: 'flight-dad-han',
+    });
+
+    return {
+      base_price: 2300000,
+      cancellation_policy: null,
+      currency: 'VND',
+      description: 'Flight detail',
+      details: {
+        arrival_airport: 'HAN',
+        arrival_at: '2099-07-21T11:30:00.000Z',
+        cabin_class: 'economy',
+        departure_airport: 'DAD',
+        departure_at: '2099-07-21T09:00:00.000Z',
+        fare_price: 2100000,
+        flight_number: 'VN456',
+        id: '11111111-1111-4111-8111-111111111111',
+        is_bookable: true,
+        seats_available: 8,
+      },
+      id: 'flight-service-2',
+      location_text: 'Ha Noi',
+      primary_image: null,
+      provider_name: 'Vietnam Airlines',
+      public_price: 2100000,
+      sale_price: 2100000,
+      service_type: 'flight',
+      short_description: 'Morning flight',
+      slug: 'flight-dad-han',
+      title: 'Flight DAD - HAN',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/flight-dad-han?reference_id=11111111-1111-4111-8111-111111111111`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.data.details.id,
+      '11111111-1111-4111-8111-111111111111',
+    );
   } finally {
     lookupService.getServiceDetail = originalGetServiceDetail;
     server.close();
