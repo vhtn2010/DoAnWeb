@@ -103,8 +103,8 @@ export const ADMIN_ROUTES = Object.freeze({
   payments: {
     path: '/admin/payments',
     label: 'Lịch sử giao dịch',
-    title: 'Lịch sử Giao dịch & Hoàn tiền',
-    subtitle: 'Theo dõi dòng tiền và xử lý các yêu cầu hoàn trả dịch vụ từ khách hàng.',
+    title: 'Lịch sử giao dịch',
+    subtitle: 'Theo dõi dòng tiền và lưu giữ các giao dịch thanh toán của khách hàng.',
     permission: ADMIN_PERMISSIONS.paymentsRead,
     allowedRoles: ADMIN_ROLE_GROUPS.all,
   },

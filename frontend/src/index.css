@@ -5673,7 +5673,8 @@ select {
 }
 
 .admin-refunds-page .admin-refunds-page__table.admin-ui-table {
-  min-width: 1120px;
+  min-width: 0;
+  width: 100%;
   table-layout: fixed;
 }
 
@@ -5684,7 +5685,7 @@ select {
 
 .admin-refunds-page__table th {
   height: 64px;
-  padding: 16px 18px;
+  padding: 16px 14px;
   color: var(--refund-muted);
   font-size: 14px;
   font-weight: 700;
@@ -5696,7 +5697,7 @@ select {
 
 .admin-refunds-page__table td {
   height: 82px;
-  padding: 16px 18px;
+  padding: 16px 14px;
   color: var(--refund-muted);
   font-size: 14px;
   line-height: 20px;
@@ -5771,9 +5772,9 @@ select {
 .admin-refunds-page__table td:nth-child(7) {
   position: static;
   z-index: auto;
-  width: 92px;
+  width: 72px;
   background: inherit;
-  text-align: right;
+  text-align: center;
   box-shadow: none;
 }
 
@@ -5784,31 +5785,37 @@ select {
 
 .admin-refunds-page__table th:nth-child(2),
 .admin-refunds-page__table td:nth-child(2) {
-  width: 19%;
+  width: 18%;
 }
 
 .admin-refunds-page__table th:nth-child(3),
 .admin-refunds-page__table td:nth-child(3) {
-  width: 13%;
+  width: 11%;
 }
 
 .admin-refunds-page__table th:nth-child(4),
 .admin-refunds-page__table td:nth-child(4) {
-  width: 25%;
+  width: 24%;
 }
 
 .admin-refunds-page__table th:nth-child(5),
 .admin-refunds-page__table td:nth-child(5) {
-  width: 13%;
+  width: 11%;
 }
 
 .admin-refunds-page__table th:nth-child(6),
 .admin-refunds-page__table td:nth-child(6) {
-  width: 11%;
+  width: 12%;
 }
 
 .admin-refunds-page__table td:nth-child(4) {
   overflow-wrap: anywhere;
+}
+
+.admin-refunds-page__table td:nth-child(3),
+.admin-refunds-page__table td:nth-child(5),
+.admin-refunds-page__table td:nth-child(6) {
+  white-space: nowrap;
 }
 
 .admin-refunds-page__table .admin-ops-page__stack span {
