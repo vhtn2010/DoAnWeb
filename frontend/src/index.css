@@ -5719,7 +5719,8 @@ select {
   grid-template-columns: 1fr auto;
   gap: 18px;
   align-items: center;
-  padding: 0 16px 18px;
+  margin-top: 18px;
+  padding: 0 4px;
 }
 
 .admin-refunds-page__table-footer .admin-ui-segmented-control {
@@ -18713,7 +18714,7 @@ select {
 
 /* Admin booking management - Figma aligned layout */
 .admin-layout__surface > main.admin-bookings-page--figma {
-  width: min(100%, 1040px);
+  width: min(100%, 1180px);
   margin: 0 auto;
   padding: 30px 0 56px;
   display: grid;
@@ -18748,16 +18749,17 @@ select {
 
 .admin-bookings-page--figma .admin-bookings-page__status-tabs {
   min-height: 58px;
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 4px;
-  overflow-x: auto;
+  overflow-x: visible;
   padding: 8px;
   border: 1px solid rgba(25, 28, 29, 0.04);
   border-radius: 999px;
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(25, 28, 29, 0.05);
-  scrollbar-width: none;
 }
 
 .admin-bookings-page--figma .admin-bookings-page__status-tabs::-webkit-scrollbar {
@@ -18769,10 +18771,10 @@ select {
   flex: 0 0 auto;
   border: 0;
   border-radius: 999px;
-  padding: 0 22px;
+  padding: 0 16px;
   color: #6a5353;
   background: transparent;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 0;
   white-space: nowrap;
@@ -18796,6 +18798,15 @@ select {
   color: #ffffff;
   background: #d20d2d;
   box-shadow: 0 8px 18px rgba(210, 13, 45, 0.18);
+}
+
+.admin-bookings-page--figma .admin-bookings-page__toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.admin-bookings-page--figma .admin-bookings-page__search {
+  width: min(100%, 420px);
 }
 
 .admin-bookings-page--figma .admin-bookings-page__list {
@@ -19471,10 +19482,53 @@ select {
   line-height: 1.55;
 }
 
-.admin-booking-detail-modal__hero strong {
-  color: #c8102e;
-  font-size: 22px;
+.admin-booking-detail-modal__price-block {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 12px;
+}
+
+.admin-booking-detail-modal__price-original,
+.admin-booking-detail-modal__price-final {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-booking-detail-modal__price-original {
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(112, 93, 93, 0.26);
+}
+
+.admin-booking-detail-modal__price-original span,
+.admin-booking-detail-modal__price-final span {
+  color: #7b6262;
+  font-size: 12px;
   font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.admin-booking-detail-modal__price-original strong {
+  color: #8e7c7c;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.admin-booking-detail-modal__price-final strong {
+  color: #c8102e;
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.admin-booking-detail-modal__price-final--single strong {
+  font-size: 30px;
 }
 
 .admin-booking-detail-modal__field-grid {
@@ -19551,6 +19605,22 @@ select {
   color: #202224;
 }
 
+.admin-booking-detail-modal__discount-summary {
+  margin: 0;
+  border: 1px solid rgba(200, 16, 46, 0.16);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: #705d5d;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.55;
+  background: #fff7f7;
+}
+
+.admin-booking-detail-modal__discount-summary strong {
+  color: #a90922;
+}
+
 .admin-booking-detail-modal__state {
   margin: 24px;
   color: #705d5d;
@@ -19584,6 +19654,13 @@ select {
 @media (max-width: 1100px) {
   .admin-layout__surface > main.admin-bookings-page--figma {
     width: 100%;
+  }
+
+  .admin-bookings-page--figma .admin-bookings-page__status-tabs {
+    justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px 10px;
   }
 
   .admin-bookings-page--figma .admin-booking-card__content {
@@ -19717,6 +19794,14 @@ select {
 
   .admin-booking-detail-modal__hero h3 {
     font-size: 20px;
+  }
+
+  .admin-booking-detail-modal__price-final strong {
+    font-size: 32px;
+  }
+
+  .admin-booking-detail-modal__price-final--single strong {
+    font-size: 27px;
   }
 
   .admin-booking-detail-modal__line-item,

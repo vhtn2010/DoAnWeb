@@ -240,6 +240,7 @@ function AdminTopbar({
     currentUser?.email ||
     ADMIN_ROLE_PROFILE_NAMES[currentRole] ||
     ADMIN_ROLE_PROFILE_NAMES.system_admin
+  const profileAvatarUrl = currentUser?.avatar_url || ''
   const canOpenNotifications = canViewAdminRoute(
     currentRole,
     ADMIN_ROUTES.notifications,
@@ -549,16 +550,24 @@ function AdminTopbar({
           <SettingsIcon />
         </TopbarAction>
 
-        <div className="admin-topbar__profile">
+        <Link
+          aria-label="Mở hồ sơ quản trị"
+          className="admin-topbar__profile admin-topbar__profile-link"
+          to={buildAdminPath(ADMIN_ROUTES.profile.path, currentRole)}
+        >
           <span aria-hidden="true" className="admin-topbar__avatar">
-            <UserAvatarIcon />
+            {profileAvatarUrl ? (
+              <img alt="" className="admin-topbar__avatar-image" src={profileAvatarUrl} />
+            ) : (
+              <UserAvatarIcon />
+            )}
           </span>
 
           <div className="admin-topbar__profile-copy">
             <span className="admin-topbar__profile-name">{profileName}</span>
             <span className="admin-topbar__profile-role">{profileRoleLabel}</span>
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   )

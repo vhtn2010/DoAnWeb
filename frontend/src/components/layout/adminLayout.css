@@ -141,6 +141,7 @@
   letter-spacing: 1.2px;
   line-height: 16px;
   text-align: left;
+  text-decoration: none;
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -157,6 +158,11 @@
 }
 
 .admin-sidebar__account-row--danger {
+  color: #c8102e;
+}
+
+.admin-sidebar__account-row--active {
+  background: rgba(255, 180, 171, 0.18);
   color: #c8102e;
 }
 
@@ -472,6 +478,24 @@
   background: transparent;
 }
 
+.admin-topbar__profile-link {
+  border-radius: 999px;
+  padding: 4px 6px 4px 4px;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-topbar__profile-link:hover,
+.admin-topbar__profile-link:focus-visible {
+  outline: none;
+  background: rgba(25, 28, 29, 0.05);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.08);
+  transform: translateY(-1px);
+}
+
 .admin-topbar__avatar {
   width: 40px;
   height: 40px;
@@ -485,6 +509,13 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(237, 238, 239, 0.92)),
     #f3f4f5;
   color: #5c403d;
+}
+
+.admin-topbar__avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
 }
 
 .admin-topbar__profile-copy {

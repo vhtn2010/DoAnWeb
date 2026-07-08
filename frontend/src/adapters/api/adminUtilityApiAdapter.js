@@ -52,6 +52,10 @@ export function listAdminVouchers(params = {}) {
   })
 }
 
+export function getAdminVoucherDetail(voucherId) {
+  return apiGet(`/admin/vouchers/${voucherId}`)
+}
+
 export function createAdminVoucher(payload = {}) {
   return apiPost('/admin/vouchers', payload)
 }

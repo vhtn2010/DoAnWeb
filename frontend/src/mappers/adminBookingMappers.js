@@ -247,6 +247,7 @@ export function mapAdminBookingDetail(detail = {}) {
     refunds: Array.isArray(detail.refunds) ? detail.refunds : [],
     serviceItems,
     subtotalAmount: Number(detail.subtotal_amount || 0),
+    voucherId: detail.voucher_id || null,
   }
 }
 
