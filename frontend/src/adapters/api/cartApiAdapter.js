@@ -29,6 +29,18 @@ function normalizeActiveCartPayload(data = {}) {
   }
 }
 
+function normalizeCartCreatePayload(payload = {}) {
+  return {
+    end_at: payload.end_at,
+    options: payload.options ?? {},
+    quantity: payload.quantity,
+    reference_id: payload.reference_id,
+    service_id: payload.service_id,
+    service_type: payload.service_type,
+    start_at: payload.start_at,
+  }
+}
+
 export async function getActiveCart() {
   const response = await apiGet('/cart')
 
@@ -36,6 +48,12 @@ export async function getActiveCart() {
     ...response,
     data: normalizeActiveCartPayload(response.data),
   }
+}
+
+export function addCartItem(payload = {}) {
+  return apiPost('/cart/items', {
+    body: normalizeCartCreatePayload(payload),
+  })
 }
 
 export function getCartSummary() {

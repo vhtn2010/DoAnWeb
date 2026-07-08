@@ -234,6 +234,12 @@ export default function useFlightList() {
 
           return [...currentFlights, ...nextFlights]
         })
+        if (Array.isArray(response.meta?.airlines)) {
+          setDefaults((currentDefaults) => ({
+            ...currentDefaults,
+            airlines: response.meta.airlines,
+          }))
+        }
         setMeta(response.meta ?? EMPTY_META)
       } catch (loadError) {
         if (!isActive) {
@@ -318,19 +324,27 @@ export default function useFlightList() {
   }
 
   function submitSearch() {
-    if (searchState.from_location === searchState.to_location) {
+    if (
+      searchState.from_location &&
+      searchState.to_location &&
+      searchState.from_location === searchState.to_location
+    ) {
       setFeedback(createFeedbackState('error', 'Điểm đi và điểm đến cần khác nhau.'))
       return
     }
 
-    if (searchState.trip_type === DEFAULT_FLIGHT_TRIP_TYPE && !searchState.departure_date) {
+    if (
+      searchState.trip_type === DEFAULT_FLIGHT_TRIP_TYPE &&
+      searchState.return_date &&
+      !searchState.departure_date
+    ) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn ngày đi.'))
       return
     }
 
     if (
       searchState.trip_type !== DEFAULT_FLIGHT_TRIP_TYPE &&
-      (!searchState.departure_date || !searchState.return_date)
+      (searchState.return_date && !searchState.departure_date)
     ) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn đủ ngày đi và ngày về.'))
       return
