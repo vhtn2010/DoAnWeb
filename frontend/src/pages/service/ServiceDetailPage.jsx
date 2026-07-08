@@ -480,9 +480,11 @@ function ServiceDetailPage() {
           <aside className="service-detail-booking">
             <div className="service-detail-booking__card">
               <div className="service-detail-booking__price">
-                <span className="service-detail-booking__price-old">
-                  {formatCurrency(service.base_price)}
-                </span>
+                {service.has_sale_price ? (
+                  <span className="service-detail-booking__price-old">
+                    {formatCurrency(service.base_price)}
+                  </span>
+                ) : null}
                 <div className="service-detail-booking__price-current">
                   <strong>{formatCurrency(service.sale_price)}</strong>
                   <span>/ khách</span>

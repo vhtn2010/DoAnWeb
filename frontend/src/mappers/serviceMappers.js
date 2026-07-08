@@ -9,6 +9,25 @@ const TRANSPORT_TYPE_LABELS = Object.freeze({
 
 const FALLBACK_SERVICE_IMAGE_URL = '/assets/template/service/list/tour-mien-trung.png'
 
+const DEFAULT_REVIEW_SAMPLES = Object.freeze([
+  {
+    author_name: 'Net Viet Guest',
+    author_initials: 'NV',
+    content:
+      'Hanh trinh duoc sap xep gon gang, doi ngu ho tro nhiet tinh va trai nghiem tong the rat de chiu.',
+    month_label: 'Gan day',
+    rating_value: 5,
+  },
+  {
+    author_name: 'Khach hang than thiet',
+    author_initials: 'KH',
+    content:
+      'Lich trinh ro rang, thong tin de theo doi va cac diem dung chan tao cam giac thu thai.',
+    month_label: 'Gan day',
+    rating_value: 5,
+  },
+])
+
 const TOUR_UI_META_BY_SLUG = Object.freeze({
   'di-san-mien-trung-da-nang-hoi-an-hue': {
     badgeText: 'Di sản nổi bật',
@@ -85,6 +104,130 @@ function buildDurationText(durationDays, durationNights) {
   return `${durationDays} ngày ${durationNights} đêm`
 }
 
+function splitTextList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item ?? '').trim())
+      .filter(Boolean)
+  }
+
+  if (typeof value !== 'string') {
+    return []
+  }
+
+  const normalizedValue = value.replace(/\r/g, '').trim()
+
+  if (!normalizedValue) {
+    return []
+  }
+
+  const separatedValues = normalizedValue
+    .split(/\n+|•\s*|●\s*|▪\s*|◦\s*|;\s*/g)
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  if (separatedValues.length > 1) {
+    return separatedValues
+  }
+
+  return normalizedValue
+    .split(/\s*,\s*/g)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function formatDepartureDate(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const normalizedValue = value.trim()
+
+  if (!normalizedValue) {
+    return ''
+  }
+
+  const isoDateMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+
+  if (isoDateMatch) {
+    return `${isoDateMatch[3]}/${isoDateMatch[2]}/${isoDateMatch[1]}`
+  }
+
+  const parsedDate = new Date(normalizedValue)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return normalizedValue
+  }
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsedDate)
+}
+
+function normalizeDepartureDates(details = {}) {
+  if (Array.isArray(details.departure_dates) && details.departure_dates.length) {
+    return details.departure_dates
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean)
+  }
+
+  if (!Array.isArray(details.departure_schedule)) {
+    return []
+  }
+
+  const seenDates = new Set()
+
+  return details.departure_schedule
+    .map((scheduleItem) =>
+      formatDepartureDate(scheduleItem?.date ?? scheduleItem?.departure_at ?? ''),
+    )
+    .filter((value) => {
+      if (!value || seenDates.has(value)) {
+        return false
+      }
+
+      seenDates.add(value)
+      return true
+    })
+}
+
+function normalizeItinerary(itinerary = []) {
+  if (!Array.isArray(itinerary)) {
+    return []
+  }
+
+  return itinerary.map((day, index) => {
+    const dayNumber = Number(day?.day_number ?? day?.day ?? index + 1)
+    const highlights = Array.isArray(day?.highlights)
+      ? splitTextList(day.highlights)
+      : Array.isArray(day?.activities)
+        ? splitTextList(day.activities)
+        : splitTextList(day?.highlights ?? '')
+    const summary =
+      day?.summary ??
+      day?.description ??
+      (highlights.length ? highlights.join('. ') : '')
+
+    return {
+      day_number: Number.isFinite(dayNumber) && dayNumber > 0 ? dayNumber : index + 1,
+      highlights,
+      summary,
+      title: day?.title ?? `Ngay ${index + 1}`,
+    }
+  })
+}
+
+function toOptionalNumber(value) {
+  if (value == null || value === '') {
+    return null
+  }
+
+  const parsedValue = Number(value)
+  return Number.isFinite(parsedValue) ? parsedValue : null
+}
+
 function normalizeDetails(details = {}) {
   const durationDays = Number(details.duration_days)
   const durationNights = Number(details.duration_nights)
@@ -95,25 +238,51 @@ function normalizeDetails(details = {}) {
     transport_type: details.transport_type ?? '',
     departure_location: details.departure_location ?? '',
     destination_location: details.destination_location ?? '',
-    departure_dates: Array.isArray(details.departure_dates) ? details.departure_dates : [],
-    itinerary: Array.isArray(details.itinerary) ? details.itinerary : [],
-    included_services: Array.isArray(details.included_services) ? details.included_services : [],
-    excluded_services: Array.isArray(details.excluded_services) ? details.excluded_services : [],
-    terms: Array.isArray(details.terms) ? details.terms : [],
+    departure_dates: normalizeDepartureDates(details),
+    departure_schedule: Array.isArray(details.departure_schedule) ? details.departure_schedule : [],
+    itinerary: normalizeItinerary(details.itinerary),
+    included_services: splitTextList(details.included_services),
+    excluded_services: splitTextList(details.excluded_services),
+    terms: splitTextList(details.terms),
   }
 }
 
 export function normalizeTourService(service) {
+  const basePrice = toOptionalNumber(service.base_price)
+  const salePrice = toOptionalNumber(service.sale_price)
+  const publicPrice = toOptionalNumber(service.public_price)
   const imageUrl = service.image_url ?? service.primary_image ?? FALLBACK_SERVICE_IMAGE_URL
+  const resolvedBasePrice = basePrice != null
+    ? basePrice
+    : salePrice != null
+      ? salePrice
+      : publicPrice != null
+        ? publicPrice
+        : 0
+  const resolvedSalePrice = salePrice != null
+    ? salePrice
+    : publicPrice != null
+      ? publicPrice
+      : resolvedBasePrice
+  const hasSalePrice =
+    Boolean(service.has_sale_price) ||
+    (basePrice != null && salePrice != null && salePrice < basePrice)
+  const normalizedReviewSamples =
+    Array.isArray(service.review_samples) && service.review_samples.length
+      ? service.review_samples
+      : DEFAULT_REVIEW_SAMPLES
 
   return {
     ...service,
+    base_price: resolvedBasePrice,
+    has_sale_price: hasSalePrice,
     image_url: imageUrl,
     gallery_images:
       Array.isArray(service.gallery_images) && service.gallery_images.length
         ? service.gallery_images
         : [imageUrl].filter(Boolean),
-    review_samples: Array.isArray(service.review_samples) ? service.review_samples : [],
+    review_samples: normalizedReviewSamples,
+    sale_price: resolvedSalePrice,
     details: normalizeDetails(service.details),
   }
 }
