@@ -1,17 +1,13 @@
 import {
-  buildHotelCartItemPayload as buildHotelCartItemPayloadWithMockAdapter,
-  checkHotelAvailability as checkHotelAvailabilityWithMockAdapter,
-  getHotelDetailBySlug as getHotelDetailBySlugWithMockAdapter,
-  getHotelRooms as getHotelRoomsWithMockAdapter,
-  listHotels as listHotelsWithMockAdapter,
-} from '../adapters/mock/hotelMockAdapter.js'
+  getHotelDetailBySlug as getHotelDetailBySlugWithApiAdapter,
+  getHotelRooms as getHotelRoomsWithApiAdapter,
+  listHotels as listHotelsWithApiAdapter,
+} from '../adapters/api/hotelApiAdapter.js'
 
 const hotelAdapter = {
-  listHotels: listHotelsWithMockAdapter,
-  getHotelDetailBySlug: getHotelDetailBySlugWithMockAdapter,
-  getHotelRooms: getHotelRoomsWithMockAdapter,
-  checkHotelAvailability: checkHotelAvailabilityWithMockAdapter,
-  buildHotelCartItemPayload: buildHotelCartItemPayloadWithMockAdapter,
+  listHotels: listHotelsWithApiAdapter,
+  getHotelDetailBySlug: getHotelDetailBySlugWithApiAdapter,
+  getHotelRooms: getHotelRoomsWithApiAdapter,
 }
 
 export function listHotels(params) {
@@ -24,12 +20,4 @@ export function getHotelDetailBySlug(slug, params) {
 
 export function getHotelRooms(hotelServiceId, params) {
   return hotelAdapter.getHotelRooms(hotelServiceId, params)
-}
-
-export function checkHotelAvailability(payload) {
-  return hotelAdapter.checkHotelAvailability(payload)
-}
-
-export function buildHotelCartItemPayload(payload) {
-  return hotelAdapter.buildHotelCartItemPayload(payload)
 }

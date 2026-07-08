@@ -2,14 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
 import { ROLES } from '../constants/roles.js'
-import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.js'
+import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
 import { addCartItemPreview } from '../repositories/cartRepository.js'
-import {
-  buildHotelCartItemPayload,
-  checkHotelAvailability,
-  getHotelDetailBySlug,
-  getHotelRooms,
-} from '../repositories/hotelRepository.js'
+import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 
 function convertDisplayDateToInput(value) {
@@ -47,6 +42,37 @@ function calculateStayNights(checkinDate, checkoutDate) {
     0,
     Math.round((checkout.getTime() - checkin.getTime()) / 86400000),
   )
+}
+
+function resolveCurrentPrice(item = {}) {
+  const basePrice = Number(item.base_price ?? 0)
+  const salePrice = item.sale_price == null ? null : Number(item.sale_price)
+
+  if (salePrice != null && Number.isFinite(salePrice) && salePrice < basePrice) {
+    return salePrice
+  }
+
+  return basePrice
+}
+
+function normalizeTimeValue(value) {
+  const normalizedValue = String(value ?? '').trim()
+
+  if (!normalizedValue) {
+    return ''
+  }
+
+  return normalizedValue.length === 5 ? `${normalizedValue}:00` : normalizedValue
+}
+
+function buildDateTimeStamp(dateText, timeText) {
+  const normalizedTime = normalizeTimeValue(timeText)
+
+  if (!dateText || !normalizedTime) {
+    return ''
+  }
+
+  return `${dateText}T${normalizedTime}+07:00`
 }
 
 function buildAuthAwarePath(path, isCustomer) {
@@ -91,6 +117,31 @@ function buildCartItemFromPayload({ hotel, room, payload }) {
       location_text: hotel.location_text,
       image_url: room.image_url ?? hotel.image_url,
       status: hotel.status,
+    },
+  }
+}
+
+function buildHotelBookingOptions({
+  checkinDate,
+  checkoutDate,
+  guests,
+  hotel,
+  nights,
+  room,
+  roomQuantity,
+}) {
+  return {
+    bed_type: room.bed_type,
+    checkin_date: checkinDate,
+    checkout_date: checkoutDate,
+    guest_count: guests,
+    hotel_name: hotel.title,
+    nights,
+    room_name: room.title,
+    room_quantity: roomQuantity,
+    room_size: room.room_size,
+    selected_options: {
+      ...(room.options ?? {}),
     },
   }
 }
@@ -169,7 +220,16 @@ export default function useHotelDetail() {
         )
 
         setHotel(mappedState.hotel)
-        setRooms(mappedState.rooms)
+        setRooms(
+          mappedState.rooms.map((room) => ({
+            ...room,
+            gallery:
+              Array.isArray(room.gallery) && room.gallery.length > 0
+                ? room.gallery
+                : mappedState.hotel.gallery,
+            image_url: room.image_url || mappedState.hotel.image_url,
+          })),
+        )
         setRelatedHotels(
           mappedState.relatedHotels.map((relatedHotel) => ({
             ...relatedHotel,
@@ -265,16 +325,27 @@ export default function useHotelDetail() {
       }
     }
 
-    const response = await checkHotelAvailability({
-      hotel_service_id: hotel.id,
-      selected_room_id: nextRoom.id,
-      checkin_date: checkinDate,
-      checkout_date: checkoutDate,
-      guests,
-      quantity: roomQuantity,
-    })
-
-    const isAvailable = Boolean(response.data?.is_available)
+    const requestedGuests = Math.max(1, Number(guests) || 1)
+    const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
+    const maxGuests =
+      Number(nextRoom.max_guests) ||
+      Number(nextRoom.max_adults ?? 0) + Number(nextRoom.max_children ?? 0)
+    const isAvailable =
+      calculateStayNights(checkinDate, checkoutDate) >= 1 &&
+      requestedGuests <= Math.max(1, maxGuests) &&
+      requestedQuantity <= Number(nextRoom.available_quantity ?? 0)
+    const response = {
+      data: {
+        available_quantity: Number(nextRoom.available_quantity ?? 0),
+        checkin_date: checkinDate,
+        checkout_date: checkoutDate,
+        guests: requestedGuests,
+        hotel_service_id: hotel.id,
+        is_available: isAvailable,
+        selected_room_id: nextRoom.id,
+      },
+      success: true,
+    }
     const nextMessage = isAvailable
       ? `Còn ${response.data?.available_quantity ?? 0} phòng khả dụng cho lựa chọn hiện tại.`
       : 'Lựa chọn hiện tại chưa khả dụng trong dữ liệu mock. Vui lòng đổi ngày hoặc số khách.'
@@ -315,14 +386,30 @@ export default function useHotelDetail() {
       }
     }
 
-    const payloadResponse = await buildHotelCartItemPayload({
-      hotel_service_id: hotel.id,
-      selected_room_id: nextRoom.id,
-      checkin_date: checkinDate,
-      checkout_date: checkoutDate,
-      guests,
-      room_quantity: roomQuantity,
-    })
+    const requestedGuests = Math.max(1, Number(guests) || 1)
+    const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
+    const nights = calculateStayNights(checkinDate, checkoutDate)
+    const payloadResponse = {
+      data: {
+        end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
+        options: buildHotelBookingOptions({
+          checkinDate,
+          checkoutDate,
+          guests: requestedGuests,
+          hotel,
+          nights,
+          room: nextRoom,
+          roomQuantity: requestedQuantity,
+        }),
+        quantity: requestedQuantity,
+        reference_id: nextRoom.hotel_service_id,
+        service_id: nextRoom.id,
+        service_type: nextRoom.service_type,
+        start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
+        unit_price_snapshot: resolveCurrentPrice(nextRoom) * nights,
+      },
+      success: true,
+    }
 
     if (!payloadResponse.success || !payloadResponse.data) {
       setFeedback(createFeedbackState('error', payloadResponse.message ?? 'Không thể chuẩn bị đặt phòng mock.'))
