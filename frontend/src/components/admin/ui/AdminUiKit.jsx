@@ -202,47 +202,116 @@ export function AdminTable(props) {
   return <AdminDataTable {...props} />
 }
 
+const ADMIN_PAGINATION_VISIBLE_PAGE_COUNT = 4
+
+function createPaginationItems(currentPage, totalPages, visiblePageCount = ADMIN_PAGINATION_VISIBLE_PAGE_COUNT) {
+  const safeCurrentPage = Math.max(1, Number(currentPage) || 1)
+  const safeTotalPages = Math.max(0, Number(totalPages) || 0)
+
+  if (safeTotalPages <= visiblePageCount) {
+    return Array.from({ length: safeTotalPages }, (_, index) => ({
+      type: 'page',
+      value: index + 1,
+    }))
+  }
+
+  const trailingWindowSize = Math.max(1, visiblePageCount - 1)
+  const lastWindowStart = Math.max(1, safeTotalPages - visiblePageCount + 1)
+
+  if (safeCurrentPage >= lastWindowStart) {
+    return Array.from({ length: visiblePageCount }, (_, index) => ({
+      type: 'page',
+      value: lastWindowStart + index,
+    }))
+  }
+
+  const windowStart = safeCurrentPage <= 2 ? 1 : safeCurrentPage - 1
+
+  return [
+    ...Array.from({ length: trailingWindowSize }, (_, index) => ({
+      type: 'page',
+      value: windowStart + index,
+    })),
+    { type: 'ellipsis', value: 'pagination-ellipsis' },
+    { type: 'page', value: safeTotalPages },
+  ]
+}
+
 export function AdminPagination({
   className = '',
+  disabled = false,
   currentPage = 1,
-  labels = { next: 'Sau', previous: 'Trước' },
   onPageChange,
   pages = [],
   totalPages = pages.length,
+  visiblePageCount = ADMIN_PAGINATION_VISIBLE_PAGE_COUNT,
 }) {
-  if (totalPages <= 1) {
+  const safeTotalPages = Math.max(0, Number(totalPages) || 0)
+  const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), Math.max(1, safeTotalPages))
+  const paginationItems = createPaginationItems(safeCurrentPage, safeTotalPages, visiblePageCount)
+
+  if (safeTotalPages <= 1) {
     return null
   }
 
   return (
     <nav className={cx('admin-ui-pagination', className)} aria-label="Phân trang">
       <AdminButton
-        disabled={currentPage <= 1}
+        aria-label="Đến trang đầu tiên"
+        disabled={disabled || safeCurrentPage <= 1}
         size="sm"
         variant="secondary"
-        onClick={() => onPageChange?.(Math.max(1, currentPage - 1))}
+        onClick={() => onPageChange?.(1)}
       >
-        {labels.previous}
+        {'<<'}
       </AdminButton>
 
-      {pages.map((pageNumber) => (
-        <AdminButton
-          key={pageNumber}
-          size="sm"
-          variant={currentPage === pageNumber ? 'primary' : 'ghost'}
-          onClick={() => onPageChange?.(pageNumber)}
-        >
-          {pageNumber}
-        </AdminButton>
-      ))}
-
       <AdminButton
-        disabled={currentPage >= totalPages}
+        aria-label="Về trang trước"
+        disabled={disabled || safeCurrentPage <= 1}
         size="sm"
         variant="secondary"
-        onClick={() => onPageChange?.(Math.min(totalPages, currentPage + 1))}
+        onClick={() => onPageChange?.(Math.max(1, safeCurrentPage - 1))}
       >
-        {labels.next}
+        {'<'}
+      </AdminButton>
+
+      {paginationItems.map((item) => {
+        if (item.type === 'ellipsis') {
+          return <span className="admin-ui-pagination__ellipsis" key={item.value}>...</span>
+        }
+
+        return (
+          <AdminButton
+            key={item.value}
+            disabled={disabled}
+            size="sm"
+            variant={safeCurrentPage === item.value ? 'primary' : 'ghost'}
+            onClick={() => onPageChange?.(item.value)}
+          >
+            {item.value}
+          </AdminButton>
+        )
+      })}
+
+      <AdminButton
+        aria-label="Sang trang sau"
+        disabled={disabled || safeCurrentPage >= safeTotalPages}
+        size="sm"
+        variant="secondary"
+        onClick={() => onPageChange?.(Math.min(safeTotalPages, safeCurrentPage + 1))}
+      >
+        {'>'}
+      </AdminButton>
+
+      <AdminButton
+        aria-label="Đến trang cuối cùng"
+        disabled={disabled || safeCurrentPage >= safeTotalPages}
+        size="sm"
+        variant="secondary"
+        onClick={() => onPageChange?.(safeTotalPages)}
+      >
+        {'>>'}
       </AdminButton>
     </nav>
   )

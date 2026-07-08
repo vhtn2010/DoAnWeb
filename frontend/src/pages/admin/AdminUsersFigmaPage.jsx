@@ -1,4 +1,5 @@
 import { ROLES } from '../../constants/roles.js'
+import { AdminPagination } from '../../components/admin/ui/index.js'
 import {
   ADMIN_USER_SORT_OPTIONS,
   ADMIN_USER_STATUS_OPTIONS,
@@ -65,22 +66,6 @@ function ChevronDownIcon() {
   return (
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
       <path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
-    </svg>
-  )
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="m15 18-6-6 6-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
-    </svg>
-  )
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" />
     </svg>
   )
 }
@@ -614,34 +599,12 @@ function AdminUsersFigmaPage() {
 
       <nav className="admin-users-page__pagination" aria-label="Phân trang người dùng">
         <p>{getFooterText({ pagination, resultRange, users })}</p>
-        <div className="admin-users-page__page-buttons">
-          <button
-            type="button"
-            aria-label="Quay về trước 1 trang"
-            disabled={pagination.page <= 1}
-            onClick={() => setCurrentPage(Math.max(1, pagination.page - 1))}
-          >
-            <ChevronLeftIcon />
-          </button>
-          {pageNumbers.map((pageNumber) => (
-            <button
-              aria-current={pagination.page === pageNumber ? 'page' : undefined}
-              key={pageNumber}
-              type="button"
-              onClick={() => setCurrentPage(pageNumber)}
-            >
-              {pageNumber}
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-label="Về sau 1 trang"
-            disabled={pagination.page >= pagination.total_pages}
-            onClick={() => setCurrentPage(Math.min(pagination.total_pages, pagination.page + 1))}
-          >
-            <ChevronRightIcon />
-          </button>
-        </div>
+        <AdminPagination
+          currentPage={pagination.page}
+          pages={pageNumbers}
+          totalPages={pagination.total_pages}
+          onPageChange={setCurrentPage}
+        />
       </nav>
     </main>
   )

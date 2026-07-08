@@ -13041,6 +13041,41 @@ select {
   line-height: 24px;
 }
 
+.admin-users-page__pagination .admin-ui-pagination {
+  gap: 8px;
+}
+
+.admin-users-page__pagination .admin-ui-button {
+  width: auto;
+  min-width: 39px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.admin-users-page__pagination .admin-ui-button--primary {
+  background: var(--users-brand);
+  border-color: var(--users-brand);
+  color: #fff;
+  font-weight: 700;
+}
+
+.admin-users-page__pagination .admin-ui-button--secondary,
+.admin-users-page__pagination .admin-ui-button--ghost {
+  color: var(--users-ink);
+}
+
+.admin-users-page__pagination .admin-ui-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.admin-users-page__pagination .admin-ui-pagination__ellipsis {
+  color: var(--users-ink);
+}
+
 .admin-users-page__page-buttons {
   display: flex;
   align-items: center;
@@ -13178,7 +13213,7 @@ select {
     padding: 16px;
   }
 
-  .admin-users-page__page-buttons {
+  .admin-users-page__pagination .admin-ui-pagination {
     justify-content: flex-start;
     flex-wrap: wrap;
   }
@@ -19419,6 +19454,57 @@ select {
   align-items: center;
   justify-content: flex-end;
   gap: 14px;
+}
+
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button {
+  width: auto;
+  min-width: 46px;
+  min-height: 46px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button--secondary {
+  border: 1.5px solid #d20d2d;
+  color: #d20d2d;
+  background: #ffffff;
+}
+
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button--ghost {
+  border-color: transparent;
+  color: #111111;
+  background: transparent;
+}
+
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button--primary {
+  color: #ffffff;
+  background: #d20d2d;
+  border-color: #d20d2d;
+  box-shadow: 0 8px 18px rgba(210, 13, 45, 0.18);
+}
+
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button:hover:not(:disabled),
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button:focus-visible:not(:disabled) {
+  outline: none;
+}
+
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button--ghost:hover:not(:disabled),
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button--ghost:focus-visible:not(:disabled) {
+  color: #ffffff;
+  background: #d20d2d;
+}
+
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-bookings-page--figma .admin-bookings-page__pagination .admin-ui-pagination__ellipsis {
+  color: #111111;
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .admin-bookings-page--figma .admin-bookings-page__page-button,

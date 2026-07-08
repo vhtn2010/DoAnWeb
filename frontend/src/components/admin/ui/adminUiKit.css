@@ -253,6 +253,14 @@
   justify-content: flex-start;
 }
 
+.admin-ui-pagination__ellipsis {
+  min-width: 32px;
+  color: var(--admin-ui-text-soft);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .admin-ui-action-icon-button.admin-ui-icon-button--ghost {
   background: transparent;
   color: var(--admin-ui-text-soft);
