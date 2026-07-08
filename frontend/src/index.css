@@ -7576,7 +7576,7 @@ select {
   align-content: start;
   gap: 12px;
   min-height: 0;
-  padding: 14px;
+  padding: 14px 8px 14px 14px;
   overflow-y: auto;
   scrollbar-gutter: stable;
   background: #f8f2ec;
@@ -7660,7 +7660,7 @@ select {
 .admin-support-ticket__body {
   min-width: 0;
   display: grid;
-  gap: 5px;
+  gap: 3px;
 }
 
 .admin-support-ticket__top,
@@ -7676,7 +7676,21 @@ select {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   column-gap: 10px;
-  row-gap: 2px;
+  row-gap: 0;
+}
+
+.admin-support-ticket__identity {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 1px;
+}
+
+.admin-support-ticket__side {
+  min-width: 0;
+  display: grid;
+  justify-items: end;
+  gap: 4px;
 }
 
 .admin-support-ticket__top strong,
@@ -7688,26 +7702,32 @@ select {
 .admin-support-ticket__top strong {
   color: var(--support-brand);
   min-width: 0;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  line-height: 15px;
+  line-height: 12px;
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }
 
-.admin-support-ticket__top span {
+.admin-support-ticket__side {
   color: var(--support-muted);
-  font-size: 10px;
-  line-height: 15px;
+  font-size: 9px;
+  line-height: 13px;
   font-weight: 600;
+}
+
+.admin-support-ticket__time {
+  max-width: 100%;
+  font-size: 9px;
+  line-height: 12px;
   white-space: nowrap;
 }
 
 .admin-support-ticket__customer {
-  padding-top: 1px;
-  font-size: 15px;
+  padding-top: 0;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 20px;
+  line-height: 15px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -7717,8 +7737,8 @@ select {
 .admin-support-ticket__subject {
   display: block;
   color: #5b463d;
-  font-size: 13px;
-  line-height: 19px;
+  font-size: 10px;
+  line-height: 13px;
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -7727,23 +7747,34 @@ select {
 }
 
 .admin-support-ticket__badges {
-  justify-content: flex-start;
+  justify-content: flex-end;
   flex-wrap: wrap;
-  padding-top: 6px;
+  gap: 3px;
+  padding-top: 0;
+  white-space: normal;
 }
 
-.admin-support-ticket__badges .admin-ui-badge {
-  min-height: 28px;
-  padding: 3px 7px;
+.admin-support-ticket__badges .admin-support-badge {
+  min-height: 18px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px 2px 16px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
-  line-height: 14px;
-  text-transform: uppercase;
+  line-height: 11px;
+  text-transform: none;
 }
 
-.admin-support-ticket__badges .admin-ui-badge__dot {
-  display: none;
+.admin-support-ticket__badges .admin-support-badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  position: absolute;
+  left: 7px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .admin-support-page__conversation.admin-ui-card {
