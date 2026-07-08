@@ -281,8 +281,9 @@ function AdminRefundsPage() {
               )
             })}
           </AdminTable>
+        </AdminCard>
 
-          <div className="admin-refunds-page__table-footer">
+        <div className="admin-refunds-page__table-footer">
             <p>
               {pagination.total > 0
                 ? `Hiển thị ${refunds.length} trong tổng ${pagination.total} yêu cầu`
@@ -295,7 +296,6 @@ function AdminRefundsPage() {
               onPageChange={setCurrentPage}
             />
           </div>
-        </AdminCard>
       </div>
 
       {isProcessorOpen && selectedRequest ? (

@@ -132,6 +132,13 @@ export const ADMIN_ROUTES = Object.freeze({
     permission: ADMIN_PERMISSIONS.supportRead,
     allowedRoles: ADMIN_ROLE_GROUPS.all,
   },
+  profile: {
+    path: '/admin/profile',
+    label: 'Hồ sơ',
+    title: 'Hồ sơ quản trị',
+    subtitle: 'Xem và cập nhật thông tin cá nhân, bảo mật tài khoản và nhật ký hoạt động.',
+    allowedRoles: ADMIN_ROLE_GROUPS.all,
+  },
   emailLogs: {
     path: '/admin/email-logs',
     label: 'Lịch sử email',

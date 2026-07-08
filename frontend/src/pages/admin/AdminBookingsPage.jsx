@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
+  AdminSearchInput,
   AdminButton,
   AdminEmptyState,
   AdminErrorState,
@@ -13,6 +14,7 @@ import {
 import useAdminBookings from '../../hooks/useAdminBookings.js'
 import { mapAdminBookingDetail } from '../../mappers/adminBookingMappers.js'
 import { getAdminBookingDetail } from '../../repositories/adminBookingRepository.js'
+import { getAdminVoucherDetail } from '../../repositories/adminUtilityRepository.js'
 import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN')
@@ -177,6 +179,88 @@ function DetailField({ label, value }) {
   )
 }
 
+function getBookingAmounts(booking) {
+  const safeBooking = booking ?? {}
+  const finalAmount = Number(safeBooking.totalAmount || 0)
+  const rawSubtotalAmount = Number(safeBooking.subtotalAmount || 0)
+  const rawDiscountAmount = Number(safeBooking.discountAmount || 0)
+  const originalAmount = Math.max(rawSubtotalAmount, finalAmount + rawDiscountAmount, finalAmount)
+  const discountAmount = Math.max(originalAmount - finalAmount, rawDiscountAmount, 0)
+  const hasDiscount = discountAmount > 0 && originalAmount > finalAmount
+
+  return {
+    discountAmount,
+    finalAmount,
+    hasDiscount,
+    originalAmount,
+  }
+}
+
+function getVoucherDiscountLabel(voucher) {
+  if (!voucher) {
+    return ''
+  }
+
+  if (voucher.discount_type === 'percent') {
+    const maxDiscountLabel = voucher.max_discount_amount
+      ? `, tối đa ${formatCurrency(voucher.max_discount_amount)}`
+      : ''
+
+    return `${Number(voucher.discount_value || 0)}%${maxDiscountLabel}`
+  }
+
+  return formatCurrency(voucher.discount_value)
+}
+
+function getBookingDiscountContent(booking, voucherDetail) {
+  const { hasDiscount } = getBookingAmounts(booking)
+
+  if (!hasDiscount) {
+    return null
+  }
+
+  if (voucherDetail) {
+    const voucherCode = voucherDetail.code || 'voucher của đơn hàng'
+    const promotionName = voucherDetail.promotion?.name
+      ? `, thuộc chương trình ${voucherDetail.promotion.name}`
+      : ''
+    const voucherDiscountLabel = getVoucherDiscountLabel(voucherDetail)
+    const valueLabel = voucherDiscountLabel ? ` (${voucherDiscountLabel})` : ''
+
+    return {
+      label: 'Đang được áp voucher:',
+      value: `${voucherCode}${valueLabel}${promotionName}.`,
+    }
+  }
+
+  if (booking?.voucherId) {
+    return {
+      label: 'Đang được áp voucher:',
+      value: 'Voucher của đơn hàng này đã được áp dụng trước khi chốt thanh toán.',
+    }
+  }
+
+  return {
+    label: 'Đang hưởng ưu đãi:',
+    value: 'Mức ưu đãi của đơn hàng đã được trừ trực tiếp vào tổng thanh toán.',
+  }
+}
+
+function normalizeSearchText(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+const VISIBLE_BOOKING_STATUS_VALUES = new Set([
+  ADMIN_BOOKING_STATUSES.all,
+  ADMIN_BOOKING_STATUSES.paid,
+  ADMIN_BOOKING_STATUSES.pendingPayment,
+  ADMIN_BOOKING_STATUSES.confirmed,
+  ADMIN_BOOKING_STATUSES.inProgress,
+  ADMIN_BOOKING_STATUSES.completed,
+  ADMIN_BOOKING_STATUSES.cancelRequested,
+  ADMIN_BOOKING_STATUSES.cancelled,
+])
+
 function AdminBookingsPage() {
   const { currentPermissions, currentRole } = useOutletContext()
   const {
@@ -200,12 +284,19 @@ function AdminBookingsPage() {
     ADMIN_PERMISSIONS.bookingsWrite,
     currentPermissions,
   )
+  const canReadVouchers = hasPermission(
+    currentRole,
+    ADMIN_PERMISSIONS.vouchersRead,
+    currentPermissions,
+  )
   const currentBookings = bookings
   const totalPages = paginationMeta.totalPages
   const [activeBooking, setActiveBooking] = useState(null)
   const [detailBooking, setDetailBooking] = useState(null)
   const [detailError, setDetailError] = useState('')
   const [detailLoading, setDetailLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [voucherDetail, setVoucherDetail] = useState(null)
 
   useEffect(() => {
     if (!activeBooking) {
@@ -218,6 +309,7 @@ function AdminBookingsPage() {
       setDetailLoading(true)
       setDetailError('')
       setDetailBooking(null)
+      setVoucherDetail(null)
 
       try {
         const response = await getAdminBookingDetail(activeBooking.id)
@@ -230,7 +322,29 @@ function AdminBookingsPage() {
           throw new Error(response.message || 'Không thể tải chi tiết đơn hàng lúc này.')
         }
 
-        setDetailBooking(mapAdminBookingDetail(response.data))
+        const mappedBooking = mapAdminBookingDetail(response.data)
+
+        setDetailBooking(mappedBooking)
+
+        if (canReadVouchers && mappedBooking.voucherId) {
+          try {
+            const voucherResponse = await getAdminVoucherDetail(mappedBooking.voucherId)
+
+            if (!isActive) {
+              return
+            }
+
+            if (voucherResponse?.success && voucherResponse.data) {
+              setVoucherDetail(voucherResponse.data)
+            }
+          } catch {
+            if (!isActive) {
+              return
+            }
+
+            setVoucherDetail(null)
+          }
+        }
       } catch (loadError) {
         if (!isActive) {
           return
@@ -249,7 +363,7 @@ function AdminBookingsPage() {
     return () => {
       isActive = false
     }
-  }, [activeBooking])
+  }, [activeBooking, canReadVouchers])
 
   useEffect(() => {
     if (!activeBooking) {
@@ -272,6 +386,7 @@ function AdminBookingsPage() {
   function openBookingDetail(booking) {
     setDetailBooking(null)
     setDetailError('')
+    setVoucherDetail(null)
     setActiveBooking(booking)
   }
 
@@ -283,6 +398,25 @@ function AdminBookingsPage() {
   }
 
   const modalBooking = detailBooking ?? activeBooking
+  const modalBookingAmounts = getBookingAmounts(modalBooking)
+  const modalBookingDiscount = getBookingDiscountContent(modalBooking, voucherDetail)
+  const visibleStatusOptions = useMemo(
+    () =>
+      ADMIN_BOOKING_STATUS_OPTIONS.filter((option) =>
+        VISIBLE_BOOKING_STATUS_VALUES.has(option.value),
+      ),
+    [],
+  )
+  const normalizedSearchQuery = normalizeSearchText(searchQuery)
+  const filteredBookings = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return currentBookings
+    }
+
+    return currentBookings.filter((booking) =>
+      normalizeSearchText(booking.bookingCode).includes(normalizedSearchQuery),
+    )
+  }, [currentBookings, normalizedSearchQuery])
 
   return (
     <main className="admin-bookings-page admin-bookings-page--figma">
@@ -292,7 +426,7 @@ function AdminBookingsPage() {
       </header>
 
       <nav className="admin-bookings-page__status-tabs" aria-label="Lọc trạng thái đơn hàng">
-        {ADMIN_BOOKING_STATUS_OPTIONS.map((option) => (
+        {visibleStatusOptions.map((option) => (
           <button
             className={
               option.value === statusFilter
@@ -309,6 +443,20 @@ function AdminBookingsPage() {
           </button>
         ))}
       </nav>
+
+      <form
+        className="admin-bookings-page__toolbar"
+        role="search"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <AdminSearchInput
+          aria-label="Tìm kiếm theo mã đơn hàng"
+          className="admin-bookings-page__search"
+          placeholder="Tìm mã đơn, ví dụ DH7887"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+        />
+      </form>
 
       {feedback ? (
         <p className="admin-bookings-page__feedback" role="status">
@@ -334,8 +482,8 @@ function AdminBookingsPage() {
 
       {!loading && !error ? (
         <section className="admin-bookings-page__list" aria-label="Danh sách đơn hàng">
-          {currentBookings.length > 0 ? (
-            currentBookings.map((booking) => {
+          {filteredBookings.length > 0 ? (
+            filteredBookings.map((booking) => {
               const bookingActions = getBookingActions(booking.status)
 
               return (
@@ -471,15 +619,30 @@ function AdminBookingsPage() {
             })
           ) : (
             <AdminEmptyState
-              title="Không có đơn hàng phù hợp"
-              description="Thử đổi trạng thái để xem thêm đơn hàng."
+              title={
+                normalizedSearchQuery
+                  ? 'Không tìm thấy mã đơn phù hợp'
+                  : 'Không có đơn hàng phù hợp'
+              }
+              description={
+                normalizedSearchQuery
+                  ? 'Thử nhập lại mã đơn hoặc xóa từ khóa để xem toàn bộ danh sách.'
+                  : 'Thử đổi trạng thái để xem thêm đơn hàng.'
+              }
               action={
                 <button
                   className="admin-bookings-page__empty-action"
                   type="button"
-                  onClick={() => updateStatusFilter(ADMIN_BOOKING_STATUSES.all)}
+                  onClick={() => {
+                    if (normalizedSearchQuery) {
+                      setSearchQuery('')
+                      return
+                    }
+
+                    updateStatusFilter(ADMIN_BOOKING_STATUSES.all)
+                  }}
                 >
-                  Xem tất cả
+                  {normalizedSearchQuery ? 'Xóa từ khóa' : 'Xem tất cả'}
                 </button>
               }
             />
@@ -489,7 +652,9 @@ function AdminBookingsPage() {
 
       <footer className="admin-bookings-page__pagination-row">
         <p>
-          {paginationMeta.total > 0
+          {normalizedSearchQuery
+            ? `Tìm thấy ${filteredBookings.length} đơn hàng khớp với mã "${searchQuery.trim()}"`
+            : paginationMeta.total > 0
             ? `Hiển thị ${currentBookings.length} trong số ${paginationMeta.total} đơn hàng`
             : 'Hiện không có đơn hàng để hiển thị'}
         </p>
@@ -592,7 +757,25 @@ function AdminBookingsPage() {
                     </span>
                     <h3>{modalBooking.serviceTitle}</h3>
                     <p>{`${modalBooking.destination} · ${modalBooking.duration} · ${modalBooking.transport}`}</p>
-                    <strong>{formatCurrency(modalBooking.totalAmount)}</strong>
+                    <div className="admin-booking-detail-modal__price-block">
+                      {modalBookingAmounts.hasDiscount ? (
+                        <>
+                          <div className="admin-booking-detail-modal__price-original">
+                            <span>Giá gốc</span>
+                            <strong>{formatCurrency(modalBookingAmounts.originalAmount)}</strong>
+                          </div>
+                          <div className="admin-booking-detail-modal__price-final">
+                            <span>Giá sau ưu đãi</span>
+                            <strong>{formatCurrency(modalBookingAmounts.finalAmount)}</strong>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="admin-booking-detail-modal__price-final admin-booking-detail-modal__price-final--single">
+                          <span>Tổng thanh toán</span>
+                          <strong>{formatCurrency(modalBookingAmounts.finalAmount)}</strong>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -630,6 +813,12 @@ function AdminBookingsPage() {
                 <p className="admin-booking-detail-modal__note">
                   <strong>Ghi chú:</strong> {modalBooking.note}
                 </p>
+
+                {modalBookingDiscount ? (
+                  <p className="admin-booking-detail-modal__discount-summary">
+                    <strong>{modalBookingDiscount.label}</strong> {modalBookingDiscount.value}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </section>

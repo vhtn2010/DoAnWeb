@@ -1,4 +1,4 @@
-import { apiGet } from '../../services/apiClient.js'
+import { apiGet, apiPatch } from '../../services/apiClient.js'
 import { setAuthSession } from '../../services/authSession.js'
 
 function normalizeProfileUser(profile = {}) {
@@ -37,9 +37,7 @@ function persistProfileSession(profile = {}) {
   }
 }
 
-export async function getCurrentProfile() {
-  const response = await apiGet('/me')
-
+function withPersistedProfileSession(response = {}) {
   if (response?.success && response.data) {
     const session = persistProfileSession(response.data)
 
@@ -53,4 +51,28 @@ export async function getCurrentProfile() {
   }
 
   return response
+}
+
+export async function getCurrentProfile() {
+  const response = await apiGet('/me')
+  return withPersistedProfileSession(response)
+}
+
+export async function updateCurrentProfile(payload = {}) {
+  const response = await apiPatch('/me', payload)
+  return withPersistedProfileSession(response)
+}
+
+export async function updateCurrentAvatar(payload = {}) {
+  const response = await apiPatch('/me/avatar', payload)
+  return withPersistedProfileSession(response)
+}
+
+export async function updateCurrentPassword(payload = {}) {
+  const response = await apiPatch('/me/password', payload)
+  return withPersistedProfileSession(response)
+}
+
+export function getCurrentProfileLogs(params = {}) {
+  return apiGet('/me/logs', { params })
 }

@@ -18,6 +18,7 @@ import AdminBookingsPage from '../pages/admin/AdminBookingsPage.jsx'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx'
 import AdminInfrastructurePage from '../pages/admin/AdminInfrastructurePage.jsx'
 import AdminPaymentsPage from '../pages/admin/AdminPaymentsPage.jsx'
+import AdminProfilePage from '../pages/admin/AdminProfilePage.jsx'
 import AdminPromotionsPage from '../pages/admin/AdminPromotionsPage.jsx'
 import AdminRefundsPage from '../pages/admin/AdminRefundsPage.jsx'
 import AdminRevenuePage from '../pages/admin/AdminRevenuePageInteractive.jsx'
@@ -134,6 +135,14 @@ function AppRouter() {
               element={
                 <AdminRouteGate routeId="refunds">
                   <AdminRefundsPage />
+                </AdminRouteGate>
+              }
+            />
+            <Route
+              path="/admin/profile"
+              element={
+                <AdminRouteGate routeId="profile">
+                  <AdminProfilePage />
                 </AdminRouteGate>
               }
             />

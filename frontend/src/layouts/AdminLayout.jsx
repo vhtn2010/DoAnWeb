@@ -51,6 +51,12 @@ function AdminLayout() {
         return
       }
 
+      if (type === 'session-updated') {
+        setAdminSession(createAdminSessionState())
+        setAuthNotice('')
+        return
+      }
+
       if (type === 'forbidden') {
         setAuthNotice(payload?.message || 'Tài khoản hiện tại chưa có quyền thực hiện thao tác này.')
         return

@@ -367,12 +367,19 @@ function AdminSidebar({
       <div className="admin-sidebar__spacer" />
 
       <div className="admin-sidebar__account">
-        <button className="admin-sidebar__account-row admin-sidebar__account-row--neutral" type="button">
+        <NavLink
+          className={({ isActive }) =>
+            isActive
+              ? 'admin-sidebar__account-row admin-sidebar__account-row--neutral admin-sidebar__account-row--active'
+              : 'admin-sidebar__account-row admin-sidebar__account-row--neutral'
+          }
+          to={buildAdminPath(ADMIN_ROUTES.profile.path, currentRole)}
+        >
           <SidebarIcon>
             <UsersIcon />
           </SidebarIcon>
           <span>Hồ sơ</span>
-        </button>
+        </NavLink>
         <button
           className="admin-sidebar__account-row admin-sidebar__account-row--danger"
           disabled={loggingOut}
