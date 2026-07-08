@@ -1,19 +1,19 @@
 import {
-  buildFlightSearchParams as buildFlightSearchParamsWithMockAdapter,
-  buildFlightSelectionPayload as buildFlightSelectionPayloadWithMockAdapter,
-  checkFlightAvailability as checkFlightAvailabilityWithMockAdapter,
-  getFlightDetailBySlug as getFlightDetailBySlugWithMockAdapter,
-  getFlightSearchDefaults as getFlightSearchDefaultsWithMockAdapter,
-  listFlights as listFlightsWithMockAdapter,
-} from '../adapters/mock/flightMockAdapter.js'
+  buildFlightSearchParams as buildFlightSearchParamsWithApiAdapter,
+  buildFlightSelectionPayload as buildFlightSelectionPayloadWithApiAdapter,
+  checkFlightAvailability as checkFlightAvailabilityWithApiAdapter,
+  getFlightDetailBySlug as getFlightDetailBySlugWithApiAdapter,
+  getFlightSearchDefaults as getFlightSearchDefaultsWithApiAdapter,
+  listFlights as listFlightsWithApiAdapter,
+} from '../adapters/api/flightApiAdapter.js'
 
 const flightAdapter = {
-  listFlights: listFlightsWithMockAdapter,
-  getFlightSearchDefaults: getFlightSearchDefaultsWithMockAdapter,
-  buildFlightSearchParams: buildFlightSearchParamsWithMockAdapter,
-  getFlightDetailBySlug: getFlightDetailBySlugWithMockAdapter,
-  checkFlightAvailability: checkFlightAvailabilityWithMockAdapter,
-  buildFlightSelectionPayload: buildFlightSelectionPayloadWithMockAdapter,
+  listFlights: listFlightsWithApiAdapter,
+  getFlightSearchDefaults: getFlightSearchDefaultsWithApiAdapter,
+  buildFlightSearchParams: buildFlightSearchParamsWithApiAdapter,
+  getFlightDetailBySlug: getFlightDetailBySlugWithApiAdapter,
+  checkFlightAvailability: checkFlightAvailabilityWithApiAdapter,
+  buildFlightSelectionPayload: buildFlightSelectionPayloadWithApiAdapter,
 }
 
 export function listFlights(params) {

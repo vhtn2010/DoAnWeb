@@ -272,6 +272,7 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     const result = await queryImpl(
       `
         SELECT
+          id,
           airline_name,
           flight_number,
           departure_airport,
@@ -446,10 +447,6 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
       'active',
       'flight',
       'open',
-      from,
-      to,
-      departureDateStart.toISOString(),
-      departureDateEnd.toISOString(),
     ];
     let sql = `
       SELECT
@@ -474,11 +471,24 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
         AND fd.status = $3
         AND fd.seats_available > 0
         AND fd.departure_at >= NOW()
-        AND ${buildNormalizedTextSql('fd.departure_airport')} = $4
-        AND ${buildNormalizedTextSql('fd.arrival_airport')} = $5
-        AND fd.departure_at >= $6
-        AND fd.departure_at < $7
     `;
+
+    if (from) {
+      params.push(from);
+      sql += ` AND ${buildNormalizedTextSql('fd.departure_airport')} = $${params.length}`;
+    }
+
+    if (to) {
+      params.push(to);
+      sql += ` AND ${buildNormalizedTextSql('fd.arrival_airport')} = $${params.length}`;
+    }
+
+    if (departureDateStart && departureDateEnd) {
+      params.push(departureDateStart.toISOString());
+      sql += ` AND fd.departure_at >= $${params.length}`;
+      params.push(departureDateEnd.toISOString());
+      sql += ` AND fd.departure_at < $${params.length}`;
+    }
 
     if (cabinClass) {
       params.push(cabinClass);

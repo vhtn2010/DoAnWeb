@@ -111,7 +111,7 @@ function FlightListPage() {
             ) : loading && !flights.length ? (
               <div className="flight-results__empty" role="status">
                 <h3>Đang tìm chuyến bay phù hợp</h3>
-                <p>Danh sách đang được đọc từ mock adapter theo pattern API-ready hiện tại.</p>
+                <p>Danh sách chuyến bay đang được tải từ hệ thống.</p>
               </div>
             ) : flights.length ? (
               <>
