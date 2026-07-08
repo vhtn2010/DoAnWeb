@@ -1,5 +1,5 @@
+import { login as loginWithApiAdapter } from '../adapters/api/authApiAdapter.js'
 import {
-  login as loginWithMockAdapter,
   register as registerWithMockAdapter,
   requestPasswordReset as requestPasswordResetWithMockAdapter,
   resetPassword as resetPasswordWithMockAdapter,
@@ -7,7 +7,7 @@ import {
 } from '../adapters/mock/authMockAdapter.js'
 
 const authAdapter = {
-  login: loginWithMockAdapter,
+  login: loginWithApiAdapter,
   register: registerWithMockAdapter,
   requestPasswordReset: requestPasswordResetWithMockAdapter,
   resetPassword: resetPasswordWithMockAdapter,

@@ -1,3 +1,4 @@
+import LoginRequiredModal from '../../components/auth/LoginRequiredModal.jsx'
 import FlightDetailHeaderCard from '../../components/flights/FlightDetailHeaderCard.jsx'
 import FlightEditorialSection from '../../components/flights/FlightEditorialSection.jsx'
 import FlightFareOptions from '../../components/flights/FlightFareOptions.jsx'
@@ -51,11 +52,14 @@ function FlightDetailPage() {
   const {
     addToCartMock,
     bookNowMock,
+    closeLoginPrompt,
     error,
     feedback,
     flight,
     formatCurrency,
+    goToLoginFromPrompt,
     goBackToFlights,
+    isLoginPromptOpen,
     loading,
     retry,
     selectFare,
@@ -106,6 +110,12 @@ function FlightDetailPage() {
   return (
     <div className="flight-detail-page">
       <div className="flight-detail-shell">
+        <LoginRequiredModal
+          isOpen={isLoginPromptOpen}
+          onClose={closeLoginPrompt}
+          onLogin={goToLoginFromPrompt}
+        />
+
         <section className="flight-detail-page__topbar">
           <FlightDetailTopActions />
         </section>
