@@ -69,7 +69,9 @@ function FlightCard({ flight, formatCurrency, isSelected, onOpenDetail, onSelect
       </div>
 
       <div className="flight-card__fare">
-        <span className="flight-card__fare-old">{formatCurrency(flight.base_price)}</span>
+        {Number(flight.base_price) > Number(flight.sale_price) ? (
+          <span className="flight-card__fare-old">{formatCurrency(flight.base_price)}</span>
+        ) : null}
         <strong>{formatCurrency(flight.sale_price)}</strong>
         <button
           className="flight-card__button flight-card__button--primary"

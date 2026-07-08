@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ROLES } from '../constants/roles.js'
 import { mapFlightDetailResponseToView } from '../mappers/flightMappers.js'
-import { addCartItemPreview } from '../repositories/cartRepository.js'
+import { addCartItem } from '../repositories/cartRepository.js'
 import {
   buildFlightSelectionPayload,
   checkFlightAvailability,
@@ -91,6 +91,7 @@ export default function useFlightDetail() {
   const navigate = useNavigate()
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
+  const referenceId = searchParams.get('reference_id') ?? ''
   const isAuthenticatedCustomer = hasCustomerSession()
   const authState =
     searchParams.get('auth') === ROLES.customer || isAuthenticatedCustomer
@@ -105,13 +106,14 @@ export default function useFlightDetail() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
+  const [loginPromptVariant, setLoginPromptVariant] = useState('cart')
   const [reloadSeed, setReloadSeed] = useState(0)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-  }, [slug])
+  }, [referenceId, slug])
 
   useEffect(() => {
     let isActive = true
@@ -122,7 +124,9 @@ export default function useFlightDetail() {
       setFeedback(createFeedbackState())
 
       try {
-        const response = await getFlightDetailBySlug(slug)
+        const response = await getFlightDetailBySlug(slug, {
+          reference_id: referenceId,
+        })
 
         if (!isActive) {
           return
@@ -174,7 +178,7 @@ export default function useFlightDetail() {
     return () => {
       isActive = false
     }
-  }, [isCustomer, reloadSeed, slug])
+  }, [isCustomer, referenceId, reloadSeed, slug])
 
   const selectedFare = useMemo(() => {
     if (!flight) {
@@ -203,7 +207,7 @@ export default function useFlightDetail() {
     setFeedback(createFeedbackState('info', 'Đã cập nhật hạng vé bạn muốn xem.'))
   }
 
-  async function buildMockBooking() {
+  async function buildFlightBooking() {
     if (!flight || !selectedFare) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn hạng vé trước khi tiếp tục.'))
       return {
@@ -212,15 +216,17 @@ export default function useFlightDetail() {
     }
 
     const availabilityResponse = await checkFlightAvailability({
-      selected_flight_id: flight.id,
       quantity: 1,
+      reference_id: flight.reference_id,
+      service_id: flight.service_id ?? flight.id,
+      start_at: flight.departure_at,
     })
 
     if (!availabilityResponse.success || !availabilityResponse.data?.is_available) {
       setFeedback(
         createFeedbackState(
           'error',
-          availabilityResponse.message ?? 'Chuyến bay hiện không còn đủ chỗ trong dữ liệu mock.',
+          availabilityResponse.message ?? 'Chuyến bay hiện không còn đủ chỗ.',
         ),
       )
       return {
@@ -238,7 +244,7 @@ export default function useFlightDetail() {
       setFeedback(
         createFeedbackState(
           'error',
-          payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến bay mock.',
+          payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến bay.',
         ),
       )
       return {
@@ -252,18 +258,6 @@ export default function useFlightDetail() {
       selectedFare,
     })
 
-    await addCartItemPreview({
-      authState,
-      item: cartItem,
-    })
-
-    setFeedback(
-      createFeedbackState(
-        'success',
-        'Đã tạo payload mock theo hạng vé đã chọn và lưu vào giỏ hàng preview.',
-      ),
-    )
-
     return {
       success: true,
       cartItem,
@@ -271,33 +265,48 @@ export default function useFlightDetail() {
     }
   }
 
-  async function addToCartMock() {
+  async function addToCartAction() {
     if (!isAuthenticatedCustomer) {
+      setLoginPromptVariant('cart')
       setIsLoginPromptOpen(true)
       return
     }
 
-    const result = await buildMockBooking()
+    const result = await buildFlightBooking()
 
     if (!result.success) {
       return
     }
+
+    await addCartItem(result.payload, {
+      authState,
+      previewItem: result.cartItem,
+    })
 
     navigate(preserveAuthQuery('/cart'))
   }
 
-  async function bookNowMock() {
-    const result = await buildMockBooking()
+  async function bookNowAction() {
+    if (!isAuthenticatedCustomer) {
+      setLoginPromptVariant('booking')
+      setIsLoginPromptOpen(true)
+      return
+    }
+
+    const result = await buildFlightBooking()
 
     if (!result.success) {
       return
     }
 
-    navigate(preserveAuthQuery('/checkout'), {
-      state: {
-        selectedCartItemIds: [result.cartItem.id],
-      },
-    })
+    if (isAuthenticatedCustomer) {
+      await addCartItem(result.payload, {
+        authState,
+        previewItem: result.cartItem,
+      })
+      navigate(preserveAuthQuery('/cart'))
+      return
+    }
   }
 
   function goBackToFlights() {
@@ -331,10 +340,11 @@ export default function useFlightDetail() {
     selectFare,
     selectedFare,
     selectedFareId,
-    addToCartMock,
-    bookNowMock,
+    addToCartAction,
+    bookNowAction,
     closeLoginPrompt,
     goToLoginFromPrompt,
     isLoginPromptOpen,
+    loginPromptVariant,
   }
 }
