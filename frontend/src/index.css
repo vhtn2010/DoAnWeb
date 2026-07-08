@@ -12159,7 +12159,7 @@ select {
 
 .flight-search-panel__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 24px;
   align-items: end;
 }
@@ -12201,6 +12201,18 @@ select {
 
 .flight-airport-combobox,
 .flight-date-picker {
+  position: relative;
+}
+
+.flight-date-picker {
+  min-width: 0;
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.flight-date-picker__field {
   position: relative;
 }
 
@@ -12264,6 +12276,10 @@ select {
   cursor: pointer;
 }
 
+.flight-date-picker__trigger--disabled {
+  cursor: not-allowed;
+}
+
 .flight-airport-combobox__trigger {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
@@ -12295,14 +12311,20 @@ select {
 }
 
 .flight-date-picker__value {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .flight-date-picker__placeholder {
   color: var(--color-text-muted);
   font-weight: 700;
+}
+
+.flight-date-picker__field--disabled .flight-search-panel__field-label,
+.flight-date-picker__field--disabled .flight-date-picker__placeholder,
+.flight-date-picker__field--disabled .flight-search-panel__field-icon {
+  opacity: 0.72;
 }
 
 .flight-date-popover {
@@ -13244,6 +13266,10 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .flight-date-picker {
+    grid-column: span 2;
+  }
+
   .flight-search-panel__sort {
     justify-self: end;
   }
@@ -13299,6 +13325,12 @@ select {
   .flight-search-panel__grid,
   .flight-search-panel__footer {
     grid-template-columns: 1fr;
+  }
+
+  .flight-date-picker {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+    gap: 18px;
   }
 
   .flight-search-panel__sort {
