@@ -107,7 +107,9 @@ function ServiceCard({ service }) {
 
         <div className="service-card__footer">
           <div className="service-card__price-group">
-            <span className="service-card__price-old">{formatCurrency(service.base_price)}</span>
+            {service.has_sale_price ? (
+              <span className="service-card__price-old">{formatCurrency(service.base_price)}</span>
+            ) : null}
             <span className="service-card__price-new">{formatCurrency(service.sale_price)}</span>
           </div>
 

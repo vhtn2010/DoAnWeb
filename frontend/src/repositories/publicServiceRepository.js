@@ -1,16 +1,14 @@
 import {
-  getFeaturedTourServices as getFeaturedTourServicesWithMockAdapter,
-  getTourServiceBySlug as getTourServiceBySlugWithMockAdapter,
-} from '../adapters/mock/publicServiceMockAdapter.js'
-import {
+  getFeaturedTourServices as getFeaturedTourServicesWithApiAdapter,
   getTourServiceCatalog as getTourServiceCatalogWithApiAdapter,
+  getTourServiceBySlug as getTourServiceBySlugWithApiAdapter,
   listTourServices as listTourServicesWithApiAdapter,
 } from '../adapters/api/publicServiceApiAdapter.js'
 
 const publicServiceAdapter = {
-  getFeaturedTourServices: getFeaturedTourServicesWithMockAdapter,
+  getFeaturedTourServices: getFeaturedTourServicesWithApiAdapter,
   getTourServiceCatalog: getTourServiceCatalogWithApiAdapter,
-  getTourServiceBySlug: getTourServiceBySlugWithMockAdapter,
+  getTourServiceBySlug: getTourServiceBySlugWithApiAdapter,
   listTourServices: listTourServicesWithApiAdapter,
 }
 
