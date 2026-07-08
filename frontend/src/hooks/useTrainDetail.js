@@ -47,10 +47,15 @@ function createDefaultSearchState(train) {
 function buildTrainCartItem({
   payload,
   selectedCar,
-  selectedSeat,
+  selectedSeats,
   selectedSeatOption,
   train,
 }) {
+  const firstSelectedSeat = selectedSeats[0] ?? null
+  const seatIds = selectedSeats.map((seat) => seat.id)
+  const seatCodes = selectedSeats.map((seat) => seat.code)
+  const seatNumbers = selectedSeats.map((seat) => seat.number)
+
   return {
     id: `cart-item-train-detail-${Date.now()}`,
     service_id: payload.service_id,
@@ -65,11 +70,15 @@ function buildTrainCartItem({
       seat_class: selectedSeatOption?.name ?? train.seat_class,
       car_id: selectedCar?.id ?? '',
       car_label: selectedCar?.name ?? '',
-      seat_id: selectedSeat?.id ?? '',
-      seat_code: selectedSeat?.code ?? '',
+      seat_id: firstSelectedSeat?.id ?? '',
+      seat_ids: seatIds,
+      seat_code: seatCodes.join(', '),
+      seat_codes: seatCodes,
       seat_option_id: selectedSeatOption?.id ?? '',
       seat_option_name: selectedSeatOption?.name ?? train.seat_class,
-      seat_label: selectedSeat ? `${selectedCar?.name ?? 'Toa'} - Chỗ ${selectedSeat.number}` : '',
+      seat_label: seatNumbers.length
+        ? `${selectedCar?.name ?? 'Toa'} - Chỗ ${seatNumbers.join(', ')}`
+        : '',
     },
     created_at: new Date().toISOString(),
     service: {
@@ -106,7 +115,7 @@ export default function useTrainDetail() {
   const [train, setTrain] = useState(null)
   const [relatedTrains, setRelatedTrains] = useState([])
   const [selectedCarId, setSelectedCarId] = useState('')
-  const [selectedSeatId, setSelectedSeatId] = useState('')
+  const [selectedSeatIds, setSelectedSeatIds] = useState([])
   const [selectedSeatOptionId, setSelectedSeatOptionId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -138,7 +147,7 @@ export default function useTrainDetail() {
           setTrain(null)
           setRelatedTrains([])
           setSelectedCarId('')
-          setSelectedSeatId('')
+          setSelectedSeatIds([])
           setSelectedSeatOptionId('')
           setError(response.message ?? 'Không tìm thấy chuyến tàu.')
           return
@@ -161,7 +170,7 @@ export default function useTrainDetail() {
           })),
         )
         setSelectedCarId(defaultCar?.id ?? '')
-        setSelectedSeatId('')
+        setSelectedSeatIds([])
         setSelectedSeatOptionId(defaultSeatOption?.id ?? '')
       } catch (loadError) {
         if (!isActive) {
@@ -171,7 +180,7 @@ export default function useTrainDetail() {
         setTrain(null)
         setRelatedTrains([])
         setSelectedCarId('')
-        setSelectedSeatId('')
+        setSelectedSeatIds([])
         setSelectedSeatOptionId('')
         setError(loadError?.message ?? 'Không thể tải chi tiết chuyến tàu lúc này.')
       } finally {
@@ -192,9 +201,15 @@ export default function useTrainDetail() {
     return train?.cars?.find((car) => car.id === selectedCarId) ?? train?.cars?.[0] ?? null
   }, [selectedCarId, train])
 
-  const selectedSeat = useMemo(() => {
-    return selectedCar?.seats?.find((seat) => seat.id === selectedSeatId) ?? null
-  }, [selectedCar, selectedSeatId])
+  const selectedSeats = useMemo(() => {
+    if (!selectedCar) {
+      return []
+    }
+
+    const selectedSeatIdSet = new Set(selectedSeatIds)
+
+    return selectedCar.seats.filter((seat) => selectedSeatIdSet.has(seat.id))
+  }, [selectedCar, selectedSeatIds])
 
   const selectedSeatOption = useMemo(() => {
     return (
@@ -209,21 +224,30 @@ export default function useTrainDetail() {
       return null
     }
 
-    const seatPrice = Math.max(
-      Number(selectedSeat?.price ?? selectedSeatOption?.price ?? train.sale_price ?? 0),
+    const unitSeatPrice = Math.max(
+      Number(selectedSeatOption?.price ?? selectedSeats[0]?.price ?? train.sale_price ?? 0),
       0,
     )
+    const seatPrice = selectedSeats.length
+      ? selectedSeats.reduce(
+          (totalPrice, seat) => totalPrice + Math.max(Number(seat.price ?? unitSeatPrice), 0),
+          0,
+        )
+      : unitSeatPrice
     const serviceFee = Math.max(Number(train.payment_summary?.service_fee ?? 0), 0)
+    const seatNumbers = selectedSeats.map((seat) => seat.number)
+    const seatCodes = selectedSeats.map((seat) => seat.code)
 
     return {
       title: train.header_title,
       line_title: `${train.train_number_label} | ${selectedSeatOption?.name ?? train.seat_class}`,
       line_subtitle: `${train.departure_station_code} - ${train.arrival_station_code}`,
+      quantity_label: `${selectedSeats.length} Chỗ`,
       seat_class_label: selectedSeatOption?.name ?? train.seat_class,
-      seat_label: selectedSeat
-        ? `${selectedCar?.name ?? 'Toa'} - Chỗ ${selectedSeat.number}`
+      seat_label: seatNumbers.length
+        ? `${selectedCar?.name ?? 'Toa'} - Chỗ ${seatNumbers.join(', ')}`
         : 'Chưa chọn chỗ',
-      seat_code: selectedSeat?.code ?? 'Vui lòng chọn chỗ',
+      seat_code: seatCodes.length ? seatCodes.join(', ') : 'Vui lòng chọn chỗ',
       base_price_label: 'Giá chỗ',
       service_fee_label: train.payment_summary?.fee_label ?? 'Phí dịch vụ',
       service_fee: serviceFee,
@@ -234,7 +258,7 @@ export default function useTrainDetail() {
       cta_primary: train.payment_summary?.cta_primary ?? 'Đặt ngay',
       cta_secondary: train.payment_summary?.cta_secondary ?? 'Thêm vào giỏ hàng',
     }
-  }, [selectedCar, selectedSeat, selectedSeatOption, train])
+  }, [selectedCar, selectedSeatOption, selectedSeats, train])
 
   function preserveAuthQuery(path) {
     return buildAuthAwarePath(path, isCustomer)
@@ -256,9 +280,9 @@ export default function useTrainDetail() {
       selectedSeatOption
 
     setSelectedCarId(nextCar.id)
-    setSelectedSeatId('')
+    setSelectedSeatIds([])
     setSelectedSeatOptionId(matchingSeatOption?.id ?? '')
-    setFeedback(createFeedbackState('info', `Đã chuyển sang ${nextCar.name}.`))
+    setFeedback(createFeedbackState())
   }
 
   function selectSeat(seatId) {
@@ -277,13 +301,14 @@ export default function useTrainDetail() {
       return
     }
 
-    setSelectedSeatId(nextSeat.id)
-    setFeedback(
-      createFeedbackState(
-        'success',
-        `Đã chọn ${selectedCar.name} - chỗ ${nextSeat.number} cho hành trình này.`,
-      ),
-    )
+    if (selectedSeatIds.includes(nextSeat.id)) {
+      setSelectedSeatIds((currentSeatIds) => currentSeatIds.filter((currentSeatId) => currentSeatId !== nextSeat.id))
+      setFeedback(createFeedbackState('info', `Đã bỏ chọn ${selectedCar.name} - chỗ ${nextSeat.number}.`))
+      return
+    }
+
+    setSelectedSeatIds((currentSeatIds) => [...currentSeatIds, nextSeat.id])
+    setFeedback(createFeedbackState('success', `Đã chọn ${selectedCar.name} - chỗ ${nextSeat.number}.`))
   }
 
   function selectSeatOption(seatOptionId) {
@@ -304,7 +329,11 @@ export default function useTrainDetail() {
 
     if (matchingCar && matchingCar.id !== selectedCarId) {
       setSelectedCarId(matchingCar.id)
-      setSelectedSeatId('')
+      setSelectedSeatIds([])
+    }
+
+    if (!matchingCar || matchingCar.id === selectedCarId) {
+      setSelectedSeatIds([])
     }
 
     setFeedback(
@@ -315,7 +344,7 @@ export default function useTrainDetail() {
   async function buildMockBooking({
     missingSeatMessage = 'Vui lòng chọn chỗ trước khi tiếp tục.',
   } = {}) {
-    if (!train || !selectedCar || !selectedSeat || !selectedSeatOption) {
+    if (!train || !selectedCar || !selectedSeats.length || !selectedSeatOption) {
       setFeedback(createFeedbackState('error', missingSeatMessage))
       return {
         success: false,
@@ -327,7 +356,7 @@ export default function useTrainDetail() {
       const availabilityResponse = await checkTrainAvailability({
         selected_train_id: train.id,
         selected_car_id: selectedCar.id,
-        selected_seat_id: selectedSeat.id,
+        selected_seat_ids: selectedSeats.map((seat) => seat.id),
       })
 
       if (!availabilityResponse.success || !availabilityResponse.data?.is_available) {
@@ -346,7 +375,7 @@ export default function useTrainDetail() {
       // TODO: replace mock cart payload with POST /cart/items in integration phase.
       const payloadResponse = await buildTrainSelectionPayload(
         train,
-        selectedSeat,
+        selectedSeats,
         selectedSeatOption,
         createDefaultSearchState(train),
       )
@@ -366,7 +395,7 @@ export default function useTrainDetail() {
       const cartItem = buildTrainCartItem({
         payload: payloadResponse.data,
         selectedCar,
-        selectedSeat,
+        selectedSeats,
         selectedSeatOption,
         train,
       })
@@ -379,7 +408,7 @@ export default function useTrainDetail() {
       setFeedback(
         createFeedbackState(
           'success',
-          'Đã tạo payload mock theo chỗ đã chọn và lưu vào giỏ hàng preview.',
+          `Đã tạo payload mock cho ${selectedSeats.length} chỗ đã chọn và lưu vào giỏ hàng preview.`,
         ),
       )
 
@@ -456,8 +485,8 @@ export default function useTrainDetail() {
     selectSeatOption,
     selectedCar,
     selectedCarId,
-    selectedSeat,
-    selectedSeatId,
+    selectedSeatIds,
+    selectedSeats,
     selectedSeatOption,
     selectedSeatOptionId,
     train,

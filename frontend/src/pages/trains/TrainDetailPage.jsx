@@ -1,7 +1,6 @@
 import TrainBookingSummary from '../../components/trains/TrainBookingSummary.jsx'
 import TrainCarTabs from '../../components/trains/TrainCarTabs.jsx'
 import TrainDetailHeaderCard from '../../components/trains/TrainDetailHeaderCard.jsx'
-import TrainMemberDiscountCard from '../../components/trains/TrainMemberDiscountCard.jsx'
 import TrainRelatedRoutes from '../../components/trains/TrainRelatedRoutes.jsx'
 import TrainScheduleCard from '../../components/trains/TrainScheduleCard.jsx'
 import TrainSeatMap from '../../components/trains/TrainSeatMap.jsx'
@@ -66,7 +65,7 @@ function TrainDetailPage() {
     selectSeatOption,
     selectedCar,
     selectedCarId,
-    selectedSeatId,
+    selectedSeatIds,
     selectedSeatOption,
     selectedSeatOptionId,
     train,
@@ -132,11 +131,11 @@ function TrainDetailPage() {
     <div className="train-detail-page">
       <div className="train-detail-shell">
         <section className="train-detail-hero">
-          <TrainDetailHeaderCard train={train} />
-
           <div className="train-detail-page__topbar">
             <TrainDetailTopActions />
           </div>
+
+          <TrainDetailHeaderCard train={train} />
         </section>
 
         {feedback.message ? (
@@ -148,7 +147,11 @@ function TrainDetailPage() {
         <div className="train-detail-layout">
           <div className="train-detail-main">
             <TrainCarTabs cars={train.cars} selectedCarId={selectedCarId} onSelectCar={selectCar} />
-            <TrainSeatMap car={selectedCar} onSelectSeat={selectSeat} selectedSeatId={selectedSeatId} />
+            <TrainSeatMap
+              car={selectedCar}
+              onSelectSeat={selectSeat}
+              selectedSeatIds={selectedSeatIds}
+            />
 
             <section className="train-seat-options train-detail-section" aria-label="Hạng vé và loại chỗ">
               <div className="train-seat-options__grid train-seat-options-grid">
@@ -164,37 +167,6 @@ function TrainDetailPage() {
               </div>
             </section>
 
-            <section className="train-detail-card train-detail-notes train-detail-section">
-              <div className="train-detail-section-heading">
-                <h2>Tiện ích và chính sách</h2>
-              </div>
-
-              <div className="train-detail-notes__grid train-detail-info-grid">
-                <article className="train-detail-notes__panel">
-                  <h3>Thông tin toa</h3>
-                  <p>{train.carriage_info}</p>
-                  <div className="train-detail-notes__chips">
-                    {train.amenities.map((amenity) => (
-                      <span key={amenity}>{amenity}</span>
-                    ))}
-                  </div>
-                </article>
-
-                <article className="train-detail-notes__panel">
-                  <h3>Chính sách</h3>
-                  <ul>
-                    {train.policies.map((policy) => (
-                      <li key={policy}>{policy}</li>
-                    ))}
-                    {train.baggage_policy ? <li>{train.baggage_policy}</li> : null}
-                    {train.refund_policy ? <li>{train.refund_policy}</li> : null}
-                  </ul>
-                </article>
-              </div>
-            </section>
-
-            <TrainScheduleCard schedule={train.schedule} />
-            <TrainRelatedRoutes formatCurrency={formatCurrency} trains={relatedTrains} />
           </div>
 
           <aside className="train-detail-sidebar">
@@ -204,9 +176,11 @@ function TrainDetailPage() {
               onAddToCart={addToCartMock}
               onBookNow={bookNowMock}
             />
-            <TrainMemberDiscountCard memberDiscount={train.member_discount} />
           </aside>
         </div>
+
+        <TrainScheduleCard schedule={train.schedule} />
+        <TrainRelatedRoutes formatCurrency={formatCurrency} trains={relatedTrains} />
       </div>
     </div>
   )

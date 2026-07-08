@@ -31,19 +31,11 @@ function TrainDetailHeaderCard({ train }) {
 
           <div className="train-detail-header-card__copy">
             <h1>{train.header_title}</h1>
-            <p>{train.route_note}</p>
-            <div className="train-detail-header-card__chips">
-              <span>{train.provider_name}</span>
-              <span>{train.carriage_type}</span>
-            </div>
+            <p>Dịch vụ tốc hành Bắc-Nam • Khởi hành hàng ngày</p>
           </div>
         </div>
 
         <div className="train-detail-header-card__journey">
-          <div className="train-detail-header-card__tag">
-            <span>{train.route_code_label}</span>
-          </div>
-
           <div className="train-detail-header-card__timeline">
             <div className="train-detail-header-card__point">
               <strong>{train.departure_time_label}</strong>

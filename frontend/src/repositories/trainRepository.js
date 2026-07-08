@@ -38,13 +38,13 @@ export function checkTrainAvailability(payload) {
 
 export function buildTrainSelectionPayload(
   train,
-  selectedSeat,
+  selectedSeats,
   selectedSeatOption,
   searchState,
 ) {
   return trainAdapter.buildTrainSelectionPayload(
     train,
-    selectedSeat,
+    selectedSeats,
     selectedSeatOption,
     searchState,
   )
