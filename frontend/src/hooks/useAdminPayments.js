@@ -25,6 +25,10 @@ function createInitialPagination() {
   }
 }
 
+function isTransferPayment(payment = {}) {
+  return ['bank_transfer', 'manual_bank_transfer'].includes(payment.payment_method)
+}
+
 export default function useAdminPayments() {
   const [payments, setPayments] = useState([])
   const [selectedPayment, setSelectedPayment] = useState(null)
@@ -128,17 +132,16 @@ export default function useAdminPayments() {
       }
 
       let proofData = null
+      const shouldLoadProof =
+        Boolean(detailResponse.data.proof_summary || payment.hasProof) ||
+        isTransferPayment(detailResponse.data)
 
-      if (detailResponse.data.proof_summary || payment.hasProof) {
+      if (shouldLoadProof) {
         const proofResponse = await getAdminPaymentProof(payment.id)
 
-        if (!proofResponse.success || !proofResponse.data) {
-          throw new Error(
-            proofResponse.message || 'Khong the tai minh chung thanh toan.',
-          )
+        if (proofResponse.success && proofResponse.data) {
+          proofData = proofResponse.data
         }
-
-        proofData = proofResponse.data
       }
 
       setSelectedPayment(mapAdminPaymentDetail(detailResponse.data, proofData))
@@ -146,7 +149,14 @@ export default function useAdminPayments() {
     } catch (detailError) {
       const nextMessage = detailError?.message ?? 'Không thể tải chi tiết giao dịch lúc này.'
 
-      setSelectedPayment(payment)
+      setSelectedPayment({
+        ...payment,
+        proof:
+          ['bank_transfer', 'manual_bank_transfer'].includes(payment.paymentMethod) &&
+          ['reconciled', 'success'].includes(payment.status)
+            ? (payment.proof ?? {})
+            : payment.proof ?? null,
+      })
       setError(nextMessage)
       setFeedback(nextMessage)
     } finally {

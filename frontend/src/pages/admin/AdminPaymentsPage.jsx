@@ -89,6 +89,16 @@ function formatDateTime(value) {
   return dateTimeFormatter.format(date)
 }
 
+function shouldShowTransferDetails(payment) {
+  return (
+    Boolean(payment?.proof) ||
+    (
+      ['bank_transfer', 'manual_bank_transfer'].includes(payment?.paymentMethod) &&
+      ['reconciled', 'success'].includes(payment?.status)
+    )
+  )
+}
+
 function AdminPaymentsPage() {
   const {
     currentPage,
@@ -115,8 +125,8 @@ function AdminPaymentsPage() {
     <main className="admin-ops-page admin-payments-page">
       <header className="admin-payments-page__header">
         <div className="admin-payments-page__header-copy">
-          <h1>Lịch sử Giao dịch & Hoàn tiền</h1>
-          <p>Theo dõi dòng tiền và xử lý các yêu cầu hoàn trả dịch vụ từ khách hàng.</p>
+          <h1>Lịch sử giao dịch</h1>
+          <p>Theo dõi dòng tiền và lưu giữ các giao dịch thanh toán của khách hàng.</p>
         </div>
 
         <AdminButton
@@ -330,12 +340,12 @@ function AdminPaymentsPage() {
               <p><span>Ghi chú nội bộ:</span> <strong>{selectedPayment.internalNote || 'Chưa có'}</strong></p>
             </div>
 
-            {selectedPayment.proof ? (
+            {shouldShowTransferDetails(selectedPayment) ? (
               <div className="admin-ops-page__summary-box admin-payments-page__detail-grid">
                 <p><span>Mã chuyển khoản:</span> <strong>{selectedPayment.proof.bank_transaction_code || 'Chưa có'}</strong></p>
                 <p><span>Nội dung chuyển khoản:</span> <strong>{selectedPayment.proof.transfer_note || 'Chưa có'}</strong></p>
                 <p><span>Thời gian gửi:</span> <strong>{formatDateTime(selectedPayment.proof.submitted_at)}</strong></p>
-                {selectedPayment.proof.proof_image_url ? (
+                {selectedPayment.proof?.proof_image_url ? (
                   <p>
                     <span>Chứng từ:</span>{' '}
                     <strong>
