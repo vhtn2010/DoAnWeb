@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ROLES } from '../constants/roles.js'
 import { mapTrainDetailResponseToView } from '../mappers/trainMappers.js'
 import { addCartItemPreview } from '../repositories/cartRepository.js'
@@ -8,6 +8,7 @@ import {
   checkTrainAvailability,
   getTrainDetailBySlug,
 } from '../repositories/trainRepository.js'
+import { hasCustomerSession } from '../utils/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 
 function buildAuthAwarePath(path, isCustomer) {
@@ -27,6 +28,14 @@ function createFeedbackState(tone = 'info', message = '') {
     tone,
     message,
   }
+}
+
+function buildLoginPath(pathname, search = '') {
+  const nextPath = buildAuthAwarePath(pathname, true)
+  const nextSearchParams = new URLSearchParams(search)
+  nextSearchParams.set('redirect', nextPath)
+
+  return `/login?${nextSearchParams.toString()}`
 }
 
 function createDefaultSearchState(train) {
@@ -105,11 +114,15 @@ function findDefaultSeatOption(train, carId = '') {
 }
 
 export default function useTrainDetail() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
+  const isAuthenticatedCustomer = hasCustomerSession()
   const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+    searchParams.get('auth') === ROLES.customer || isAuthenticatedCustomer
+      ? ROLES.customer
+      : ROLES.guest
   const isCustomer = authState === ROLES.customer
 
   const [train, setTrain] = useState(null)
@@ -120,6 +133,7 @@ export default function useTrainDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
   const [reloadSeed, setReloadSeed] = useState(0)
 
   useEffect(() => {
@@ -432,6 +446,11 @@ export default function useTrainDetail() {
   }
 
   async function addToCartMock() {
+    if (!isAuthenticatedCustomer) {
+      setIsLoginPromptOpen(true)
+      return
+    }
+
     const result = await buildMockBooking({
       missingSeatMessage: 'Vui lòng chọn chỗ trước khi thêm vào giỏ hàng.',
     })
@@ -467,15 +486,27 @@ export default function useTrainDetail() {
     setReloadSeed((currentValue) => currentValue + 1)
   }
 
+  function closeLoginPrompt() {
+    setIsLoginPromptOpen(false)
+  }
+
+  function goToLoginFromPrompt() {
+    setIsLoginPromptOpen(false)
+    navigate(buildLoginPath(location.pathname, location.search))
+  }
+
   return {
     addToCartMock,
     bookNowMock,
     bookingSummary,
+    closeLoginPrompt,
     currentAuthPreviewQuery: isCustomer ? '?auth=customer' : '',
     error,
     feedback,
     formatCurrency: formatCurrencyVND,
+    goToLoginFromPrompt,
     goBackToTrains,
+    isLoginPromptOpen,
     loading,
     preserveAuthQuery,
     relatedTrains,

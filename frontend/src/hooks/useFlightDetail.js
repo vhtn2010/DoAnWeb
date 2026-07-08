@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ROLES } from '../constants/roles.js'
 import { mapFlightDetailResponseToView } from '../mappers/flightMappers.js'
 import { addCartItemPreview } from '../repositories/cartRepository.js'
@@ -8,6 +8,7 @@ import {
   checkFlightAvailability,
   getFlightDetailBySlug,
 } from '../repositories/flightRepository.js'
+import { hasCustomerSession } from '../utils/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 
 function buildAuthAwarePath(path, isCustomer) {
@@ -27,6 +28,14 @@ function createFeedbackState(tone = 'info', message = '') {
     tone,
     message,
   }
+}
+
+function buildLoginPath(pathname, search = '') {
+  const nextPath = buildAuthAwarePath(pathname, true)
+  const nextSearchParams = new URLSearchParams(search)
+  nextSearchParams.set('redirect', nextPath)
+
+  return `/login?${nextSearchParams.toString()}`
 }
 
 function createDefaultSearchState(flight) {
@@ -78,11 +87,15 @@ function buildFlightCartItem({ flight, payload, selectedFare }) {
 }
 
 export default function useFlightDetail() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
+  const isAuthenticatedCustomer = hasCustomerSession()
   const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+    searchParams.get('auth') === ROLES.customer || isAuthenticatedCustomer
+      ? ROLES.customer
+      : ROLES.guest
   const isCustomer = authState === ROLES.customer
 
   const [flight, setFlight] = useState(null)
@@ -91,6 +104,7 @@ export default function useFlightDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
   const [reloadSeed, setReloadSeed] = useState(0)
 
   useEffect(() => {
@@ -258,6 +272,11 @@ export default function useFlightDetail() {
   }
 
   async function addToCartMock() {
+    if (!isAuthenticatedCustomer) {
+      setIsLoginPromptOpen(true)
+      return
+    }
+
     const result = await buildMockBooking()
 
     if (!result.success) {
@@ -289,6 +308,15 @@ export default function useFlightDetail() {
     setReloadSeed((currentValue) => currentValue + 1)
   }
 
+  function closeLoginPrompt() {
+    setIsLoginPromptOpen(false)
+  }
+
+  function goToLoginFromPrompt() {
+    setIsLoginPromptOpen(false)
+    navigate(buildLoginPath(location.pathname, location.search))
+  }
+
   return {
     currentAuthPreviewQuery: isCustomer ? '?auth=customer' : '',
     error,
@@ -305,5 +333,8 @@ export default function useFlightDetail() {
     selectedFareId,
     addToCartMock,
     bookNowMock,
+    closeLoginPrompt,
+    goToLoginFromPrompt,
+    isLoginPromptOpen,
   }
 }
