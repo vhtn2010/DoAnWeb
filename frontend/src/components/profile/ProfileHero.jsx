@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 function SparkIcon() {
   return (
     <svg fill="none" viewBox="0 0 20 20">
@@ -40,6 +42,25 @@ function PhoneIcon() {
   )
 }
 
+function EditIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M12.4 4.1a1.8 1.8 0 0 1 2.55 0l.95.95a1.8 1.8 0 0 1 0 2.55L8.4 15.1 4.5 15.5l.4-3.9 7.5-7.5Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+      <path
+        d="m11.5 5 3.5 3.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+    </svg>
+  )
+}
+
 function getInitials(name = '') {
   const words = name.trim().split(/\s+/).filter(Boolean)
 
@@ -53,6 +74,89 @@ function getInitials(name = '') {
     .join('')
 }
 
+function normalizeLoyaltyTier(value = '') {
+  return value === 'Di sản Vàng' ? 'Hạng Vàng' : value || 'Nét Việt Member'
+}
+
+function isValidEmail(value = '') {
+  return /\S+@\S+\.\S+/.test(value.trim())
+}
+
+function isValidPhone(value = '') {
+  return /^[0-9+\s().-]{8,20}$/.test(value.trim())
+}
+
+function EditableContactField({
+  field,
+  icon,
+  inputMode,
+  isEditing,
+  label,
+  onCancel,
+  onChange,
+  onEdit,
+  onSave,
+  placeholder,
+  type = 'text',
+  value,
+}) {
+  return (
+    <div
+      className={
+        isEditing
+          ? 'profile-hero__member-meta-item profile-hero__member-meta-item--editing'
+          : 'profile-hero__member-meta-item'
+      }
+    >
+      <div className="profile-hero__member-meta-row">
+        <span className="profile-hero__member-meta-icon" aria-hidden="true">
+          {icon}
+        </span>
+
+        {isEditing ? (
+          <input
+            aria-label={label}
+            className="profile-hero__member-input"
+            inputMode={inputMode}
+            onChange={(event) => onChange(field, event.target.value)}
+            placeholder={placeholder}
+            type={type}
+            value={value}
+          />
+        ) : (
+          <span className="profile-hero__member-meta-text">{value}</span>
+        )}
+
+        {!isEditing ? (
+          <button
+            className="profile-hero__member-inline-action"
+            type="button"
+            onClick={() => onEdit(field)}
+          >
+            <EditIcon />
+            <span>Sửa</span>
+          </button>
+        ) : null}
+      </div>
+
+      {isEditing ? (
+        <div className="profile-hero__member-inline-actions">
+          <button type="button" onClick={() => onSave(field)}>
+            Lưu
+          </button>
+          <button
+            className="profile-hero__member-inline-cancel"
+            type="button"
+            onClick={() => onCancel(field)}
+          >
+            Hủy
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function ProfileHero({
   greeting,
   highlights = [],
@@ -61,6 +165,83 @@ function ProfileHero({
   upcomingTrip,
 }) {
   const displayName = profile?.full_name ?? greeting.title.replace('Xin chào, ', '')
+  const [contactInfo, setContactInfo] = useState({
+    email: profile?.email ?? '',
+    phone: profile?.phone ?? '',
+  })
+  const [draftInfo, setDraftInfo] = useState({
+    email: profile?.email ?? '',
+    phone: profile?.phone ?? '',
+  })
+  const [editingField, setEditingField] = useState('')
+  const [contactFeedback, setContactFeedback] = useState('')
+
+  useEffect(() => {
+    const nextContactInfo = {
+      email: profile?.email ?? '',
+      phone: profile?.phone ?? '',
+    }
+
+    setContactInfo(nextContactInfo)
+    setDraftInfo(nextContactInfo)
+    setEditingField('')
+    setContactFeedback('')
+  }, [profile?.email, profile?.phone])
+
+  function handleEdit(field) {
+    setDraftInfo((currentDraft) => ({
+      ...currentDraft,
+      [field]: contactInfo[field] ?? '',
+    }))
+    setEditingField(field)
+    setContactFeedback('')
+  }
+
+  function handleDraftChange(field, value) {
+    setDraftInfo((currentDraft) => ({
+      ...currentDraft,
+      [field]: value,
+    }))
+    setContactFeedback('')
+  }
+
+  function handleCancel(field) {
+    setDraftInfo((currentDraft) => ({
+      ...currentDraft,
+      [field]: contactInfo[field] ?? '',
+    }))
+    setEditingField('')
+    setContactFeedback('')
+  }
+
+  function handleSave(field) {
+    const nextValue = draftInfo[field]?.trim() ?? ''
+    const isValid = field === 'email' ? isValidEmail(nextValue) : isValidPhone(nextValue)
+
+    if (!isValid) {
+      setContactFeedback(
+        field === 'email'
+          ? 'Email chưa đúng định dạng.'
+          : 'Số điện thoại cần từ 8 đến 20 ký tự hợp lệ.',
+      )
+      return
+    }
+
+    setContactInfo((currentInfo) => ({
+      ...currentInfo,
+      [field]: nextValue,
+    }))
+    setDraftInfo((currentDraft) => ({
+      ...currentDraft,
+      [field]: nextValue,
+    }))
+    setEditingField('')
+    setContactFeedback(
+      field === 'email'
+        ? 'Đã cập nhật email trong giao diện demo.'
+        : 'Đã cập nhật số điện thoại trong giao diện demo.',
+    )
+  }
 
   return (
     <header className="profile-hero">
@@ -110,26 +291,48 @@ function ProfileHero({
 
               <div className="profile-hero__member-copy">
                 <p className="profile-hero__member-label">Thẻ thành viên</p>
-                <strong>{profile?.loyalty_tier ?? 'Nét Việt Member'}</strong>
+                <strong>{normalizeLoyaltyTier(profile?.loyalty_tier)}</strong>
                 <small>{displayName}</small>
               </div>
             </div>
 
             <div className="profile-hero__member-meta">
-              {profile?.email ? (
-                <span>
-                  <MailIcon />
-                  <span className="profile-hero__member-meta-text">{profile.email}</span>
-                </span>
-              ) : null}
+              <EditableContactField
+                field="email"
+                icon={<MailIcon />}
+                inputMode="email"
+                isEditing={editingField === 'email'}
+                label="Email liên hệ"
+                onCancel={handleCancel}
+                onChange={handleDraftChange}
+                onEdit={handleEdit}
+                onSave={handleSave}
+                placeholder="name@example.com"
+                type="email"
+                value={editingField === 'email' ? draftInfo.email : contactInfo.email}
+              />
 
-              {profile?.phone ? (
-                <span>
-                  <PhoneIcon />
-                  <span className="profile-hero__member-meta-text">{profile.phone}</span>
-                </span>
-              ) : null}
+              <EditableContactField
+                field="phone"
+                icon={<PhoneIcon />}
+                inputMode="tel"
+                isEditing={editingField === 'phone'}
+                label="Số điện thoại liên hệ"
+                onCancel={handleCancel}
+                onChange={handleDraftChange}
+                onEdit={handleEdit}
+                onSave={handleSave}
+                placeholder="090 234 5678"
+                type="tel"
+                value={editingField === 'phone' ? draftInfo.phone : contactInfo.phone}
+              />
             </div>
+
+            {contactFeedback ? (
+              <p className="profile-hero__member-feedback" role="status">
+                {contactFeedback}
+              </p>
+            ) : null}
 
             <div className="profile-hero__member-note">
               <p>{upcomingTrip ? 'Chuyến đi nổi bật' : 'Sẵn sàng cho hành trình mới'}</p>
