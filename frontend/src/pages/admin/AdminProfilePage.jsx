@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import {
   AdminBadge,
   AdminButton,
@@ -8,20 +8,12 @@ import {
   AdminErrorState,
   AdminField,
   AdminInput,
-  AdminKpiCard,
   AdminLoadingBlock,
   AdminPageHeader,
-  AdminPagination,
   AdminSectionHeader,
   AdminStatusBadge,
 } from '../../components/admin/ui/index.js'
-import {
-  ADMIN_ROLE_LABELS,
-  ADMIN_ROUTES,
-  buildAdminPath,
-  canViewAdminRoute,
-  getAdminNavSections,
-} from '../../constants/adminRoutes.js'
+import { ADMIN_ROLE_LABELS } from '../../constants/adminRoutes.js'
 import {
   getCurrentProfile,
   getCurrentProfileLogs,
@@ -96,7 +88,7 @@ const STATUS_META = Object.freeze({
   deleted: { label: 'Đã xóa mềm', tone: 'danger' },
 })
 
-const PROFILE_ROUTE_EXCLUDE = new Set(['bookingDetail', 'serviceCreate', 'profile'])
+const ACTIVITY_VISIBLE_PAGE_COUNT = 5
 
 function formatDateTime(value) {
   if (!value) {
@@ -180,10 +172,37 @@ function normalizeProfileData(data = {}, fallbackRole = 'staff') {
   }
 }
 
-function createPageNumbers(totalPages) {
-  const safeTotalPages = Number(totalPages) || 0
+function createActivityPaginationItems(currentPage, totalPages, visiblePageCount = ACTIVITY_VISIBLE_PAGE_COUNT) {
+  const safeCurrentPage = Math.max(1, Number(currentPage) || 1)
+  const safeTotalPages = Math.max(0, Number(totalPages) || 0)
 
-  return Array.from({ length: safeTotalPages }, (_, index) => index + 1)
+  if (safeTotalPages <= visiblePageCount) {
+    return Array.from({ length: safeTotalPages }, (_, index) => ({
+      type: 'page',
+      value: index + 1,
+    }))
+  }
+
+  const trailingWindowSize = Math.max(1, visiblePageCount - 1)
+  const lastWindowStart = Math.max(1, safeTotalPages - visiblePageCount + 1)
+
+  if (safeCurrentPage >= lastWindowStart) {
+    return Array.from({ length: visiblePageCount }, (_, index) => ({
+      type: 'page',
+      value: lastWindowStart + index,
+    }))
+  }
+
+  const windowStart = safeCurrentPage <= 2 ? 1 : safeCurrentPage - 1
+
+  return [
+    ...Array.from({ length: trailingWindowSize }, (_, index) => ({
+      type: 'page',
+      value: windowStart + index,
+    })),
+    { type: 'ellipsis', value: 'activity-ellipsis' },
+    { type: 'page', value: safeTotalPages },
+  ]
 }
 
 function getLogActionLabel(action = '') {
@@ -259,26 +278,6 @@ function getProfileInitials(profile = null) {
   return parts.map((part) => part.charAt(0).toUpperCase()).join('') || 'QT'
 }
 
-function flattenAccessibleRouteIds(currentRole, currentPermissions) {
-  const uniqueRouteIds = []
-
-  getAdminNavSections(currentRole).forEach((section) => {
-    section.routeIds.forEach((routeId) => {
-      if (PROFILE_ROUTE_EXCLUDE.has(routeId) || uniqueRouteIds.includes(routeId)) {
-        return
-      }
-
-      const route = ADMIN_ROUTES[routeId]
-
-      if (route && canViewAdminRoute(currentRole, route, currentPermissions)) {
-        uniqueRouteIds.push(routeId)
-      }
-    })
-  })
-
-  return uniqueRouteIds
-}
-
 function ProfileAvatar({ alt, className = '', profile }) {
   if (profile?.avatarUrl) {
     return <img alt={alt} className={className} src={profile.avatarUrl} />
@@ -288,8 +287,7 @@ function ProfileAvatar({ alt, className = '', profile }) {
 }
 
 function AdminProfilePage() {
-  const navigate = useNavigate()
-  const { currentPermissions, currentRole, currentUser } = useOutletContext()
+  const { currentRole, currentUser } = useOutletContext()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
@@ -318,27 +316,7 @@ function AdminProfilePage() {
   const effectiveRole = profile?.roleCode || currentRole
   const roleExperience = ROLE_EXPERIENCE[effectiveRole] ?? ROLE_EXPERIENCE.admin
   const profileStatusMeta = getProfileStatusMeta(profile?.status)
-  const accessibleRouteIds = useMemo(
-    () => flattenAccessibleRouteIds(effectiveRole, currentPermissions),
-    [currentPermissions, effectiveRole],
-  )
-  const accessibleRoutes = useMemo(
-    () => accessibleRouteIds.map((routeId) => ({ id: routeId, ...ADMIN_ROUTES[routeId] })),
-    [accessibleRouteIds],
-  )
-  const logsPageNumbers = useMemo(
-    () => createPageNumbers(logsMeta.total_pages),
-    [logsMeta.total_pages],
-  )
-  const primaryRoute = ADMIN_ROUTES[roleExperience.primaryRouteId]
-  const secondaryRoute = ADMIN_ROUTES[roleExperience.secondaryRouteId]
-  const canOpenPrimaryRoute = canViewAdminRoute(effectiveRole, primaryRoute, currentPermissions)
-  const canOpenSecondaryRoute = canViewAdminRoute(effectiveRole, secondaryRoute, currentPermissions)
-  const canOpenSettings = canViewAdminRoute(
-    effectiveRole,
-    ADMIN_ROUTES.settings,
-    currentPermissions,
-  )
+  const activityPaginationItems = createActivityPaginationItems(logsMeta.page, logsMeta.total_pages)
 
   useEffect(() => {
     let isActive = true
@@ -590,14 +568,6 @@ function AdminProfilePage() {
     }
   }
 
-  function openAdminRoute(route) {
-    if (!route) {
-      return
-    }
-
-    navigate(buildAdminPath(route.path, effectiveRole))
-  }
-
   if (loading) {
     return (
       <main className="admin-profile-page admin-profile-page--loading">
@@ -628,7 +598,7 @@ function AdminProfilePage() {
         className="admin-profile-page__header"
         eyebrow="Profile / Me API"
         title="Hồ sơ quản trị"
-        subtitle="Một màn hình hồ sơ thống nhất cho Staff, Admin và System Admin, đồng bộ theo thông tin /me và lịch sử thao tác cá nhân."
+        subtitle="Bố cục được tinh gọn lại để ưu tiên thông tin cá nhân, bảo mật tài khoản và lịch sử thao tác gần đây."
         actions={
           <AdminButton variant="secondary" onClick={handleManualRefresh}>
             Đồng bộ lại hồ sơ
@@ -637,49 +607,101 @@ function AdminProfilePage() {
       />
 
       <section className="admin-profile-page__hero-grid">
-        <AdminCard className="admin-profile-page__hero-card" padding="lg">
-          <div className="admin-profile-page__hero-main">
-            <div className="admin-profile-page__avatar-shell">
-              <ProfileAvatar alt={profile.fullName || profile.email} className="admin-profile-page__avatar-media" profile={profile} />
-            </div>
-
-            <div className="admin-profile-page__hero-copy">
-              <div className="admin-profile-page__hero-topline">
-                <AdminBadge tone="neutral">{roleExperience.accentLabel}</AdminBadge>
-                <AdminStatusBadge tone={profileStatusMeta.tone}>{profileStatusMeta.label}</AdminStatusBadge>
+        <div className="admin-profile-page__hero-stack">
+          <AdminCard className="admin-profile-page__hero-card" padding="lg">
+            <div className="admin-profile-page__hero-main">
+              <div className="admin-profile-page__avatar-shell">
+                <ProfileAvatar alt={profile.fullName || profile.email} className="admin-profile-page__avatar-media" profile={profile} />
               </div>
 
-              <h1>{profile.fullName || profile.email || 'Tài khoản quản trị'}</h1>
-              <p>{roleExperience.description}</p>
+              <div className="admin-profile-page__hero-copy">
+                <div className="admin-profile-page__hero-topline">
+                  <AdminBadge tone="neutral">{roleExperience.accentLabel}</AdminBadge>
+                  <AdminStatusBadge tone={profileStatusMeta.tone}>{profileStatusMeta.label}</AdminStatusBadge>
+                </div>
 
-              <div className="admin-profile-page__hero-meta">
-                <span>{profile.email || 'Chưa có email'}</span>
-                <span>{profile.phone || 'Chưa cập nhật số điện thoại'}</span>
-                <span>Đăng nhập gần nhất: {formatDateTime(profile.lastLoginAt)}</span>
-              </div>
+                <h1>{profile.fullName || profile.email || 'Tài khoản quản trị'}</h1>
+                <p>{roleExperience.description}</p>
 
-              <div className="admin-profile-page__hero-actions">
-                {canOpenPrimaryRoute ? (
-                  <AdminButton variant="primary" onClick={() => openAdminRoute(primaryRoute)}>
-                    {roleExperience.primaryRouteLabel}
-                  </AdminButton>
-                ) : null}
-
-                {canOpenSecondaryRoute ? (
-                  <AdminButton variant="secondary" onClick={() => openAdminRoute(secondaryRoute)}>
-                    {roleExperience.secondaryRouteLabel}
-                  </AdminButton>
-                ) : null}
-
-                {canOpenSettings ? (
-                  <AdminButton variant="ghost" onClick={() => openAdminRoute(ADMIN_ROUTES.settings)}>
-                    Mở cấu hình hệ thống
-                  </AdminButton>
-                ) : null}
+                <div className="admin-profile-page__hero-meta">
+                  <span>{profile.email || 'Chưa có email'}</span>
+                  <span>{profile.phone || 'Chưa cập nhật số điện thoại'}</span>
+                  <span>Đăng nhập gần nhất: {formatDateTime(profile.lastLoginAt)}</span>
+                </div>
               </div>
             </div>
-          </div>
-        </AdminCard>
+          </AdminCard>
+
+          <AdminCard className="admin-profile-page__panel-card admin-profile-page__profile-details-card" padding="lg">
+            <AdminSectionHeader
+              title="Thông tin cá nhân"
+              subtitle="Cập nhật họ tên, số điện thoại và dán URL ảnh đại diện mới nếu bạn muốn thay avatar."
+            />
+
+            {profileFormError ? (
+              <p className="admin-profile-page__form-feedback admin-profile-page__form-feedback--error" role="alert">
+                {profileFormError}
+              </p>
+            ) : null}
+
+            {profileFormFeedback ? (
+              <p className="admin-profile-page__form-feedback" role="status">
+                {profileFormFeedback}
+              </p>
+            ) : null}
+
+            <form className="admin-profile-page__form" onSubmit={handleProfileSubmit}>
+              <div className="admin-profile-page__form-grid">
+                <AdminField label="Họ và tên" required>
+                  <AdminInput
+                    name="fullName"
+                    placeholder="Nhập họ và tên"
+                    value={profileFormValues.fullName}
+                    onChange={handleProfileFormChange}
+                  />
+                </AdminField>
+
+                <AdminField label="Số điện thoại">
+                  <AdminInput
+                    name="phone"
+                    placeholder="Ví dụ 0911000002"
+                    value={profileFormValues.phone}
+                    onChange={handleProfileFormChange}
+                  />
+                </AdminField>
+              </div>
+
+              <AdminField
+                helper="Chỉ cần dán URL ảnh mới khi muốn thay avatar hiện tại."
+                label="URL ảnh đại diện mới"
+              >
+                <AdminInput
+                  name="avatarUrl"
+                  placeholder="https://..."
+                  value={profileFormValues.avatarUrl}
+                  onChange={handleProfileFormChange}
+                />
+              </AdminField>
+
+              <div className="admin-profile-page__inline-meta">
+                <div className="admin-profile-page__inline-meta-item admin-profile-page__inline-meta-item--email">
+                  <span>Email đăng nhập</span>
+                  <strong>{profile.email || 'Chưa cập nhật'}</strong>
+                </div>
+                <div className="admin-profile-page__inline-meta-item">
+                  <span>Vai trò</span>
+                  <strong>{profile.roleName}</strong>
+                </div>
+              </div>
+
+              <div className="admin-profile-page__form-actions">
+                <AdminButton loading={profileFormLoading} type="submit" variant="primary">
+                  Lưu thay đổi hồ sơ
+                </AdminButton>
+              </div>
+            </form>
+          </AdminCard>
+        </div>
 
         <AdminCard className="admin-profile-page__spotlight-card" padding="lg">
           <AdminSectionHeader
@@ -715,212 +737,67 @@ function AdminProfilePage() {
         </AdminCard>
       </section>
 
-      <section className="admin-profile-page__kpi-grid" aria-label="Tóm tắt hồ sơ quản trị">
-        <AdminKpiCard
-          helper="Role hiện được đồng bộ từ hồ sơ /me."
-          label="Vai trò hiện tại"
-          tone="brand"
-          value={profile.roleName}
-        />
-        <AdminKpiCard
-          helper="Số permission backend trả về theo tài khoản hiện tại."
-          label="Permission đồng bộ"
-          tone="warning"
-          value={profile.permissions.length}
-        />
-        <AdminKpiCard
-          helper="Các màn hình admin hiện bạn có thể mở trực tiếp."
-          label="Màn hình truy cập"
-          tone="success"
-          value={accessibleRoutes.length}
-        />
-        <AdminKpiCard
-          helper="Thời điểm hệ thống ghi nhận đăng nhập gần nhất."
-          label="Lần đăng nhập gần nhất"
-          tone="neutral"
-          value={formatDate(profile.lastLoginAt)}
-        />
-      </section>
-
       <section className="admin-profile-page__content-grid">
-        <AdminCard className="admin-profile-page__panel-card" padding="lg">
+        <AdminCard className="admin-profile-page__panel-card admin-profile-page__security-card" padding="lg">
           <AdminSectionHeader
-            title="Thông tin cá nhân"
-            subtitle="Cập nhật họ tên, số điện thoại và dán URL ảnh đại diện mới nếu bạn muốn thay avatar."
+            title="Bảo mật tài khoản"
+            subtitle="Đổi mật khẩu đăng nhập bằng mật khẩu hiện tại và đồng bộ thời điểm cập nhật ngay sau khi thành công."
           />
 
-          {profileFormError ? (
+          {passwordFormError ? (
             <p className="admin-profile-page__form-feedback admin-profile-page__form-feedback--error" role="alert">
-              {profileFormError}
+              {passwordFormError}
             </p>
           ) : null}
 
-          {profileFormFeedback ? (
+          {passwordFormFeedback ? (
             <p className="admin-profile-page__form-feedback" role="status">
-              {profileFormFeedback}
+              {passwordFormFeedback}
             </p>
           ) : null}
 
-          <form className="admin-profile-page__form" onSubmit={handleProfileSubmit}>
-            <div className="admin-profile-page__form-grid">
-              <AdminField label="Họ và tên" required>
-                <AdminInput
-                  name="fullName"
-                  placeholder="Nhập họ và tên"
-                  value={profileFormValues.fullName}
-                  onChange={handleProfileFormChange}
-                />
-              </AdminField>
-
-              <AdminField label="Số điện thoại">
-                <AdminInput
-                  name="phone"
-                  placeholder="Ví dụ 0911000002"
-                  value={profileFormValues.phone}
-                  onChange={handleProfileFormChange}
-                />
-              </AdminField>
-            </div>
-
-            <AdminField
-              helper="Chỉ cần dán URL ảnh mới khi muốn thay avatar hiện tại."
-              label="URL ảnh đại diện mới"
-            >
+          <form className="admin-profile-page__form" onSubmit={handlePasswordSubmit}>
+            <AdminField label="Mật khẩu hiện tại" required>
               <AdminInput
-                name="avatarUrl"
-                placeholder="https://..."
-                value={profileFormValues.avatarUrl}
-                onChange={handleProfileFormChange}
+                autoComplete="current-password"
+                name="currentPassword"
+                type="password"
+                value={passwordFormValues.currentPassword}
+                onChange={handlePasswordFormChange}
               />
             </AdminField>
 
-            <div className="admin-profile-page__inline-meta">
-              <div>
-                <span>Email đăng nhập</span>
-                <strong>{profile.email || 'Chưa cập nhật'}</strong>
-              </div>
-              <div>
-                <span>Vai trò</span>
-                <strong>{profile.roleName}</strong>
-              </div>
-              <div>
-                <span>Trạng thái</span>
-                <strong>{profileStatusMeta.label}</strong>
-              </div>
-            </div>
+            <AdminField helper="Tối thiểu 8 ký tự." label="Mật khẩu mới" required>
+              <AdminInput
+                autoComplete="new-password"
+                name="newPassword"
+                type="password"
+                value={passwordFormValues.newPassword}
+                onChange={handlePasswordFormChange}
+              />
+            </AdminField>
+
+            <AdminField label="Xác nhận mật khẩu mới" required>
+              <AdminInput
+                autoComplete="new-password"
+                name="confirmPassword"
+                type="password"
+                value={passwordFormValues.confirmPassword}
+                onChange={handlePasswordFormChange}
+              />
+            </AdminField>
 
             <div className="admin-profile-page__form-actions">
-              <AdminButton loading={profileFormLoading} type="submit" variant="primary">
-                Lưu thay đổi hồ sơ
+              <AdminButton loading={passwordFormLoading} type="submit" variant="secondary">
+                Đổi mật khẩu
               </AdminButton>
             </div>
           </form>
         </AdminCard>
-
-        <div className="admin-profile-page__side-stack">
-          <AdminCard className="admin-profile-page__panel-card" padding="lg">
-            <AdminSectionHeader
-              title="Bảo mật tài khoản"
-              subtitle="Đổi mật khẩu đăng nhập bằng mật khẩu hiện tại và đồng bộ thời điểm cập nhật ngay sau khi thành công."
-            />
-
-            {passwordFormError ? (
-              <p className="admin-profile-page__form-feedback admin-profile-page__form-feedback--error" role="alert">
-                {passwordFormError}
-              </p>
-            ) : null}
-
-            {passwordFormFeedback ? (
-              <p className="admin-profile-page__form-feedback" role="status">
-                {passwordFormFeedback}
-              </p>
-            ) : null}
-
-            <form className="admin-profile-page__form" onSubmit={handlePasswordSubmit}>
-              <AdminField label="Mật khẩu hiện tại" required>
-                <AdminInput
-                  autoComplete="current-password"
-                  name="currentPassword"
-                  type="password"
-                  value={passwordFormValues.currentPassword}
-                  onChange={handlePasswordFormChange}
-                />
-              </AdminField>
-
-              <AdminField helper="Tối thiểu 8 ký tự." label="Mật khẩu mới" required>
-                <AdminInput
-                  autoComplete="new-password"
-                  name="newPassword"
-                  type="password"
-                  value={passwordFormValues.newPassword}
-                  onChange={handlePasswordFormChange}
-                />
-              </AdminField>
-
-              <AdminField label="Xác nhận mật khẩu mới" required>
-                <AdminInput
-                  autoComplete="new-password"
-                  name="confirmPassword"
-                  type="password"
-                  value={passwordFormValues.confirmPassword}
-                  onChange={handlePasswordFormChange}
-                />
-              </AdminField>
-
-              <div className="admin-profile-page__form-actions">
-                <AdminButton loading={passwordFormLoading} type="submit" variant="secondary">
-                  Đổi mật khẩu
-                </AdminButton>
-              </div>
-            </form>
-          </AdminCard>
-
-          <AdminCard className="admin-profile-page__panel-card" padding="lg">
-            <AdminSectionHeader
-              title="Quyền và phạm vi truy cập"
-              subtitle="Tóm tắt các màn hình nghiệp vụ đang mở theo role và permission thực tế của tài khoản."
-            />
-
-            <div className="admin-profile-page__chip-group">
-              {accessibleRoutes.map((route) => (
-                <AdminBadge key={route.id} tone="neutral">
-                  {route.label}
-                </AdminBadge>
-              ))}
-            </div>
-
-            <div className="admin-profile-page__permission-summary">
-              <strong>{profile.permissions.length}</strong>
-              <span>permission backend đang được đồng bộ từ Profile / Me API.</span>
-            </div>
-          </AdminCard>
-        </div>
       </section>
 
-      <section className="admin-profile-page__bottom-grid">
-        <AdminCard className="admin-profile-page__panel-card" padding="lg">
-          <AdminSectionHeader
-            title="Permission backend hiện tại"
-            subtitle="Danh sách này lấy theo hồ sơ /me nên rất hữu ích khi kiểm tra tài khoản đang được gán quyền gì trên backend."
-          />
-
-          {profile.permissions.length > 0 ? (
-            <div className="admin-profile-page__chip-group">
-              {profile.permissions.map((permissionCode) => (
-                <AdminBadge key={permissionCode} tone="neutral">
-                  {permissionCode}
-                </AdminBadge>
-              ))}
-            </div>
-          ) : (
-            <AdminEmptyState
-              title="Chưa có permission nào được đồng bộ"
-              description="Hệ thống hiện chưa trả về permission cho tài khoản này từ Profile / Me API."
-            />
-          )}
-        </AdminCard>
-
-        <AdminCard className="admin-profile-page__panel-card" padding="lg">
+      <section className="admin-profile-page__activity-section">
+        <AdminCard className="admin-profile-page__panel-card admin-profile-page__activity-card" padding="lg">
           <AdminSectionHeader
             title="Lịch sử hoạt động của tôi"
             subtitle="Hiển thị dữ liệu từ /me/logs để bạn kiểm tra các lần cập nhật hồ sơ, đổi mật khẩu hoặc thao tác nhạy cảm gần đây."
@@ -970,17 +847,91 @@ function AdminProfilePage() {
                     ? `Hiển thị trang ${logsMeta.page}/${logsMeta.total_pages || 1} • ${logsMeta.total} hoạt động`
                     : 'Chưa có hoạt động để hiển thị'}
                 </p>
-                <AdminPagination
-                  currentPage={logsMeta.page}
-                  pages={logsPageNumbers}
-                  totalPages={logsMeta.total_pages}
-                  onPageChange={(nextPage) => {
-                    setLogsMeta((currentValue) => ({
-                      ...currentValue,
-                      page: nextPage,
-                    }))
-                  }}
-                />
+                {logsMeta.total_pages > 1 ? (
+                  <nav className="admin-profile-page__activity-pagination" aria-label="Phân trang lịch sử hoạt động">
+                    <AdminButton
+                      aria-label="Đến trang đầu tiên"
+                      disabled={logsMeta.page <= 1}
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setLogsMeta((currentValue) => ({
+                          ...currentValue,
+                          page: 1,
+                        }))
+                      }}
+                    >
+                      {'<<'}
+                    </AdminButton>
+
+                    <AdminButton
+                      aria-label="Về trang trước"
+                      disabled={logsMeta.page <= 1}
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setLogsMeta((currentValue) => ({
+                          ...currentValue,
+                          page: Math.max(1, currentValue.page - 1),
+                        }))
+                      }}
+                    >
+                      {'<'}
+                    </AdminButton>
+
+                    {activityPaginationItems.map((item) => {
+                      if (item.type === 'ellipsis') {
+                        return <span className="admin-profile-page__activity-pagination-ellipsis" key={item.value}>...</span>
+                      }
+
+                      return (
+                        <AdminButton
+                          key={item.value}
+                          size="sm"
+                          variant={logsMeta.page === item.value ? 'primary' : 'ghost'}
+                          onClick={() => {
+                            setLogsMeta((currentValue) => ({
+                              ...currentValue,
+                              page: item.value,
+                            }))
+                          }}
+                        >
+                          {item.value}
+                        </AdminButton>
+                      )
+                    })}
+
+                    <AdminButton
+                      aria-label="Sang trang sau"
+                      disabled={logsMeta.page >= logsMeta.total_pages}
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setLogsMeta((currentValue) => ({
+                          ...currentValue,
+                          page: Math.min(currentValue.total_pages || 1, currentValue.page + 1),
+                        }))
+                      }}
+                    >
+                      {'>'}
+                    </AdminButton>
+
+                    <AdminButton
+                      aria-label="Đến trang cuối cùng"
+                      disabled={logsMeta.page >= logsMeta.total_pages}
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setLogsMeta((currentValue) => ({
+                          ...currentValue,
+                          page: currentValue.total_pages || 1,
+                        }))
+                      }}
+                    >
+                      {'>>'}
+                    </AdminButton>
+                  </nav>
+                ) : null}
               </div>
             </>
           ) : null}
