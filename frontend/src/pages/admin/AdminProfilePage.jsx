@@ -88,7 +88,7 @@ const STATUS_META = Object.freeze({
   deleted: { label: 'Đã xóa mềm', tone: 'danger' },
 })
 
-const ACTIVITY_VISIBLE_PAGE_COUNT = 5
+const ACTIVITY_VISIBLE_PAGE_COUNT = 4
 
 function formatDateTime(value) {
   if (!value) {
@@ -863,7 +863,6 @@ function AdminProfilePage() {
                     >
                       {'<<'}
                     </AdminButton>
-
                     <AdminButton
                       aria-label="Về trang trước"
                       disabled={logsMeta.page <= 1}
@@ -878,7 +877,6 @@ function AdminProfilePage() {
                     >
                       {'<'}
                     </AdminButton>
-
                     {activityPaginationItems.map((item) => {
                       if (item.type === 'ellipsis') {
                         return <span className="admin-profile-page__activity-pagination-ellipsis" key={item.value}>...</span>
@@ -900,7 +898,6 @@ function AdminProfilePage() {
                         </AdminButton>
                       )
                     })}
-
                     <AdminButton
                       aria-label="Sang trang sau"
                       disabled={logsMeta.page >= logsMeta.total_pages}
@@ -915,7 +912,6 @@ function AdminProfilePage() {
                     >
                       {'>'}
                     </AdminButton>
-
                     <AdminButton
                       aria-label="Đến trang cuối cùng"
                       disabled={logsMeta.page >= logsMeta.total_pages}

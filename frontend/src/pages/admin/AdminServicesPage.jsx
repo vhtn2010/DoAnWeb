@@ -1,6 +1,6 @@
 import AdminServiceFormModal from '../../components/admin/services/AdminServiceFormFigmaModal.jsx'
 import AdminServiceStatusActionModal from '../../components/admin/services/AdminServiceStatusActionModal.jsx'
-import { AdminEmptyState, AdminErrorState } from '../../components/admin/ui/index.js'
+import { AdminEmptyState, AdminErrorState, AdminPagination } from '../../components/admin/ui/index.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
 import useClickableSelectShell from '../../hooks/useClickableSelectShell.js'
 import useAdminServices from '../../hooks/useAdminServices.js'
@@ -35,36 +35,6 @@ function ChevronDownIcon() {
     <AdminActionSvgIcon>
       <path
         d="m7 10 5 5 5-5"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-    </AdminActionSvgIcon>
-  )
-}
-
-function ChevronLeftIcon() {
-  return (
-    <AdminActionSvgIcon>
-      <path
-        d="m15 18-6-6 6-6"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-    </AdminActionSvgIcon>
-  )
-}
-
-function ChevronRightIcon() {
-  return (
-    <AdminActionSvgIcon>
-      <path
-        d="m9 18 6-6-6-6"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"
@@ -488,43 +458,13 @@ function AdminServicesPage() {
               : 'Hiện không có kết quả để hiển thị'}
           </p>
 
-          <nav className="admin-services-pagination" aria-label="Phân trang dịch vụ">
-            <button
-              aria-label="Trang trước"
-              className="admin-services-pagination__button admin-services-pagination__button--arrow"
-              disabled={pagination.page <= 1}
-              type="button"
-              onClick={() => setCurrentPage(Math.max(1, pagination.page - 1))}
-            >
-              <ChevronLeftIcon />
-            </button>
-
-            {pageNumbers.map((pageNumber) => (
-              <button
-                aria-current={pagination.page === pageNumber ? 'page' : undefined}
-                className={
-                  pagination.page === pageNumber
-                    ? 'admin-services-pagination__button admin-services-pagination__button--active'
-                    : 'admin-services-pagination__button'
-                }
-                key={pageNumber}
-                type="button"
-                onClick={() => setCurrentPage(pageNumber)}
-              >
-                {pageNumber}
-              </button>
-            ))}
-
-            <button
-              aria-label="Trang sau"
-              className="admin-services-pagination__button admin-services-pagination__button--arrow"
-              disabled={pagination.page >= pagination.total_pages}
-              type="button"
-              onClick={() => setCurrentPage(Math.min(pagination.total_pages, pagination.page + 1))}
-            >
-              <ChevronRightIcon />
-            </button>
-          </nav>
+          <AdminPagination
+            className="admin-services-pagination"
+            currentPage={pagination.page}
+            pages={pageNumbers}
+            totalPages={pagination.total_pages}
+            onPageChange={setCurrentPage}
+          />
         </footer>
       </section>
 

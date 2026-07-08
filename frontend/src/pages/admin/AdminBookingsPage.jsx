@@ -6,6 +6,7 @@ import {
   AdminEmptyState,
   AdminErrorState,
   AdminLoadingBlock,
+  AdminPagination,
 } from '../../components/admin/ui/index.js'
 import {
   ADMIN_BOOKING_STATUSES,
@@ -659,44 +660,14 @@ function AdminBookingsPage() {
             : 'Hiện không có đơn hàng để hiển thị'}
         </p>
 
-        <nav className="admin-bookings-page__pagination" aria-label="Phân trang đơn hàng">
-          <button
-            className="admin-bookings-page__page-button admin-bookings-page__page-button--arrow"
-            disabled={loading || currentPage === 1}
-            type="button"
-            aria-label="Trang trước"
-            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-          >
-            <BookingIcon name="chevron-left" />
-          </button>
-
-          {pageNumbers.map((pageNumber) => (
-            <button
-              className={
-                pageNumber === currentPage
-                  ? 'admin-bookings-page__page-button admin-bookings-page__page-button--active'
-                  : 'admin-bookings-page__page-button'
-              }
-              key={pageNumber}
-              type="button"
-              disabled={loading}
-              aria-current={pageNumber === currentPage ? 'page' : undefined}
-              onClick={() => setCurrentPage(pageNumber)}
-            >
-              {pageNumber}
-            </button>
-          ))}
-
-          <button
-            className="admin-bookings-page__page-button admin-bookings-page__page-button--arrow"
-            disabled={loading || currentPage === totalPages}
-            type="button"
-            aria-label="Trang sau"
-            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-          >
-            <BookingIcon name="chevron-right" />
-          </button>
-        </nav>
+        <AdminPagination
+          className="admin-bookings-page__pagination"
+          currentPage={currentPage}
+          disabled={loading}
+          pages={pageNumbers}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </footer>
 
       {activeBooking ? (
