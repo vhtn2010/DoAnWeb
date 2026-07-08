@@ -226,7 +226,7 @@ export const customerProfileFixture = Object.freeze({
       description: 'Xem checklist hành lý, giấy tờ và mẹo di chuyển phù hợp từng hành trình.',
       action_label: 'Mở sổ tay',
       icon: 'guide',
-      detail_path: '/services',
+      detail_path: '/travel-handbook',
     },
   ],
   support_links: [

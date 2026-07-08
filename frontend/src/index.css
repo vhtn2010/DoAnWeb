@@ -18302,3 +18302,416 @@ select {
     width: 100%;
   }
 }
+
+.travel-handbook-page {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 64px;
+  display: grid;
+  gap: 24px;
+}
+
+.travel-handbook-hero,
+.travel-handbook-stat-card,
+.travel-handbook-toolbar,
+.travel-handbook-panel,
+.travel-handbook-empty,
+.travel-guide-card {
+  border: 1px solid rgba(214, 40, 40, 0.1);
+  box-shadow: 0 18px 48px rgba(104, 31, 20, 0.08);
+}
+
+.travel-handbook-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
+  gap: 24px;
+  padding: 32px;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 225, 173, 0.78), transparent 34%),
+    linear-gradient(135deg, #fff6ea 0%, #fffdfa 52%, #fdf0ee 100%);
+}
+
+.travel-handbook-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -80px -120px auto;
+  width: 240px;
+  height: 240px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(214, 40, 40, 0.18), transparent 70%);
+}
+
+.travel-handbook-hero__copy,
+.travel-handbook-hero__spotlight {
+  position: relative;
+  z-index: 1;
+}
+
+.travel-handbook-hero__eyebrow,
+.travel-handbook-toolbar__eyebrow,
+.travel-handbook-panel__eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d62828;
+}
+
+.travel-handbook-hero__copy h1,
+.travel-handbook-toolbar h2,
+.travel-handbook-panel h2 {
+  margin: 0;
+  color: #34130f;
+}
+
+.travel-handbook-hero__copy p,
+.travel-handbook-hero__spotlight p,
+.travel-handbook-stat-card p,
+.travel-handbook-empty p,
+.travel-guide-card__heading p,
+.travel-guide-card__note p,
+.travel-handbook-tip p {
+  margin: 0;
+  color: #6c514a;
+  line-height: 1.6;
+}
+
+.travel-handbook-hero__actions,
+.travel-guide-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.travel-handbook-hero__actions {
+  margin-top: 22px;
+}
+
+.travel-handbook-hero__button,
+.travel-guide-card__button,
+.travel-handbook-empty__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #d62828;
+  color: #fff8f4;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 14px 28px rgba(214, 40, 40, 0.22);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.travel-handbook-hero__button--secondary,
+.travel-guide-card__button--secondary {
+  border-color: rgba(214, 40, 40, 0.18);
+  background: rgba(255, 255, 255, 0.82);
+  color: #d62828;
+  box-shadow: none;
+}
+
+.travel-handbook-hero__spotlight {
+  align-self: stretch;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(166, 24, 24, 0.96), rgba(214, 40, 40, 0.92));
+  color: #fff8f1;
+}
+
+.travel-handbook-hero__badge {
+  justify-self: start;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.travel-handbook-hero__spotlight strong {
+  font-size: clamp(1.45rem, 1.2rem + 1vw, 2rem);
+}
+
+.travel-handbook-hero__spotlight p,
+.travel-handbook-hero__spotlight small {
+  color: rgba(255, 248, 241, 0.9);
+}
+
+.travel-handbook-stats,
+.travel-handbook-layout {
+  display: grid;
+  gap: 20px;
+}
+
+.travel-handbook-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.travel-handbook-stat-card {
+  padding: 22px 24px;
+  border-radius: 28px;
+  background: #fffdfb;
+  display: grid;
+  gap: 10px;
+}
+
+.travel-handbook-stat-card span {
+  color: #d62828;
+  font-weight: 700;
+}
+
+.travel-handbook-stat-card strong {
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  color: #34130f;
+}
+
+.travel-handbook-layout {
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+  align-items: start;
+}
+
+.travel-handbook-main,
+.travel-handbook-sidebar,
+.travel-handbook-guide-list,
+.travel-handbook-tip-list {
+  display: grid;
+  gap: 20px;
+}
+
+.travel-handbook-toolbar,
+.travel-handbook-panel,
+.travel-handbook-empty {
+  padding: 24px;
+  border-radius: 30px;
+  background: #fffdfb;
+}
+
+.travel-handbook-toolbar {
+  display: grid;
+  gap: 18px;
+}
+
+.travel-handbook-search {
+  display: grid;
+  gap: 10px;
+}
+
+.travel-handbook-search__label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #57312b;
+}
+
+.travel-handbook-search__input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid rgba(214, 40, 40, 0.14);
+  border-radius: 18px;
+  background: #fff;
+  color: #34130f;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.travel-handbook-search__input::placeholder {
+  color: #ab8a80;
+}
+
+.travel-handbook-search__input:focus {
+  outline: none;
+  border-color: rgba(214, 40, 40, 0.42);
+  box-shadow: 0 0 0 4px rgba(214, 40, 40, 0.12);
+}
+
+.travel-handbook-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.travel-handbook-filter {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(214, 40, 40, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 246, 234, 0.7);
+  color: #8d3f3f;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.travel-handbook-filter--active {
+  border-color: transparent;
+  background: #d62828;
+  color: #fff8f4;
+}
+
+.travel-guide-card {
+  padding: 22px;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 166, 0.34), transparent 32%),
+    #fffdfb;
+  display: grid;
+  gap: 18px;
+}
+
+.travel-guide-card__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.travel-guide-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 206, 133, 0.3), rgba(214, 40, 40, 0.14));
+  color: #d62828;
+}
+
+.travel-guide-card__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.travel-guide-card__heading {
+  display: grid;
+  gap: 6px;
+}
+
+.travel-guide-card__heading strong,
+.travel-guide-card__note strong,
+.travel-handbook-empty strong,
+.travel-handbook-tip strong {
+  color: #34130f;
+}
+
+.travel-guide-card__type {
+  justify-self: start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(214, 40, 40, 0.08);
+  color: #d62828;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.travel-guide-card__content {
+  display: grid;
+  gap: 16px;
+}
+
+.travel-guide-card__checklist,
+.travel-handbook-doc-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+  color: #57312b;
+  line-height: 1.6;
+}
+
+.travel-guide-card__note,
+.travel-handbook-tip {
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 242, 232, 0.92);
+  display: grid;
+  gap: 8px;
+}
+
+.travel-handbook-doc-list {
+  padding-left: 18px;
+}
+
+.travel-handbook-tip-list {
+  gap: 14px;
+}
+
+.travel-handbook-empty {
+  display: grid;
+  gap: 12px;
+}
+
+.travel-handbook-hero__button:hover,
+.travel-handbook-hero__button:focus-visible,
+.travel-guide-card__button:hover,
+.travel-guide-card__button:focus-visible,
+.travel-handbook-empty__button:hover,
+.travel-handbook-empty__button:focus-visible,
+.travel-handbook-filter:hover,
+.travel-handbook-filter:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.travel-handbook-filter:hover,
+.travel-handbook-filter:focus-visible {
+  border-color: rgba(214, 40, 40, 0.28);
+}
+
+@media (max-width: 1120px) {
+  .travel-handbook-hero,
+  .travel-handbook-layout,
+  .travel-handbook-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .travel-handbook-page {
+    width: min(100% - 24px, 1180px);
+    padding: 24px 0 56px;
+    gap: 18px;
+  }
+
+  .travel-handbook-hero,
+  .travel-handbook-toolbar,
+  .travel-handbook-panel,
+  .travel-handbook-empty,
+  .travel-guide-card,
+  .travel-handbook-stat-card {
+    padding: 20px 18px;
+    border-radius: 24px;
+  }
+
+  .travel-handbook-hero__button,
+  .travel-guide-card__button,
+  .travel-handbook-empty__button {
+    width: 100%;
+  }
+
+  .travel-guide-card__header {
+    grid-template-columns: 1fr;
+  }
+}
