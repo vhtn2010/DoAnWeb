@@ -259,15 +259,24 @@ function AdminSupportFigmaPage() {
                   type="button"
                   onClick={() => selectTicket(ticket)}
                 >
-                  <span className="admin-support-ticket__top">
-                    <strong>#{ticket.displayCode}</strong>
-                    <span>{ticket.updatedLabel}</span>
-                  </span>
-                  <span className="admin-support-ticket__customer">{ticket.customerName}</span>
-                  <span className="admin-support-ticket__subject">{ticket.subject}</span>
-                  <span className="admin-support-ticket__badges">
-                    <SupportBadge tone={priority.tone}>{priority.label}</SupportBadge>
-                    <SupportBadge tone={status.tone}>{status.label}</SupportBadge>
+                  <span className="admin-support-ticket__main">
+                    <SupportAvatar
+                      initials={ticket.customerInitials}
+                      name={ticket.customerName}
+                      size="sm"
+                    />
+                    <span className="admin-support-ticket__body">
+                      <span className="admin-support-ticket__top">
+                        <strong>#{ticket.displayCode}</strong>
+                        <span>{ticket.updatedLabel}</span>
+                      </span>
+                      <span className="admin-support-ticket__customer">{ticket.customerName}</span>
+                      <span className="admin-support-ticket__subject">{ticket.subject}</span>
+                      <span className="admin-support-ticket__badges">
+                        <SupportBadge tone={priority.tone}>{priority.label}</SupportBadge>
+                        <SupportBadge tone={status.tone}>{status.label}</SupportBadge>
+                      </span>
+                    </span>
                   </span>
                 </button>
               )

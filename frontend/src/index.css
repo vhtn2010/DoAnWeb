@@ -7371,21 +7371,24 @@ select {
 
 .admin-support-page {
   --support-brand: #c8102e;
+  --support-brand-soft: #fff0f3;
   --support-gold: #ffd700;
-  --support-ink: #191c1d;
-  --support-muted: #5c403d;
-  --support-border: #e1e3e4;
-  --support-page: #f8f9fa;
+  --support-ink: #1f2937;
+  --support-muted: #4b5563;
+  --support-border: #d6dee8;
+  --support-page: #f4ede7;
   --support-panel-height: clamp(600px, calc(100dvh - 160px), 680px);
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
-  width: min(100%, 1120px);
+  width: min(100%, 1280px);
   margin-inline: auto;
-  padding: 36px 32px 40px;
+  padding: 28px 20px 40px;
   display: grid;
   gap: 20px;
-  background: var(--support-page);
+  background:
+    radial-gradient(circle at top left, rgba(255, 223, 188, 0.22), transparent 24%),
+    linear-gradient(180deg, #fbf7f3 0%, var(--support-page) 100%);
   font-family: "Be Vietnam Pro", inherit;
 }
 
@@ -7423,6 +7426,7 @@ select {
   color: var(--support-muted);
   font-size: 16px;
   line-height: 24px;
+  font-weight: 500;
 }
 
 .admin-support-page__filters {
@@ -7433,8 +7437,8 @@ select {
   padding: 8px;
   border: 1px solid var(--support-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(31, 41, 55, 0.06);
 }
 
 .admin-support-page__filter {
@@ -7500,9 +7504,9 @@ select {
 
 .admin-support-page__workspace {
   display: grid;
-  grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(285px, 330px) minmax(0, 1fr);
   justify-content: stretch;
-  gap: 20px;
+  gap: 24px;
   align-items: stretch;
   padding: 0;
 }
@@ -7514,20 +7518,21 @@ select {
   height: var(--support-panel-height);
   overflow: hidden;
   border: 1px solid var(--support-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(31, 41, 55, 0.08);
 }
 
 .admin-support-page__queue {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  background: #fbf6f1;
 }
 
 .admin-support-page__search {
   padding: 16px;
   border-bottom: 1px solid var(--support-border);
-  background: #f8f9fa;
+  background: #fffaf6;
 }
 
 .admin-support-page__search-control {
@@ -7537,9 +7542,10 @@ select {
   gap: 10px;
   padding: 0 16px 0 12px;
   border: 1px solid var(--support-border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: #fff;
   color: rgba(92, 64, 61, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 214, 179, 0.16);
 }
 
 .admin-support-page__search-control svg {
@@ -7568,11 +7574,12 @@ select {
 .admin-support-page__list {
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 12px;
   min-height: 0;
-  padding: 10px;
+  padding: 14px;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  background: #f8f2ec;
 }
 
 .admin-support-page__queue-footer {
@@ -7580,7 +7587,7 @@ select {
   gap: 10px;
   padding: 12px 16px;
   border-top: 1px solid var(--support-border);
-  background: #fff;
+  background: #fffaf6;
   color: var(--support-muted);
   font-size: 12px;
   line-height: 18px;
@@ -7597,14 +7604,13 @@ select {
 
 .admin-support-ticket {
   position: relative;
-  display: grid;
-  gap: 7px;
+  display: block;
   width: 100%;
   min-height: 0;
-  padding: 13px 15px 13px 17px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: #fff;
+  padding: 13px 14px 13px 16px;
+  border: 1px solid #e6d8cc;
+  border-radius: 18px;
+  background: #ffffff;
   text-align: left;
   cursor: pointer;
   transition:
@@ -7616,31 +7622,45 @@ select {
 
 .admin-support-ticket::before {
   content: "";
-  width: 6px;
+  width: 4px;
   position: absolute;
-  top: 16px;
-  bottom: 16px;
-  left: 0;
+  top: 14px;
+  bottom: 14px;
+  left: 10px;
   border-radius: 0 999px 999px 0;
-  background: transparent;
+  background: rgba(200, 16, 46, 0.08);
 }
 
 .admin-support-ticket:hover,
 .admin-support-ticket:focus-visible {
   outline: none;
-  border-color: rgba(255, 215, 0, 0.35);
-  box-shadow: 0 14px 24px rgba(92, 64, 61, 0.08);
+  border-color: #f1c9b0;
+  background: #fffdfb;
+  box-shadow: 0 14px 26px rgba(124, 58, 26, 0.08);
   transform: translateY(-1px);
 }
 
 .admin-support-ticket--active {
-  border-color: rgba(200, 16, 46, 0.2);
-  background: #fff8f4;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+  border-color: #efb08b;
+  background: #fff6ef;
+  box-shadow: 0 16px 28px rgba(200, 16, 46, 0.08);
 }
 
 .admin-support-ticket--active::before {
-  background: var(--support-brand);
+  background: linear-gradient(180deg, #f5b53d 0%, var(--support-brand) 100%);
+}
+
+.admin-support-ticket__main {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.admin-support-ticket__body {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
 }
 
 .admin-support-ticket__top,
@@ -7651,6 +7671,14 @@ select {
   gap: 8px;
 }
 
+.admin-support-ticket__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 10px;
+  row-gap: 2px;
+}
+
 .admin-support-ticket__top strong,
 .admin-support-ticket__customer,
 .admin-support-message strong {
@@ -7659,30 +7687,43 @@ select {
 
 .admin-support-ticket__top strong {
   color: var(--support-brand);
-  font-size: 12px;
+  min-width: 0;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 16px;
+  line-height: 15px;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .admin-support-ticket__top span {
   color: var(--support-muted);
-  font-size: 12px;
-  line-height: 24px;
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .admin-support-ticket__customer {
-  padding-top: 4px;
-  font-size: 16px;
+  padding-top: 1px;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 20px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .admin-support-ticket__subject {
   display: block;
-  color: var(--support-muted);
-  font-size: 14px;
-  line-height: 22px;
+  color: #5b463d;
+  font-size: 13px;
+  line-height: 19px;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .admin-support-ticket__badges {
@@ -7692,12 +7733,12 @@ select {
 }
 
 .admin-support-ticket__badges .admin-ui-badge {
-  min-height: 32px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: 400;
-  line-height: 24px;
+  min-height: 28px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
   text-transform: uppercase;
 }
 
@@ -7711,14 +7752,14 @@ select {
   gap: 0;
   padding: 0;
   border-color: var(--support-border);
-  border-radius: 12px;
-  background: #fff;
+  border-radius: 18px;
+  background: #ffffff;
 }
 
 .admin-support-page__conversation .admin-ui-section-header {
   padding: 20px;
   border-bottom: 1px solid var(--support-border);
-  background: #fff;
+  background: #ffffff;
 }
 
 .admin-support-page__conversation .admin-ui-section-header__title {
@@ -7735,11 +7776,11 @@ select {
 .admin-support-page__thread {
   display: grid;
   align-content: start;
-  gap: 16px;
+  gap: 18px;
   min-height: 0;
-  padding: 20px;
+  padding: 22px 24px;
   overflow-y: auto;
-  background: #f8f9fa;
+  background: #f4f6f8;
 }
 
 .admin-support-page__subject {
@@ -7748,8 +7789,8 @@ select {
   justify-self: center;
   padding: 7px 14px;
   border: 1px solid var(--support-border);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 999px;
+  background: #ffffff;
   color: var(--support-muted);
   font-size: 12px;
   font-weight: 700;
@@ -7782,8 +7823,8 @@ select {
   min-height: 36px;
   padding: 0 14px;
   border: 1px solid var(--support-border);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 999px;
+  background: #ffffff;
   color: var(--support-muted);
   cursor: pointer;
   font: inherit;
@@ -7818,12 +7859,12 @@ select {
 .admin-support-message {
   display: grid;
   gap: 8px;
-  max-width: 390px;
-  padding: 14px 16px;
-  border: 1px solid var(--support-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
+  max-width: min(100%, 840px);
+  padding: 15px 18px;
+  border: 1px solid #d9e1ea;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(31, 41, 55, 0.08);
 }
 
 .admin-support-message strong {
@@ -7832,15 +7873,17 @@ select {
 }
 
 .admin-support-message span {
-  color: var(--support-muted);
+  color: #6b7280;
   font-size: 12px;
   line-height: 24px;
+  font-weight: 600;
 }
 
 .admin-support-message p {
-  color: var(--support-ink);
+  color: #111827;
   font-size: 16px;
-  line-height: 24px;
+  line-height: 26px;
+  font-weight: 500;
 }
 
 .admin-support-message--system {
@@ -7858,9 +7901,9 @@ select {
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--support-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(31, 41, 55, 0.08);
 }
 
 .admin-support-avatar {
@@ -7868,14 +7911,14 @@ select {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  border: 1px solid rgba(255, 215, 0, 0.9);
+  border: 1px solid rgba(244, 191, 92, 0.95);
   border-radius: 999px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(225, 227, 228, 0.82)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 240, 228, 0.9)),
     #fff;
   color: var(--support-brand);
   font-weight: 700;
-  box-shadow: 0 10px 22px rgba(92, 64, 61, 0.1);
+  box-shadow: 0 10px 22px rgba(92, 64, 61, 0.08);
 }
 
 .admin-support-avatar--lg {
@@ -7885,8 +7928,8 @@ select {
 }
 
 .admin-support-avatar--sm {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   font-size: 11px;
 }
 
@@ -7943,7 +7986,7 @@ select {
   gap: 18px;
   padding: 18px 20px;
   border-bottom: 1px solid var(--support-border);
-  background: #fff;
+  background: #ffffff;
 }
 
 .admin-support-detail-header__customer {
@@ -8008,8 +8051,8 @@ select {
   width: 40px;
   height: 40px;
   border-color: var(--support-border);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .admin-support-detail-header__actions button svg {
@@ -8045,11 +8088,16 @@ select {
 
 .admin-support-thread-item--staff .admin-support-message {
   border-color: rgba(200, 16, 46, 0.18);
-  background: #fff8f4;
+  background: #fff4ef;
 }
 
 .admin-support-thread-item--internal .admin-support-message {
   border-style: dashed;
+  background: #eef5ff;
+}
+
+.admin-support-thread-item:not(.admin-support-thread-item--staff) .admin-support-message {
+  background: #ffffff;
 }
 
 .admin-support-thread-item__content {
@@ -8092,15 +8140,16 @@ select {
   gap: 16px;
   padding: 18px 20px;
   border-top: 1px solid var(--support-border);
-  background: #fff;
+  background: #ffffff;
 }
 
 .admin-support-reply__editor {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--support-border);
-  border-radius: 12px;
-  background: #fff;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(31, 41, 55, 0.04);
 }
 
 .admin-support-reply__editor textarea {
@@ -8137,7 +8186,7 @@ select {
   gap: 12px;
   padding: 12px 16px;
   border-top: 1px solid rgba(229, 189, 185, 0.3);
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 248, 240, 0.76);
 }
 
 .admin-support-reply__internal {
@@ -10065,7 +10114,7 @@ select {
   padding: 12px 14px;
   border: 1px solid #eceef0;
   border-radius: 10px;
-  background: #fff;
+  background: rgba(255, 252, 248, 0.96);
 }
 
 .admin-settings-page__method-state {
@@ -10803,7 +10852,7 @@ select {
   overflow: auto;
   border: 1px solid var(--infra-line);
   border-radius: 16px;
-  background: #fff;
+  background: transparent;
   box-shadow: 0 28px 70px rgba(25, 28, 29, 0.22);
   padding: 24px;
 }
