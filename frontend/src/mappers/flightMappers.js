@@ -268,6 +268,9 @@ function resolveFareOptions(flight) {
 }
 
 function resolveEditorialDestination(editorialDestination = {}, flight = {}) {
+  const normalizedEditorialDestination =
+    editorialDestination && typeof editorialDestination === 'object' ? editorialDestination : {}
+  editorialDestination = normalizedEditorialDestination
   const arrivalCityLabel = formatCityLabel(flight.arrival_city ?? 'điểm đến')
   const fallbackEditorial =
     DESTINATION_EDITORIAL_BY_AIRPORT_CODE[flight.arrival_airport_code] ??
@@ -298,7 +301,7 @@ function resolveFlightInfoText(flight) {
 
   const aircraftLabel = flight.aircraft ?? 'tàu bay khai thác nội địa'
 
-  return `Chuyến bay được khai thác bằng ${aircraftLabel}. Hành khách sẽ có hành trình gọn gàng với thông tin hạng vé, hành lý và chính sách hiển thị theo dữ liệu mock hiện tại.`
+  return `Chuyến bay được khai thác bằng ${aircraftLabel}. Hành khách sẽ có hành trình gọn gàng với thông tin hạng vé, hành lý và chính sách hiển thị theo dữ liệu hiện có.`
 }
 
 function resolveOnboardBenefits(flight) {
@@ -310,6 +313,9 @@ function resolveOnboardBenefits(flight) {
 }
 
 function resolvePaymentSummary(paymentSummary = {}) {
+  const normalizedPaymentSummary =
+    paymentSummary && typeof paymentSummary === 'object' ? paymentSummary : {}
+  paymentSummary = normalizedPaymentSummary
   return {
     passenger_label: paymentSummary.passenger_label ?? 'Người lớn (x1)',
     taxes_label: paymentSummary.taxes_label ?? 'Thuế & Phí',
@@ -318,6 +324,20 @@ function resolvePaymentSummary(paymentSummary = {}) {
     cta_secondary: paymentSummary.cta_secondary ?? 'Thêm vào giỏ hàng',
     fare_subtitle: paymentSummary.fare_subtitle ?? '',
   }
+}
+
+function buildFlightDetailPath(flight, detailPathPrefix = '/flights') {
+  const basePath = `${detailPathPrefix}/${flight.slug}`
+
+  if (!flight.reference_id) {
+    return basePath
+  }
+
+  const searchParams = new URLSearchParams({
+    reference_id: flight.reference_id,
+  })
+
+  return `${basePath}?${searchParams.toString()}`
 }
 
 function buildBaseFlightView(flight) {
@@ -359,7 +379,7 @@ function buildBaseFlightView(flight) {
 export function mapFlightToCardView(flight) {
   return {
     ...buildBaseFlightView(flight),
-    detail_path: `/flights/${flight.slug}`,
+    detail_path: buildFlightDetailPath(flight),
   }
 }
 
@@ -378,7 +398,7 @@ export function mapFlightDetailResponseToView(
 
   const mappedFlight = {
     ...buildBaseFlightView(flight),
-    detail_path: `${detailPathPrefix}/${flight.slug}`,
+    detail_path: buildFlightDetailPath(flight, detailPathPrefix),
     eco_tag: flight.details?.eco_tag ?? '',
     fare_options: resolveFareOptions(flight),
     flight_info: resolveFlightInfoText(flight),
@@ -393,7 +413,7 @@ export function mapFlightDetailResponseToView(
     relatedFlights: Array.isArray(responseData.related_flights)
       ? responseData.related_flights.map((relatedFlight) => ({
           ...mapFlightToCardView(relatedFlight),
-          detail_path: `${detailPathPrefix}/${relatedFlight.slug}`,
+          detail_path: buildFlightDetailPath(relatedFlight, detailPathPrefix),
         }))
       : [],
   }

@@ -1,4 +1,5 @@
 import {
+  addCartItem as addCartItemWithApiAdapter,
   getActiveCart as getActiveCartWithApiAdapter,
   getCartSummary as getCartSummaryWithApiAdapter,
   removeCartItem as removeCartItemWithApiAdapter,
@@ -35,6 +36,17 @@ function shouldUseApi(authState = ROLES.guest) {
 
 export function addCartItemPreview(payload) {
   return cartAdapter.addCartItemPreview(payload)
+}
+
+export function addCartItem(payload, options = {}) {
+  if (shouldUseApi(options?.authState)) {
+    return addCartItemWithApiAdapter(payload)
+  }
+
+  return cartAdapter.addCartItemPreview({
+    authState: options?.authState,
+    item: options?.previewItem ?? payload,
+  })
 }
 
 export function getActiveCart(params) {

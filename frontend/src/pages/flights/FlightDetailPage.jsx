@@ -1,8 +1,8 @@
-import LoginRequiredModal from '../../components/auth/LoginRequiredModal.jsx'
 import FlightDetailHeaderCard from '../../components/flights/FlightDetailHeaderCard.jsx'
 import FlightEditorialSection from '../../components/flights/FlightEditorialSection.jsx'
 import FlightFareOptions from '../../components/flights/FlightFareOptions.jsx'
 import FlightInfoCards from '../../components/flights/FlightInfoCards.jsx'
+import FlightLoginRequiredModal from '../../components/flights/FlightLoginRequiredModal.jsx'
 import FlightPaymentSummary from '../../components/flights/FlightPaymentSummary.jsx'
 import FlightPolicyCard from '../../components/flights/FlightPolicyCard.jsx'
 import useFlightDetail from '../../hooks/useFlightDetail.js'
@@ -50,8 +50,8 @@ function FlightDetailTopActions() {
 
 function FlightDetailPage() {
   const {
-    addToCartMock,
-    bookNowMock,
+    addToCartAction,
+    bookNowAction,
     closeLoginPrompt,
     error,
     feedback,
@@ -60,12 +60,26 @@ function FlightDetailPage() {
     goToLoginFromPrompt,
     goBackToFlights,
     isLoginPromptOpen,
+    loginPromptVariant,
     loading,
     retry,
     selectFare,
     selectedFare,
     selectedFareId,
   } = useFlightDetail()
+
+  const loginPromptContent =
+    loginPromptVariant === 'booking'
+      ? {
+          eyebrow: 'Đặt chỗ',
+          title: 'Đăng nhập để có thể Đặt chỗ chuyến bay',
+          description: 'Đăng nhập để tiếp tục đặt chỗ chuyến bay bạn đã chọn nhanh hơn.',
+        }
+      : {
+          eyebrow: 'Giỏ hàng',
+          title: 'Vui lòng đăng nhập để có thể thêm vào giỏ hàng',
+          description: 'Đăng nhập để lưu dịch vụ bạn chọn và tiếp tục đặt chỗ thuận tiện hơn.',
+        }
 
   if (error) {
     return (
@@ -100,7 +114,7 @@ function FlightDetailPage() {
           <section className="flight-detail-state-card" role="status">
             <p className="flight-detail-state-card__eyebrow">Đang tải</p>
             <h1>Chi tiết vé máy bay đang được chuẩn bị</h1>
-            <p>Dữ liệu đang được đọc từ mock adapter theo đúng pattern API-ready hiện tại.</p>
+            <p>Dữ liệu chuyến bay đang được tải từ hệ thống.</p>
           </section>
         </div>
       </div>
@@ -110,10 +124,13 @@ function FlightDetailPage() {
   return (
     <div className="flight-detail-page">
       <div className="flight-detail-shell">
-        <LoginRequiredModal
+        <FlightLoginRequiredModal
           isOpen={isLoginPromptOpen}
           onClose={closeLoginPrompt}
           onLogin={goToLoginFromPrompt}
+          eyebrow={loginPromptContent.eyebrow}
+          title={loginPromptContent.title}
+          description={loginPromptContent.description}
         />
 
         <section className="flight-detail-page__topbar">
@@ -143,8 +160,8 @@ function FlightDetailPage() {
             flight={flight}
             selectedFare={selectedFare}
             formatCurrency={formatCurrency}
-            onAddToCart={addToCartMock}
-            onBookNow={bookNowMock}
+            onAddToCart={addToCartAction}
+            onBookNow={bookNowAction}
           />
         </div>
       </div>
