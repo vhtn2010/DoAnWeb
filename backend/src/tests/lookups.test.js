@@ -1036,6 +1036,7 @@ test('lookupService.getServiceDetail computes flight is_bookable and sanitizes c
         fare_price: '4200000',
         flight_number: 'VN123',
         seats_available: 5,
+        service_id: 'flight-service-1',
         status: 'open',
       }),
       getPublicServiceBySlug: async (slug) => {
