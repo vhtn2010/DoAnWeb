@@ -255,8 +255,8 @@ function AdminPaymentsPage() {
                     <span>{transaction.serviceName}</span>
                   </div>
                 </td>
-                <td>{formatCurrency(transaction.amount)}</td>
-                <td>{transaction.method}</td>
+                <td className="admin-payments-page__amount-cell">{formatCurrency(transaction.amount)}</td>
+                <td className="admin-payments-page__method-cell">{transaction.method}</td>
                 <td>
                   <AdminStatusBadge tone={status.tone}>{status.label}</AdminStatusBadge>
                 </td>
