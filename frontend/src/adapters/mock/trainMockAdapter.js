@@ -182,6 +182,18 @@ function resolveSelectedSeatArgument(selectedSeatOrSearchState = null) {
   return null
 }
 
+function normalizeSelectedSeats(selectedSeatValue = null) {
+  if (Array.isArray(selectedSeatValue)) {
+    return selectedSeatValue.filter(Boolean)
+  }
+
+  if (selectedSeatValue && typeof selectedSeatValue === 'object') {
+    return [selectedSeatValue]
+  }
+
+  return []
+}
+
 export async function listTrains({
   trip_type = DEFAULT_TRAIN_TRIP_TYPE,
   from_station = '',
@@ -380,6 +392,7 @@ export async function checkTrainAvailability({
   selected_train_id = '',
   selected_car_id = '',
   selected_seat_id = '',
+  selected_seat_ids = [],
 } = {}) {
   // TODO: replace mock train availability with train availability API in integration phase.
   const train = trainServiceFixtures.find((item) => item.id === selected_train_id)
@@ -394,22 +407,29 @@ export async function checkTrainAvailability({
 
   const cars = Array.isArray(train.details?.cars) ? train.details.cars : []
   const selectedCar = cars.find((car) => car.id === selected_car_id) ?? null
-  const selectedSeat = selectedCar?.seats?.find((seat) => seat.id === selected_seat_id) ?? null
+  const normalizedSeatIds = Array.isArray(selected_seat_ids) && selected_seat_ids.length
+    ? selected_seat_ids.filter(Boolean)
+    : selected_seat_id
+      ? [selected_seat_id]
+      : []
+  const selectedSeats = selectedCar?.seats?.filter((seat) => normalizedSeatIds.includes(seat.id)) ?? []
   const isAvailable =
     train.status === SERVICE_STATUSES.active &&
     Boolean(selectedCar) &&
-    Boolean(selectedSeat) &&
-    selectedSeat.status === 'available'
+    Boolean(normalizedSeatIds.length) &&
+    selectedSeats.length === normalizedSeatIds.length &&
+    selectedSeats.every((seat) => seat.status === 'available')
 
   return {
     success: true,
     message: isAvailable
-      ? 'Chỗ ngồi còn khả dụng trong dữ liệu mock.'
-      : 'Chỗ ngồi này hiện không còn khả dụng trong dữ liệu mock.',
+      ? 'Các chỗ ngồi còn khả dụng trong dữ liệu mock.'
+      : 'Một hoặc nhiều chỗ ngồi hiện không còn khả dụng trong dữ liệu mock.',
     data: {
-      is_available: isAvailable,
-      selected_seat_id: selectedSeat?.id ?? '',
       selected_car_id: selectedCar?.id ?? '',
+      selected_seat_id: selectedSeats[0]?.id ?? '',
+      selected_seat_ids: selectedSeats.map((seat) => seat.id),
+      is_available: isAvailable,
     },
   }
 }
@@ -438,7 +458,7 @@ export async function buildTrainSelectionPayload(
   }
 
   const legacyArguments = resolveSelectedSeatArgument(selectedSeatOrSearchState)
-  let selectedSeat = legacyArguments?.selectedSeat ?? selectedSeatOrSearchState
+  let selectedSeatValue = legacyArguments?.selectedSeat ?? selectedSeatOrSearchState
   let selectedSeatOption = legacyArguments?.selectedSeatOption ?? selectedSeatOptionOrSearchState
   let searchState = legacyArguments?.searchState ?? maybeSearchState ?? {}
 
@@ -456,7 +476,9 @@ export async function buildTrainSelectionPayload(
     searchState = selectedSeatOptionOrSearchState
   }
 
-  if (!selectedSeat) {
+  const selectedSeats = normalizeSelectedSeats(selectedSeatValue)
+
+  if (!selectedSeats.length) {
     return {
       success: false,
       message: 'Vui lòng chọn chỗ trước khi tiếp tục.',
@@ -468,12 +490,20 @@ export async function buildTrainSelectionPayload(
   const childCount = Math.max(Number(searchState.passengers?.children ?? 0), 0)
   const infantCount = Math.max(Number(searchState.passengers?.infants ?? 0), 0)
   const serviceFee = Math.max(Number(train.details?.payment_summary?.service_fee ?? 0), 0)
+  const firstSelectedSeat = selectedSeats[0] ?? null
   const selectedCar =
     (Array.isArray(train.details?.cars)
-      ? train.details.cars.find((car) => car.id === selectedSeat.car_id)
+      ? train.details.cars.find((car) => car.id === firstSelectedSeat?.car_id)
       : null) ?? null
   const unitPriceSnapshot = Math.max(
-    Number(selectedSeat.price ?? selectedSeatOption?.price ?? train.sale_price ?? 0),
+    Number(firstSelectedSeat?.price ?? selectedSeatOption?.price ?? train.sale_price ?? 0),
+    0,
+  )
+  const seatIds = selectedSeats.map((seat) => seat.id)
+  const seatCodes = selectedSeats.map((seat) => seat.code)
+  const seatNumbers = selectedSeats.map((seat) => seat.number)
+  const totalSeatPrice = selectedSeats.reduce(
+    (totalPrice, seat) => totalPrice + Math.max(Number(seat.price ?? unitPriceSnapshot), 0),
     0,
   )
 
@@ -486,7 +516,7 @@ export async function buildTrainSelectionPayload(
       reference_id: train.train_number,
       start_at: train.departure_at,
       end_at: train.arrival_at,
-      quantity: 1,
+      quantity: selectedSeats.length,
       unit_price_snapshot: unitPriceSnapshot,
       options: {
         trip_type: searchState.trip_type ?? DEFAULT_TRAIN_TRIP_TYPE,
@@ -504,21 +534,26 @@ export async function buildTrainSelectionPayload(
         train_number: train.train_number,
         departure_station: train.departure_station,
         arrival_station: train.arrival_station,
-        car_id: selectedSeat.car_id,
+        car_id: firstSelectedSeat?.car_id ?? '',
         car_label: selectedCar?.name ?? '',
-        seat_id: selectedSeat.id,
-        seat_code: selectedSeat.code,
+        seat_id: firstSelectedSeat?.id ?? '',
+        seat_ids: seatIds,
+        seat_code: seatCodes.join(', '),
+        seat_codes: seatCodes,
         seat_option_id: selectedSeatOption?.id ?? '',
         seat_option_name: selectedSeatOption?.name ?? train.seat_class,
-        selected_car_id: selectedSeat.car_id,
-        selected_seat_id: selectedSeat.id,
-        selected_seat_code: selectedSeat.code,
-        selected_seat_number: selectedSeat.number,
+        selected_car_id: firstSelectedSeat?.car_id ?? '',
+        selected_seat_id: firstSelectedSeat?.id ?? '',
+        selected_seat_ids: seatIds,
+        selected_seat_code: seatCodes.join(', '),
+        selected_seat_codes: seatCodes,
+        selected_seat_number: seatNumbers.join(', '),
+        selected_seat_numbers: seatNumbers,
         selected_seat_option_id: selectedSeatOption?.id ?? '',
         selected_seat_option_name: selectedSeatOption?.name ?? train.seat_class,
-        selected_seat_price: unitPriceSnapshot,
+        selected_seat_price: totalSeatPrice,
         service_fee: serviceFee,
-        total_amount: unitPriceSnapshot + serviceFee,
+        total_amount: totalSeatPrice + serviceFee,
         amenities: Array.isArray(train.details?.amenities) ? train.details.amenities : [],
       },
     },

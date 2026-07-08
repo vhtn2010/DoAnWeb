@@ -7,6 +7,7 @@ import { checkoutVoucherFixtures } from '../../fixtures/checkout.fixtures.js'
 import {
   buildCheckoutDraftFromCartSnapshot,
   buildCheckoutPayload,
+  buildPaymentConfirmationHandoff,
   calculateCheckoutSummary,
   cloneCheckoutValue,
   validateCheckoutForm,
@@ -78,11 +79,16 @@ export function buildCheckoutPayloadWithMock(formState = {}) {
 export async function submitCheckout(payload = {}) {
   // TODO: replace mock checkout submit with POST /bookings/checkout in API integration phase.
   // TODO: map traveller_info to booking_items.traveller_info during checkout API integration.
+  const checkoutPayload = cloneCheckoutValue(payload)
+  const paymentConfirmationHandoff = buildPaymentConfirmationHandoff(checkoutPayload)
+
   return {
     success: true,
     message: 'Thông tin đặt đơn đã sẵn sàng.',
     data: {
-      checkout_payload: cloneCheckoutValue(payload),
+      checkout_payload: checkoutPayload,
+      next_route: '/payment-confirmation',
+      ...paymentConfirmationHandoff,
     },
   }
 }

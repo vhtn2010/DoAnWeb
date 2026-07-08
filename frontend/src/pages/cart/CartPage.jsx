@@ -41,6 +41,7 @@ function CartBasketIcon() {
 
 function CartPage() {
   const {
+    canContinue,
     cartItems,
     error,
     feedback,
@@ -130,6 +131,7 @@ function CartPage() {
         <aside className="cart-page__sidebar">
           <CartSummaryCard
             feedbackHint="Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo."
+            isContinueDisabled={!canContinue}
             onContinue={handleContinueCheckout}
             summary={formattedSummary}
           />
