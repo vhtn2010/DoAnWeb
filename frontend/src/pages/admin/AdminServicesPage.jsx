@@ -20,7 +20,7 @@ const visibleTypeTabs = new Set([
   SERVICE_TYPES.flight,
   SERVICE_TYPES.train,
 ])
-const figmaRowActions = ['view', 'edit', 'delete']
+const figmaRowActions = ['edit', 'delete']
 
 function AdminActionSvgIcon({ children }) {
   return (
@@ -112,22 +112,6 @@ function SearchIcon() {
   )
 }
 
-function ViewIcon() {
-  return (
-    <AdminActionSvgIcon>
-      <path
-        d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-      <circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" strokeWidth="2" />
-    </AdminActionSvgIcon>
-  )
-}
-
 function EditIcon() {
   return (
     <AdminActionSvgIcon>
@@ -161,7 +145,6 @@ function TrashIcon() {
 const serviceActionIcons = Object.freeze({
   delete: <TrashIcon />,
   edit: <EditIcon />,
-  view: <ViewIcon />,
 })
 
 const serviceTableColumns = Object.freeze([
@@ -467,7 +450,7 @@ function AdminServicesPage() {
                               type="button"
                               onClick={() => handleRowAction(service, actionKey)}
                             >
-                              {serviceActionIcons[actionKey] ?? <ViewIcon />}
+                              {serviceActionIcons[actionKey] ?? null}
                             </button>
                           ))}
                         </div>
