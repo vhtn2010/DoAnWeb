@@ -25,9 +25,8 @@ function TrainSeatTypeCard({
       <div className="train-seat-type-card__header">
         <div>
           <h3>{option.name}</h3>
-          {option.badge ? <span>{option.badge}</span> : null}
+          {option.badge ? <span className="train-seat-type-card__badge">{option.badge}</span> : null}
         </div>
-        <strong>{formatCurrency(option.price)}</strong>
       </div>
 
       <ul className="train-seat-type-card__benefits">
@@ -36,16 +35,10 @@ function TrainSeatTypeCard({
         ))}
       </ul>
 
-      <button
-        className="train-seat-type-card__button"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation()
-          handleSelect()
-        }}
-      >
-        {selected ? 'Đang chọn' : 'Chọn hạng vé'}
-      </button>
+      <div className="train-seat-type-card__footer">
+        <strong>{formatCurrency(option.price)}</strong>
+        {selected ? <small>Đang chọn</small> : null}
+      </div>
     </article>
   )
 }

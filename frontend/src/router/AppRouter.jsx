@@ -7,13 +7,21 @@ import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
 import BookingConfirmationPage from '../pages/booking/BookingConfirmationPage.jsx'
-import PaymentConfirmationPlaceholderPage from '../pages/booking/PaymentConfirmationPlaceholderPage.jsx'
 import CartPage from '../pages/cart/CartPage.jsx'
 import CheckoutPage from '../pages/checkout/CheckoutPage.jsx'
 import FlightDetailPage from '../pages/flights/FlightDetailPage.jsx'
 import FlightListPage from '../pages/flights/FlightListPage.jsx'
 import HotelDetailPage from '../pages/hotels/HotelDetailPage.jsx'
 import HotelListPage from '../pages/hotels/HotelListPage.jsx'
+import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.jsx'
+import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
+import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
+import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
+import ProfilePage from '../pages/profile/ProfilePage.jsx'
+import NetVietBlogPage from '../pages/public/NetVietBlogPage.jsx'
+import TravelHandbookPage from '../pages/profile/TravelHandbookPage.jsx'
+import CustomerCarePage from '../pages/support/CustomerCarePage.jsx'
+import HelpCenterPage from '../pages/support/HelpCenterPage.jsx'
 import TrainDetailPage from '../pages/trains/TrainDetailPage.jsx'
 import TrainListPage from '../pages/trains/TrainListPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
@@ -36,8 +44,27 @@ function AppRouter() {
           />
           <Route
             path="/payment-confirmation"
-            element={<PaymentConfirmationPlaceholderPage />}
+            element={<PaymentConfirmationPage />}
           />
+          <Route
+            path="/payment-confirmation/:paymentCode"
+            element={<PaymentConfirmationPage />}
+          />
+          <Route
+            path="/payment-success"
+            element={<PaymentSuccessPage />}
+          />
+          <Route
+            path="/payment-success/:paymentCode"
+            element={<PaymentSuccessPage />}
+          />
+          <Route path="/departure-reminders" element={<DepartureRemindersPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/my-vouchers" element={<MyVouchersPage />} />
+          <Route path="/travel-handbook" element={<TravelHandbookPage />} />
+          <Route path="/blog" element={<NetVietBlogPage />} />
+          <Route path="/customer-care" element={<CustomerCarePage />} />
+          <Route path="/help-center" element={<HelpCenterPage />} />
           <Route path="/flights" element={<FlightListPage />} />
           <Route path="/flights/:slug" element={<FlightDetailPage />} />
           <Route path="/trains" element={<TrainListPage />} />

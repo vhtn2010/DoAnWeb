@@ -30,7 +30,7 @@ export const PAYMENT_STATUSES = Object.freeze({
 })
 
 export const BOOKING_DEFAULT_CURRENCY = 'VND'
-export const BOOKING_DEFAULT_PAYMENT_METHOD = 'bank_transfer'
+export const BOOKING_DEFAULT_PAYMENT_METHOD = 'card'
 export const BOOKING_DEFAULT_SERVICE_TYPE = SERVICE_TYPES.tour
 
 export const BOOKING_CONFIRMATION_STEPS = Object.freeze([

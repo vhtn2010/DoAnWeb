@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { BOOKING_DEFAULT_PAYMENT_METHOD } from '../constants/bookings.js'
 import { ROLES } from '../constants/roles.js'
 import { buildBookingConfirmationViewModel } from '../mappers/bookingMappers.js'
 import {
-  buildPaymentRedirectPayload,
   getBookingByCode,
   getBookingConfirmation,
 } from '../repositories/bookingRepository.js'
@@ -189,26 +187,13 @@ export default function useBookingConfirmation() {
       return
     }
 
-    try {
-      const selectedPaymentMethod =
-        paymentOptions[0]?.code ?? BOOKING_DEFAULT_PAYMENT_METHOD
-      const response = await buildPaymentRedirectPayload(booking, selectedPaymentMethod)
-
-      if (!response.success || !response.data) {
-        setFeedback(response.message ?? 'Không thể chuẩn bị thanh toán lúc này.')
-        return
-      }
-
-      navigate(preserveAuthPath(response.data.next_route, authState), {
-        state: {
-          booking,
-          bookingItems,
-          paymentRedirectPayload: response.data,
-        },
-      })
-    } catch (confirmError) {
-      setFeedback(confirmError?.message ?? 'Không thể chuẩn bị thanh toán lúc này.')
-    }
+    // TODO: replace mock handoff with POST /bookings/checkout response in API integration phase.
+    navigate(preserveAuthPath('/checkout', authState), {
+      state: {
+        cartSummaryPayload,
+        selectedCartItemIds,
+      },
+    })
   }
 
   async function copyBookingCode() {

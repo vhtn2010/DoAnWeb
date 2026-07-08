@@ -1,5 +1,11 @@
 import { ROLES } from '../constants/roles.js'
 import {
+  BOOKING_DEFAULT_CURRENCY,
+  BOOKING_DEFAULT_PAYMENT_METHOD,
+  BOOKING_STATUSES,
+  PAYMENT_STATUSES,
+} from '../constants/bookings.js'
+import {
   CHECKOUT_DEFAULT_CURRENCY,
   CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
   CHECKOUT_SPECIAL_REQUEST_TEMPLATE,
@@ -309,6 +315,42 @@ export function buildCheckoutPayload(formValues = {}) {
     summary: {
       ...(formValues.summary ?? {}),
       currency: formValues.summary?.currency ?? CHECKOUT_DEFAULT_CURRENCY,
+    },
+  }
+}
+
+export function buildPaymentConfirmationHandoff(checkoutPayload = {}) {
+  const summary = checkoutPayload.summary ?? {}
+  const bookingCode = 'NVBT20241012001'
+  const bookingId = 'booking-preview-checkout-001'
+  const totalAmount = resolveNumber(summary.total_amount)
+
+  return {
+    booking_handoff: {
+      id: bookingId,
+      booking_id: bookingId,
+      booking_code: bookingCode,
+      contact_name: normalizeText(checkoutPayload.contact_name),
+      contact_email: normalizeText(checkoutPayload.contact_email),
+      contact_phone: normalizeText(checkoutPayload.contact_phone),
+      note: normalizeText(checkoutPayload.note),
+      booking_status: BOOKING_STATUSES.pending_payment,
+      payment_status: PAYMENT_STATUSES.initiated,
+      subtotal_amount: resolveNumber(summary.subtotal_amount),
+      discount_amount: resolveNumber(summary.discount_amount),
+      tax_amount: 0,
+      service_fee_amount: resolveNumber(summary.service_fee_amount),
+      total_amount: totalAmount,
+      currency: summary.currency ?? BOOKING_DEFAULT_CURRENCY,
+      voucher_code: normalizeText(checkoutPayload.voucher_code).toUpperCase(),
+    },
+    payment_redirect_payload: {
+      booking_id: bookingId,
+      booking_code: bookingCode,
+      total_amount: totalAmount,
+      currency: summary.currency ?? BOOKING_DEFAULT_CURRENCY,
+      payment_method: BOOKING_DEFAULT_PAYMENT_METHOD,
+      next_route: '/payment-confirmation',
     },
   }
 }
