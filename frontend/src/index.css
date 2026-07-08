@@ -12296,6 +12296,8 @@ select {
 }
 
 .flight-airport-combobox__value {
+  font-size: 1rem;
+  line-height: 1.12;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -12311,6 +12313,8 @@ select {
 }
 
 .flight-date-picker__value {
+  font-size: 1rem;
+  line-height: 1.12;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
