@@ -17327,6 +17327,14 @@ select {
   color: #b45309;
 }
 
+.profile-shortcut-panel--support .profile-shortcut-card {
+  grid-template-columns: 60px minmax(0, 1fr) max-content;
+}
+
+.profile-shortcut-panel--support .profile-shortcut-card__copy strong {
+  white-space: nowrap;
+}
+
 .profile-shortcut-card__icon svg {
   width: 26px;
   height: 26px;
