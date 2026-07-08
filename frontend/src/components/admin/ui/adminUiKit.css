@@ -903,7 +903,7 @@
 .admin-ui-table th {
   background: #f3f4f5;
   color: var(--admin-ui-text-soft);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1.35;
