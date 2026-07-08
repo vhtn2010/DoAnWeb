@@ -57,6 +57,10 @@ function HotelRoomCard({ room, isSelected, onReserve, onSelect, formatCurrency }
   const badgeLabel = room.display_badge ?? room.options?.badge ?? ''
   const guestLabel = room.display_guest_label ?? `${room.max_guests} Người lớn`
   const secondaryMeta = room.display_secondary_meta ?? room.room_size
+  const hasSalePrice =
+    room.sale_price != null &&
+    room.sale_price !== '' &&
+    Number(room.sale_price) < Number(room.base_price ?? 0)
   const normalizedSecondaryMeta = String(secondaryMeta)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -66,7 +70,9 @@ function HotelRoomCard({ room, isSelected, onReserve, onSelect, formatCurrency }
   const secondaryMetaIcon = normalizedSecondaryMeta.includes('ho boi')
     ? 'pool'
     : 'size'
-  const displayPrice = room.display_price_text ?? formatCurrency(room.sale_price)
+  const displayPrice =
+    room.display_price_text ??
+    formatCurrency(hasSalePrice ? room.sale_price : room.base_price)
 
   function handleSelect() {
     onSelect(room.id)
