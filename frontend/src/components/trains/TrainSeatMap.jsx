@@ -8,8 +8,8 @@ function chunkItems(items = [], chunkSize = 4) {
   return chunks
 }
 
-function renderSeatButton({ onSelectSeat, seat, selectedSeatId }) {
-  const isSelected = seat.id === selectedSeatId
+function renderSeatButton({ onSelectSeat, seat, selectedSeatIds }) {
+  const isSelected = selectedSeatIds.includes(seat.id)
   const isBooked = seat.status === 'booked'
   const className = isSelected
     ? 'train-seat-map__seat train-seat-map__seat--selected'
@@ -31,7 +31,7 @@ function renderSeatButton({ onSelectSeat, seat, selectedSeatId }) {
   )
 }
 
-function renderSeatGroups({ car, layout, onSelectSeat, selectedSeatId }) {
+function renderSeatGroups({ car, layout, onSelectSeat, selectedSeatIds }) {
   const groupSize = Math.max(Number(layout.group_size ?? 4), 1)
   const groupColumns = Math.max(Number(layout.group_columns ?? 2), 1)
   const seatGroups = chunkItems(car.seats, groupSize)
@@ -49,7 +49,7 @@ function renderSeatGroups({ car, layout, onSelectSeat, selectedSeatId }) {
               renderSeatButton({
                 onSelectSeat,
                 seat,
-                selectedSeatId,
+                selectedSeatIds,
               }),
             )}
           </div>
@@ -59,7 +59,7 @@ function renderSeatGroups({ car, layout, onSelectSeat, selectedSeatId }) {
   )
 }
 
-function TrainSeatMap({ car, onSelectSeat, selectedSeatId }) {
+function TrainSeatMap({ car, onSelectSeat, selectedSeatIds = [] }) {
   if (!car) {
     return null
   }
@@ -100,8 +100,10 @@ function TrainSeatMap({ car, onSelectSeat, selectedSeatId }) {
             car,
             layout,
             onSelectSeat,
-            selectedSeatId,
+            selectedSeatIds,
           })}
+
+          <div className="train-seat-map__corridor">HÀNH LANG GIỮA</div>
         </div>
       </div>
     </section>
