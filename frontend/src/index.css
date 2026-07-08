@@ -13385,18 +13385,19 @@ select {
 
 .train-hero {
   position: relative;
-  margin: -24px -24px 0;
-  min-height: 454px;
+  margin: 18px 0 0;
+  min-height: 340px;
   overflow: hidden;
+  border-radius: 34px;
 }
 
 .train-hero__backdrop {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(215, 59, 59, 0.76) 0%, rgba(217, 41, 41, 0.86) 100%),
-    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.12), transparent 34%),
-    radial-gradient(circle at 82% 20%, rgba(255, 216, 216, 0.14), transparent 32%),
+    linear-gradient(180deg, rgba(215, 59, 59, 0.34) 0%, rgba(217, 41, 41, 0.48) 100%),
+    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.06), transparent 34%),
+    radial-gradient(circle at 82% 20%, rgba(255, 216, 216, 0.08), transparent 32%),
     linear-gradient(135deg, #7d332d 0%, #954038 32%, #5f403f 100%);
 }
 
@@ -13436,18 +13437,19 @@ select {
   z-index: 1;
   width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 82px 0 170px;
+  padding: 74px 0 118px;
   color: #fff;
 }
 
 .train-hero__content h1 {
-  max-width: 560px;
+  max-width: none;
   margin: 0;
   color: #fff;
   font-size: clamp(46px, 6vw, 64px);
   font-weight: 900;
   line-height: 0.98;
   letter-spacing: -0.04em;
+  white-space: nowrap;
 }
 
 .train-hero__content p {
@@ -13462,11 +13464,11 @@ select {
   position: relative;
   z-index: 2;
   width: min(1180px, calc(100% - 32px));
-  margin: -116px auto 0;
+  margin: -76px auto 0;
 }
 
 .train-search-card {
-  padding: 32px 34px 22px;
+  padding: 28px 28px 24px;
   border-radius: 34px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 28px 50px rgba(103, 49, 43, 0.16);
@@ -13474,8 +13476,9 @@ select {
 
 .train-search-card__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 18px;
+  align-items: end;
 }
 
 .train-search-card__field {
@@ -13485,20 +13488,21 @@ select {
 }
 
 .train-search-card__field-label {
-  color: #ec6053;
-  font-size: 13px;
-  font-style: italic;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  color: rgba(214, 40, 40, 0.9);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .train-search-card__field-shell {
   width: 100%;
-  min-height: 60px;
-  padding: 0 18px;
-  border: none;
+  min-height: 58px;
+  padding: 0 22px;
+  border: 1px solid rgba(232, 236, 239, 0.96);
   border-radius: 999px;
-  background: #f5f3f2;
+  background: #f6f7f8;
   color: #261d1b;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -13550,21 +13554,45 @@ select {
 .train-date-picker__value,
 .train-date-picker__placeholder {
   min-width: 0;
-  color: #261d1b;
-  font-size: 17px;
-  font-style: italic;
+  color: #111827;
+  font-size: 1rem;
+  font-style: normal;
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.12;
 }
 
-.train-date-picker__value--range {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+.train-date-picker {
+  min-width: 0;
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  position: relative;
+}
+
+.train-date-picker__field {
+  position: relative;
 }
 
 .train-date-picker__placeholder {
-  color: #9b8782;
+  color: var(--color-text-muted);
+}
+
+.train-date-picker__value,
+.train-station-combobox__value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.train-date-picker__trigger--disabled {
+  cursor: not-allowed;
+}
+
+.train-date-picker__field--disabled .train-search-card__field-label,
+.train-date-picker__field--disabled .train-date-picker__placeholder,
+.train-date-picker__field--disabled .train-search-card__field-icon {
+  opacity: 0.72;
 }
 
 .train-search-card__popover {
@@ -15400,10 +15428,17 @@ select {
 }
 
 @media (max-width: 1180px) {
-  .train-search-card__grid,
   .train-list-page__layout,
   .train-card {
     grid-template-columns: 1fr;
+  }
+
+  .train-search-card__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .train-date-picker {
+    grid-column: span 2;
   }
 
   .train-search-card__footer {
@@ -15447,13 +15482,18 @@ select {
   }
 
   .train-hero {
-    margin: -18px -16px 0;
-    min-height: 360px;
+    margin: 0;
+    min-height: 320px;
+    border-radius: 28px;
   }
 
   .train-hero__content {
     width: calc(100% - 48px);
-    padding: 62px 0 140px;
+    padding: 62px 0 118px;
+  }
+
+  .train-hero__content h1 {
+    white-space: normal;
   }
 
   .train-hero__content p {
@@ -15462,7 +15502,7 @@ select {
 
   .train-list-page__search-shell {
     width: min(100%, calc(100% - 20px));
-    margin-top: -92px;
+    margin-top: -70px;
   }
 
   .train-search-card,
@@ -15564,6 +15604,11 @@ select {
 @media (max-width: 720px) {
   .train-search-card__grid,
   .train-search-card__footer {
+    grid-template-columns: 1fr;
+  }
+
+  .train-date-picker {
+    grid-column: auto;
     grid-template-columns: 1fr;
   }
 
