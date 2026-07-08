@@ -16835,7 +16835,7 @@ select {
 
 .profile-hero__member-card {
   height: 100%;
-  padding: 22px;
+  padding: 22px 22px 10px;
   border: 1px solid rgba(233, 220, 214, 0.94);
   border-radius: 28px;
   background:
@@ -16844,6 +16844,7 @@ select {
   box-shadow: 0 18px 36px rgba(108, 78, 72, 0.08);
   display: grid;
   gap: 18px;
+  align-content: start;
 }
 
 .profile-hero__member-top {

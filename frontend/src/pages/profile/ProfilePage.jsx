@@ -1,6 +1,4 @@
-import {
-  PROFILE_HISTORY_FILTERS,
-} from '../../constants/profile.js'
+import { PROFILE_HISTORY_FILTERS } from '../../constants/profile.js'
 import BookingHistoryList from '../../components/profile/BookingHistoryList.jsx'
 import FavoriteDestinationsCard from '../../components/profile/FavoriteDestinationsCard.jsx'
 import ProfileGuestGate from '../../components/profile/ProfileGuestGate.jsx'
@@ -96,13 +94,7 @@ function ProfilePage() {
             <ProfileHero
               greeting={viewModel.greeting}
               highlights={heroHighlights}
-              onPrimaryAction={() => actions.openUpcomingTripPrimary(viewModel.upcomingTrip)}
-              onSecondaryAction={() =>
-                actions.selectBookingHistoryFilter(PROFILE_HISTORY_FILTERS.upcoming)
-              }
-              primaryActionLabel="Xem lịch trình gần nhất"
               profile={profile}
-              secondaryActionLabel="Theo dõi chuyến sắp tới"
               stats={heroStats}
               upcomingTrip={viewModel.upcomingTrip}
             />
