@@ -61,10 +61,9 @@ function FlightListPage() {
           src="/assets/template/home/v39_1669.png"
         />
         <div className="flight-list-page__hero-content">
-          <p className="flight-list-page__hero-eyebrow">VivuTrip Flight</p>
           <h1 className="flight-list-page__hero-title">Khám phá Việt Nam</h1>
           <p className="flight-list-page__hero-copy">
-            Hành trình vạn dặm, bắt đầu từ một bước chân cùng VivuTrip.
+            Hành trình vạn dặm, bắt đầu từ một bước chân cùng Nét Việt Travel.
           </p>
         </div>
       </section>
