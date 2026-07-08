@@ -116,6 +116,26 @@ function SupportBadge({ children, tone }) {
   return <span className={cx('admin-support-badge', `admin-support-badge--${tone}`)}>{children}</span>
 }
 
+function getCompactSupportBadgeLabel(label = '') {
+  const normalizedLabel = String(label || '').trim().toLowerCase()
+
+  const compactLabels = {
+    'đã đóng': 'Đóng',
+    'đã nhận': 'Đã nhận',
+    'đã xử lý': 'Xử lý xong',
+    'đang chờ': 'Mới',
+    'bình thường': 'Thường',
+    'chờ khách': 'Chờ khách',
+    'chờ nhân viên': 'Chờ xử lý',
+    'khẩn cấp': 'Khẩn',
+    'thấp': 'Thấp',
+    'ưu tiên cao': 'Cao',
+    spam: 'Spam',
+  }
+
+  return compactLabels[normalizedLabel] || label
+}
+
 function getMessageParagraphs(message) {
   return String(message || '')
     .split(/\n{2,}/)
@@ -267,15 +287,19 @@ function AdminSupportFigmaPage() {
                     />
                     <span className="admin-support-ticket__body">
                       <span className="admin-support-ticket__top">
-                        <strong>#{ticket.displayCode}</strong>
-                        <span>{ticket.updatedLabel}</span>
+                        <span className="admin-support-ticket__identity">
+                          <strong>#{ticket.displayCode}</strong>
+                          <span className="admin-support-ticket__customer">{ticket.customerName}</span>
+                        </span>
+                        <span className="admin-support-ticket__side">
+                          <span className="admin-support-ticket__badges">
+                            <SupportBadge tone={priority.tone}>{getCompactSupportBadgeLabel(priority.label)}</SupportBadge>
+                            <SupportBadge tone={status.tone}>{getCompactSupportBadgeLabel(status.label)}</SupportBadge>
+                          </span>
+                          <span className="admin-support-ticket__time">{ticket.updatedLabel}</span>
+                        </span>
                       </span>
-                      <span className="admin-support-ticket__customer">{ticket.customerName}</span>
                       <span className="admin-support-ticket__subject">{ticket.subject}</span>
-                      <span className="admin-support-ticket__badges">
-                        <SupportBadge tone={priority.tone}>{priority.label}</SupportBadge>
-                        <SupportBadge tone={status.tone}>{status.label}</SupportBadge>
-                      </span>
                     </span>
                   </span>
                 </button>
