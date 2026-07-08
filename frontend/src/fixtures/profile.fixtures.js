@@ -210,7 +210,7 @@ export const customerProfileFixture = Object.freeze({
       description: 'Lưu nhanh voucher và ưu đãi đang áp dụng cho tour, vé và khách sạn.',
       action_label: 'Xem ưu đãi',
       icon: 'ticket',
-      detail_path: '/services',
+      detail_path: '/my-vouchers',
     },
     {
       id: 'travel-utility-003',
