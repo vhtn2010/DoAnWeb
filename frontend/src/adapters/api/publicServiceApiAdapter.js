@@ -38,6 +38,12 @@ function normalizeTourCard(service = {}) {
   return {
     base_price: resolvedBasePrice,
     currency: service.currency ?? 'VND',
+    has_sale_price:
+      salePrice != null &&
+      resolvedBasePrice != null &&
+      Number.isFinite(salePrice) &&
+      Number.isFinite(resolvedBasePrice) &&
+      salePrice < resolvedBasePrice,
     id: service.id ?? fallbackSlug,
     image_url: service.primary_image ?? service.image_url ?? FALLBACK_TOUR_IMAGE_URL,
     location_text: service.location_text ?? 'Dang cap nhat',
@@ -63,6 +69,14 @@ function normalizeListMeta(meta = {}, limit = DEFAULT_TOUR_LIMIT) {
     total,
     total_pages: totalPages,
   }
+}
+
+function buildGalleryImages(primaryImage, images = []) {
+  const imageUrls = Array.isArray(images)
+    ? images.map((image) => image?.image_url).filter(Boolean)
+    : []
+
+  return Array.from(new Set([primaryImage, ...imageUrls].filter(Boolean)))
 }
 
 export async function listTourServices({
@@ -91,6 +105,72 @@ export async function listTourServices({
     ...response,
     data: Array.isArray(response.data) ? response.data.map(normalizeTourCard) : [],
     meta: normalizeListMeta(response.meta, limit),
+  }
+}
+
+export async function getTourServiceBySlug(slug) {
+  const response = await apiGet(`/services/${slug}`)
+  const service = response.data ?? null
+
+  if (!service || service.service_type !== SERVICE_TYPES.tour) {
+    return {
+      ...response,
+      data: null,
+      success: false,
+    }
+  }
+
+  let galleryImages = [service.primary_image ?? service.image_url ?? FALLBACK_TOUR_IMAGE_URL].filter(
+    Boolean,
+  )
+
+  if (service.id) {
+    try {
+      const imagesResponse = await apiGet(`/services/${service.id}/images`)
+      galleryImages = buildGalleryImages(service.primary_image, imagesResponse.data)
+    } catch {
+      galleryImages = buildGalleryImages(service.primary_image, [])
+    }
+  }
+
+  return {
+    ...response,
+    data: {
+      ...service,
+      gallery_images: galleryImages.length ? galleryImages : [FALLBACK_TOUR_IMAGE_URL],
+      image_url: service.primary_image ?? galleryImages[0] ?? FALLBACK_TOUR_IMAGE_URL,
+    },
+  }
+}
+
+export async function getFeaturedTourServices({
+  excludeSlug = '',
+  limit = 3,
+} = {}) {
+  const safeLimit = Math.max(Number(limit) || 3, 1)
+  const response = await apiGet('/services/featured', {
+    query: {
+      limit: excludeSlug ? safeLimit + 1 : safeLimit,
+      type: SERVICE_TYPES.tour,
+    },
+  })
+  const normalizedServices = Array.isArray(response.data)
+    ? response.data.map(normalizeTourCard).filter((service) => service.slug !== excludeSlug)
+    : []
+
+  return {
+    ...response,
+    data: normalizedServices.slice(0, safeLimit),
+    meta: normalizeListMeta(
+      {
+        has_next: normalizedServices.length > safeLimit,
+        limit: safeLimit,
+        page: 1,
+        total: normalizedServices.length,
+        total_pages: Math.max(1, Math.ceil(normalizedServices.length / safeLimit)),
+      },
+      safeLimit,
+    ),
   }
 }
 
