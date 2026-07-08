@@ -6,7 +6,7 @@ import {
   DEFAULT_HOTEL_SORT,
   HOTEL_SORT_OPTIONS,
 } from '../constants/hotels.js'
-import { mapHotelSummaryToCardView } from '../mappers/hotelMappers.js'
+import { mapHotelSummaryToCardView } from '../mappers/hotelMappers.generated.js'
 import { ROLES } from '../constants/roles.js'
 import { listHotels } from '../repositories/hotelRepository.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'

@@ -37,6 +37,11 @@ function HotelCard({
   actionLabel = 'Đặt ngay',
 }) {
   const detailPath = hotel.detail_path ?? `/hotels/${hotel.slug}`
+  const hasSalePrice =
+    hotel.sale_price != null &&
+    hotel.sale_price !== '' &&
+    Number(hotel.sale_price) < Number(hotel.base_price ?? 0)
+  const currentPrice = hasSalePrice ? hotel.sale_price : hotel.base_price
 
   return (
     <article className="hotel-card">
@@ -68,8 +73,10 @@ function HotelCard({
         </h3>
 
         <div className="hotel-card__pricing">
-          <span className="hotel-card__price-old">{formatCurrency(hotel.base_price)}</span>
-          <strong className="hotel-card__price-sale">{formatCurrency(hotel.sale_price)}</strong>
+          {hasSalePrice ? (
+            <span className="hotel-card__price-old">{formatCurrency(hotel.base_price)}</span>
+          ) : null}
+          <strong className="hotel-card__price-sale">{formatCurrency(currentPrice)}</strong>
         </div>
 
         <Link className="hotel-card__button" to={detailPath}>
