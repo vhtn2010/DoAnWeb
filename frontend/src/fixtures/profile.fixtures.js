@@ -218,7 +218,7 @@ export const customerProfileFixture = Object.freeze({
       description: 'Bật nhắc giờ check-in, giờ ra sân bay và lịch trình trước mỗi chuyến đi.',
       action_label: 'Thiết lập',
       icon: 'bell',
-      detail_path: null,
+      detail_path: '/departure-reminders',
     },
     {
       id: 'travel-utility-004',
