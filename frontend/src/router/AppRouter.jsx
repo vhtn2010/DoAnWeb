@@ -18,6 +18,7 @@ import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
 import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
 import ProfilePage from '../pages/profile/ProfilePage.jsx'
+import NetVietBlogPage from '../pages/public/NetVietBlogPage.jsx'
 import TravelHandbookPage from '../pages/profile/TravelHandbookPage.jsx'
 import CustomerCarePage from '../pages/support/CustomerCarePage.jsx'
 import HelpCenterPage from '../pages/support/HelpCenterPage.jsx'
@@ -61,6 +62,7 @@ function AppRouter() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/my-vouchers" element={<MyVouchersPage />} />
           <Route path="/travel-handbook" element={<TravelHandbookPage />} />
+          <Route path="/blog" element={<NetVietBlogPage />} />
           <Route path="/customer-care" element={<CustomerCarePage />} />
           <Route path="/help-center" element={<HelpCenterPage />} />
           <Route path="/flights" element={<FlightListPage />} />
