@@ -27,6 +27,8 @@ function ProfilePage() {
   const upcomingOrders = bookingCounts[PROFILE_HISTORY_FILTERS.upcoming] ?? 0
   const pendingOrders = bookingCounts[PROFILE_HISTORY_FILTERS.pending_confirmation] ?? 0
   const latestFavorite = viewModel.favoriteDestinations?.[0]
+  const loyaltyTierLabel =
+    profile?.loyalty_tier === 'Di sản Vàng' ? 'Hạng Vàng' : profile?.loyalty_tier
 
   const heroStats = [
     {
@@ -50,8 +52,8 @@ function ProfilePage() {
     upcomingOrders
       ? `Bạn có ${upcomingOrders} chuyến sắp khởi hành cần theo dõi.`
       : 'Hiện chưa có chuyến sắp khởi hành trong tài khoản này.',
-    profile?.loyalty_tier
-      ? `Ưu đãi hạng ${profile.loyalty_tier} đang sẵn sàng cho hành trình tiếp theo.`
+    loyaltyTierLabel
+      ? `Ưu đãi ${loyaltyTierLabel} đang sẵn sàng cho hành trình tiếp theo.`
       : 'Quyền lợi thành viên sẽ hiển thị tại đây khi tài khoản được kích hoạt.',
     latestFavorite
       ? `Gợi ý mới dành cho bạn: ${latestFavorite.name}.`
