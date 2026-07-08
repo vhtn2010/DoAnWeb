@@ -17294,3 +17294,522 @@ select {
     width: 100%;
   }
 }
+
+.my-vouchers-page {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 64px;
+  display: grid;
+  gap: 24px;
+}
+
+.my-vouchers-hero,
+.my-vouchers-stat-card,
+.my-vouchers-toolbar,
+.my-vouchers-panel,
+.my-vouchers-empty,
+.my-voucher-card {
+  border: 1px solid rgba(136, 33, 26, 0.1);
+  box-shadow: 0 18px 48px rgba(104, 31, 20, 0.08);
+}
+
+.my-vouchers-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
+  gap: 24px;
+  padding: 32px;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 225, 173, 0.9), transparent 34%),
+    linear-gradient(135deg, #fff6ea 0%, #fffdfa 52%, #fdf0ee 100%);
+}
+
+.my-vouchers-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -80px -120px auto;
+  width: 240px;
+  height: 240px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(208, 52, 44, 0.18), transparent 70%);
+}
+
+.my-vouchers-hero__copy,
+.my-vouchers-hero__spotlight {
+  position: relative;
+  z-index: 1;
+}
+
+.my-vouchers-hero__eyebrow,
+.my-vouchers-toolbar__eyebrow,
+.my-vouchers-panel__eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #b24a24;
+}
+
+.my-vouchers-hero__copy h1,
+.my-vouchers-toolbar h2,
+.my-vouchers-panel h2 {
+  margin: 0;
+  color: #34130f;
+}
+
+.my-vouchers-hero__copy p,
+.my-vouchers-hero__spotlight p,
+.my-voucher-card__description,
+.my-vouchers-step p,
+.my-vouchers-note-list li,
+.my-vouchers-empty p,
+.my-vouchers-stat-card p {
+  margin: 0;
+  color: #6c514a;
+  line-height: 1.6;
+}
+
+.my-vouchers-hero__actions,
+.my-voucher-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.my-vouchers-hero__actions {
+  margin-top: 22px;
+}
+
+.my-vouchers-hero__button,
+.my-voucher-card__button,
+.my-vouchers-empty__button,
+.my-vouchers-panel__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.my-vouchers-hero__button,
+.my-voucher-card__button,
+.my-vouchers-empty__button {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #c94f31 0%, #a31f23 100%);
+  color: #fff8f4;
+  box-shadow: 0 14px 28px rgba(163, 31, 35, 0.2);
+}
+
+.my-vouchers-hero__button--secondary,
+.my-voucher-card__button--secondary,
+.my-vouchers-panel__link {
+  border: 1px solid rgba(163, 31, 35, 0.18);
+  background: rgba(255, 255, 255, 0.8);
+  color: #972624;
+  box-shadow: none;
+}
+
+.my-vouchers-hero__spotlight {
+  align-self: stretch;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(124, 24, 27, 0.96), rgba(179, 73, 37, 0.92));
+  color: #fff8f1;
+}
+
+.my-vouchers-hero__badge {
+  justify-self: start;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.my-vouchers-hero__spotlight strong {
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+}
+
+.my-vouchers-hero__spotlight p,
+.my-vouchers-hero__spotlight small {
+  color: rgba(255, 248, 241, 0.9);
+}
+
+.my-vouchers-stats,
+.my-vouchers-layout {
+  display: grid;
+  gap: 20px;
+}
+
+.my-vouchers-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.my-vouchers-stat-card {
+  padding: 22px 24px;
+  border-radius: 28px;
+  background: #fffdfb;
+  display: grid;
+  gap: 10px;
+}
+
+.my-vouchers-stat-card span {
+  color: #965547;
+  font-weight: 700;
+}
+
+.my-vouchers-stat-card strong {
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  color: #34130f;
+}
+
+.my-vouchers-layout {
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+  align-items: start;
+}
+
+.my-vouchers-main,
+.my-vouchers-sidebar {
+  display: grid;
+  gap: 20px;
+}
+
+.my-vouchers-toolbar,
+.my-vouchers-panel,
+.my-vouchers-empty {
+  padding: 24px;
+  border-radius: 30px;
+  background: #fffdfb;
+}
+
+.my-vouchers-toolbar {
+  display: grid;
+  gap: 18px;
+}
+
+.my-vouchers-search {
+  display: grid;
+  gap: 10px;
+}
+
+.my-vouchers-search__label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #57312b;
+}
+
+.my-vouchers-search__input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid rgba(148, 69, 55, 0.18);
+  border-radius: 18px;
+  background: #fff;
+  color: #34130f;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.my-vouchers-search__input::placeholder {
+  color: #ab8a80;
+}
+
+.my-vouchers-search__input:focus {
+  outline: none;
+  border-color: rgba(163, 31, 35, 0.42);
+  box-shadow: 0 0 0 4px rgba(201, 79, 49, 0.12);
+}
+
+.my-vouchers-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.my-vouchers-filter {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(148, 69, 55, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 246, 234, 0.7);
+  color: #74463f;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.my-vouchers-filter--active {
+  border-color: transparent;
+  background: linear-gradient(135deg, #b94130 0%, #8f1821 100%);
+  color: #fff8f4;
+}
+
+.my-vouchers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.my-voucher-card {
+  padding: 22px;
+  border-radius: 30px;
+  background: #fffdfb;
+  display: grid;
+  gap: 16px;
+}
+
+.my-voucher-card--active {
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 166, 0.4), transparent 32%),
+    #fffdfb;
+}
+
+.my-voucher-card--used {
+  background: linear-gradient(180deg, #fffefc 0%, #f7f2ee 100%);
+}
+
+.my-voucher-card--expired {
+  background: linear-gradient(180deg, #fffefe 0%, #f5efee 100%);
+}
+
+.my-voucher-card__top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.my-voucher-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 206, 133, 0.3), rgba(201, 79, 49, 0.16));
+  color: #a13a2b;
+}
+
+.my-voucher-card__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.my-voucher-card__heading {
+  display: grid;
+  gap: 6px;
+}
+
+.my-voucher-card__heading strong,
+.my-vouchers-empty strong,
+.my-vouchers-step strong {
+  color: #34130f;
+}
+
+.my-voucher-card__status {
+  justify-self: start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(163, 31, 35, 0.08);
+  color: #9d2e26;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.my-voucher-card__discount {
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: #fff3e7;
+  color: #9f3529;
+  font-weight: 800;
+}
+
+.my-voucher-card__code-row,
+.my-voucher-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.my-voucher-card__code {
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: #34130f;
+  color: #fff5ee;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.my-voucher-card__copy {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(163, 31, 35, 0.16);
+  border-radius: 999px;
+  background: #fff;
+  color: #912926;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.my-voucher-card__copy:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.my-voucher-card__meta span {
+  color: #7d5b55;
+  font-size: 0.95rem;
+}
+
+.my-voucher-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.my-voucher-card__tag {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 240, 224, 0.72);
+  color: #8b4a3b;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.my-vouchers-step-list,
+.my-vouchers-note-list {
+  display: grid;
+  gap: 14px;
+}
+
+.my-vouchers-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.my-vouchers-step__index {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #be472f 0%, #8f1821 100%);
+  color: #fff8f4;
+  font-weight: 800;
+}
+
+.my-vouchers-note-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.my-vouchers-panel__link {
+  justify-self: start;
+  margin-top: 6px;
+}
+
+.my-vouchers-empty {
+  display: grid;
+  gap: 12px;
+}
+
+.my-vouchers-hero__button:hover,
+.my-vouchers-hero__button:focus-visible,
+.my-voucher-card__button:hover,
+.my-voucher-card__button:focus-visible,
+.my-vouchers-empty__button:hover,
+.my-vouchers-empty__button:focus-visible,
+.my-vouchers-panel__link:hover,
+.my-vouchers-panel__link:focus-visible,
+.my-vouchers-filter:hover,
+.my-vouchers-filter:focus-visible,
+.my-voucher-card__copy:hover,
+.my-voucher-card__copy:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.my-vouchers-filter:hover,
+.my-vouchers-filter:focus-visible,
+.my-voucher-card__copy:hover,
+.my-voucher-card__copy:focus-visible {
+  border-color: rgba(163, 31, 35, 0.28);
+}
+
+@media (max-width: 1120px) {
+  .my-vouchers-hero,
+  .my-vouchers-layout,
+  .my-vouchers-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .my-vouchers-page {
+    width: min(100% - 24px, 1180px);
+    padding: 24px 0 56px;
+    gap: 18px;
+  }
+
+  .my-vouchers-hero,
+  .my-vouchers-toolbar,
+  .my-vouchers-panel,
+  .my-vouchers-empty,
+  .my-voucher-card,
+  .my-vouchers-stat-card {
+    padding: 20px 18px;
+    border-radius: 24px;
+  }
+
+  .my-vouchers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .my-vouchers-hero__button,
+  .my-voucher-card__button,
+  .my-vouchers-empty__button,
+  .my-vouchers-panel__link,
+  .my-voucher-card__copy {
+    width: 100%;
+  }
+
+  .my-voucher-card__top,
+  .my-voucher-card__code-row,
+  .my-voucher-card__meta {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
