@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AUTH_SOCIAL_PROVIDERS } from '../constants/auth.js'
 import {
   buildLoginPayload,
@@ -8,8 +8,17 @@ import {
 } from '../mappers/authMappers.js'
 import { login } from '../repositories/authRepository.js'
 
+function resolvePostLoginPath(redirectPath) {
+  if (typeof redirectPath !== 'string' || !redirectPath.startsWith('/')) {
+    return '/?auth=customer'
+  }
+
+  return redirectPath
+}
+
 export default function useLoginForm() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [formValues, setFormValues] = useState(() => createLoginFormValues())
   const [errors, setErrors] = useState({})
   const [feedbackMessage, setFeedbackMessage] = useState('')
@@ -56,7 +65,7 @@ export default function useLoginForm() {
         return
       }
 
-      navigate('/?auth=customer')
+      navigate(resolvePostLoginPath(searchParams.get('redirect')))
     } catch (error) {
       setFeedbackMessage(error?.message ?? 'Không thể đăng nhập lúc này.')
       setFeedbackTone('error')

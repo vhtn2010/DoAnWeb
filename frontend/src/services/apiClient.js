@@ -1,3 +1,5 @@
+import { getStoredAccessToken } from '../utils/authSession.js'
+
 const DEFAULT_API_BASE_URL = '/api'
 
 function getApiBaseUrl() {
@@ -48,12 +50,28 @@ async function parseJsonSafely(response) {
   }
 }
 
-async function requestJson(path, { method = 'GET', query } = {}) {
+async function requestJson(
+  path,
+  {
+    auth = true,
+    body,
+    headers: customHeaders,
+    method = 'GET',
+    query,
+  } = {},
+) {
+  const accessToken = auth ? getStoredAccessToken() : ''
+  const headers = {
+    Accept: 'application/json',
+    ...(body == null ? {} : { 'Content-Type': 'application/json' }),
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...(customHeaders ?? {}),
+  }
+
   const response = await fetch(buildRequestUrl(path, query), {
+    body: body == null ? undefined : JSON.stringify(body),
+    headers,
     method,
-    headers: {
-      Accept: 'application/json',
-    },
   })
   const payload = await parseJsonSafely(response)
 
@@ -70,6 +88,27 @@ async function requestJson(path, { method = 'GET', query } = {}) {
 
 export function apiGet(path, options) {
   return requestJson(path, options)
+}
+
+export function apiPost(path, options) {
+  return requestJson(path, {
+    ...options,
+    method: 'POST',
+  })
+}
+
+export function apiPatch(path, options) {
+  return requestJson(path, {
+    ...options,
+    method: 'PATCH',
+  })
+}
+
+export function apiDelete(path, options) {
+  return requestJson(path, {
+    ...options,
+    method: 'DELETE',
+  })
 }
 
 export function getJson(path) {
