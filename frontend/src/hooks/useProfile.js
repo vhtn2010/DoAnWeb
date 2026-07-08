@@ -27,6 +27,8 @@ export default function useProfile() {
   const isCustomerPreview = authState === ROLES.customer
 
   const [profile, setProfile] = useState(null)
+  const [favoriteDestinations, setFavoriteDestinations] = useState([])
+  const [upcomingTrip, setUpcomingTrip] = useState(null)
   const [bookingHistory, setBookingHistory] = useState([])
   const [travelUtilities, setTravelUtilities] = useState([])
   const [supportLinks, setSupportLinks] = useState([])
@@ -53,6 +55,8 @@ export default function useProfile() {
 
         if (!response.success || !response.data) {
           setProfile(null)
+          setFavoriteDestinations([])
+          setUpcomingTrip(null)
           setBookingHistory([])
           setTravelUtilities([])
           setSupportLinks([])
@@ -61,6 +65,12 @@ export default function useProfile() {
         }
 
         setProfile(response.data.profile ?? null)
+        setFavoriteDestinations(
+          Array.isArray(response.data.favorite_destinations)
+            ? response.data.favorite_destinations
+            : [],
+        )
+        setUpcomingTrip(response.data.upcoming_trip ?? null)
         setBookingHistory(
           Array.isArray(response.data.booking_history) ? response.data.booking_history : [],
         )
@@ -76,6 +86,8 @@ export default function useProfile() {
         }
 
         setProfile(null)
+        setFavoriteDestinations([])
+        setUpcomingTrip(null)
         setBookingHistory([])
         setTravelUtilities([])
         setSupportLinks([])
@@ -98,6 +110,8 @@ export default function useProfile() {
     () =>
       buildProfileViewModel({
         profile,
+        favoriteDestinations,
+        upcomingTrip,
         bookingHistory,
         selectedBookingHistoryFilter,
         travelUtilities,
@@ -105,10 +119,12 @@ export default function useProfile() {
       }),
     [
       bookingHistory,
+      favoriteDestinations,
       profile,
       selectedBookingHistoryFilter,
       supportLinks,
       travelUtilities,
+      upcomingTrip,
     ],
   )
 
@@ -170,24 +186,66 @@ export default function useProfile() {
     )
   }
 
+  async function openFavoriteDestination(destination) {
+    if (!destination) {
+      return
+    }
+
+    await handleActionRoute(
+      PROFILE_ACTIONS.favorite_destination,
+      destination,
+      'Điểm đến yêu thích này sẽ được mở ở phiên bản tích hợp.',
+    )
+  }
+
+  async function openUpcomingTripPrimary(trip = upcomingTrip) {
+    if (!trip) {
+      setSelectedBookingHistoryFilter(PROFILE_HISTORY_FILTERS.upcoming)
+      return
+    }
+
+    await handleActionRoute(
+      PROFILE_ACTIONS.upcoming_trip_primary,
+      trip,
+      'Lịch trình gần nhất sẽ được mở đầy đủ ở phiên bản tích hợp.',
+    )
+  }
+
+  async function openUpcomingTripSecondary(trip = upcomingTrip) {
+    if (!trip) {
+      return
+    }
+
+    await handleActionRoute(
+      PROFILE_ACTIONS.upcoming_trip_secondary,
+      trip,
+      'Nội dung liên quan cho chuyến đi này sẽ được hoàn thiện ở phiên bản tích hợp.',
+    )
+  }
+
   return {
     actions: {
       goHome,
       goLogin,
       openBookingHistoryItem,
+      openFavoriteDestination,
       openProfileShortcut,
+      openUpcomingTripPrimary,
+      openUpcomingTripSecondary,
       preserveAuthQuery: (pathname) => preserveAuthPath(pathname, authState),
       retry,
       selectBookingHistoryFilter,
     },
     bookingHistory,
     error,
+    favoriteDestinations,
     feedback,
     isCustomerPreview,
     loading,
     profile,
     supportLinks,
     travelUtilities,
+    upcomingTrip,
     viewModel,
   }
 }

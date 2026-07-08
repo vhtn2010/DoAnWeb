@@ -1,4 +1,5 @@
 import {
+  PROFILE_ACTIONS,
   PROFILE_BOOKING_STATUS_LABELS,
   PROFILE_HISTORY_FILTER_LABELS,
   PROFILE_HISTORY_FILTERS,
@@ -146,10 +147,15 @@ export function buildProfileViewModel({
 }
 
 export function buildProfileActionPayload(action, target = {}) {
+  const route =
+    action === PROFILE_ACTIONS.upcoming_trip_secondary
+      ? target?.secondary_path ?? target?.detail_path ?? null
+      : target?.detail_path ?? target?.secondary_path ?? null
+
   return {
     action,
     target_id: target?.id ?? null,
     target_slug: target?.slug ?? null,
-    route: target?.detail_path ?? target?.secondary_path ?? null,
+    route,
   }
 }
