@@ -12094,8 +12094,8 @@ select {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(116, 0, 12, 0.72), rgba(215, 0, 24, 0.38)),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.18), rgba(15, 23, 42, 0.42));
+    linear-gradient(90deg, rgba(116, 0, 12, 0.44), rgba(215, 0, 24, 0.2)),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.3));
 }
 
 .flight-list-page__hero-content {
@@ -12118,11 +12118,12 @@ select {
 
 .flight-list-page__hero-title {
   margin: 0;
-  max-width: 460px;
+  max-width: none;
   color: #fff;
   font-size: clamp(2.6rem, 4.6vw, 3.9rem);
   font-weight: 900;
   line-height: 1.04;
+  white-space: nowrap;
 }
 
 .flight-list-page__hero-copy {
@@ -13277,6 +13278,10 @@ select {
 
   .flight-list-page__hero-content {
     padding: 62px 24px 120px;
+  }
+
+  .flight-list-page__hero-title {
+    white-space: normal;
   }
 
   .flight-list-page__search-shell {
