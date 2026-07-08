@@ -101,29 +101,27 @@ function isDateInRange(dateKey, startDateKey, endDateKey) {
   return dateKey > startDateKey && dateKey < endDateKey
 }
 
-function DateValue({ departureDate, returnDate, tripType }) {
-  if (!departureDate) {
-    return <span className="train-date-picker__placeholder">Chọn ngày đi</span>
+function DateValue({ placeholder, value }) {
+  if (!value) {
+    return <span className="train-date-picker__placeholder">{placeholder}</span>
   }
 
-  if (tripType === 'round_trip') {
-    return (
-      <span className="train-date-picker__value train-date-picker__value--range">
-        <span>{formatDateDisplay(departureDate)}</span>
-        <span className={!returnDate ? 'train-date-picker__placeholder' : ''}>
-          {returnDate ? formatDateDisplay(returnDate) : 'Chọn ngày về'}
-        </span>
-      </span>
-    )
-  }
+  return <span className="train-date-picker__value">{formatDateDisplay(value)}</span>
+}
 
-  return <span className="train-date-picker__value">{formatDateDisplay(departureDate)}</span>
+function CalendarIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <rect height="14" rx="3" stroke="currentColor" strokeWidth="1.8" width="16" x="4" y="6" />
+      <path d="M8 4v4M16 4v4M4 11h16" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  )
 }
 
 function TrainDateRangePicker({ departureDate, returnDate, tripType, onChange }) {
   const [isOpen, setIsOpen] = useState(false)
   const [visibleMonth, setVisibleMonth] = useState(() => getMonthStart(departureDate))
-  const [selectionStep, setSelectionStep] = useState('departure')
+  const [activeField, setActiveField] = useState('departure')
   const containerRef = useRef(null)
 
   const days = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth])
@@ -147,9 +145,11 @@ function TrainDateRangePicker({ departureDate, returnDate, tripType, onChange })
       return
     }
 
-    setVisibleMonth(getMonthStart(departureDate || returnDate))
-    setSelectionStep(tripType === 'round_trip' && departureDate && !returnDate ? 'return' : 'departure')
-  }, [departureDate, isOpen, returnDate, tripType])
+    const baseDateKey =
+      activeField === 'return' ? returnDate || departureDate : departureDate || returnDate
+
+    setVisibleMonth(getMonthStart(baseDateKey))
+  }, [activeField, departureDate, isOpen, returnDate])
 
   function handleSelectDate(nextDateKey) {
     if (tripType === 'one_way') {
@@ -161,12 +161,20 @@ function TrainDateRangePicker({ departureDate, returnDate, tripType, onChange })
       return
     }
 
-    if (!departureDate || returnDate || selectionStep === 'departure') {
+    if (activeField === 'departure') {
+      onChange({
+        departureDate: nextDateKey,
+        returnDate: returnDate && returnDate >= nextDateKey ? returnDate : '',
+      })
+      setActiveField('return')
+      return
+    }
+
+    if (!departureDate) {
       onChange({
         departureDate: nextDateKey,
         returnDate: '',
       })
-      setSelectionStep('return')
       return
     }
 
@@ -182,32 +190,64 @@ function TrainDateRangePicker({ departureDate, returnDate, tripType, onChange })
       })
     }
 
-    setSelectionStep('departure')
+    setActiveField('departure')
     setIsOpen(false)
   }
 
+  function openPicker(nextField) {
+    setActiveField(nextField)
+    setIsOpen(true)
+  }
+
   return (
-    <div className="train-search-card__field train-date-picker" ref={containerRef}>
-      <span className="train-search-card__field-label">NGÀY ĐI - VỀ</span>
+    <div className="train-date-picker" ref={containerRef}>
+      <div className="train-search-card__field train-date-picker__field">
+        <span className="train-search-card__field-label">NGÀY ĐI</span>
 
-      <button
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        className={`train-search-card__field-shell train-date-picker__trigger ${
-          isOpen ? 'train-date-picker__trigger--open' : ''
+        <button
+          aria-expanded={isOpen && activeField === 'departure'}
+          aria-haspopup="dialog"
+          className={`train-search-card__field-shell train-date-picker__trigger ${
+            isOpen && activeField === 'departure' ? 'train-date-picker__trigger--open' : ''
+          }`}
+          type="button"
+          onClick={() => openPicker('departure')}
+        >
+          <span className="train-search-card__field-icon" aria-hidden="true">
+            <CalendarIcon />
+          </span>
+
+          <DateValue placeholder="Chọn ngày đi" value={departureDate} />
+        </button>
+      </div>
+
+      <div
+        className={`train-search-card__field train-date-picker__field ${
+          tripType === 'one_way' ? 'train-date-picker__field--disabled' : ''
         }`}
-        type="button"
-        onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
-        <span className="train-search-card__field-icon" aria-hidden="true">
-          <svg fill="none" viewBox="0 0 24 24">
-            <rect height="14" rx="3" stroke="currentColor" strokeWidth="1.8" width="16" x="4" y="6" />
-            <path d="M8 4v4M16 4v4M4 11h16" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-          </svg>
-        </span>
+        <span className="train-search-card__field-label">NGÀY VỀ</span>
 
-        <DateValue departureDate={departureDate} returnDate={returnDate} tripType={tripType} />
-      </button>
+        <button
+          aria-expanded={isOpen && activeField === 'return'}
+          aria-haspopup="dialog"
+          className={`train-search-card__field-shell train-date-picker__trigger ${
+            isOpen && activeField === 'return' ? 'train-date-picker__trigger--open' : ''
+          } ${tripType === 'one_way' ? 'train-date-picker__trigger--disabled' : ''}`}
+          disabled={tripType === 'one_way'}
+          type="button"
+          onClick={() => openPicker('return')}
+        >
+          <span className="train-search-card__field-icon" aria-hidden="true">
+            <CalendarIcon />
+          </span>
+
+          <DateValue
+            placeholder={tripType === 'one_way' ? 'Không áp dụng' : 'Chọn ngày về'}
+            value={tripType === 'one_way' ? '' : returnDate}
+          />
+        </button>
+      </div>
 
       {isOpen ? (
         <div className="train-search-card__popover train-date-picker__popover" role="dialog">
@@ -288,6 +328,7 @@ function TrainDateRangePicker({ departureDate, returnDate, tripType, onChange })
                     departureDate: todayDate,
                     returnDate: addDays(todayDate, 5),
                   })
+                  setActiveField('departure')
                   setIsOpen(false)
                 }}
               >
