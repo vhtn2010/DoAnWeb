@@ -10,16 +10,16 @@ const EMPTY_HISTORY_COPY = Object.freeze({
     description: 'Khi bạn đặt tour, vé hoặc khách sạn, lịch sử sẽ xuất hiện tại đây.',
   },
   [PROFILE_HISTORY_FILTERS.pending_confirmation]: {
-    title: 'Không có yêu cầu hủy nào đang chờ xác nhận',
-    description: 'Các yêu cầu hủy đơn mới sẽ được cập nhật ngay khi hệ thống ghi nhận.',
+    title: 'Không có yêu cầu nào đang chờ xác nhận',
+    description: 'Các yêu cầu mới sẽ được cập nhật ngay khi hệ thống ghi nhận.',
   },
   [PROFILE_HISTORY_FILTERS.upcoming]: {
     title: 'Chưa có chuyến đi sắp tới',
-    description: 'Những đơn đã xác nhận cho hành trình tiếp theo sẽ hiện trong mục này.',
+    description: 'Những đơn đã xác nhận cho hành trình tiếp theo sẽ hiển thị trong mục này.',
   },
   [PROFILE_HISTORY_FILTERS.booking_history]: {
     title: 'Chưa có lịch sử đặt chỗ hoàn tất',
-    description: 'Các đơn đã đi hoặc đã sử dụng xong sẽ được lưu lại để bạn xem lại nhanh hơn.',
+    description: 'Các đơn đã đi hoặc đã sử dụng xong sẽ được lưu lại để bạn xem nhanh hơn.',
   },
   [PROFILE_HISTORY_FILTERS.cancelled]: {
     title: 'Chưa có đơn hàng đã hủy',
@@ -49,8 +49,8 @@ function BookingHistoryList({
           <p className="profile-history__eyebrow">Theo dõi đơn hàng</p>
           <h2>Lịch sử đơn hàng</h2>
           <p className="profile-history__description">
-            Chỉ cần chọn một bộ lọc để mở đúng nhóm dịch vụ bạn muốn xem, từ đơn chờ
-            xác nhận hủy đến các chuyến đi sắp tới.
+            Chọn một trạng thái để xem đúng nhóm dịch vụ bạn muốn theo dõi, từ yêu cầu đang
+            chờ xử lý đến các hành trình sắp diễn ra.
           </p>
         </div>
 
@@ -74,8 +74,8 @@ function BookingHistoryList({
             aria-pressed={selectedFilter === filter.id}
             onClick={() => onSelectFilter(filter.id)}
           >
-            <span>{filter.label}</span>
-            <strong>{filter.count}</strong>
+            <span className="profile-history__filter-label">{filter.label}</span>
+            <strong className="profile-history__filter-count">{filter.count}</strong>
           </button>
         ))}
       </div>
