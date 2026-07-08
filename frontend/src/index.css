@@ -5318,6 +5318,16 @@ select {
   width: 16%;
 }
 
+.admin-payments-page__table th:nth-child(3),
+.admin-payments-page__table td:nth-child(3) {
+  width: 132px;
+}
+
+.admin-payments-page__table th:nth-child(4),
+.admin-payments-page__table td:nth-child(4) {
+  width: 124px;
+}
+
 .admin-payments-page__table th:nth-child(7),
 .admin-payments-page__table td:nth-child(7) {
   width: 92px;
@@ -5337,6 +5347,14 @@ select {
   font-size: 0.94rem;
   line-height: 1.35;
   white-space: nowrap;
+}
+
+.admin-payments-page__amount-cell {
+  white-space: nowrap;
+}
+
+.admin-payments-page__method-cell {
+  line-height: 1.45;
 }
 
 .admin-payments-page__action-cell {
