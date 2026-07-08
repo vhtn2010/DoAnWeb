@@ -3,15 +3,16 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ROLES } from '../constants/roles.js'
 import {
   getActiveCart,
-  getCartSummary,
   removeCartItem,
   updateCartItem,
   validateCart,
 } from '../repositories/cartRepository.js'
 import {
+  createCartSummaryFromItems,
   createCartSummaryPayload,
   mapCartResponseToView,
 } from '../mappers/cartMappers.js'
+import { getStoredUserRole } from '../utils/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 
 const EMPTY_SUMMARY = Object.freeze({
@@ -44,8 +45,11 @@ function createFeedbackState(tone = 'info', message = '') {
 export default function useCart() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const hasCustomerSession = getStoredUserRole() === ROLES.customer
   const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+    searchParams.get('auth') === ROLES.customer || hasCustomerSession
+      ? ROLES.customer
+      : ROLES.guest
 
   const [cart, setCart] = useState(null)
   const [cartItems, setCartItems] = useState([])
@@ -55,15 +59,17 @@ export default function useCart() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
 
+  function buildSummary(nextCartItems, nextSelectedItemIds = []) {
+    return createCartSummaryFromItems(nextCartItems, nextSelectedItemIds)
+  }
+
   async function fetchCartState(currentAuthState) {
     const response = await getActiveCart({ authState: currentAuthState })
     const nextCartState = mapCartResponseToView(response.data)
-    const summaryResponse = await getCartSummary(nextCartState.cart.id, [])
 
     return {
       cart: nextCartState.cart,
       cartItems: nextCartState.cart_items,
-      summary: summaryResponse.data,
     }
   }
 
@@ -85,7 +91,7 @@ export default function useCart() {
         setCart(nextCartState.cart)
         setCartItems(nextCartState.cartItems)
         setSelectedItemIds([])
-        setSummary(nextCartState.summary)
+        setSummary(buildSummary(nextCartState.cartItems, []))
       } catch (loadError) {
         if (!isActive) {
           return
@@ -95,7 +101,7 @@ export default function useCart() {
         setCartItems([])
         setSelectedItemIds([])
         setSummary(EMPTY_SUMMARY)
-        setError(loadError?.message ?? 'Không thể tải giỏ hàng lúc này.')
+        setError(loadError?.message ?? 'Khong the tai gio hang luc nay.')
       } finally {
         if (isActive) {
           setLoading(false)
@@ -119,25 +125,20 @@ export default function useCart() {
       setCart(nextCartState.cart)
       setCartItems(nextCartState.cartItems)
       setSelectedItemIds([])
-      setSummary(nextCartState.summary)
+      setSummary(buildSummary(nextCartState.cartItems, []))
       setFeedback(createFeedbackState())
     } catch (loadError) {
       setCart(null)
       setCartItems([])
       setSelectedItemIds([])
       setSummary(EMPTY_SUMMARY)
-      setError(loadError?.message ?? 'Không thể tải giỏ hàng lúc này.')
+      setError(loadError?.message ?? 'Khong the tai gio hang luc nay.')
     } finally {
       setLoading(false)
     }
   }
 
-  async function refreshSummary(nextCartId, nextSelectedItemIds) {
-    const response = await getCartSummary(nextCartId, nextSelectedItemIds)
-    setSummary(response.data)
-  }
-
-  async function handleToggleItem(itemId) {
+  function handleToggleItem(itemId) {
     if (!cart?.id) {
       return
     }
@@ -147,14 +148,9 @@ export default function useCart() {
       : [...selectedItemIds, itemId]
 
     setSelectedItemIds(nextSelectedItemIds)
+    setSummary(buildSummary(cartItems, nextSelectedItemIds))
     setFeedback(createFeedbackState())
     setError('')
-
-    try {
-      await refreshSummary(cart.id, nextSelectedItemIds)
-    } catch (summaryError) {
-      setError(summaryError?.message ?? 'Không thể cập nhật tổng tiền.')
-    }
   }
 
   async function handleRemoveItem(itemId) {
@@ -165,16 +161,16 @@ export default function useCart() {
     setError('')
 
     try {
-      const response = await removeCartItem(itemId)
+      const response = await removeCartItem(itemId, { authState })
       const nextSelectedItemIds = selectedItemIds.filter((currentItemId) => currentItemId !== itemId)
+      const nextCartItems = cartItems.filter((item) => item.id !== itemId)
 
-      setCartItems((currentItems) => currentItems.filter((item) => item.id !== itemId))
+      setCartItems(nextCartItems)
       setSelectedItemIds(nextSelectedItemIds)
+      setSummary(buildSummary(nextCartItems, nextSelectedItemIds))
       setFeedback(createFeedbackState('success', response.message))
-
-      await refreshSummary(cart.id, nextSelectedItemIds)
     } catch (removeError) {
-      const nextMessage = removeError?.message ?? 'Không thể xóa dịch vụ khỏi giỏ hàng.'
+      const nextMessage = removeError?.message ?? 'Khong the xoa dich vu khoi gio hang.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     }
@@ -184,13 +180,31 @@ export default function useCart() {
     setError('')
 
     try {
-      const response = await updateCartItem(item.id, {
-        options: item.options,
-      })
+      const response = await updateCartItem(
+        item.id,
+        {
+          options: item.options,
+        },
+        {
+          authState,
+        },
+      )
+      const nextCartItem = response.data?.cart_item ?? null
+
+      if (nextCartItem) {
+        setCartItems((currentItems) => {
+          const nextCartItems = currentItems.map((currentItem) =>
+            currentItem.id === nextCartItem.id ? nextCartItem : currentItem,
+          )
+
+          setSummary(buildSummary(nextCartItems, selectedItemIds))
+          return nextCartItems
+        })
+      }
 
       setFeedback(createFeedbackState('info', response.message))
     } catch (updateError) {
-      const nextMessage = updateError?.message ?? 'Không thể cập nhật dịch vụ trong giỏ hàng.'
+      const nextMessage = updateError?.message ?? 'Khong the cap nhat dich vu trong gio hang.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     }
@@ -202,20 +216,28 @@ export default function useCart() {
     }
 
     if (selectedItemIds.length === 0) {
-      setFeedback(createFeedbackState('error', 'Vui lòng chọn ít nhất một dịch vụ để tiếp tục.'))
+      setFeedback(createFeedbackState('error', 'Vui long chon it nhat mot dich vu de tiep tuc.'))
       return
     }
 
     setError('')
 
     try {
-      const response = await validateCart(cart.id, selectedItemIds)
+      const response = await validateCart(cart.id, selectedItemIds, {
+        authState,
+      })
+      const selectedItems = Array.isArray(response.data?.items)
+        ? response.data.items.filter((item) => selectedItemIds.includes(item.id))
+        : []
+      const hasInvalidSelectedItems =
+        selectedItems.length !== selectedItemIds.length ||
+        selectedItems.some((item) => item.valid === false)
 
-      if (!response.data?.is_valid) {
+      if (hasInvalidSelectedItems) {
         setFeedback(
           createFeedbackState(
             'error',
-            'Một hoặc nhiều dịch vụ đã không còn hợp lệ trong giỏ hàng mock hiện tại.',
+            'Mot hoac nhieu dich vu dang chon khong con hop le. Vui long kiem tra lai.',
           ),
         )
         return
@@ -223,17 +245,17 @@ export default function useCart() {
 
       navigate(preserveAuthPath('/booking-confirmation', authState), {
         state: {
-          selectedCartItemIds: response.data.selected_item_ids,
+          selectedCartItemIds: selectedItemIds,
           cartSummaryPayload: createCartSummaryPayload(
             cart,
             summary,
-            response.data.selected_item_ids,
+            selectedItemIds,
           ),
         },
       })
     } catch (validateError) {
       const nextMessage =
-        validateError?.message ?? 'Không thể kiểm tra giỏ hàng trước khi tiếp tục.'
+        validateError?.message ?? 'Khong the kiem tra gio hang truoc khi tiep tuc.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     }

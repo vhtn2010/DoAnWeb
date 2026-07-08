@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
 import { ROLES } from '../constants/roles.js'
 import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
 import { addCartItemPreview } from '../repositories/cartRepository.js'
 import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
+import { hasCustomerSession } from '../utils/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 
 function convertDisplayDateToInput(value) {
@@ -95,6 +96,14 @@ function createAvailabilityState() {
   }
 }
 
+function buildLoginPath(pathname, search = '') {
+  const nextPath = buildAuthAwarePath(pathname, true)
+  const nextSearchParams = new URLSearchParams(search)
+  nextSearchParams.set('redirect', nextPath)
+
+  return `/login?${nextSearchParams.toString()}`
+}
+
 function buildCartItemFromPayload({ hotel, room, payload }) {
   return {
     id: `cart-item-room-${Date.now()}`,
@@ -147,11 +156,15 @@ function buildHotelBookingOptions({
 }
 
 export default function useHotelDetail() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
+  const isAuthenticatedCustomer = hasCustomerSession()
   const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+    searchParams.get('auth') === ROLES.customer || isAuthenticatedCustomer
+      ? ROLES.customer
+      : ROLES.guest
   const isCustomer = authState === ROLES.customer
 
   const [hotel, setHotel] = useState(null)
@@ -170,6 +183,7 @@ export default function useHotelDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
   const [availability, setAvailability] = useState(() => createAvailabilityState())
   const [reloadSeed, setReloadSeed] = useState(0)
 
@@ -444,6 +458,11 @@ export default function useHotelDetail() {
   }
 
   async function goToCartMock(roomIdOverride) {
+    if (!isAuthenticatedCustomer) {
+      setIsLoginPromptOpen(true)
+      return
+    }
+
     const result = await addSelectedRoomToCartMock({ roomIdOverride })
 
     if (!result.success) {
@@ -471,6 +490,15 @@ export default function useHotelDetail() {
     setReloadSeed((currentValue) => currentValue + 1)
   }
 
+  function closeLoginPrompt() {
+    setIsLoginPromptOpen(false)
+  }
+
+  function goToLoginFromPrompt() {
+    setIsLoginPromptOpen(false)
+    navigate(buildLoginPath(location.pathname, location.search))
+  }
+
   return {
     availability,
     breadcrumbHomePath: buildAuthAwarePath('/', isCustomer),
@@ -490,8 +518,11 @@ export default function useHotelDetail() {
     goToCheckoutMock,
     guests,
     hotel,
+    isLoginPromptOpen,
     isCustomer,
     loading,
+    closeLoginPrompt,
+    goToLoginFromPrompt,
     relatedHotels,
     retry,
     roomQuantity,

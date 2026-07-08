@@ -1,3 +1,4 @@
+import LoginRequiredModal from '../../components/auth/LoginRequiredModal.jsx'
 import TrainBookingSummary from '../../components/trains/TrainBookingSummary.jsx'
 import TrainCarTabs from '../../components/trains/TrainCarTabs.jsx'
 import TrainDetailHeaderCard from '../../components/trains/TrainDetailHeaderCard.jsx'
@@ -53,10 +54,13 @@ function TrainDetailPage() {
     addToCartMock,
     bookNowMock,
     bookingSummary,
+    closeLoginPrompt,
     error,
     feedback,
     formatCurrency,
+    goToLoginFromPrompt,
     goBackToTrains,
+    isLoginPromptOpen,
     loading,
     relatedTrains,
     retry,
@@ -130,6 +134,12 @@ function TrainDetailPage() {
   return (
     <div className="train-detail-page">
       <div className="train-detail-shell">
+        <LoginRequiredModal
+          isOpen={isLoginPromptOpen}
+          onClose={closeLoginPrompt}
+          onLogin={goToLoginFromPrompt}
+        />
+
         <section className="train-detail-hero">
           <div className="train-detail-page__topbar">
             <TrainDetailTopActions />
