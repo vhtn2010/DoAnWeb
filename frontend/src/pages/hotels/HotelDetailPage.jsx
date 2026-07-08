@@ -14,9 +14,11 @@ function StarIcon() {
 }
 
 function HotelStars({ total = 5 }) {
+  const roundedTotal = Math.max(0, Math.round(Number(total) || 0))
+
   return (
-    <div className="hotel-detail-title__stars" aria-label={`${total} sao`}>
-      {Array.from({ length: total }, (_, index) => (
+    <div className="hotel-detail-title__stars" aria-label={`${roundedTotal} sao`}>
+      {Array.from({ length: roundedTotal }, (_, index) => (
         <span key={index} aria-hidden="true">
           <StarIcon />
         </span>
@@ -46,6 +48,17 @@ function HotelPriceSummary({ formatCurrency, value }) {
       </div>
     </div>
   )
+}
+
+function resolveCurrentPrice(item = {}) {
+  const basePrice = Number(item.base_price ?? 0)
+  const salePrice = item.sale_price == null ? null : Number(item.sale_price)
+
+  if (salePrice != null && Number.isFinite(salePrice) && salePrice < basePrice) {
+    return salePrice
+  }
+
+  return basePrice
 }
 
 function HotelLocationIcon() {
@@ -116,7 +129,7 @@ function HotelDetailPage() {
             <h1 className="hotel-detail-page__title">Khong tim thay khach san</h1>
             <p className="hotel-detail-page__description">{error}</p>
             <button className="hotel-detail-page__retry" type="button" onClick={retry}>
-              Tai lai du lieu mock
+              Tai lai du lieu
             </button>
           </section>
         </div>
@@ -132,7 +145,7 @@ function HotelDetailPage() {
             <p className="hotel-detail-page__eyebrow">Dang tai</p>
             <h1 className="hotel-detail-page__title">Chi tiet khach san dang duoc chuan bi</h1>
             <p className="hotel-detail-page__description">
-              Du lieu dang duoc doc tu mock adapter theo API-ready pattern.
+              Du lieu khach san dang duoc tai tu he thong.
             </p>
           </section>
         </div>
@@ -173,7 +186,7 @@ function HotelDetailPage() {
 
             <HotelPriceSummary
               formatCurrency={formatCurrency}
-              value={selectedRoom?.sale_price ?? hotel.sale_price}
+              value={selectedRoom ? resolveCurrentPrice(selectedRoom) : resolveCurrentPrice(hotel)}
             />
           </div>
         </section>
