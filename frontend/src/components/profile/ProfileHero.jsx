@@ -1,17 +1,3 @@
-function ArrowIcon() {
-  return (
-    <svg fill="none" viewBox="0 0 20 20">
-      <path
-        d="M4.75 10h10.5m-4-4 4 4-4 4"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-    </svg>
-  )
-}
-
 function SparkIcon() {
   return (
     <svg fill="none" viewBox="0 0 20 20">
@@ -70,11 +56,7 @@ function getInitials(name = '') {
 function ProfileHero({
   greeting,
   highlights = [],
-  onPrimaryAction,
-  onSecondaryAction,
-  primaryActionLabel = 'Xem lịch trình gần nhất',
   profile,
-  secondaryActionLabel = 'Theo dõi chuyến đi',
   stats = [],
   upcomingTrip,
 }) {
@@ -98,21 +80,6 @@ function ProfileHero({
               ))}
             </div>
           ) : null}
-
-          <div className="profile-hero__actions">
-            <button className="profile-hero__cta" type="button" onClick={onPrimaryAction}>
-              <span>{primaryActionLabel}</span>
-              <ArrowIcon />
-            </button>
-
-            <button
-              className="profile-hero__ghost"
-              type="button"
-              onClick={onSecondaryAction}
-            >
-              {secondaryActionLabel}
-            </button>
-          </div>
 
           {highlights.length ? (
             <div className="profile-hero__highlights" aria-label="Điểm nhấn cá nhân hóa">
@@ -166,7 +133,9 @@ function ProfileHero({
 
             <div className="profile-hero__member-note">
               <p>{upcomingTrip ? 'Chuyến đi nổi bật' : 'Sẵn sàng cho hành trình mới'}</p>
-              <strong>{upcomingTrip?.title ?? 'Mọi lịch trình, ưu đãi và hỗ trợ ở cùng một nơi.'}</strong>
+              <strong>
+                {upcomingTrip?.title ?? 'Mọi lịch trình, ưu đãi và hỗ trợ ở cùng một nơi.'}
+              </strong>
               <span>
                 {upcomingTrip
                   ? `${upcomingTrip.date_label} • ${upcomingTrip.location_label}`
