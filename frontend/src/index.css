@@ -7606,7 +7606,7 @@ select {
   position: relative;
   display: block;
   width: 100%;
-  min-height: 0;
+  min-height: 104px;
   padding: 13px 14px 13px 16px;
   border: 1px solid #e6d8cc;
   border-radius: 18px;
@@ -7728,9 +7728,8 @@ select {
   font-size: 13px;
   font-weight: 700;
   line-height: 15px;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   overflow: hidden;
 }
 
