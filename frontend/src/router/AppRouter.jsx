@@ -17,6 +17,7 @@ import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.js
 import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import ProfilePage from '../pages/profile/ProfilePage.jsx'
 import CustomerCarePage from '../pages/support/CustomerCarePage.jsx'
+import HelpCenterPage from '../pages/support/HelpCenterPage.jsx'
 import TrainDetailPage from '../pages/trains/TrainDetailPage.jsx'
 import TrainListPage from '../pages/trains/TrainListPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
@@ -55,6 +56,7 @@ function AppRouter() {
           />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/customer-care" element={<CustomerCarePage />} />
+          <Route path="/help-center" element={<HelpCenterPage />} />
           <Route path="/flights" element={<FlightListPage />} />
           <Route path="/flights/:slug" element={<FlightDetailPage />} />
           <Route path="/trains" element={<TrainListPage />} />

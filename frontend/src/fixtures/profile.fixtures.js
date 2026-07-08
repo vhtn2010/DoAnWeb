@@ -236,7 +236,7 @@ export const customerProfileFixture = Object.freeze({
       description: 'Tra cứu các câu hỏi thường gặp về đặt tour, thanh toán và hoàn hủy.',
       action_label: 'Xem hướng dẫn',
       icon: 'help',
-      detail_path: null,
+      detail_path: '/help-center',
     },
     {
       id: 'support-link-002',
