@@ -19,7 +19,6 @@ export const ADMIN_PAYMENT_STATUS_OPTIONS = Object.freeze([
   { value: ADMIN_PAYMENT_STATUSES.pending, label: 'Chờ thanh toán' },
   { value: ADMIN_PAYMENT_STATUSES.processing, label: 'Đang xử lý' },
   { value: ADMIN_PAYMENT_STATUSES.success, label: 'Thành công' },
-  { value: ADMIN_PAYMENT_STATUSES.refunded, label: 'Đã hoàn tiền' },
   { value: ADMIN_PAYMENT_STATUSES.failed, label: 'Thất bại' },
 ])
 

@@ -66,6 +66,8 @@ export function mapAdminPayment(payment = {}) {
     hasProof: Boolean(payment.has_proof || payment.proof_summary),
     id: payment.id,
     method: getPaymentMethodLabel(payment),
+    paymentMethod: payment.payment_method || '',
+    provider: payment.provider || '',
     raw: payment,
     serviceName: bookingCode ? `Đơn ${bookingCode}` : 'Thanh toán dịch vụ',
     status: payment.status,
@@ -75,7 +77,10 @@ export function mapAdminPayment(payment = {}) {
 
 export function mapAdminPaymentDetail(payment = {}, proofResponse = null) {
   const mappedPayment = mapAdminPayment(payment)
-  const proof = proofResponse?.proof ?? payment.proof_summary ?? null
+  const shouldShowTransferProof =
+    ['bank_transfer', 'manual_bank_transfer'].includes(payment.payment_method) &&
+    ['reconciled', 'success'].includes(payment.status)
+  const proof = proofResponse?.proof ?? payment.proof_summary ?? (shouldShowTransferProof ? {} : null)
 
   return {
     ...mappedPayment,
