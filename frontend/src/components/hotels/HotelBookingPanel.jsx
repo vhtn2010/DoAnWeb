@@ -7,7 +7,15 @@ function HotelBookingPanel({
   onAddToCart,
   onCheckout,
 }) {
-  const nightlyPrice = selectedRoom?.sale_price ?? hotel?.sale_price ?? 0
+  const roomHasSalePrice =
+    selectedRoom?.sale_price != null &&
+    Number(selectedRoom.sale_price) < Number(selectedRoom.base_price ?? 0)
+  const hotelHasSalePrice =
+    hotel?.sale_price != null &&
+    Number(hotel.sale_price) < Number(hotel.base_price ?? 0)
+  const nightlyPrice = selectedRoom
+    ? (roomHasSalePrice ? selectedRoom.sale_price : selectedRoom.base_price)
+    : (hotelHasSalePrice ? hotel?.sale_price : hotel?.base_price) ?? 0
   const ratingLabel = hotel
     ? `${hotel.display_rating_text} (${hotel.display_review_count} đánh giá)`
     : '--'
