@@ -112,6 +112,10 @@ export default function useAdminPayments() {
     setReloadKey((currentKey) => currentKey + 1)
   }
 
+  function clearSelectedPayment() {
+    setSelectedPayment(null)
+  }
+
   async function selectPayment(payment) {
     setDetailLoading(true)
     setError('')
@@ -165,6 +169,7 @@ export default function useAdminPayments() {
     searchQuery,
     selectedPayment,
     selectPayment,
+    clearSelectedPayment,
     setCurrentPage,
     setSearchQuery,
     setStatusFilter,
