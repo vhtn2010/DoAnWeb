@@ -244,7 +244,7 @@ export const customerProfileFixture = Object.freeze({
       description: 'Kết nối nhanh với đội ngũ hỗ trợ để xử lý đơn hàng hoặc thay đổi lịch trình.',
       action_label: 'Liên hệ ngay',
       icon: 'headset',
-      detail_path: null,
+      detail_path: '/customer-care',
     },
     {
       id: 'support-link-003',
