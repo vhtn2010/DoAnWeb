@@ -252,7 +252,7 @@ export const customerProfileFixture = Object.freeze({
       description: 'Khám phá cẩm nang điểm đến, kinh nghiệm đi chơi và gợi ý hành trình mới.',
       action_label: 'Đọc bài mới',
       icon: 'blog',
-      detail_path: '/services',
+      detail_path: '/blog',
     },
   ],
 })
