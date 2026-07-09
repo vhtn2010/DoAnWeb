@@ -13,6 +13,7 @@ export default function useRegisterForm() {
   const [feedbackMessage, setFeedbackMessage] = useState('')
   const [feedbackTone, setFeedbackTone] = useState('info')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
 
   function handleFieldChange(event) {
     const { checked, name, type, value } = event.target
@@ -47,12 +48,14 @@ export default function useRegisterForm() {
     setFeedbackTone('info')
 
     try {
-      const response = await register(buildRegisterPayload(formValues))
+      const payload = buildRegisterPayload(formValues)
+      const response = await register(payload)
 
       setFeedbackMessage(response.message)
       setFeedbackTone(response.success ? 'success' : 'error')
 
       if (response.success) {
+        setRegisteredEmail(payload.email)
         setFormValues(createRegisterFormValues())
       }
     } catch (error) {
@@ -77,5 +80,6 @@ export default function useRegisterForm() {
     handleFieldChange,
     handleSubmit,
     isSubmitting,
+    registeredEmail,
   }
 }
