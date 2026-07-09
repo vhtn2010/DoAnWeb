@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
+import { useNavigate } from 'react-router-dom'
 import {
   getActiveCart,
   removeCartItem,
   updateCartItem,
   validateCart,
 } from '../repositories/cartRepository.js'
-import { getAuthSession } from '../services/authSession.js'
 import {
   createCartSummaryFromItems,
   createCartSummaryPayload,
   mapCartResponseToView,
 } from '../mappers/cartMappers.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 const EMPTY_SUMMARY = Object.freeze({
   subtotal_amount: 0,
@@ -22,22 +22,6 @@ const EMPTY_SUMMARY = Object.freeze({
   currency: 'VND',
   selected_item_count: 0,
 })
-
-function buildCheckoutPath(isCustomer) {
-  return isCustomer ? '/checkout?auth=customer' : '/checkout'
-}
-
-function buildServicesPath(isCustomer) {
-  return isCustomer ? '/services?auth=customer' : '/services'
-}
-
-function getCartAuthState(searchParams) {
-  if (getAuthSession().isAuthenticated) {
-    return ROLES.customer
-  }
-
-  return searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-}
 
 function createFeedbackState(tone = 'info', message = '') {
   return {
@@ -48,9 +32,7 @@ function createFeedbackState(tone = 'info', message = '') {
 
 export default function useCart() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const authState = getCartAuthState(searchParams)
-  const isCustomer = authState === ROLES.customer
+  const { authState, isCustomer } = usePublicSession()
 
   const [cart, setCart] = useState(null)
   const [cartItems, setCartItems] = useState([])
@@ -242,7 +224,7 @@ export default function useCart() {
         return
       }
 
-      navigate(buildCheckoutPath(isCustomer), {
+      navigate(buildPublicAuthPath('/checkout', isCustomer), {
         state: {
           selectedCartItemIds: resolvedSelectedItemIds,
           cartSummaryPayload: createCartSummaryPayload(
@@ -266,7 +248,7 @@ export default function useCart() {
       return
     }
 
-    navigate(buildServicesPath(isCustomer))
+    navigate(buildPublicAuthPath('/services', isCustomer))
   }
 
   const formattedSummary = useMemo(

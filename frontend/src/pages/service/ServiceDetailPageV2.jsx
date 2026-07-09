@@ -1,8 +1,9 @@
-import ServiceDetailBookingPanel from '../../components/service/ServiceDetailBookingPanel.jsx'
+import ServiceDetailBookingPanel from '../../components/service/ServiceDetailBookingPanelV2.jsx'
 import ServiceDetailBreadcrumb from '../../components/service/ServiceDetailBreadcrumb.jsx'
 import ServiceDetailGallery from '../../components/service/ServiceDetailGallery.jsx'
 import ServiceDetailHero from '../../components/service/ServiceDetailHero.jsx'
-import ServiceDetailMainContent from '../../components/service/ServiceDetailMainContent.jsx'
+import ServiceDetailMainContent from '../../components/service/ServiceDetailMainContentV2.jsx'
+import ServiceDetailRelatedTours from '../../components/service/ServiceDetailRelatedTours.jsx'
 import ServiceDetailStateBlock from '../../components/service/ServiceDetailStateBlock.jsx'
 import useTourServiceDetail from '../../hooks/useTourServiceDetail.js'
 
@@ -17,6 +18,7 @@ function ServiceDetailPageV2() {
     childTotal,
     departureDate,
     errorMessage,
+    handleAddToCart,
     handleBookNow,
     handleShareClick,
     infoItems,
@@ -24,6 +26,7 @@ function ServiceDetailPageV2() {
     isLoading,
     isShared,
     leadLocation,
+    pendingAction,
     recommendedServices,
     selectedImage,
     service,
@@ -82,7 +85,6 @@ function ServiceDetailPageV2() {
         <div className="service-detail-page__content-grid">
           <ServiceDetailMainContent
             infoItems={infoItems}
-            recommendedServices={recommendedServices}
             service={service}
           />
 
@@ -93,14 +95,18 @@ function ServiceDetailPageV2() {
             childCount={childCount}
             childTotal={childTotal}
             departureDate={departureDate}
+            pendingAction={pendingAction}
             service={service}
             totalPrice={totalPrice}
             onAdultCountChange={setAdultCount}
+            onAddToCart={handleAddToCart}
             onBookNow={handleBookNow}
             onChildCountChange={setChildCount}
             onDepartureDateChange={setDepartureDate}
           />
         </div>
+
+        <ServiceDetailRelatedTours recommendedServices={recommendedServices} />
       </div>
     </div>
   )

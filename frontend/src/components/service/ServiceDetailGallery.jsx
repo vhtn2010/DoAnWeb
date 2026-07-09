@@ -12,7 +12,7 @@ export default function ServiceDetailGallery({
 
       <div className="service-detail-gallery__grid">
         {service.gallery_images.slice(1, 5).map((imageUrl, index) => {
-          const isLastThumb = index === 3
+          const isLastThumb = index === 3 && service.extra_gallery_count > 0
           const isActive = selectedImage === imageUrl
 
           return (

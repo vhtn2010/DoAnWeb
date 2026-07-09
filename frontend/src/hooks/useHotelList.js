@@ -7,9 +7,13 @@ import {
   HOTEL_SORT_OPTIONS,
 } from '../constants/hotels.js'
 import { mapHotelSummaryToCardView } from '../mappers/hotelMappers.generated.js'
-import { ROLES } from '../constants/roles.js'
 import { listHotels } from '../repositories/hotelRepository.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicSession from './usePublicSession.js'
+import {
+  buildPublicAuthPath,
+  getPublicAuthQueryValue,
+} from '../utils/publicNavigation.js'
 
 function parseArraySearchParam(searchParams, key) {
   const value = searchParams.get(key)
@@ -61,12 +65,8 @@ function createInitialFilterState(searchParams) {
   }
 }
 
-function buildPreviewPath(path, isCustomer) {
-  return isCustomer ? `${path}?auth=customer` : path
-}
-
 function buildHotelSearchParams({
-  auth = '',
+  auth: _auth = '',
   location = '',
   checkin = '',
   checkout = '',
@@ -78,10 +78,6 @@ function buildHotelSearchParams({
   page = 1,
 } = {}) {
   const nextSearchParams = new URLSearchParams()
-
-  if (auth) {
-    nextSearchParams.set('auth', auth)
-  }
 
   if (location.trim()) {
     nextSearchParams.set('location', location.trim())
@@ -124,9 +120,7 @@ function buildHotelSearchParams({
 
 export default function useHotelList() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { isCustomer } = usePublicSession()
 
   const [searchDraft, setSearchDraft] = useState(() => createInitialSearchState(searchParams))
   const [appliedSearch, setAppliedSearch] = useState(() =>
@@ -221,7 +215,7 @@ export default function useHotelList() {
   } = {}) {
     setSearchParams(
       buildHotelSearchParams({
-        auth: isCustomer ? ROLES.customer : '',
+        auth: getPublicAuthQueryValue(isCustomer),
         location: nextSearch.location,
         checkin: nextSearch.checkin,
         checkout: nextSearch.checkout,
@@ -304,14 +298,14 @@ export default function useHotelList() {
     () =>
       responseState.data.map((hotel) =>
         mapHotelSummaryToCardView(hotel, {
-          detailPath: buildPreviewPath(`/hotels/${hotel.slug}`, isCustomer),
+          detailPath: buildPublicAuthPath(`/hotels/${hotel.slug}`, isCustomer),
         }),
       ),
     [isCustomer, responseState.data],
   )
   const totalPages = responseState.meta.total_pages ?? 1
   const safeCurrentPage = responseState.meta.page ?? currentPage
-  const breadcrumbHomePath = buildPreviewPath('/', isCustomer)
+  const breadcrumbHomePath = buildPublicAuthPath('/', isCustomer)
   const resultSummary = useMemo(() => {
     if (isLoading) {
       return 'Đang tải danh sách khách sạn...'

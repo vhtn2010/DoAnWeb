@@ -286,7 +286,7 @@ export async function getTrainSearchDefaults() {
 }
 
 export function buildTrainSearchParams({
-  auth = '',
+  auth: _auth = '',
   trip_type = DEFAULT_TRAIN_TRIP_TYPE,
   from_station = '',
   to_station = '',
@@ -302,10 +302,6 @@ export function buildTrainSearchParams({
   page = 1,
 } = {}) {
   const searchParams = new URLSearchParams()
-
-  if (auth) {
-    searchParams.set('auth', auth)
-  }
 
   if (trip_type && trip_type !== DEFAULT_TRAIN_TRIP_TYPE) {
     searchParams.set('trip_type', trip_type)

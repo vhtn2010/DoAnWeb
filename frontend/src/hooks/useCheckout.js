@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { CHECKOUT_VALID_VOUCHER_CODES } from '../constants/checkout.js'
-import { ROLES } from '../constants/roles.js'
 import {
   applyVoucher,
   buildCheckoutPayload,
@@ -10,8 +9,9 @@ import {
   validateCheckoutForm,
 } from '../repositories/checkoutRepository.js'
 import { syncCheckoutDraftTravellers } from '../mappers/checkoutMappers.js'
-import { getAuthSession } from '../services/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 function clearFieldError(currentErrors, fieldName) {
   if (!currentErrors[fieldName]) {
@@ -23,26 +23,13 @@ function clearFieldError(currentErrors, fieldName) {
   return nextErrors
 }
 
-function getCheckoutAuthState(searchParams) {
-  if (getAuthSession().isAuthenticated) {
-    return ROLES.customer
-  }
-
-  return searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-}
-
 export default function useCheckout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const authState = getCheckoutAuthState(searchParams)
+  const { authState, isCustomer } = usePublicSession()
 
   function preserveAuthQuery(pathname) {
-    if (authState !== ROLES.customer) {
-      return pathname
-    }
-
-    return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
+    return buildPublicAuthPath(pathname, isCustomer)
   }
 
   const selectedCartItemIds = useMemo(() => {

@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { buildBookingConfirmationViewModel } from '../mappers/bookingMappers.js'
 import {
   getBookingByCode,
   getBookingConfirmation,
 } from '../repositories/bookingRepository.js'
-
-function preserveAuthPath(pathname, authState) {
-  if (authState !== ROLES.customer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 function getTaxAndFeeAmount(booking) {
   return Number(booking?.tax_amount ?? 0) + Number(booking?.service_fee_amount ?? 0)
@@ -23,9 +16,7 @@ export default function useBookingConfirmation() {
   const location = useLocation()
   const navigate = useNavigate()
   const { bookingCode } = useParams()
-  const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+  const { authState, isCustomer } = usePublicSession()
 
   const checkoutPayload = useMemo(
     () => (location.state?.checkoutPayload ? { ...location.state.checkoutPayload } : undefined),
@@ -133,7 +124,7 @@ export default function useBookingConfirmation() {
   }
 
   function goBackToCart() {
-    navigate(preserveAuthPath('/cart', authState), {
+    navigate(buildPublicAuthPath('/cart', isCustomer), {
       state: {
         cartSummaryPayload,
         checkoutPayload,
@@ -188,7 +179,7 @@ export default function useBookingConfirmation() {
     }
 
     // TODO: replace mock handoff with POST /bookings/checkout response in API integration phase.
-    navigate(preserveAuthPath('/checkout', authState), {
+    navigate(buildPublicAuthPath('/checkout', isCustomer), {
       state: {
         cartSummaryPayload,
         selectedCartItemIds,
@@ -223,7 +214,7 @@ export default function useBookingConfirmation() {
     feedback,
     loading,
     paymentOptions,
-    preserveAuthQuery: (pathname) => preserveAuthPath(pathname, authState),
+    preserveAuthQuery: (pathname) => buildPublicAuthPath(pathname, isCustomer),
     travellers,
     viewModel,
     actions: {
