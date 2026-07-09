@@ -5,15 +5,20 @@ import useTourServiceList from '../../hooks/useTourServiceList.js'
 function ServiceListPage() {
   const {
     breadcrumbHomePath,
+    canGoNext,
+    canGoPrevious,
     categoryOptions,
+    currentPage,
     draftFilters,
     durationOptions,
     errorMessage,
     handleApplyFilters,
+    handlePageChange,
     handleResetFilters,
     handleSortChange,
     handleToggleValue,
     isLoading,
+    paginationPages,
     priceOptions,
     resultCount,
     selectedSort,
@@ -165,23 +170,35 @@ function ServiceListPage() {
                 </div>
 
                 <div className="service-pagination" aria-label="Phân trang tour">
-                  <button className="service-pagination__button" type="button">
+                  <button
+                    className="service-pagination__button"
+                    disabled={!canGoPrevious}
+                    type="button"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                  >
                     ‹
                   </button>
+                  {paginationPages.map((pageNumber) => (
+                    <button
+                      aria-current={pageNumber === currentPage ? 'page' : undefined}
+                      className={`service-pagination__button ${
+                        pageNumber === currentPage
+                          ? 'service-pagination__button--active'
+                          : ''
+                      }`}
+                      key={pageNumber}
+                      type="button"
+                      onClick={() => handlePageChange(pageNumber)}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
                   <button
-                    aria-current="page"
-                    className="service-pagination__button service-pagination__button--active"
+                    className="service-pagination__button"
+                    disabled={!canGoNext}
                     type="button"
+                    onClick={() => handlePageChange(currentPage + 1)}
                   >
-                    1
-                  </button>
-                  <button className="service-pagination__button" type="button">
-                    2
-                  </button>
-                  <button className="service-pagination__button" type="button">
-                    3
-                  </button>
-                  <button className="service-pagination__button" type="button">
                     ›
                   </button>
                 </div>

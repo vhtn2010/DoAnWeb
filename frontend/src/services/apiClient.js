@@ -374,4 +374,8 @@ export function apiDelete(url, config) {
   return apiClient.delete(url, config)
 }
 
+export function getJson(path, config) {
+  return apiGet(path, config)
+}
+
 export default apiClient
