@@ -1,13 +1,13 @@
 import {
-  getHotelDetailBySlug as getHotelDetailBySlugWithMockAdapter,
-  getHotelRooms as getHotelRoomsWithMockAdapter,
-  listHotels as listHotelsWithMockAdapter,
-} from '../adapters/mock/hotelMockAdapter.js'
+  getHotelDetailBySlug as getHotelDetailBySlugWithApiAdapter,
+  getHotelRooms as getHotelRoomsWithApiAdapter,
+  listHotels as listHotelsWithApiAdapter,
+} from '../adapters/api/hotelApiAdapter.js'
 
 const hotelAdapter = {
-  getHotelDetailBySlug: getHotelDetailBySlugWithMockAdapter,
-  getHotelRooms: getHotelRoomsWithMockAdapter,
-  listHotels: listHotelsWithMockAdapter,
+  listHotels: listHotelsWithApiAdapter,
+  getHotelDetailBySlug: getHotelDetailBySlugWithApiAdapter,
+  getHotelRooms: getHotelRoomsWithApiAdapter,
 }
 
 export function listHotels(params) {

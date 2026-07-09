@@ -147,6 +147,45 @@ function isApiRequest(config = {}) {
   }
 }
 
+function normalizeLegacyConfig(config = {}) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    return config
+  }
+
+  const {
+    auth,
+    body,
+    query,
+    params,
+    ...restConfig
+  } = config
+
+  return {
+    ...restConfig,
+    ...(auth === undefined ? {} : { auth }),
+    ...(body === undefined ? {} : { data: body }),
+    ...(params !== undefined ? { params } : query !== undefined ? { params: query } : {}),
+  }
+}
+
+function looksLikeLegacyMutationConfig(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+
+  return (
+    'auth' in value ||
+    'baseURL' in value ||
+    'body' in value ||
+    'headers' in value ||
+    'params' in value ||
+    'query' in value ||
+    'responseType' in value ||
+    'timeout' in value ||
+    'withCredentials' in value
+  )
+}
+
 function shouldRefreshRequest(error) {
   const status = error.response?.status
   const config = error.config ?? {}
@@ -264,6 +303,11 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const accessToken = getAccessToken()
 
+  if (config.auth === false) {
+    setAuthorizationHeader(config, '')
+    return config
+  }
+
   if (accessToken && isApiRequest(config)) {
     setAuthorizationHeader(config, accessToken)
   }
@@ -355,23 +399,38 @@ export function clearAuthTokens() {
 }
 
 export function apiGet(url, config) {
-  return apiClient.get(url, config)
+  return apiClient.get(url, normalizeLegacyConfig(config))
 }
 
 export function apiPost(url, data, config) {
-  return apiClient.post(url, data, config)
+  if (looksLikeLegacyMutationConfig(data) && config === undefined) {
+    const normalizedConfig = normalizeLegacyConfig(data)
+    return apiClient.post(url, normalizedConfig?.data, normalizedConfig)
+  }
+
+  return apiClient.post(url, data, normalizeLegacyConfig(config))
 }
 
 export function apiPut(url, data, config) {
-  return apiClient.put(url, data, config)
+  if (looksLikeLegacyMutationConfig(data) && config === undefined) {
+    const normalizedConfig = normalizeLegacyConfig(data)
+    return apiClient.put(url, normalizedConfig?.data, normalizedConfig)
+  }
+
+  return apiClient.put(url, data, normalizeLegacyConfig(config))
 }
 
 export function apiPatch(url, data, config) {
-  return apiClient.patch(url, data, config)
+  if (looksLikeLegacyMutationConfig(data) && config === undefined) {
+    const normalizedConfig = normalizeLegacyConfig(data)
+    return apiClient.patch(url, normalizedConfig?.data, normalizedConfig)
+  }
+
+  return apiClient.patch(url, data, normalizeLegacyConfig(config))
 }
 
 export function apiDelete(url, config) {
-  return apiClient.delete(url, config)
+  return apiClient.delete(url, normalizeLegacyConfig(config))
 }
 
 export function getJson(path, config) {
