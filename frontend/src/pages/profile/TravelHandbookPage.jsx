@@ -1,5 +1,7 @@
-import { useDeferredValue, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import usePublicCollectionPage from '../../hooks/usePublicCollectionPage.js'
+import usePublicSession from '../../hooks/usePublicSession.js'
+import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 
 const HANDBOOK_FILTERS = Object.freeze([
   { id: 'all', label: 'Tất cả' },
@@ -97,14 +99,6 @@ const QUICK_TIPS = Object.freeze([
   },
 ])
 
-function preserveAuthPath(pathname, isCustomer) {
-  if (!isCustomer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
-
 function GuideIcon() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
@@ -123,31 +117,36 @@ function GuideIcon() {
   )
 }
 
+function matchesGuideFilter(guide, selectedFilter) {
+  return guide.type === selectedFilter
+}
+
+function getGuideSearchText(guide) {
+  return `${guide.title} ${guide.summary} ${guide.note} ${guide.items.join(' ')}`
+}
+
 function TravelHandbookPage() {
-  const [searchParams] = useSearchParams()
-  const isCustomer = searchParams.get('auth') === 'customer'
-  const [query, setQuery] = useState('')
-  const [selectedFilter, setSelectedFilter] = useState('all')
-  const deferredQuery = useDeferredValue(query.trim().toLowerCase())
-
-  const filteredGuides = useMemo(() => {
-    return HANDBOOK_GUIDES.filter((guide) => {
-      const matchesFilter = selectedFilter === 'all' ? true : guide.type === selectedFilter
-      const haystack =
-        `${guide.title} ${guide.summary} ${guide.note} ${guide.items.join(' ')}`.toLowerCase()
-      const matchesQuery = deferredQuery ? haystack.includes(deferredQuery) : true
-
-      return matchesFilter && matchesQuery
-    })
-  }, [deferredQuery, selectedFilter])
+  const { isCustomer } = usePublicSession()
+  const {
+    filteredItems: filteredGuides,
+    query,
+    resetFilters,
+    selectedFilter,
+    setQuery,
+    setSelectedFilter,
+  } = usePublicCollectionPage({
+    filterItem: matchesGuideFilter,
+    getSearchText: getGuideSearchText,
+    items: HANDBOOK_GUIDES,
+  })
 
   const totalChecklistItems = HANDBOOK_GUIDES.reduce(
     (totalCount, guide) => totalCount + guide.items.length,
     0,
   )
-  const profilePath = preserveAuthPath('/profile', isCustomer)
-  const customerCarePath = preserveAuthPath('/customer-care', isCustomer)
-  const helpCenterPath = preserveAuthPath('/help-center', isCustomer)
+  const profilePath = buildPublicAuthPath('/profile', isCustomer)
+  const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
+  const helpCenterPath = buildPublicAuthPath('/help-center', isCustomer)
 
   return (
     <div className="travel-handbook-page">
@@ -270,7 +269,7 @@ function TravelHandbookPage() {
                   <div className="travel-guide-card__actions">
                     <Link
                       className="travel-guide-card__button"
-                      to={preserveAuthPath(guide.route, isCustomer)}
+                      to={buildPublicAuthPath(guide.route, isCustomer)}
                     >
                       Mở dịch vụ liên quan
                     </Link>
@@ -295,8 +294,7 @@ function TravelHandbookPage() {
                 className="travel-handbook-empty__button"
                 type="button"
                 onClick={() => {
-                  setQuery('')
-                  setSelectedFilter('all')
+                  resetFilters()
                 }}
               >
                 Xóa bộ lọc

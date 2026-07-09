@@ -9,13 +9,17 @@ import {
   FLIGHT_SORT_OPTIONS,
 } from '../constants/flights.js'
 import { mapFlightToCardView } from '../mappers/flightMappers.js'
-import { ROLES } from '../constants/roles.js'
+import usePublicSession from './usePublicSession.js'
 import {
   buildFlightSearchParams,
   getFlightSearchDefaults,
   listFlights,
 } from '../repositories/flightRepository.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import {
+  buildPublicAuthPath,
+  getPublicAuthQueryValue,
+} from '../utils/publicNavigation.js'
 
 const EMPTY_META = Object.freeze({
   page: 1,
@@ -72,18 +76,6 @@ function createInitialFilterState(searchParams) {
     departure_windows: parseArraySearchParam(searchParams, 'departure_windows'),
     stop_counts: parseArraySearchParam(searchParams, 'stops'),
   }
-}
-
-function buildAuthAwarePath(path, isCustomer) {
-  if (!isCustomer) {
-    return path
-  }
-
-  const [pathname, queryString = ''] = String(path ?? '').split('?')
-  const nextSearchParams = new URLSearchParams(queryString)
-  nextSearchParams.set('auth', ROLES.customer)
-
-  return `${pathname}?${nextSearchParams.toString()}`
 }
 
 function createFeedbackState(tone = 'info', message = '') {
@@ -145,9 +137,7 @@ function formatResultLocation(airports, airportCode) {
 export default function useFlightList() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { isCustomer } = usePublicSession()
 
   const [searchState, setSearchState] = useState(() => createInitialSearchState(searchParams))
   const [draftFilters, setDraftFilters] = useState(() => createInitialFilterState(searchParams))
@@ -264,7 +254,7 @@ export default function useFlightList() {
   }, [appliedFilters, currentPage, reloadSeed, searchState, selectedSort])
 
   function preserveAuthQuery(path) {
-    return buildAuthAwarePath(path, isCustomer)
+    return buildPublicAuthPath(path, isCustomer)
   }
 
   function syncSearchParams({
@@ -275,7 +265,7 @@ export default function useFlightList() {
   } = {}) {
     setSearchParams(
       buildFlightSearchParams({
-        auth: isCustomer ? ROLES.customer : '',
+        auth: getPublicAuthQueryValue(isCustomer),
         trip_type: nextSearchState.trip_type,
         from_location: nextSearchState.from_location,
         to_location: nextSearchState.to_location,

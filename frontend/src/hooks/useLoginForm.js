@@ -10,6 +10,7 @@ import {
   validateLoginPayload,
 } from '../mappers/authMappers.js'
 import { login } from '../repositories/authRepository.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 const ADMIN_AUTH_ROLES = Object.freeze([
   ROLES.staff,
@@ -22,7 +23,7 @@ function getPostLoginPath(user) {
     return getAdminDefaultPath(user.role)
   }
 
-  return '/?auth=customer'
+  return '/'
 }
 
 function isSafeRedirectPath(value) {
@@ -36,11 +37,11 @@ function getProtectedRedirectPath(location, searchParams) {
   const queryRedirectPath = searchParams.get('redirect')
 
   if (isSafeRedirectPath(stateRedirectPath)) {
-    return stateRedirectPath
+    return buildPublicAuthPath(stateRedirectPath)
   }
 
   if (isSafeRedirectPath(queryRedirectPath)) {
-    return queryRedirectPath
+    return buildPublicAuthPath(queryRedirectPath)
   }
 
   return ''

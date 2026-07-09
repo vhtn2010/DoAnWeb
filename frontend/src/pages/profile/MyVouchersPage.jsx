@@ -1,5 +1,8 @@
-import { useDeferredValue, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import usePublicCollectionPage from '../../hooks/usePublicCollectionPage.js'
+import usePublicSession from '../../hooks/usePublicSession.js'
+import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 
 const VOUCHER_FILTERS = Object.freeze([
   { id: 'all', label: 'Tất cả' },
@@ -110,20 +113,20 @@ const SUPPORT_NOTES = Object.freeze([
   'Nếu mã hợp lệ nhưng chưa áp dụng được, bạn có thể chuyển sang chat hỗ trợ để kiểm tra điều kiện đơn hàng.',
 ])
 
-function preserveAuthPath(pathname, isCustomer) {
-  if (!isCustomer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
-
 function formatCurrency(amount) {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',
     maximumFractionDigits: 0,
   }).format(amount)
+}
+
+function matchesVoucherFilter(voucher, selectedFilter) {
+  return voucher.status === selectedFilter
+}
+
+function getVoucherSearchText(voucher) {
+  return `${voucher.code} ${voucher.title} ${voucher.description} ${voucher.service_tags.join(' ')}`
 }
 
 function VoucherTicketIcon() {
@@ -145,24 +148,20 @@ function VoucherTicketIcon() {
 }
 
 function MyVouchersPage() {
-  const [searchParams] = useSearchParams()
-  const isCustomer = searchParams.get('auth') === 'customer'
-  const [query, setQuery] = useState('')
-  const [selectedFilter, setSelectedFilter] = useState('all')
+  const { isCustomer } = usePublicSession()
   const [copiedVoucherId, setCopiedVoucherId] = useState(null)
-  const deferredQuery = useDeferredValue(query.trim().toLowerCase())
-
-  const filteredVouchers = useMemo(() => {
-    return MY_VOUCHERS.filter((voucher) => {
-      const matchesFilter =
-        selectedFilter === 'all' ? true : voucher.status === selectedFilter
-      const haystack =
-        `${voucher.code} ${voucher.title} ${voucher.description} ${voucher.service_tags.join(' ')}`.toLowerCase()
-      const matchesQuery = deferredQuery ? haystack.includes(deferredQuery) : true
-
-      return matchesFilter && matchesQuery
-    })
-  }, [deferredQuery, selectedFilter])
+  const {
+    filteredItems: filteredVouchers,
+    query,
+    resetFilters,
+    selectedFilter,
+    setQuery,
+    setSelectedFilter,
+  } = usePublicCollectionPage({
+    filterItem: matchesVoucherFilter,
+    getSearchText: getVoucherSearchText,
+    items: MY_VOUCHERS,
+  })
 
   const activeVouchers = MY_VOUCHERS.filter((voucher) => voucher.status === 'active')
   const totalReadyValue = activeVouchers.reduce(
@@ -173,8 +172,8 @@ function MyVouchersPage() {
     leftVoucher.expires_at.localeCompare(rightVoucher.expires_at),
   )[0]
 
-  const profilePath = preserveAuthPath('/profile', isCustomer)
-  const customerCarePath = preserveAuthPath('/customer-care', isCustomer)
+  const profilePath = buildPublicAuthPath('/profile', isCustomer)
+  const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
 
   async function handleCopyVoucher(code, voucherId) {
     if (!navigator?.clipboard?.writeText) {
@@ -324,7 +323,7 @@ function MyVouchersPage() {
                   <div className="my-voucher-card__actions">
                     <Link
                       className="my-voucher-card__button"
-                      to={preserveAuthPath(voucher.route, isCustomer)}
+                      to={buildPublicAuthPath(voucher.route, isCustomer)}
                     >
                       {voucher.status === 'active' ? 'Dùng ngay' : 'Mở liên quan'}
                     </Link>
@@ -349,8 +348,7 @@ function MyVouchersPage() {
                 className="my-vouchers-empty__button"
                 type="button"
                 onClick={() => {
-                  setQuery('')
-                  setSelectedFilter('all')
+                  resetFilters()
                 }}
               >
                 Xóa bộ lọc

@@ -1,5 +1,8 @@
-import { useDeferredValue, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import usePublicCollectionPage from '../../hooks/usePublicCollectionPage.js'
+import usePublicSession from '../../hooks/usePublicSession.js'
+import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 
 const HELP_CATEGORIES = Object.freeze([
   {
@@ -91,25 +94,31 @@ const HELP_ARTICLES = Object.freeze([
   },
 ])
 
+function matchesHelpCategory(article, selectedCategory) {
+  return article.category === selectedCategory
+}
+
+function getHelpSearchText(article) {
+  return `${article.title} ${article.summary} ${article.content}`
+}
+
 function HelpCenterPage() {
-  const [searchParams] = useSearchParams()
-  const isCustomer = searchParams.get('auth') === 'customer'
-  const [query, setQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('all')
+  const { isCustomer } = usePublicSession()
   const [expandedArticleId, setExpandedArticleId] = useState(HELP_ARTICLES[0].id)
-  const deferredQuery = useDeferredValue(query.trim().toLowerCase())
-
-  const filteredArticles = HELP_ARTICLES.filter((article) => {
-    const matchesCategory =
-      selectedCategory === 'all' ? true : article.category === selectedCategory
-    const haystack = `${article.title} ${article.summary} ${article.content}`.toLowerCase()
-    const matchesQuery = deferredQuery ? haystack.includes(deferredQuery) : true
-
-    return matchesCategory && matchesQuery
+  const {
+    filteredItems: filteredArticles,
+    query,
+    selectedFilter: selectedCategory,
+    setQuery,
+    setSelectedFilter: setSelectedCategory,
+  } = usePublicCollectionPage({
+    filterItem: matchesHelpCategory,
+    getSearchText: getHelpSearchText,
+    items: HELP_ARTICLES,
   })
 
-  const backToProfilePath = isCustomer ? '/profile?auth=customer' : '/profile'
-  const customerCarePath = isCustomer ? '/customer-care?auth=customer' : '/customer-care'
+  const backToProfilePath = buildPublicAuthPath('/profile', isCustomer)
+  const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
 
   return (
     <div className="help-center-page">

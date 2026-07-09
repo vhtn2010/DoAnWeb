@@ -327,12 +327,8 @@ export async function getHomeDestinations({ limit = 4, type } = {}) {
   }
 }
 
-export function buildHomeSearchParams(formState, { auth = '' } = {}) {
+export function buildHomeSearchParams(formState, { auth: _auth = '' } = {}) {
   const params = new URLSearchParams()
-
-  if (auth) {
-    params.set('auth', auth)
-  }
 
   params.set('from', slugifyQueryValue(formState.from))
   params.set('to', slugifyQueryValue(formState.to))

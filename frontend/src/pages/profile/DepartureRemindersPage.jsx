@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+﻿import { Link } from 'react-router-dom'
+import useDepartureReminders from '../../hooks/useDepartureReminders.js'
+import usePublicSession from '../../hooks/usePublicSession.js'
+import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 
 const REMINDER_FILTERS = Object.freeze([
   { id: 'all', label: 'Tất cả' },
@@ -147,14 +149,6 @@ const REMINDER_JOURNEYS = Object.freeze([
   },
 ])
 
-function preserveAuthPath(pathname, isCustomer) {
-  if (!isCustomer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
-
 function BellIcon() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
@@ -174,93 +168,24 @@ function BellIcon() {
 }
 
 function DepartureRemindersPage() {
-  const [searchParams] = useSearchParams()
-  const isCustomer = searchParams.get('auth') === 'customer'
-  const [selectedFilter, setSelectedFilter] = useState('all')
-  const [channels, setChannels] = useState(DEFAULT_CHANNELS)
-  const [journeys, setJourneys] = useState(REMINDER_JOURNEYS)
-
-  const filteredJourneys = useMemo(() => {
-    return journeys.filter((journey) => {
-      if (selectedFilter === 'all') {
-        return true
-      }
-
-      return journey.status === selectedFilter
-    })
-  }, [journeys, selectedFilter])
-
-  const enabledJourneys = journeys.filter((journey) => journey.status === 'enabled')
-  const activeReminderCount = journeys.reduce((totalCount, journey) => {
-    return totalCount + journey.reminders.filter((reminder) => reminder.enabled).length
-  }, 0)
-  const nextReminder = journeys
-    .flatMap((journey) =>
-      journey.reminders
-        .filter((reminder) => reminder.enabled)
-        .map((reminder) => ({
-          ...reminder,
-          journeyTitle: journey.title,
-        })),
-    )[0]
-
-  const profilePath = preserveAuthPath('/profile', isCustomer)
-  const customerCarePath = preserveAuthPath('/customer-care', isCustomer)
-
-  function handleChannelToggle(channelId) {
-    setChannels((currentChannels) => ({
-      ...currentChannels,
-      [channelId]: !currentChannels[channelId],
-    }))
-  }
-
-  function handleJourneyStatusToggle(journeyId) {
-    setJourneys((currentJourneys) =>
-      currentJourneys.map((journey) => {
-        if (journey.id !== journeyId) {
-          return journey
-        }
-
-        const nextStatus = journey.status === 'enabled' ? 'paused' : 'enabled'
-
-        return {
-          ...journey,
-          status: nextStatus,
-          status_label: nextStatus === 'enabled' ? 'Đang bật' : 'Tạm tắt',
-          reminders: journey.reminders.map((reminder) => ({
-            ...reminder,
-            enabled: nextStatus === 'enabled',
-          })),
-        }
-      }),
-    )
-  }
-
-  function handleReminderToggle(journeyId, reminderId) {
-    setJourneys((currentJourneys) =>
-      currentJourneys.map((journey) => {
-        if (journey.id !== journeyId) {
-          return journey
-        }
-
-        const nextReminders = journey.reminders.map((reminder) =>
-          reminder.id === reminderId
-            ? { ...reminder, enabled: !reminder.enabled }
-            : reminder,
-        )
-
-        const hasEnabledReminder = nextReminders.some((reminder) => reminder.enabled)
-
-        return {
-          ...journey,
-          status: hasEnabledReminder ? 'enabled' : 'paused',
-          status_label: hasEnabledReminder ? 'Đang bật' : 'Tạm tắt',
-          reminders: nextReminders,
-        }
-      }),
-    )
-  }
-
+  const { isCustomer } = usePublicSession()
+  const {
+    activeReminderCount,
+    channels,
+    enabledJourneys,
+    filteredJourneys,
+    handleChannelToggle,
+    handleJourneyStatusToggle,
+    handleReminderToggle,
+    nextReminder,
+    selectedFilter,
+    setSelectedFilter,
+  } = useDepartureReminders({
+    defaultChannels: DEFAULT_CHANNELS,
+    journeys: REMINDER_JOURNEYS,
+  })
+  const profilePath = buildPublicAuthPath('/profile', isCustomer)
+  const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
   return (
     <div className="departure-reminders-page">
       <section className="departure-reminders-hero">
@@ -402,7 +327,7 @@ function DepartureRemindersPage() {
                   <div className="departure-journey-card__actions">
                     <Link
                       className="departure-journey-card__button"
-                      to={preserveAuthPath(journey.primary_route, isCustomer)}
+                      to={buildPublicAuthPath(journey.primary_route, isCustomer)}
                     >
                       Mở hành trình
                     </Link>
@@ -480,3 +405,4 @@ function DepartureRemindersPage() {
 }
 
 export default DepartureRemindersPage
+

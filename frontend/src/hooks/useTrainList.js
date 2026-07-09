@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
 import {
   DEFAULT_TRAIN_PAGE_SIZE,
   DEFAULT_TRAIN_PASSENGERS,
@@ -15,6 +14,11 @@ import {
   listTrains,
 } from '../repositories/trainRepository.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicSession from './usePublicSession.js'
+import {
+  buildPublicAuthPath,
+  getPublicAuthQueryValue,
+} from '../utils/publicNavigation.js'
 
 const EMPTY_META = Object.freeze({
   page: 1,
@@ -43,18 +47,6 @@ function parseArraySearchParam(searchParams, key) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
-}
-
-function buildAuthAwarePath(path, isCustomer) {
-  if (!isCustomer) {
-    return path
-  }
-
-  const [pathname, queryString = ''] = String(path ?? '').split('?')
-  const nextSearchParams = new URLSearchParams(queryString)
-  nextSearchParams.set('auth', ROLES.customer)
-
-  return `${pathname}?${nextSearchParams.toString()}`
 }
 
 function createFeedbackState(tone = 'info', message = '') {
@@ -131,9 +123,7 @@ function getStationLabel(stations, stationCode) {
 export default function useTrainList() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { isCustomer } = usePublicSession()
 
   const [searchState, setSearchState] = useState(() => createInitialSearchState(searchParams))
   const [draftFilters, setDraftFilters] = useState(() => createInitialFilterState(searchParams))
@@ -242,7 +232,7 @@ export default function useTrainList() {
   }, [appliedFilters, currentPage, reloadSeed, searchState, selectedSort])
 
   function preserveAuthQuery(path) {
-    return buildAuthAwarePath(path, isCustomer)
+    return buildPublicAuthPath(path, isCustomer)
   }
 
   function syncSearchParams({
@@ -253,7 +243,7 @@ export default function useTrainList() {
   } = {}) {
     setSearchParams(
       buildTrainSearchParams({
-        auth: isCustomer ? ROLES.customer : '',
+        auth: getPublicAuthQueryValue(isCustomer),
         trip_type: nextSearchState.trip_type,
         from_station: nextSearchState.from_station,
         to_station: nextSearchState.to_station,

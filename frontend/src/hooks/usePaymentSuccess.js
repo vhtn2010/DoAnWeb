@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   buildInvoiceDownloadPayload,
   getPaymentSuccess,
@@ -10,22 +9,14 @@ import {
   buildPaymentSuccessViewModel,
   clonePaymentValue,
 } from '../mappers/paymentMappers.js'
-
-function preserveAuthPath(pathname, authState) {
-  if (authState !== ROLES.customer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 export default function usePaymentSuccess() {
   const location = useLocation()
   const navigate = useNavigate()
   const { paymentCode } = useParams()
-  const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+  const { authState, isCustomer } = usePublicSession()
 
   const bookingState = useMemo(
     () => (location.state?.booking ? clonePaymentValue(location.state.booking) : undefined),
@@ -147,11 +138,11 @@ export default function usePaymentSuccess() {
   }
 
   function continueExploreTours() {
-    navigate(preserveAuthPath('/services', authState))
+    navigate(buildPublicAuthPath('/services', isCustomer))
   }
 
   function goHome() {
-    navigate(preserveAuthPath('/', authState))
+    navigate(buildPublicAuthPath('/', isCustomer))
   }
 
   return {
@@ -160,7 +151,7 @@ export default function usePaymentSuccess() {
     feedback,
     loading,
     paymentSuccess,
-    preserveAuthQuery: (pathname) => preserveAuthPath(pathname, authState),
+    preserveAuthQuery: (pathname) => buildPublicAuthPath(pathname, isCustomer),
     viewModel,
     actions: {
       continueExploreTours,

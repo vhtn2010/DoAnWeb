@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { mapTrainDetailResponseToView } from '../mappers/trainMappers.js'
 import { addCartItemPreview } from '../repositories/cartRepository.js'
 import {
@@ -8,20 +7,9 @@ import {
   checkTrainAvailability,
   getTrainDetailBySlug,
 } from '../repositories/trainRepository.js'
-import { hasCustomerSession } from '../utils/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
-
-function buildAuthAwarePath(path, isCustomer) {
-  if (!isCustomer) {
-    return path
-  }
-
-  const [pathname, queryString = ''] = String(path ?? '').split('?')
-  const nextSearchParams = new URLSearchParams(queryString)
-  nextSearchParams.set('auth', ROLES.customer)
-
-  return `${pathname}?${nextSearchParams.toString()}`
-}
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 function createFeedbackState(tone = 'info', message = '') {
   return {
@@ -31,7 +19,7 @@ function createFeedbackState(tone = 'info', message = '') {
 }
 
 function buildLoginPath(pathname, search = '') {
-  const nextPath = buildAuthAwarePath(pathname, true)
+  const nextPath = buildPublicAuthPath(pathname, true)
   const nextSearchParams = new URLSearchParams(search)
   nextSearchParams.set('redirect', nextPath)
 
@@ -117,13 +105,7 @@ export default function useTrainDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const [searchParams] = useSearchParams()
-  const isAuthenticatedCustomer = hasCustomerSession()
-  const authState =
-    searchParams.get('auth') === ROLES.customer || isAuthenticatedCustomer
-      ? ROLES.customer
-      : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { authState, isCustomer } = usePublicSession()
 
   const [train, setTrain] = useState(null)
   const [relatedTrains, setRelatedTrains] = useState([])
@@ -180,7 +162,7 @@ export default function useTrainDetail() {
         setRelatedTrains(
           mappedState.relatedTrains.map((relatedTrain) => ({
             ...relatedTrain,
-            detail_path: buildAuthAwarePath(relatedTrain.detail_path, isCustomer),
+            detail_path: buildPublicAuthPath(relatedTrain.detail_path, isCustomer),
           })),
         )
         setSelectedCarId(defaultCar?.id ?? '')
@@ -275,7 +257,7 @@ export default function useTrainDetail() {
   }, [selectedCar, selectedSeatOption, selectedSeats, train])
 
   function preserveAuthQuery(path) {
-    return buildAuthAwarePath(path, isCustomer)
+    return buildPublicAuthPath(path, isCustomer)
   }
 
   function selectCar(carId) {
@@ -500,7 +482,7 @@ export default function useTrainDetail() {
     bookNowMock,
     bookingSummary,
     closeLoginPrompt,
-    currentAuthPreviewQuery: isCustomer ? '?auth=customer' : '',
+    currentAuthPreviewQuery: '',
     error,
     feedback,
     formatCurrency: formatCurrencyVND,

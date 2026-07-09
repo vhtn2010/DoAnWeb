@@ -1,12 +1,12 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   HOME_FILTER_GROUPS,
   HOME_SEARCH_FIELD_OPTIONS,
   HOME_SORT_OPTIONS,
   HOME_WEEKDAY_LABELS,
 } from '../constants/home.js'
-import { ROLES } from '../constants/roles.js'
+import usePublicSession from './usePublicSession.js'
 import {
   addMonths,
   compareDates,
@@ -23,17 +23,14 @@ import {
   getHomePageFallbackData,
 } from '../repositories/homeRepository.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
-
-function buildAuthAwarePath(path, isCustomer) {
-  return isCustomer ? `${path}?auth=customer` : path
-}
+import {
+  buildPublicAuthPath,
+  getPublicAuthQueryValue,
+} from '../utils/publicNavigation.js'
 
 export default function useHomePage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { authState, isCustomer } = usePublicSession()
   const searchCardRef = useRef(null)
   const fallbackHomeState = createHomePageViewState(getHomePageFallbackData().data)
 
@@ -210,7 +207,7 @@ export default function useHomePage() {
     }
 
     const params = buildHomeSearchParams(searchState, {
-      auth: isCustomer ? ROLES.customer : '',
+      auth: getPublicAuthQueryValue(isCustomer),
     })
 
     setFeedbackMessage('')
@@ -240,8 +237,8 @@ export default function useHomePage() {
       ? `${formatDateDisplay(calendarSelection.startDate)} - Chọn ngày về`
       : displayedDateRange
   const visibleMonths = [visibleMonth, addMonths(visibleMonth, 1)]
-  const serviceListPath = buildAuthAwarePath('/services', isCustomer)
-  const heroCtaPath = buildAuthAwarePath(homeData.hero.cta_path, isCustomer)
+  const serviceListPath = buildPublicAuthPath('/services', isCustomer)
+  const heroCtaPath = buildPublicAuthPath(homeData.hero.cta_path, isCustomer)
   const searchFieldOptions = HOME_SEARCH_FIELD_OPTIONS.map((field) => ({
     ...field,
     options: homeData.provinces,
