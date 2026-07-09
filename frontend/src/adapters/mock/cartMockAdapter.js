@@ -38,14 +38,41 @@ function findSnapshotByCartItemId(cartItemId) {
 
 let mockCartState = createInitialCartState()
 
-export async function getActiveCart({ authState = ROLES.guest } = {}) {
-  const authKey = getAuthKey(authState)
-  const snapshot = mockCartState[authKey]
+export function getCartSnapshotByAuthState(authState = ROLES.guest) {
+  return cloneValue(mockCartState[getAuthKey(authState)])
+}
 
+export async function getActiveCart({ authState = ROLES.guest } = {}) {
   return {
     success: true,
     message: 'OK',
-    data: cloneValue(snapshot),
+    data: getCartSnapshotByAuthState(authState),
+  }
+}
+
+export async function addCartItemPreview({ authState = ROLES.guest, item } = {}) {
+  const authKey = getAuthKey(authState)
+  const snapshot = mockCartState[authKey]
+
+  if (!snapshot || !item) {
+    throw new Error('Cannot add preview item to mock cart.')
+  }
+
+  snapshot.cart_items = [
+    {
+      ...cloneValue(item),
+      cart_id: snapshot.cart.id,
+    },
+    ...snapshot.cart_items,
+  ]
+  touchCart(snapshot)
+
+  return {
+    success: true,
+    message: 'Mock item added to cart.',
+    data: {
+      cart_item: cloneValue(snapshot.cart_items[0]),
+    },
   }
 }
 

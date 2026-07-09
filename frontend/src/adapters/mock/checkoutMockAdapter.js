@@ -2,10 +2,7 @@ import { ROLES } from '../../constants/roles.js'
 import {
   CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
 } from '../../constants/checkout.js'
-import {
-  customerActiveCartFixture,
-  guestActiveCartFixture,
-} from '../../fixtures/cart.fixtures.js'
+import { getCartSnapshotByAuthState as getMockCartSnapshotByAuthState } from './cartMockAdapter.js'
 import { checkoutVoucherFixtures } from '../../fixtures/checkout.fixtures.js'
 import {
   buildCheckoutDraftFromCartSnapshot,
@@ -16,9 +13,48 @@ import {
 } from '../../mappers/checkoutMappers.js'
 
 function getCartSnapshotByAuthState(authState = ROLES.guest) {
-  return authState === ROLES.customer
-    ? customerActiveCartFixture
-    : guestActiveCartFixture
+  return getMockCartSnapshotByAuthState(authState)
+}
+
+function resolveNumber(...values) {
+  const numericValue = values.find((value) => typeof value === 'number' && Number.isFinite(value))
+  return numericValue ?? 0
+}
+
+function buildPaymentConfirmationHandoff(checkoutPayload = {}) {
+  const summary = checkoutPayload.summary ?? {}
+  const bookingCode = 'NVBT20241012001'
+  const bookingId = 'booking-preview-checkout-001'
+  const totalAmount = resolveNumber(summary.total_amount)
+
+  return {
+    booking_handoff: {
+      id: bookingId,
+      booking_id: bookingId,
+      booking_code: bookingCode,
+      contact_name: String(checkoutPayload.contact_name ?? '').trim(),
+      contact_email: String(checkoutPayload.contact_email ?? '').trim(),
+      contact_phone: String(checkoutPayload.contact_phone ?? '').trim(),
+      note: String(checkoutPayload.note ?? '').trim(),
+      booking_status: 'pending_payment',
+      payment_status: 'initiated',
+      subtotal_amount: resolveNumber(summary.subtotal_amount),
+      discount_amount: resolveNumber(summary.discount_amount),
+      tax_amount: 0,
+      service_fee_amount: resolveNumber(summary.service_fee_amount),
+      total_amount,
+      currency: summary.currency ?? 'VND',
+      voucher_code: String(checkoutPayload.voucher_code ?? '').trim().toUpperCase(),
+    },
+    payment_redirect_payload: {
+      booking_id: bookingId,
+      booking_code: bookingCode,
+      total_amount,
+      currency: summary.currency ?? 'VND',
+      payment_method: 'bank_transfer',
+      next_route: '/payment-confirmation',
+    },
+  }
 }
 
 export async function getCheckoutDraft({
@@ -83,11 +119,16 @@ export function buildCheckoutPayloadWithMock(formState = {}) {
 export async function submitCheckout(payload = {}) {
   // TODO: replace mock checkout submit with POST /bookings/checkout in API integration phase.
   // TODO: map traveller_info to booking_items.traveller_info during checkout API integration.
+  const checkoutPayload = cloneCheckoutValue(payload)
+  const paymentConfirmationHandoff = buildPaymentConfirmationHandoff(checkoutPayload)
+
   return {
     success: true,
     message: 'Thông tin đặt đơn đã sẵn sàng.',
     data: {
-      checkout_payload: cloneCheckoutValue(payload),
+      checkout_payload: checkoutPayload,
+      next_route: '/payment-confirmation',
+      ...paymentConfirmationHandoff,
     },
   }
 }
