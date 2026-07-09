@@ -21,9 +21,11 @@ function getErrorMessage(error) {
 function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
   const token = String(searchParams.get('token') ?? '').trim()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => normalizeEmail(searchParams.get('email') ?? ''))
   const [emailError, setEmailError] = useState('')
   const [status, setStatus] = useState(token ? 'loading' : 'error')
+  const invalidLinkMessage =
+    'Liên kết xác minh không hợp lệ hoặc thiếu token. Bạn có thể yêu cầu gửi lại email xác minh bên dưới.'
   const [feedbackMessage, setFeedbackMessage] = useState(
     token
       ? 'Đang xác minh địa chỉ email của bạn...'
@@ -73,7 +75,13 @@ function VerifyEmailPage() {
     return () => {
       isActive = false
     }
-  }, [token])
+  }, [invalidLinkMessage, token])
+
+  useEffect(() => {
+    if (!token) {
+      setFeedbackMessage(invalidLinkMessage)
+    }
+  }, [invalidLinkMessage, token])
 
   async function handleResendVerification(event) {
     event.preventDefault()

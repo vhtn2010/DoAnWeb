@@ -33,7 +33,7 @@ export default function useForgotPasswordForm() {
       otp_code: currentValues.otp_code || resetToken,
     }))
     setSentCode(true)
-    setFeedbackMessage('Enter a new password to finish resetting your account.')
+    setFeedbackMessage('Vui long nhap mat khau moi de hoan tat viec dat lai tai khoan.')
     setFeedbackTone('info')
   }, [resetToken])
 
