@@ -485,6 +485,13 @@ export default function useTourServiceList() {
     }))
   }
 
+  function handleKeywordChange(value) {
+    setDraftFilters((currentFilters) => ({
+      ...currentFilters,
+      keyword: value,
+    }))
+  }
+
   function handleApplyFilters() {
     const nextFilters = {
       ...draftFilters,
@@ -532,6 +539,7 @@ export default function useTourServiceList() {
     durationOptions: TOUR_DURATION_FILTER_OPTIONS,
     errorMessage,
     handleApplyFilters,
+    handleKeywordChange,
     handlePageChange,
     handleResetFilters,
     handleSortChange,
@@ -542,7 +550,7 @@ export default function useTourServiceList() {
     resultCount: meta.total,
     selectedSort,
     services,
-    setDraftFilters,
     sortOptions: catalog.sortOptions,
+    totalPages: meta.total_pages,
   }
 }
