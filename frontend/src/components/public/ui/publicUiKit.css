@@ -93,6 +93,98 @@
   flex-shrink: 0;
 }
 
+.public-ui-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 30px;
+  border: 1px solid rgba(223, 227, 230, 0.78);
+  border-radius: 30px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 248, 242, 0.95));
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.08);
+}
+
+.public-ui-page-header__copy {
+  display: grid;
+  gap: 10px;
+  max-width: 760px;
+}
+
+.public-ui-page-header__eyebrow {
+  margin: 0;
+  color: var(--color-brand-primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.public-ui-page-header__title {
+  margin: 0;
+  color: #10243e;
+  font-size: clamp(1.9rem, 3vw, 2.7rem);
+  line-height: 1.08;
+}
+
+.public-ui-page-header__subtitle {
+  margin: 0;
+  color: var(--color-text-soft);
+  line-height: 1.75;
+}
+
+.public-ui-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.public-ui-toolbar,
+.public-ui-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.public-ui-toolbar--compact {
+  gap: 12px;
+}
+
+.public-ui-filter-bar {
+  padding: 18px 20px;
+  border: 1px solid rgba(223, 227, 230, 0.78);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.06);
+}
+
+.public-ui-filter-bar__content,
+.public-ui-filter-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.public-ui-form-panel {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid rgba(223, 227, 230, 0.82);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.public-ui-form-panel__body {
+  display: grid;
+  gap: 18px;
+}
+
 .public-ui-button {
   display: inline-flex;
   align-items: center;
@@ -342,6 +434,12 @@
   }
 
   .public-ui-section-header {
+    flex-direction: column;
+  }
+
+  .public-ui-page-header {
+    padding: 22px 20px;
+    border-radius: 24px;
     flex-direction: column;
   }
 }

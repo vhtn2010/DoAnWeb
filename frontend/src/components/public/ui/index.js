@@ -3,9 +3,13 @@ export {
   PublicCard,
   PublicEmptyState,
   PublicErrorState,
+  PublicFilterBar,
+  PublicFormPanel,
   PublicLoadingBlock,
   PublicNotice,
   PublicPagination,
+  PublicPageHeader,
   PublicSectionHeader,
   PublicState,
+  PublicToolbar,
 } from './PublicUiKit.jsx'
