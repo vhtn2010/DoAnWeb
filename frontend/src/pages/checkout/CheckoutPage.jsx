@@ -3,6 +3,10 @@ import CheckoutSpecialRequestCard from '../../components/checkout/CheckoutSpecia
 import CheckoutStepper from '../../components/checkout/CheckoutStepper.jsx'
 import CheckoutSummaryCard from '../../components/checkout/CheckoutSummaryCard.jsx'
 import CheckoutVoucherCard from '../../components/checkout/CheckoutVoucherCard.jsx'
+import {
+  PublicErrorState,
+  PublicLoadingBlock,
+} from '../../components/public/ui/index.js'
 import useCheckout from '../../hooks/useCheckout.js'
 
 const trustItems = ['SSL SECURE', 'BEST PRICE GUARANTEE', '24/7 SUPPORT']
@@ -44,15 +48,21 @@ function CheckoutPage() {
         <CheckoutStepper activeStep={2} />
 
         {loading && !checkoutDraft ? (
-          <p className="checkout-summary-card__feedback checkout-summary-card__feedback--success" role="status">
-            Đang tải thông tin đặt đơn mock theo pattern API-ready...
-          </p>
+          <PublicLoadingBlock
+            className="checkout-page__state"
+            description="Đơn nháp và thông tin liên hệ đang được tải theo luồng mock API-ready hiện tại."
+            rows={3}
+            title="Đang tải thông tin đặt đơn"
+          />
         ) : null}
 
         {error ? (
-          <p className="checkout-summary-card__feedback checkout-summary-card__feedback--error" role="status">
-            {error}
-          </p>
+          <PublicErrorState
+            className="checkout-page__state"
+            description={error}
+            eyebrow="Không thể tiếp tục"
+            title="Có lỗi khi chuẩn bị bước checkout"
+          />
         ) : null}
 
         {checkoutDraft && formattedSummary && summaryService ? (
