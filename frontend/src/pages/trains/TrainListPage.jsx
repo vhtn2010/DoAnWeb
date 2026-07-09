@@ -2,14 +2,22 @@ import TrainCard from '../../components/trains/TrainCard.jsx'
 import TrainFilterSidebar from '../../components/trains/TrainFilterSidebar.jsx'
 import TrainSearchPanel from '../../components/trains/TrainSearchPanel.jsx'
 import TrainSortBar from '../../components/trains/TrainSortBar.jsx'
+import {
+  PublicButton,
+  PublicEmptyState,
+  PublicErrorState,
+  PublicLoadingBlock,
+} from '../../components/public/ui/index.js'
 import useTrainList from '../../hooks/useTrainList.js'
 
 function TrainResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
   return (
     <div className="train-results__footer">
-      <button
+      <PublicButton
         className="train-results__load-more"
         disabled={!canLoadMore || isLoading}
+        loading={isLoading}
+        variant="secondary"
         type="button"
         onClick={onLoadMore}
       >
@@ -17,7 +25,7 @@ function TrainResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
         <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
           <path d="m7 10 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
         </svg>
-      </button>
+      </PublicButton>
     </div>
   )
 }
@@ -92,18 +100,24 @@ function TrainListPage() {
             />
 
             {error ? (
-              <div className="train-results__state" role="alert">
-                <h3>Không thể tải chuyến tàu lúc này</h3>
-                <p>{error}</p>
-                <button className="train-results__retry" type="button" onClick={retry}>
-                  Tải lại danh sách
-                </button>
-              </div>
+              <PublicErrorState
+                action={
+                  <PublicButton className="train-results__retry" type="button" variant="secondary" onClick={retry}>
+                    Tải lại danh sách
+                  </PublicButton>
+                }
+                className="train-results__state"
+                description={error}
+                eyebrow="Kết nối thất bại"
+                title="Không thể tải chuyến tàu lúc này"
+              />
             ) : loading && !trains.length ? (
-              <div className="train-results__state" role="status">
-                <h3>Đang tìm chuyến tàu phù hợp</h3>
-                <p>Danh sách đang được đọc từ mock adapter theo pattern API-ready hiện tại.</p>
-              </div>
+              <PublicLoadingBlock
+                className="train-results__state"
+                description="Danh sách đang được đọc từ mock adapter theo pattern API-ready hiện tại."
+                rows={4}
+                title="Đang tìm chuyến tàu phù hợp"
+              />
             ) : trains.length ? (
               <>
                 <div className="train-results__list">
@@ -126,10 +140,12 @@ function TrainListPage() {
                 />
               </>
             ) : (
-              <div className="train-results__state" role="status">
-                <h3>Chưa có chuyến tàu phù hợp</h3>
-                <p>Thử thay đổi ga đi, ga đến, ngày đi hoặc bộ lọc để xem thêm kết quả.</p>
-              </div>
+              <PublicEmptyState
+                className="train-results__state"
+                description="Thử thay đổi ga đi, ga đến, ngày đi hoặc bộ lọc để xem thêm kết quả."
+                eyebrow="Chưa có kết quả"
+                title="Chưa có chuyến tàu phù hợp"
+              />
             )}
           </div>
         </div>
