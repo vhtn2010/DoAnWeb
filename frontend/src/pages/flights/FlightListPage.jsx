@@ -2,14 +2,22 @@ import FlightCard from '../../components/flights/FlightCard.jsx'
 import FlightFilterSidebar from '../../components/flights/FlightFilterSidebar.jsx'
 import FlightSearchPanel from '../../components/flights/FlightSearchPanel.jsx'
 import FlightSortBar from '../../components/flights/FlightSortBar.jsx'
+import {
+  PublicButton,
+  PublicEmptyState,
+  PublicErrorState,
+  PublicLoadingBlock,
+} from '../../components/public/ui/index.js'
 import useFlightList from '../../hooks/useFlightList.js'
 
 function FlightResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
   return (
     <div className="flight-results__footer">
-      <button
+      <PublicButton
         className="flight-results__load-more"
         disabled={!canLoadMore || isLoading}
+        loading={isLoading}
+        variant="secondary"
         type="button"
         onClick={onLoadMore}
       >
@@ -17,7 +25,7 @@ function FlightResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
         <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
           <path d="m7 10 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
         </svg>
-      </button>
+      </PublicButton>
     </div>
   )
 }
@@ -101,18 +109,24 @@ function FlightListPage() {
             />
 
             {error ? (
-              <div className="flight-results__empty" role="alert">
-                <h3>Không thể tải chuyến bay lúc này</h3>
-                <p>{error}</p>
-                <button className="flight-results__retry" type="button" onClick={retry}>
-                  Tải lại danh sách
-                </button>
-              </div>
+              <PublicErrorState
+                action={
+                  <PublicButton className="flight-results__retry" type="button" variant="secondary" onClick={retry}>
+                    Tải lại danh sách
+                  </PublicButton>
+                }
+                className="flight-results__state"
+                description={error}
+                eyebrow="Kết nối thất bại"
+                title="Không thể tải chuyến bay lúc này"
+              />
             ) : loading && !flights.length ? (
-              <div className="flight-results__empty" role="status">
-                <h3>Đang tìm chuyến bay phù hợp</h3>
-                <p>Danh sách chuyến bay đang được tải từ hệ thống.</p>
-              </div>
+              <PublicLoadingBlock
+                className="flight-results__state"
+                description="Danh sách chuyến bay đang được tải từ hệ thống."
+                rows={4}
+                title="Đang tìm chuyến bay phù hợp"
+              />
             ) : flights.length ? (
               <>
                 <div className="flight-results__list">
@@ -135,10 +149,12 @@ function FlightListPage() {
                 />
               </>
             ) : (
-              <div className="flight-results__empty" role="status">
-                <h3>Chưa có chuyến bay phù hợp</h3>
-                <p>Thử thay đổi điểm đi, điểm đến, ngày bay hoặc bộ lọc để xem thêm kết quả.</p>
-              </div>
+              <PublicEmptyState
+                className="flight-results__state"
+                description="Thử thay đổi điểm đi, điểm đến, ngày bay hoặc bộ lọc để xem thêm kết quả."
+                eyebrow="Chưa có kết quả"
+                title="Chưa có chuyến bay phù hợp"
+              />
             )}
           </div>
         </div>
