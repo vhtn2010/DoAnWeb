@@ -307,7 +307,7 @@ export async function getHotelDetailBySlug(slug) {
   ) {
     return {
       success: false,
-      message: 'Hotel not found.',
+      message: 'Không tìm thấy khách sạn.',
       data: null,
     }
   }
@@ -358,7 +358,7 @@ export async function checkHotelAvailability({
   if (!hotel || !room) {
     return {
       success: false,
-      message: 'Room not found.',
+      message: 'Không tìm thấy phòng phù hợp để kiểm tra.',
       data: null,
     }
   }
@@ -377,7 +377,7 @@ export async function checkHotelAvailability({
 
   return {
     success: true,
-    message: 'Mock availability checked.',
+    message: 'Phòng còn khả dụng trong dữ liệu mock.',
     data: {
       is_available: isAvailable,
       available_quantity: room.available_quantity,
@@ -406,7 +406,7 @@ export async function buildHotelCartItemPayload({
   if (!hotel || !room) {
     return {
       success: false,
-      message: 'Cannot prepare mock booking payload.',
+      message: 'Không thể chuẩn bị dữ liệu đặt phòng mock.',
       data: null,
     }
   }
@@ -417,7 +417,7 @@ export async function buildHotelCartItemPayload({
 
   return {
     success: true,
-    message: 'Mock booking payload prepared.',
+    message: 'Đã chuẩn bị dữ liệu thêm vào giỏ hàng.',
     data: {
       service_id: room.id,
       service_type: SERVICE_TYPES.room,
