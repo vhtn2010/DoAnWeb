@@ -1524,7 +1524,7 @@ const createLookupService = ({
         throw buildResourceNotFoundError();
       }
 
-      if (resolvedReferenceId && detail.service_id !== service.id) {
+      if (detail.service_id !== service.id) {
         console.error(
           `Active public service ${service.id} (${service.slug}) is missing flight_details.`,
         );
@@ -2137,7 +2137,7 @@ const createLookupService = ({
     from,
     to,
   } = {}) => {
-    const resolvedRoute = parseTransportRouteQuery({
+    const resolvedRoute = parseOptionalTransportRouteQuery({
       departureDate,
       from,
       to,
