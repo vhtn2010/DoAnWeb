@@ -3,13 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ROLES } from '../constants/roles.js'
 import {
   getActiveCart,
-  getCartSummary,
   removeCartItem,
   updateCartItem,
   validateCart,
 } from '../repositories/cartRepository.js'
 import { getAuthSession } from '../services/authSession.js'
 import {
+  createCartSummaryFromItems,
   createCartSummaryPayload,
   mapCartResponseToView,
 } from '../mappers/cartMappers.js'
@@ -60,15 +60,17 @@ export default function useCart() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
 
+  function buildSummary(nextCartItems, nextSelectedItemIds = []) {
+    return createCartSummaryFromItems(nextCartItems, nextSelectedItemIds)
+  }
+
   async function fetchCartState(currentAuthState) {
     const response = await getActiveCart({ authState: currentAuthState })
     const nextCartState = mapCartResponseToView(response.data)
-    const summaryResponse = await getCartSummary(nextCartState.cart.id, [])
 
     return {
       cart: nextCartState.cart,
       cartItems: nextCartState.cart_items,
-      summary: summaryResponse.data,
     }
   }
 
@@ -90,7 +92,7 @@ export default function useCart() {
         setCart(nextCartState.cart)
         setCartItems(nextCartState.cartItems)
         setSelectedItemIds([])
-        setSummary(nextCartState.summary)
+        setSummary(buildSummary(nextCartState.cartItems, []))
       } catch (loadError) {
         if (!isActive) {
           return
@@ -124,7 +126,7 @@ export default function useCart() {
       setCart(nextCartState.cart)
       setCartItems(nextCartState.cartItems)
       setSelectedItemIds([])
-      setSummary(nextCartState.summary)
+      setSummary(buildSummary(nextCartState.cartItems, []))
       setFeedback(createFeedbackState())
     } catch (loadError) {
       setCart(null)
@@ -137,12 +139,7 @@ export default function useCart() {
     }
   }
 
-  async function refreshSummary(nextCartId, nextSelectedItemIds) {
-    const response = await getCartSummary(nextCartId, nextSelectedItemIds)
-    setSummary(response.data)
-  }
-
-  async function handleToggleItem(itemId) {
+  function handleToggleItem(itemId) {
     if (!cart?.id) {
       return
     }
@@ -152,14 +149,9 @@ export default function useCart() {
       : [...selectedItemIds, itemId]
 
     setSelectedItemIds(nextSelectedItemIds)
+    setSummary(buildSummary(cartItems, nextSelectedItemIds))
     setFeedback(createFeedbackState())
     setError('')
-
-    try {
-      await refreshSummary(cart.id, nextSelectedItemIds)
-    } catch (summaryError) {
-      setError(summaryError?.message ?? 'Không thể cập nhật tổng tiền.')
-    }
   }
 
   async function handleRemoveItem(itemId) {
@@ -170,14 +162,14 @@ export default function useCart() {
     setError('')
 
     try {
-      const response = await removeCartItem(itemId)
+      const response = await removeCartItem(itemId, { authState })
       const nextSelectedItemIds = selectedItemIds.filter((currentItemId) => currentItemId !== itemId)
+      const nextCartItems = cartItems.filter((item) => item.id !== itemId)
 
-      setCartItems((currentItems) => currentItems.filter((item) => item.id !== itemId))
+      setCartItems(nextCartItems)
       setSelectedItemIds(nextSelectedItemIds)
+      setSummary(buildSummary(nextCartItems, nextSelectedItemIds))
       setFeedback(createFeedbackState('success', response.message))
-
-      await refreshSummary(cart.id, nextSelectedItemIds)
     } catch (removeError) {
       const nextMessage = removeError?.message ?? 'Không thể xóa dịch vụ khỏi giỏ hàng.'
       setError(nextMessage)
@@ -189,9 +181,27 @@ export default function useCart() {
     setError('')
 
     try {
-      const response = await updateCartItem(item.id, {
-        options: item.options,
-      })
+      const response = await updateCartItem(
+        item.id,
+        {
+          options: item.options,
+        },
+        {
+          authState,
+        },
+      )
+      const nextCartItem = response.data?.cart_item ?? null
+
+      if (nextCartItem) {
+        setCartItems((currentItems) => {
+          const nextCartItems = currentItems.map((currentItem) =>
+            currentItem.id === nextCartItem.id ? nextCartItem : currentItem,
+          )
+
+          setSummary(buildSummary(nextCartItems, selectedItemIds))
+          return nextCartItems
+        })
+      }
 
       setFeedback(createFeedbackState('info', response.message))
     } catch (updateError) {
@@ -214,13 +224,19 @@ export default function useCart() {
     setError('')
 
     try {
-      const response = await validateCart(cart.id, selectedItemIds)
+      const response = await validateCart(cart.id, selectedItemIds, {
+        authState,
+      })
+      const isValid = response.data?.valid ?? response.data?.is_valid ?? false
+      const resolvedSelectedItemIds = Array.isArray(response.data?.selected_item_ids)
+        ? response.data.selected_item_ids
+        : selectedItemIds
 
-      if (!response.data?.is_valid) {
+      if (!isValid) {
         setFeedback(
           createFeedbackState(
             'error',
-            'Một hoặc nhiều dịch vụ đã không còn hợp lệ trong giỏ hàng mock hiện tại.',
+            'Một hoặc nhiều dịch vụ đang chọn không còn hợp lệ. Vui lòng kiểm tra lại.',
           ),
         )
         return
@@ -228,11 +244,11 @@ export default function useCart() {
 
       navigate(buildCheckoutPath(isCustomer), {
         state: {
-          selectedCartItemIds: response.data.selected_item_ids,
+          selectedCartItemIds: resolvedSelectedItemIds,
           cartSummaryPayload: createCartSummaryPayload(
             cart,
-            summary,
-            response.data.selected_item_ids,
+            buildSummary(cartItems, resolvedSelectedItemIds),
+            resolvedSelectedItemIds,
           ),
         },
       })
@@ -262,8 +278,11 @@ export default function useCart() {
     [summary],
   )
 
+  const canContinue = selectedItemIds.length > 0
+
   return {
     authState,
+    canContinue,
     cart,
     cartItems,
     error,

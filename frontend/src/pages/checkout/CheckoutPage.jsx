@@ -79,7 +79,7 @@ function CheckoutPage() {
 
             <aside className="checkout-page__sidebar">
               <CheckoutSummaryCard
-                buttonLabel="Tiếp Tục Thanh Toán ->"
+                buttonLabel="Tiếp tục thanh toán"
                 feedbackMessage={submitFeedback}
                 formErrors={formErrors}
                 onContinue={handleSubmitCheckout}

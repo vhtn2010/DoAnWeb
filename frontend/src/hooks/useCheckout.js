@@ -302,11 +302,6 @@ export default function useCheckout() {
           selectedCartItemIds,
         },
       })
-      return
-
-      setSubmitFeedback(
-        `${response.message} Màn xác nhận đơn hàng/thanh toán sẽ làm ở task tiếp theo.`,
-      )
     } catch (submitError) {
       setSubmitFeedback(submitError?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.')
     }
