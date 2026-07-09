@@ -1,9 +1,8 @@
-import { Link, NavLink, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 
-const navItems = [
+const primaryNavItems = [
   { label: 'Trang chủ', to: '/', end: true },
   { label: 'Tour', to: '/services' },
-  { label: 'Đặt vé', to: '#' },
   { label: 'Khách sạn', to: '/hotels' },
 ]
 
@@ -36,29 +35,53 @@ function HeaderActionIcon({ children, href, label, to }) {
   )
 }
 
-function getPublicHeaderState(authState) {
-  const isCustomer = authState === 'customer'
-
-  return {
-    isCustomer,
-    previewSearch: isCustomer ? '?auth=customer' : '',
+function BookingSubmenuIcon({ type }) {
+  if (type === 'train') {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+        <rect height="11" rx="3" stroke="currentColor" strokeWidth="1.7" width="12" x="6" y="4.5" />
+        <path
+          d="M8.5 8.5h2.6M12.9 8.5h2.6M9 15.5l-2 4M15 15.5l2 4M7 19.5h10"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="1.7"
+        />
+      </svg>
+    )
   }
+
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M11.25 2.75a.75.75 0 0 1 1.5 0v5.89l6.68 3.03a1.5 1.5 0 0 1-.62 2.87h-5.34l1.88 5.39a.75.75 0 0 1-1.16.85L12 19.16l-2.19 1.62a.75.75 0 0 1-1.16-.85l1.88-5.39H5.19a1.5 1.5 0 0 1-.62-2.87l6.68-3.03V2.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
 }
 
 function PublicHeader() {
-  const [searchParams] = useSearchParams()
   const location = useLocation()
-  const authPreview = searchParams.get('auth') === 'customer' ? 'customer' : 'guest'
-  const { isCustomer, previewSearch } = getPublicHeaderState(authPreview)
+  const authParams = new URLSearchParams(location.search)
+  const isCustomer = authParams.get('auth') === 'customer'
 
-  function buildPreviewPath(path) {
-    return previewSearch ? `${path}${previewSearch}` : path
+  function preserveAuthPath(path) {
+    return isCustomer ? `${path}?auth=customer` : path
   }
 
-  const customerCartPath = buildPreviewPath('/cart')
+  const customerCartPath = preserveAuthPath('/cart')
+  const customerProfilePath = preserveAuthPath('/profile')
   const isCartPreview = location.pathname === '/cart'
   const isCheckoutPreview = location.pathname === '/checkout'
-  const isHotelPreview = location.pathname === '/hotels'
+  const isHotelPreview = location.pathname.startsWith('/hotels')
+  const isProfilePreview = location.pathname === '/profile'
+  const isTicketActive =
+    location.pathname.startsWith('/flights') || location.pathname.startsWith('/trains')
+  const isFlightPreview = location.pathname.startsWith('/flights')
+  const isTrainPreview = location.pathname.startsWith('/trains')
+  const bookingLinkClassName = `public-header__link${
+    isTicketActive ? ' public-header__link--active' : ''
+  }`
 
   return (
     <header className="public-header">
@@ -66,7 +89,7 @@ function PublicHeader() {
         <Link
           aria-label="Nét Việt Travel"
           className="public-header__brand"
-          to={buildPreviewPath('/')}
+          to={preserveAuthPath('/')}
         >
           <img
             alt="Nét Việt Travel"
@@ -76,28 +99,59 @@ function PublicHeader() {
         </Link>
 
         <nav aria-label="Điều hướng công khai" className="public-header__nav">
-          {navItems.map((item) =>
-            item.to === '#' ? (
-              <a
-                aria-disabled="true"
-                className="public-header__link public-header__link--placeholder"
-                href="#"
-                key={item.label}
-                onClick={(event) => event.preventDefault()}
+          {primaryNavItems.slice(0, 2).map((item) => (
+            <NavLink
+              className={getNavLinkClassName}
+              end={item.end}
+              key={item.label}
+              to={preserveAuthPath(item.to)}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+
+          <div className="public-nav-ticket">
+            <Link className={bookingLinkClassName} to={preserveAuthPath('/flights')}>
+              Đặt vé
+            </Link>
+
+            <div className="ticket-dropdown">
+              <Link
+                className={`ticket-dropdown-item ${
+                  isFlightPreview ? 'ticket-dropdown-item--active' : ''
+                }`}
+                to={preserveAuthPath('/flights')}
               >
-                {item.label}
-              </a>
-            ) : (
-              <NavLink
-                className={getNavLinkClassName}
-                end={item.end}
-                key={item.label}
-                to={buildPreviewPath(item.to)}
+                <span className="ticket-dropdown-icon">
+                  <BookingSubmenuIcon type="flight" />
+                </span>
+                <span>Vé máy bay</span>
+              </Link>
+
+              <Link
+                className={`ticket-dropdown-item ${
+                  isTrainPreview ? 'ticket-dropdown-item--active' : ''
+                }`}
+                to={preserveAuthPath('/trains')}
               >
-                {item.label}
-              </NavLink>
-            ),
-          )}
+                <span className="ticket-dropdown-icon">
+                  <BookingSubmenuIcon type="train" />
+                </span>
+                <span>Vé tàu</span>
+              </Link>
+            </div>
+          </div>
+
+          {primaryNavItems.slice(2).map((item) => (
+            <NavLink
+              className={getNavLinkClassName}
+              end={item.end}
+              key={item.label}
+              to={preserveAuthPath(item.to)}
+            >
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
 
         <div className="public-header__actions">
@@ -135,18 +189,18 @@ function PublicHeader() {
                 <circle cx="16.1" cy="18.2" fill="currentColor" r="1.3" />
               </HeaderActionIcon>
 
-              <span
-                aria-label={
-                  isCartPreview || isCheckoutPreview || isHotelPreview
-                    ? 'Tài khoản người dùng trên trang preview'
-                    : 'Tài khoản người dùng'
-                }
-                className="public-header__profile"
-                role="img"
-              >
-                <span className="public-header__profile-ring">
-                  <span className="public-header__profile-avatar">NV</span>
-                </span>
+              <span className="public-header__profile">
+                <Link
+                  aria-label={
+                    isCartPreview || isCheckoutPreview || isHotelPreview || isTicketActive || isProfilePreview
+                      ? 'Tài khoản người dùng trên trang preview'
+                      : 'Tài khoản người dùng'
+                  }
+                  className="public-header__profile-ring"
+                  to={customerProfilePath}
+                >
+                  <span className="public-header__profile-avatar">MQ</span>
+                </Link>
               </span>
             </div>
           ) : (
