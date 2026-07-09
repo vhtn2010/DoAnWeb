@@ -1,27 +1,11 @@
 import CheckoutContactCard from '../../components/checkout/CheckoutContactCard.jsx'
+import CheckoutStateStack from '../../components/checkout/CheckoutStateStack.jsx'
 import CheckoutSpecialRequestCard from '../../components/checkout/CheckoutSpecialRequestCard.jsx'
 import CheckoutStepper from '../../components/checkout/CheckoutStepper.jsx'
 import CheckoutSummaryCard from '../../components/checkout/CheckoutSummaryCard.jsx'
+import CheckoutTrustRow from '../../components/checkout/CheckoutTrustRow.jsx'
 import CheckoutVoucherCard from '../../components/checkout/CheckoutVoucherCard.jsx'
-import {
-  PublicErrorState,
-  PublicLoadingBlock,
-} from '../../components/public/ui/index.js'
 import useCheckout from '../../hooks/useCheckout.js'
-
-const trustItems = ['SSL SECURE', 'BEST PRICE GUARANTEE', '24/7 SUPPORT']
-
-function ContactTrustRow() {
-  return (
-    <div className="checkout-trust-row" aria-label="Niềm tin và bảo mật">
-      {trustItems.map((item) => (
-        <span className="checkout-trust-row__item" key={item}>
-          {item}
-        </span>
-      ))}
-    </div>
-  )
-}
 
 function CheckoutPage() {
   const {
@@ -47,23 +31,7 @@ function CheckoutPage() {
       <div className="checkout-page__shell">
         <CheckoutStepper activeStep={2} />
 
-        {loading && !checkoutDraft ? (
-          <PublicLoadingBlock
-            className="checkout-page__state"
-            description="Đơn nháp và thông tin liên hệ đang được tải theo luồng mock API-ready hiện tại."
-            rows={3}
-            title="Đang tải thông tin đặt đơn"
-          />
-        ) : null}
-
-        {error ? (
-          <PublicErrorState
-            className="checkout-page__state"
-            description={error}
-            eyebrow="Không thể tiếp tục"
-            title="Có lỗi khi chuẩn bị bước checkout"
-          />
-        ) : null}
+        <CheckoutStateStack checkoutDraft={checkoutDraft} error={error} loading={loading} />
 
         {checkoutDraft && formattedSummary && summaryService ? (
           <div className="checkout-page__layout">
@@ -84,7 +52,7 @@ function CheckoutPage() {
                 termsAccepted={Boolean(checkoutDraft.accepted_terms)}
               />
 
-              <ContactTrustRow />
+              <CheckoutTrustRow />
             </div>
 
             <aside className="checkout-page__sidebar">
