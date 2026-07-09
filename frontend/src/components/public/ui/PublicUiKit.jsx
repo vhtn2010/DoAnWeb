@@ -73,6 +73,53 @@ export function PublicSectionHeader({
   )
 }
 
+export function PublicPageHeader({
+  actions = null,
+  children,
+  className = '',
+  eyebrow = '',
+  subtitle = '',
+  title,
+}) {
+  return (
+    <section className={cx('public-ui-page-header', className)}>
+      <div className="public-ui-page-header__copy">
+        {eyebrow ? <p className="public-ui-page-header__eyebrow">{eyebrow}</p> : null}
+        <h1 className="public-ui-page-header__title">{title}</h1>
+        {subtitle ? <p className="public-ui-page-header__subtitle">{subtitle}</p> : null}
+        {children}
+      </div>
+      {actions ? <div className="public-ui-page-header__actions">{actions}</div> : null}
+    </section>
+  )
+}
+
+export function PublicToolbar({ children, className = '', compact = false, ...props }) {
+  return (
+    <div className={cx('public-ui-toolbar', compact && 'public-ui-toolbar--compact', className)} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export function PublicFilterBar({ actions = null, children, className = '', ...props }) {
+  return (
+    <section className={cx('public-ui-filter-bar', className)} {...props}>
+      <div className="public-ui-filter-bar__content">{children}</div>
+      {actions ? <div className="public-ui-filter-bar__actions">{actions}</div> : null}
+    </section>
+  )
+}
+
+export function PublicFormPanel({ actions = null, children, className = '', subtitle = '', title }) {
+  return (
+    <section className={cx('public-ui-form-panel', className)}>
+      <PublicSectionHeader title={title} subtitle={subtitle} actions={actions} />
+      <div className="public-ui-form-panel__body">{children}</div>
+    </section>
+  )
+}
+
 export function PublicState({
   action = null,
   className = '',
