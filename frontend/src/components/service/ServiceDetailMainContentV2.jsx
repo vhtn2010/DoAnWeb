@@ -1,5 +1,6 @@
-import { CheckIcon, CrossIcon, renderServiceStars } from './ServiceDetailIcons.jsx'
+import { CheckIcon, CrossIcon } from './ServiceDetailIcons.jsx'
 import ServiceDetailInfoStrip from './ServiceDetailInfoStrip.jsx'
+import { renderServiceStars } from './ServiceDetailStars.jsx'
 
 function ServiceDetailSectionTitle({ title }) {
   return (

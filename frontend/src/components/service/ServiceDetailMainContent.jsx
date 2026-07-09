@@ -2,9 +2,9 @@ import ServiceRecommendationCard from './ServiceRecommendationCard.jsx'
 import {
   CheckIcon,
   CrossIcon,
-  renderServiceStars,
 } from './ServiceDetailIcons.jsx'
 import ServiceDetailInfoStrip from './ServiceDetailInfoStrip.jsx'
+import { renderServiceStars } from './ServiceDetailStars.jsx'
 
 function ServiceDetailSectionHeader({ eyebrow, title }) {
   return (
