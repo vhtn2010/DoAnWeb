@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CHECKOUT_VALID_VOUCHER_CODES } from '../constants/checkout.js'
 import { ROLES } from '../constants/roles.js'
 import {
@@ -33,8 +33,17 @@ function getCheckoutAuthState(searchParams) {
 
 export default function useCheckout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const authState = getCheckoutAuthState(searchParams)
+
+  function preserveAuthQuery(pathname) {
+    if (authState !== ROLES.customer) {
+      return pathname
+    }
+
+    return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
+  }
 
   const selectedCartItemIds = useMemo(() => {
     if (
@@ -279,6 +288,22 @@ export default function useCheckout() {
     try {
       const response = await submitCheckout(checkoutPayload)
 
+      if (!response.success || !response.data) {
+        setSubmitFeedback(response.message ?? 'Khong the chuan bi buoc thanh toan luc nay.')
+        return
+      }
+
+      setSubmitFeedback(response.message)
+      navigate(preserveAuthQuery(response.data.next_route ?? '/payment-confirmation'), {
+        state: {
+          booking: response.data.booking_handoff,
+          checkoutPayload: response.data.checkout_payload ?? checkoutPayload,
+          paymentRedirectPayload: response.data.payment_redirect_payload,
+          selectedCartItemIds,
+        },
+      })
+      return
+
       setSubmitFeedback(
         `${response.message} Màn xác nhận đơn hàng/thanh toán sẽ làm ở task tiếp theo.`,
       )
@@ -300,6 +325,7 @@ export default function useCheckout() {
     handleSubmitCheckout,
     handleVoucherChange,
     loading,
+    preserveAuthQuery,
     submitFeedback,
     summaryService: checkoutDraft?.summary_service ?? null,
     voucherFeedback,

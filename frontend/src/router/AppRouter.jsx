@@ -3,15 +3,30 @@ import PublicLayout from '../layouts/PublicLayout.jsx'
 import AuthLayout from '../layouts/AuthLayout.jsx'
 import AdminLayout from '../layouts/AdminLayout.jsx'
 import HomePage from '../pages/public/HomePage.jsx'
+import NetVietBlogPage from '../pages/public/NetVietBlogPage.jsx'
 import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
 import VerifyEmailPage from '../pages/auth/VerifyEmailPage.jsx'
+import BookingConfirmationPage from '../pages/booking/BookingConfirmationPage.jsx'
 import CartPage from '../pages/cart/CartPage.jsx'
 import CheckoutPage from '../pages/checkout/CheckoutPage.jsx'
+import FlightDetailPage from '../pages/flights/FlightDetailPage.jsx'
+import FlightListPage from '../pages/flights/FlightListPage.jsx'
+import HotelDetailPage from '../pages/hotels/HotelDetailPage.jsx'
 import HotelListPage from '../pages/hotels/HotelListPage.jsx'
+import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.jsx'
+import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
+import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
+import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
+import ProfilePage from '../pages/profile/ProfilePage.jsx'
+import TravelHandbookPage from '../pages/profile/TravelHandbookPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPage.jsx'
 import ServiceDetailPage from '../pages/service/ServiceDetailPage.jsx'
+import CustomerCarePage from '../pages/support/CustomerCarePage.jsx'
+import HelpCenterPage from '../pages/support/HelpCenterPage.jsx'
+import TrainDetailPage from '../pages/trains/TrainDetailPage.jsx'
+import TrainListPage from '../pages/trains/TrainListPage.jsx'
 import AdminAccessControlPage from '../pages/admin/AdminAccessControlPage.jsx'
 import AdminBookingDetailPage from '../pages/admin/AdminBookingDetailPage.jsx'
 import AdminBookingsPage from '../pages/admin/AdminBookingsPage.jsx'
@@ -41,7 +56,31 @@ function AppRouter() {
       <Routes>
         <Route element={<PublicLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
+          <Route
+            path="/booking-confirmation/:bookingCode"
+            element={<BookingConfirmationPage />}
+          />
+          <Route path="/payment-confirmation" element={<PaymentConfirmationPage />} />
+          <Route
+            path="/payment-confirmation/:paymentCode"
+            element={<PaymentConfirmationPage />}
+          />
+          <Route path="/payment-success" element={<PaymentSuccessPage />} />
+          <Route path="/payment-success/:paymentCode" element={<PaymentSuccessPage />} />
+          <Route path="/departure-reminders" element={<DepartureRemindersPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/my-vouchers" element={<MyVouchersPage />} />
+          <Route path="/travel-handbook" element={<TravelHandbookPage />} />
+          <Route path="/blog" element={<NetVietBlogPage />} />
+          <Route path="/customer-care" element={<CustomerCarePage />} />
+          <Route path="/help-center" element={<HelpCenterPage />} />
+          <Route path="/flights" element={<FlightListPage />} />
+          <Route path="/flights/:slug" element={<FlightDetailPage />} />
+          <Route path="/trains" element={<TrainListPage />} />
+          <Route path="/trains/:slug" element={<TrainDetailPage />} />
           <Route path="/hotels" element={<HotelListPage />} />
+          <Route path="/hotels/:slug" element={<HotelDetailPage />} />
           <Route path="/services" element={<ServiceListPage />} />
           <Route path="/services/:slug" element={<ServiceDetailPage />} />
           <Route element={<ProtectedRoute />}>
