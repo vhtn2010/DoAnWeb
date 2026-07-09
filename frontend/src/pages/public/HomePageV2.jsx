@@ -2,7 +2,7 @@ import HomeDestinationsSection from '../../components/public/home/HomeDestinatio
 import HomeFlashSaleSection from '../../components/public/home/HomeFlashSaleSection.jsx'
 import HomeHeroSection from '../../components/public/home/HomeHeroSection.jsx'
 import HomeSearchCard from '../../components/public/home/HomeSearchCard.jsx'
-import HomeValuesSection from '../../components/public/home/HomeValuesSection.jsx'
+import HomeValuesSectionV2 from '../../components/public/home/HomeValuesSectionV2.jsx'
 import useHomePage from '../../hooks/useHomePage.js'
 
 function HomePageV2() {
@@ -99,7 +99,7 @@ function HomePageV2() {
         serviceListPath={serviceListPath}
       />
 
-      <HomeValuesSection valueProps={valueProps} />
+      <HomeValuesSectionV2 valueProps={valueProps} />
     </div>
   )
 }

@@ -5,7 +5,6 @@ import useTourServiceList from '../../hooks/useTourServiceList.js'
 
 function ServiceListPageV2() {
   const {
-    breadcrumbHomePath,
     categoryOptions,
     currentPage,
     draftFilters,
@@ -28,7 +27,7 @@ function ServiceListPageV2() {
 
   return (
     <div className="service-list-page">
-      <ServiceListHero breadcrumbHomePath={breadcrumbHomePath} />
+      <ServiceListHero />
 
       <section className="service-list-page__body">
         <div className="service-list-page__layout">

@@ -1,0 +1,2518 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  font-size: 14px;
+}
+.v81_1143 {
+  width: 100%;
+  height: 1145px;
+  background: rgba(255,255,255,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1215 {
+  width: 178px;
+  height: 70px;
+  background: rgba(225,227,228,1);
+  padding: 11px 24px;
+  margin: 19px;
+  opacity: 1;
+  position: absolute;
+  top: 144px;
+  left: 1071px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v81_1216 {
+  width: 16px;
+  height: 16px;
+  background: url("../images/v81_1216.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 27px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1217 {
+  width: 16px;
+  height: 16px;
+  background: rgba(25,28,29,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_1218 {
+  width: 110px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 23px;
+  left: 50px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1272 {
+  width: 934px;
+  height: 763px;
+  background: url("../images/v81_1272.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 393px;
+  left: 321px;
+  overflow: hidden;
+}
+.v81_1273 {
+  width: 763px;
+  height: 763px;
+  background: url("../images/v81_1273.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1287 {
+  width: 763px;
+  height: 683px;
+  background: url("../images/v81_1287.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: -1px;
+  opacity: 1;
+  position: absolute;
+  top: 80px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1372 {
+  width: 945px;
+  height: 80px;
+  background: rgba(243,244,245,1);
+  padding: 16px 32px;
+  margin: 0px;
+  opacity: 1;
+  position: absolute;
+  top: 503px;
+  left: 11px;
+  overflow: hidden;
+}
+.v81_1205 {
+  width: 571px;
+  height: 104px;
+  background: url("../images/v81_1205.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 8px;
+  opacity: 1;
+  position: absolute;
+  top: 129px;
+  left: 343px;
+  overflow: hidden;
+}
+.v81_1206 {
+  width: 571px;
+  height: 40px;
+  background: url("../images/v81_1206.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1207 {
+  width: 465px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  font-family: Be Vietnam Pro;
+  font-weight: SemiBold;
+  font-size: 32px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1208 {
+  width: 571px;
+  height: 56px;
+  background: url("../images/v81_1208.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 48px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1209 {
+  width: 571px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 18px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1912 {
+  width: 935px;
+  height: 813px;
+  background: url("../images/v81_1912.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 272px;
+  left: 321px;
+  overflow: hidden;
+}
+.v81_1261 {
+  width: 935px;
+  height: 813px;
+  background: rgba(255,255,255,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05000000074505806);
+  overflow: hidden;
+}
+.v81_1262 {
+  width: 512px;
+  height: 97px;
+  background: rgba(255,255,255,1);
+  padding: 24px 32px;
+  margin: 0px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  overflow: hidden;
+}
+.v81_1263 {
+  width: 141px;
+  height: 48px;
+  background: url("../images/v81_1263.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 11px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1264 {
+  width: 187px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 30px;
+  left: 0px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 18px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1907 {
+  width: 935px;
+  height: 813px;
+  background: rgba(255,255,255,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05000000074505806);
+  overflow: hidden;
+}
+.v81_1908 {
+  width: 512px;
+  height: 97px;
+  background: rgba(255,255,255,1);
+  padding: 24px 32px;
+  margin: 0px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  overflow: hidden;
+}
+.v81_1909 {
+  width: 141px;
+  height: 48px;
+  background: url("../images/v81_1909.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 11px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1910 {
+  width: 187px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 30px;
+  left: 0px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 18px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1274 {
+  width: 934px;
+  height: 80px;
+  background: rgba(243,244,245,1);
+  opacity: 1;
+  position: absolute;
+  top: 121px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1275 {
+  width: 111px;
+  height: 80px;
+  background: url("../images/v81_1275.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 16px 32px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1276 {
+  width: 94px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 32px;
+  left: 32px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1277 {
+  width: 109px;
+  height: 80px;
+  background: url("../images/v81_1277.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 16px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 111px;
+  overflow: hidden;
+}
+.v81_1278 {
+  width: 87px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 24px;
+  left: 189px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1279 {
+  width: 143px;
+  height: 80px;
+  background: url("../images/v81_1279.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 31px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 324px;
+  overflow: hidden;
+}
+.v81_1280 {
+  width: 50px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 31px;
+  left: 24px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1281 {
+  width: 176px;
+  height: 80px;
+  background: url("../images/v81_1281.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 31px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 491px;
+  overflow: hidden;
+}
+.v81_1282 {
+  width: 89px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 31px;
+  left: 24px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1283 {
+  width: 66px;
+  height: 64px;
+  background: url("../images/v81_1283.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 24px 24px;
+  margin: 10px;
+  opacity: 1;
+  position: absolute;
+  top: 8px;
+  left: 653px;
+  overflow: hidden;
+}
+.v81_1284 {
+  width: 74px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 32px;
+  left: 697px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1285 {
+  width: 104px;
+  height: 80px;
+  background: url("../images/v81_1285.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 23px 32px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 819px;
+  overflow: hidden;
+}
+.v81_1286 {
+  width: 35px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 23px;
+  left: 32px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1288 {
+  width: 933px;
+  height: 176px;
+  background: url("../images/v81_1288.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 201px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1289 {
+  width: 111px;
+  height: 176px;
+  background: url("../images/v81_1289.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 64px 32px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1290 {
+  width: 87px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 76px;
+  left: 32px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1291 {
+  width: 109px;
+  height: 176px;
+  background: url("../images/v81_1291.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 20px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 111px;
+  overflow: hidden;
+}
+.v81_1292 {
+  width: 61px;
+  height: 72px;
+  background: url("../images/v81_1292.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1294 {
+  width: 61px;
+  height: 64px;
+  background: url("../images/v81_1294.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 92px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1296 {
+  width: 143px;
+  height: 176px;
+  background: url("../images/v81_1296.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 64px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 220px;
+  overflow: hidden;
+}
+.v81_1293 {
+  width: 118px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 55px;
+  left: 47px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1295 {
+  width: 79px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 88px;
+  left: 34px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1297 {
+  width: 106px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 82px;
+  left: 333px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1298 {
+  width: 152px;
+  height: 24px;
+  background: url("../images/v81_1298.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 7px;
+  opacity: 1;
+  position: absolute;
+  top: 74px;
+  left: 494px;
+  overflow: hidden;
+}
+.v81_1299 {
+  width: 20px;
+  height: 20px;
+  background: url("../images/v81_1299.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 2px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1300 {
+  width: 20px;
+  height: 20px;
+  background: rgba(59,86,140,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_1301 {
+  width: 52px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 0px;
+  left: 51px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1302 {
+  width: 143px;
+  height: 176px;
+  background: url("../images/v81_1302.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 68px 47px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 515px;
+  overflow: hidden;
+}
+.v81_1303 {
+  width: 102px;
+  height: 40px;
+  background: rgba(220,252,231,1);
+  padding: 4px 12px;
+  margin: 4px;
+  opacity: 1;
+  position: absolute;
+  top: 68px;
+  left: 686px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v81_1304 {
+  width: 3px;
+  height: 6px;
+  background: rgba(21,128,61,1);
+  opacity: 1;
+  position: absolute;
+  top: 17px;
+  left: 12px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v81_1305 {
+  width: 72px;
+  color: rgba(21,128,61,1);
+  position: absolute;
+  top: 12px;
+  left: 19px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1306 {
+  width: 104px;
+  height: 176px;
+  background: url("../images/v81_1306.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 64px 32px;
+  opacity: 1;
+  position: absolute;
+  top: 4px;
+  left: 815px;
+  overflow: hidden;
+}
+.v81_1307 {
+  width: 52px;
+  height: 24px;
+  background: url("../images/v81_1307.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 10px;
+  opacity: 1;
+  position: absolute;
+  top: 64px;
+  left: 32px;
+  overflow: hidden;
+}
+.v81_1308 {
+  width: 60px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 0px;
+  left: 4px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1309 {
+  width: 933px;
+  height: 178px;
+  background: url("../images/v81_1309.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 377px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1310 {
+  width: 111px;
+  height: 177px;
+  background: url("../images/v81_1310.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 64px 32px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1311 {
+  width: 89px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 76px;
+  left: 32px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1312 {
+  width: 109px;
+  height: 177px;
+  background: url("../images/v81_1312.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 20px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 111px;
+  overflow: hidden;
+}
+.v81_1313 {
+  width: 61px;
+  height: 72px;
+  background: url("../images/v81_1313.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1315 {
+  width: 61px;
+  height: 64px;
+  background: url("../images/v81_1315.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 92px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1316 {
+  width: 103px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 92px;
+  left: 179px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1314 {
+  width: 122px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 57px;
+  left: 170px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1317 {
+  width: 143px;
+  height: 177px;
+  background: url("../images/v81_1317.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 64px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 3px;
+  left: 315px;
+  overflow: hidden;
+}
+.v81_1318 {
+  width: 100px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 76px;
+  left: 24px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1319 {
+  width: 152px;
+  height: 24px;
+  background: url("../images/v81_1319.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 7px;
+  opacity: 1;
+  position: absolute;
+  top: 77px;
+  left: 481px;
+  overflow: hidden;
+}
+.v81_1320 {
+  width: 20px;
+  height: 16px;
+  background: url("../images/v81_1320.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 4px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1321 {
+  width: 20px;
+  height: 16px;
+  background: rgba(59,86,140,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_1322 {
+  width: 96px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 0px;
+  left: 51px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1323 {
+  width: 143px;
+  height: 177px;
+  background: url("../images/v81_1323.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 60px 47px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 515px;
+  overflow: hidden;
+}
+.v81_1324 {
+  width: 110px;
+  height: 41px;
+  background: rgba(255,237,213,1);
+  padding: 4px 12px;
+  margin: 4px;
+  opacity: 1;
+  position: absolute;
+  top: 69px;
+  left: 682px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v81_1325 {
+  width: 3px;
+  height: 6px;
+  background: rgba(194,65,12,1);
+  opacity: 1;
+  position: absolute;
+  top: 17px;
+  left: 16px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v81_1326 {
+  width: 81px;
+  color: rgba(194,65,12,1);
+  position: absolute;
+  top: 13px;
+  left: 20px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1658 {
+  width: 104px;
+  height: 176px;
+  background: url("../images/v81_1658.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 64px 32px;
+  opacity: 1;
+  position: absolute;
+  top: 14px;
+  left: 815px;
+  overflow: hidden;
+}
+.v81_1659 {
+  width: 52px;
+  height: 24px;
+  background: url("../images/v81_1659.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 10px;
+  opacity: 1;
+  position: absolute;
+  top: 64px;
+  left: 32px;
+  overflow: hidden;
+}
+.v81_1660 {
+  width: 60px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 0px;
+  left: 4px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1351 {
+  width: 933px;
+  height: 162px;
+  background: url("../images/v81_1351.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 543px;
+  left: 1px;
+  overflow: hidden;
+}
+.v81_1352 {
+  width: 111px;
+  height: 160px;
+  background: url("../images/v81_1352.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 56px 32px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1353 {
+  width: 93px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 68px;
+  left: 32px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1354 {
+  width: 109px;
+  height: 160px;
+  background: url("../images/v81_1354.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 20px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 111px;
+  overflow: hidden;
+}
+.v81_1355 {
+  width: 61px;
+  height: 72px;
+  background: url("../images/v81_1355.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1356 {
+  width: 131px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 35px;
+  left: 37px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1357 {
+  width: 61px;
+  height: 48px;
+  background: url("../images/v81_1357.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 92px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1358 {
+  width: 97px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 88px;
+  left: 185px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1359 {
+  width: 143px;
+  height: 160px;
+  background: url("../images/v81_1359.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 68px 24px;
+  opacity: 1;
+  position: absolute;
+  top: 8px;
+  left: 324px;
+  overflow: hidden;
+}
+.v81_1360 {
+  width: 98px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 68px;
+  left: 15px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1361 {
+  width: 152px;
+  height: 24px;
+  background: url("../images/v81_1361.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 7px;
+  opacity: 1;
+  position: absolute;
+  top: 70px;
+  left: 501px;
+  overflow: hidden;
+}
+.v81_1362 {
+  width: 20px;
+  height: 20px;
+  background: url("../images/v81_1362.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 2px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1363 {
+  width: 20px;
+  height: 20px;
+  background: rgba(59,86,140,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_1364 {
+  width: 48px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 0px;
+  left: 51px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1365 {
+  width: 143px;
+  height: 160px;
+  background: url("../images/v81_1365.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 60px 47px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 515px;
+  overflow: hidden;
+}
+.v81_1369 {
+  width: 104px;
+  height: 160px;
+  background: url("../images/v81_1369.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 44px 32px;
+  opacity: 1;
+  position: absolute;
+  top: 1px;
+  left: 659px;
+  overflow: hidden;
+}
+.v81_1370 {
+  width: 40px;
+  height: 72px;
+  background: url("../images/v81_1370.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 44px;
+  left: 32px;
+  overflow: hidden;
+}
+.v81_1366 {
+  width: 102px;
+  height: 40px;
+  background: rgba(254,226,226,1);
+  padding: 4px 12px;
+  margin: 4px;
+  opacity: 1;
+  position: absolute;
+  top: 61px;
+  left: 686px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v81_1367 {
+  width: 4px;
+  height: 6px;
+  background: rgba(200,16,46,1);
+  opacity: 1;
+  position: absolute;
+  top: 17px;
+  left: 12px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v81_1368 {
+  width: 51px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 12px;
+  left: 29px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1371 {
+  width: 69px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 71px;
+  left: 841px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1373 {
+  width: 174px;
+  height: 48px;
+  background: url("../images/v81_1373.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 720px;
+  left: 21px;
+  overflow: hidden;
+}
+.v81_1374 {
+  width: 243px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 12px;
+  left: 0px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_1375 {
+  width: 206px;
+  height: 48px;
+  background: url("../images/v81_1375.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 8px;
+  opacity: 1;
+  position: absolute;
+  top: 720px;
+  left: 662px;
+  overflow: hidden;
+}
+.v81_1376 {
+  width: 25px;
+  height: 36px;
+  background: url("../images/v81_1376.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 8px 8px;
+  opacity: 0.5;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_1377 {
+  width: 7px;
+  height: 12px;
+  background: url("../images/v81_1377.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  overflow: hidden;
+}
+.v81_1378 {
+  width: 7px;
+  height: 12px;
+  background: rgba(25,28,29,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_1379 {
+  width: 38px;
+  height: 48px;
+  background: rgba(200,16,46,1);
+  padding: 12px 16px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 33px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_1380 {
+  width: 6px;
+  color: rgba(255,255,255,1);
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1381 {
+  width: 42px;
+  height: 48px;
+  background: url("../images/v81_1381.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 12px 16px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 80px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_1382 {
+  width: 10px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1383 {
+  width: 42px;
+  height: 48px;
+  background: url("../images/v81_1383.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 12px 16px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 130px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_1384 {
+  width: 10px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1385 {
+  width: 25px;
+  height: 36px;
+  background: url("../images/v81_1385.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 8px 8px;
+  opacity: 1;
+  position: absolute;
+  top: 6px;
+  left: 181px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_1386 {
+  width: 7px;
+  height: 12px;
+  background: url("../images/v81_1386.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  overflow: hidden;
+}
+.v81_1387 {
+  width: 7px;
+  height: 12px;
+  background: rgba(25,28,29,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_1552 {
+  width: 422px;
+  height: 59px;
+  background: url("../images/v81_1552.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 40px;
+  left: 513px;
+  overflow: hidden;
+}
+.v81_1553 {
+  width: 122px;
+  height: 58px;
+  background: url("../images/v81_1553.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 16px 24px;
+  margin: 8px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_1554 {
+  width: 16px;
+  height: 16px;
+  background: url("../images/v81_1554.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 19px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1555 {
+  width: 16px;
+  height: 16px;
+  background: rgba(255,0,0,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_1556 {
+  width: 50px;
+  color: rgba(255,0,0,1);
+  position: absolute;
+  top: 16px;
+  left: 48px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1557 {
+  width: 167px;
+  height: 58px;
+  background: url("../images/v81_1557.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 17px 24px;
+  margin: 8px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 122px;
+  overflow: hidden;
+}
+.v81_1558 {
+  width: 18px;
+  height: 12px;
+  background: url("../images/v81_1558.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1560 {
+  width: 93px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 17px;
+  left: 42px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_1561 {
+  width: 144px;
+  height: 58px;
+  background: url("../images/v81_1561.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 17px 24px;
+  margin: 8px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 290px;
+  overflow: hidden;
+}
+.v81_1562 {
+  width: 16px;
+  height: 16px;
+  background: url("../images/v81_1562.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  overflow: hidden;
+}
+.v81_1564 {
+  width: 72px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 19px;
+  left: 24px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: center;
+}
+.v81_2523 {
+  width: 288px;
+  height: 1141px;
+  background: rgba(253,253,253,1);
+  padding: 24px 0px;
+  margin: 8px;
+  opacity: 1;
+  position: absolute;
+  top: 4px;
+  left: 1px;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05000000074505806);
+  overflow: hidden;
+}
+.v81_2530 {
+  width: 287px;
+  height: 320px;
+  background: url("../images/v81_2530.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 4px;
+  opacity: 1;
+  position: absolute;
+  top: 180px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_2531 {
+  width: 255px;
+  height: 48px;
+  background: rgba(255,180,171,0.10000000149011612);
+  padding: 12px 16px;
+  margin: 12px;
+  opacity: 1;
+  position: absolute;
+  top: 72px;
+  left: 9px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_2532 {
+  width: 136px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 12px;
+  left: 60px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_2562 {
+  width: 20px;
+  height: 18px;
+  background: url("../images/v81_2562.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 12px;
+  left: 23px;
+  overflow: hidden;
+}
+.v81_2563 {
+  width: 20px;
+  height: 20px;
+  background: rgba(200,16,46,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_2533 {
+  width: 20px;
+  height: 20px;
+  background: url("../images/v81_2533.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 36px;
+  left: 33px;
+  overflow: hidden;
+}
+.v81_2534 {
+  width: 20px;
+  height: 20px;
+  background: rgba(0,0,0,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_2535 {
+  width: 97px;
+  height: 24px;
+  background: url("../images/v81_2535.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 148px;
+  left: 16px;
+  overflow: hidden;
+}
+.v81_2536 {
+  width: 255px;
+  height: 44px;
+  background: url("../images/v81_2536.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 12px 16px;
+  margin: 12px;
+  opacity: 1;
+  position: absolute;
+  top: 182px;
+  left: 16px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_2537 {
+  width: 19px;
+  height: 20px;
+  background: rgba(0,0,0,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 18px;
+}
+.v81_2538 {
+  width: 139px;
+  height: 24px;
+  background: url("../images/v81_2538.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 4px;
+  left: 44px;
+  overflow: hidden;
+}
+.v81_2539 {
+  width: 151px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 0px;
+  left: 9px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_2540 {
+  width: 255px;
+  height: 48px;
+  background: url("../images/v81_2540.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 12px 16px;
+  margin: 12px;
+  opacity: 1;
+  position: absolute;
+  top: 208px;
+  left: 17px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_2541 {
+  width: 20px;
+  height: 18px;
+  background: url("../images/v81_2541.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 15px;
+  left: 16px;
+  overflow: hidden;
+}
+.v81_2542 {
+  width: 20px;
+  height: 18px;
+  background: rgba(92,64,61,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_2543 {
+  width: 49px;
+  height: 24px;
+  background: url("../images/v81_2543.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 12px;
+  left: 48px;
+  overflow: hidden;
+}
+.v81_2544 {
+  width: 143px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 0px;
+  left: 8px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_2545 {
+  width: 210px;
+  height: 86px;
+  background: url("../images/v81_2545.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 818px;
+  left: 25px;
+  overflow: hidden;
+}
+.v81_2546 {
+  width: 207px;
+  height: 44px;
+  background: url("../images/v81_2546.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 12px 16px;
+  margin: -1px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  overflow: hidden;
+}
+.v81_2547 {
+  width: 20px;
+  height: 20px;
+  background: url("../images/v81_2547.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 12px;
+  left: 20px;
+  overflow: hidden;
+}
+.v81_2548 {
+  width: 20px;
+  height: 20px;
+  background: rgba(92,64,61,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_2549 {
+  width: 57px;
+  height: 16px;
+  background: url("../images/v81_2549.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 14px;
+  left: 40px;
+  overflow: hidden;
+}
+.v81_2550 {
+  width: 45px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 0px;
+  left: 12px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_2551 {
+  width: 207px;
+  height: 42px;
+  background: url("../images/v81_2551.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 12px 16px;
+  margin: -1px;
+  opacity: 1;
+  position: absolute;
+  top: 44px;
+  left: 3px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  overflow: hidden;
+}
+.v81_2552 {
+  width: 18px;
+  height: 18px;
+  background: url("../images/v81_2552.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 12px;
+  left: 20px;
+  overflow: hidden;
+}
+.v81_2553 {
+  width: 18px;
+  height: 18px;
+  background: rgba(200,16,46,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_2554 {
+  width: 96px;
+  height: 16px;
+  background: url("../images/v81_2554.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 13px;
+  left: 38px;
+  overflow: hidden;
+}
+.v81_2555 {
+  width: 84px;
+  color: rgba(200,16,46,1);
+  position: absolute;
+  top: 0px;
+  left: 12px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_2556 {
+  width: 287px;
+  height: 48px;
+  background: url("../images/v81_2556.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 12px 24px;
+  margin: 16px;
+  opacity: 1;
+  position: absolute;
+  top: 120px;
+  left: 0px;
+  overflow: hidden;
+}
+.v81_2557 {
+  width: 18px;
+  height: 20px;
+  background: url("../images/v81_2557.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 16px;
+  left: 33px;
+  overflow: hidden;
+}
+.v81_2558 {
+  width: 18px;
+  height: 20px;
+  background: rgba(92,64,61,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_2559 {
+  width: 139px;
+  height: 24px;
+  background: url("../images/v81_2559.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 12px;
+  left: 58px;
+  overflow: hidden;
+}
+.v81_2560 {
+  width: 140px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 0px;
+  left: 9px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_2564 {
+  width: 119px;
+  color: rgba(25,28,29,1);
+  position: absolute;
+  top: 32px;
+  left: 65px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_2565 {
+  width: 255px;
+  height: 48px;
+  background: url("../images/v81_2565.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 12px 16px;
+  margin: 12px;
+  opacity: 1;
+  position: absolute;
+  top: 159px;
+  left: 16px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v81_2566 {
+  width: 19px;
+  height: 20px;
+  background: url("../images/v81_2566.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  overflow: hidden;
+}
+.v81_2567 {
+  width: 19px;
+  height: 20px;
+  background: rgba(92,64,61,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v81_2568 {
+  width: 138px;
+  height: 24px;
+  background: url("../images/v81_2568.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 12px;
+  left: 47px;
+  overflow: hidden;
+}
+.v81_2569 {
+  width: 138px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v81_2561 {
+  width: 152px;
+  height: 24px;
+  background: url("../images/v81_2561.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 7px;
+  opacity: 1;
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  overflow: hidden;
+}
+.v81_2570 {
+  width: 207px;
+  height: 50px;
+  background: url("../images/v81_2570.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 8px 0px;
+  opacity: 1;
+  position: absolute;
+  top: 1002px;
+  left: 20px;
+  overflow: hidden;
+}
+.v119_47 {
+  width: 287px;
+  height: 148px;
+  background: url("../images/v119_47.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 24px;
+  left: 0px;
+  overflow: hidden;
+}
+.v119_48 {
+  width: 287px;
+  height: 116px;
+  background: url("../images/v119_48.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 16px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  overflow: hidden;
+}
+.v119_49 {
+  width: 239px;
+  height: 52px;
+  background: url("../images/v119_49.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 4px;
+  opacity: 1;
+  position: absolute;
+  top: 64px;
+  left: 24px;
+  overflow: hidden;
+}
+.v119_50 {
+  width: 239px;
+  height: 16px;
+  background: url("../images/v119_50.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 36px;
+  left: 10px;
+  overflow: hidden;
+}
+.v119_51 {
+  width: 179px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 14px;
+  opacity: 1;
+  text-align: left;
+}
+.v119_52 {
+  width: 100px;
+  height: 71px;
+  background: url("../images/v119_52.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 4px;
+  left: 62px;
+  overflow: hidden;
+}
+.v110_554 {
+  width: 100%;
+  height: 80px;
+  background: rgba(255,255,255,1);
+  margin: 295px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 288px;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05000000074505806);
+  overflow: hidden;
+}
+.v110_555 {
+  width: 420px;
+  height: 40px;
+  background: url("../images/v110_555.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 24px;
+  opacity: 1;
+  position: absolute;
+  top: 19px;
+  left: 953px;
+  overflow: hidden;
+}
+.v110_556 {
+  width: 140px;
+  height: 40px;
+  background: url("../images/v110_556.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 16px;
+  opacity: 1;
+  position: absolute;
+  top: 22px;
+  left: 684px;
+  overflow: hidden;
+}
+.v110_557 {
+  width: 32px;
+  height: 36px;
+  background: url("../images/v110_557.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 8px 8px;
+  opacity: 1;
+  position: absolute;
+  top: 2px;
+  left: 0px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v110_558 {
+  width: 16px;
+  height: 20px;
+  background: rgba(25,28,29,1);
+  opacity: 1;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+.v110_559 {
+  width: 36px;
+  height: 36px;
+  background: url("../images/v110_559.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  padding: 8px 8px;
+  opacity: 1;
+  position: absolute;
+  top: 2px;
+  left: 48px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v110_560 {
+  width: 20px;
+  height: 20px;
+  background: rgba(25,28,29,1);
+  opacity: 1;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+.v110_561 {
+  width: 256px;
+  height: 40px;
+  background: url("../images/v110_561.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 24px;
+  left: 224px;
+  overflow: hidden;
+}
+.v110_562 {
+  width: 412px;
+  height: 40px;
+  background: rgba(243,244,245,1);
+  padding: 10px 40px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v110_563 {
+  width: 200px;
+  height: 20px;
+  background: url("../images/v110_563.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 10px;
+  left: 40px;
+  overflow: hidden;
+}
+.v110_564 {
+  width: 96px;
+  color: rgba(107,114,128,1);
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  font-family: Be Vietnam Pro;
+  font-weight: Regular;
+  font-size: 16px;
+  opacity: 1;
+  text-align: left;
+}
+.v110_565 {
+  width: 18px;
+  height: 24px;
+  background: url("../images/v110_565.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  overflow: hidden;
+}
+.v110_566 {
+  width: 18px;
+  height: 18px;
+  background: rgba(92,64,61,1);
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.v110_567 {
+  width: 293px;
+  height: 72px;
+  background: url("../images/v110_567.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 6px;
+  left: 788px;
+  overflow: hidden;
+}
+.v110_568 {
+  width: 40px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 52px;
+  left: 64px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 14px;
+  opacity: 1;
+  text-align: left;
+}
+.v110_569 {
+  width: 48px;
+  height: 48px;
+  background: url("../images/v110_569.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 24px;
+  left: 0px;
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-bottom-right-radius: 9999px;
+  overflow: hidden;
+}
+.v110_570 {
+  width: 44px;
+  height: 44px;
+  background: url("../images/v110_570.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  overflow: hidden;
+}
+.v110_571 {
+  width: 239px;
+  height: 52px;
+  background: url("../images/v110_571.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  margin: 4px;
+  opacity: 1;
+  position: absolute;
+  top: 0px;
+  left: 54px;
+  overflow: hidden;
+}
+.v110_572 {
+  width: 239px;
+  height: 16px;
+  background: url("../images/v110_572.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 36px;
+  left: 10px;
+  overflow: hidden;
+}
+.v110_573 {
+  width: 111px;
+  color: rgba(92,64,61,1);
+  position: absolute;
+  top: 28px;
+  left: 8px;
+  font-family: Be Vietnam Pro;
+  font-weight: Bold;
+  font-size: 14px;
+  opacity: 1;
+  text-align: left;
+}

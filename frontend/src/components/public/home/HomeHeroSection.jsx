@@ -1,5 +1,20 @@
 import { Link } from 'react-router-dom'
 
+function ArrowRightIcon() {
+  return (
+    <svg aria-hidden="true" className="home-hero__cta-icon" viewBox="0 0 20 14">
+      <path
+        d="M12 2 18 7l-6 5M17 7H2"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  )
+}
+
 export default function HomeHeroSection({
   ctaLabel,
   ctaPath,
@@ -20,7 +35,8 @@ export default function HomeHeroSection({
         <p className="home-hero__description">{description}</p>
 
         <Link className="home-hero__cta" to={ctaPath}>
-          {ctaLabel}
+          <span>{ctaLabel}</span>
+          <ArrowRightIcon />
         </Link>
       </div>
 

@@ -62,6 +62,14 @@ function StarIcon() {
 
 function ServiceCard({ service }) {
   const detailPath = service.detail_path ?? `/services/${service.slug}`
+  const featuredPill =
+    service.badge_text === 'Bán chạy'
+      ? { tone: 'badge', value: service.badge_text }
+      : service.rating_text
+        ? { tone: 'rating', value: service.rating_text }
+        : service.badge_text
+          ? { tone: 'badge', value: service.badge_text }
+          : null
 
   return (
     <article className="service-card">
@@ -71,18 +79,15 @@ function ServiceCard({ service }) {
           className="service-card__image"
           src={service.image_url}
         />
-        {service.badge_text ? (
-          <span className="service-card__badge">{service.badge_text}</span>
+        {featuredPill ? (
+          <span className={`service-card__pill service-card__pill--${featuredPill.tone}`}>
+            {featuredPill.tone === 'rating' ? <StarIcon /> : null}
+            {featuredPill.value}
+          </span>
         ) : null}
         <span aria-hidden="true" className="service-card__favorite">
           <HeartIcon />
         </span>
-        {service.rating_text ? (
-          <span className="service-card__rating">
-            <StarIcon />
-            {service.rating_text}
-          </span>
-        ) : null}
       </Link>
 
       <div className="service-card__body">
@@ -96,14 +101,11 @@ function ServiceCard({ service }) {
             {service.transport_text}
           </span>
         </div>
-
-        <p className="service-card__location">{service.location_text}</p>
         <h2 className="service-card__title">
           <Link className="service-card__title-link" to={detailPath}>
             {service.title}
           </Link>
         </h2>
-        <p className="service-card__description">{service.short_description}</p>
 
         <div className="service-card__footer">
           <div className="service-card__price-group">

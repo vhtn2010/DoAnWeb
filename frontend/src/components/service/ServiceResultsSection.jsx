@@ -5,8 +5,22 @@ import {
   PublicErrorState,
   PublicLoadingBlock,
   PublicPagination,
-  PublicSectionHeader,
 } from '../public/ui/index.js'
+
+function SortChevronIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path
+        d="m6 8 4 4 4-4"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
 
 export default function ServiceResultsSection({
   currentPage,
@@ -24,22 +38,24 @@ export default function ServiceResultsSection({
   return (
     <div className="service-results">
       <div className="service-results__toolbar">
-        <PublicSectionHeader
-          className="service-results__summary"
-          eyebrow="Tour công khai"
-          subtitle={`Hiển thị ${resultCount} kết quả phù hợp`}
-          title="Danh sách hành trình nổi bật"
-        />
+        <p className="service-results__count">
+          Hiển thị <strong>{resultCount}</strong> kết quả phù hợp
+        </p>
 
-        <label className="service-results__sort">
-          <span>Sắp xếp:</span>
-          <select value={selectedSort} onChange={onSortChange}>
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <label className="service-results__sort" htmlFor="service-results-sort">
+          <span className="service-results__sort-label">Sắp xếp:</span>
+          <span className="service-results__sort-select">
+            <select id="service-results-sort" value={selectedSort} onChange={onSortChange}>
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden="true" className="service-results__sort-icon">
+              <SortChevronIcon />
+            </span>
+          </span>
         </label>
       </div>
 

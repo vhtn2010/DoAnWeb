@@ -423,12 +423,12 @@ function HotelSearchBar({ onFieldChange, onSubmit, searchValues }) {
             />
           }
         />
-      </div>
 
-      <button className="hotel-search-bar__button" type="button" onClick={onSubmit}>
-        <SearchIcon />
-        <span>Tìm kiếm</span>
-      </button>
+        <button className="hotel-search-bar__button" type="button" onClick={onSubmit}>
+          <SearchIcon />
+          <span>Tìm kiếm</span>
+        </button>
+      </div>
     </section>
   )
 }

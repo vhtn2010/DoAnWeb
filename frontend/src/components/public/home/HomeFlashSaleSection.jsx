@@ -1,5 +1,16 @@
 import { Link } from 'react-router-dom'
 
+function FlashSaleBoltIcon() {
+  return (
+    <svg aria-hidden="true" className="home-flash-sale__eyebrow-mark" viewBox="0 0 16 20">
+      <path
+        d="M9.2 1.5 3.8 10h3.5L6.8 18.5 12.4 9.7H8.8L9.2 1.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
 function FlashSaleCard({ formatCurrency, service, serviceListPath }) {
   return (
     <article className="home-offer-card">
@@ -43,7 +54,7 @@ export default function HomeFlashSaleSection({
       <div className="home-flash-sale__header">
         <div className="home-flash-sale__intro">
           <div className="home-flash-sale__eyebrow">
-            <span className="home-flash-sale__eyebrow-mark" aria-hidden="true" />
+            <FlashSaleBoltIcon />
             <span>ƯU ĐÃI GIỚI HẠN</span>
           </div>
           <h2 className="home-flash-sale__title">

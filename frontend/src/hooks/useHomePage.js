@@ -5,18 +5,18 @@ import {
   HOME_SEARCH_FIELD_OPTIONS,
   HOME_SORT_OPTIONS,
   HOME_WEEKDAY_LABELS,
-} from '../constants/home.js'
+} from '../constants/homeFigma.js'
 import usePublicSession from './usePublicSession.js'
 import {
   addMonths,
   compareDates,
   createHomePageViewState,
+  formatCompactDateRangeDisplay,
   formatDateDisplay,
-  formatDateRangeDisplay,
   formatMonthLabel,
   getMonthDays,
   isSameDay,
-} from '../mappers/homeMappers.js'
+} from '../mappers/homeFigmaMappers.js'
 import {
   buildHomeSearchParams,
   getHomePageData,
@@ -227,12 +227,12 @@ export default function useHomePage() {
     setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))
   }
 
-  const displayedDateRange = formatDateRangeDisplay(
+  const displayedDateRange = formatCompactDateRangeDisplay(
     searchState.startDate,
     searchState.endDate,
   )
   const calendarPreview = calendarSelection.endDate
-    ? formatDateRangeDisplay(calendarSelection.startDate, calendarSelection.endDate)
+    ? formatCompactDateRangeDisplay(calendarSelection.startDate, calendarSelection.endDate)
     : calendarSelection.startDate
       ? `${formatDateDisplay(calendarSelection.startDate)} - Chọn ngày về`
       : displayedDateRange

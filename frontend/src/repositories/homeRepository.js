@@ -4,9 +4,9 @@ import {
   getHomeFlashSaleServices as getHomeFlashSaleServicesWithMockAdapter,
   getHomePageFallbackData as getHomePageFallbackDataWithMockAdapter,
 } from '../adapters/mock/homeMockAdapter.js'
-import { HOME_SORT_QUERY_MAP } from '../constants/home.js'
+import { HOME_SORT_QUERY_MAP } from '../constants/homeFigma.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
-import { formatQueryDate, slugifyQueryValue } from '../mappers/homeMappers.js'
+import { formatQueryDate, slugifyQueryValue } from '../mappers/homeFigmaMappers.js'
 import {
   getFeaturedServices as getFeaturedServicesFromApi,
   getPopularLocations as getPopularLocationsFromApi,

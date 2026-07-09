@@ -1,4 +1,4 @@
-import { homePageFixture } from '../../fixtures/home.fixtures.js'
+import { homePageFixture } from '../../fixtures/homeFigma.fixtures.js'
 
 function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
