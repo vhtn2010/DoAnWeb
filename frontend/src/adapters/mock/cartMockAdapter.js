@@ -55,7 +55,7 @@ export async function addCartItemPreview({ authState = ROLES.guest, item } = {})
   const snapshot = mockCartState[authKey]
 
   if (!snapshot || !item) {
-    throw new Error('Cannot add preview item to mock cart.')
+    throw new Error('Không thể thêm dữ liệu preview vào giỏ hàng mock.')
   }
 
   snapshot.cart_items = [
@@ -69,7 +69,7 @@ export async function addCartItemPreview({ authState = ROLES.guest, item } = {})
 
   return {
     success: true,
-    message: 'Mock item added to cart.',
+    message: 'Đã thêm phòng vào giỏ hàng mock.',
     data: {
       cart_item: cloneValue(snapshot.cart_items[0]),
     },
