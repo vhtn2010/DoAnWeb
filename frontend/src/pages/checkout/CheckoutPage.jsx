@@ -1,23 +1,11 @@
 import CheckoutContactCard from '../../components/checkout/CheckoutContactCard.jsx'
+import CheckoutStateStack from '../../components/checkout/CheckoutStateStack.jsx'
 import CheckoutSpecialRequestCard from '../../components/checkout/CheckoutSpecialRequestCard.jsx'
 import CheckoutStepper from '../../components/checkout/CheckoutStepper.jsx'
 import CheckoutSummaryCard from '../../components/checkout/CheckoutSummaryCard.jsx'
+import CheckoutTrustRow from '../../components/checkout/CheckoutTrustRow.jsx'
 import CheckoutVoucherCard from '../../components/checkout/CheckoutVoucherCard.jsx'
 import useCheckout from '../../hooks/useCheckout.js'
-
-const trustItems = ['SSL SECURE', 'BEST PRICE GUARANTEE', '24/7 SUPPORT']
-
-function ContactTrustRow() {
-  return (
-    <div className="checkout-trust-row" aria-label="Niềm tin và bảo mật">
-      {trustItems.map((item) => (
-        <span className="checkout-trust-row__item" key={item}>
-          {item}
-        </span>
-      ))}
-    </div>
-  )
-}
 
 function CheckoutPage() {
   const {
@@ -43,17 +31,7 @@ function CheckoutPage() {
       <div className="checkout-page__shell">
         <CheckoutStepper activeStep={2} />
 
-        {loading && !checkoutDraft ? (
-          <p className="checkout-summary-card__feedback checkout-summary-card__feedback--success" role="status">
-            Đang tải thông tin đặt đơn mock theo pattern API-ready...
-          </p>
-        ) : null}
-
-        {error ? (
-          <p className="checkout-summary-card__feedback checkout-summary-card__feedback--error" role="status">
-            {error}
-          </p>
-        ) : null}
+        <CheckoutStateStack checkoutDraft={checkoutDraft} error={error} loading={loading} />
 
         {checkoutDraft && formattedSummary && summaryService ? (
           <div className="checkout-page__layout">
@@ -74,7 +52,7 @@ function CheckoutPage() {
                 termsAccepted={Boolean(checkoutDraft.accepted_terms)}
               />
 
-              <ContactTrustRow />
+              <CheckoutTrustRow />
             </div>
 
             <aside className="checkout-page__sidebar">

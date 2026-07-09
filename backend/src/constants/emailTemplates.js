@@ -5,9 +5,7 @@ const SYSTEM_EMAIL_TEMPLATES = Object.freeze([
     display_name: 'Verify Email',
     required_variables: Object.freeze([
       'full_name',
-      'token',
       'verification_url',
-      'api_verify_url',
       'expires_in_minutes',
     ]),
   }),
@@ -17,9 +15,7 @@ const SYSTEM_EMAIL_TEMPLATES = Object.freeze([
     display_name: 'Resend Verify Email',
     required_variables: Object.freeze([
       'full_name',
-      'token',
       'verification_url',
-      'api_verify_url',
       'expires_in_minutes',
     ]),
   }),
@@ -29,9 +25,7 @@ const SYSTEM_EMAIL_TEMPLATES = Object.freeze([
     display_name: 'Reset Password',
     required_variables: Object.freeze([
       'full_name',
-      'token',
       'reset_url',
-      'api_reset_url',
       'expires_in_minutes',
     ]),
   }),
@@ -42,9 +36,7 @@ const SYSTEM_EMAIL_TEMPLATES = Object.freeze([
     required_variables: Object.freeze([
       'full_name',
       'new_email',
-      'token',
       'confirm_url',
-      'api_confirm_url',
       'expires_in_minutes',
     ]),
   }),

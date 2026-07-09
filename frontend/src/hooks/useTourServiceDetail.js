@@ -1,26 +1,115 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
+import { useNavigate, useParams } from 'react-router-dom'
+import { addCartItemPreview } from '../repositories/cartRepository.js'
 import {
   getFeaturedTourServices,
   getTourServiceBySlug,
 } from '../repositories/publicServiceRepository.js'
 import { mapTourServiceToView } from '../mappers/serviceMappers.js'
-
-function buildAuthAwarePath(path, isCustomer) {
-  return isCustomer ? `${path}?auth=customer` : path
-}
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 function getLeadLocation(locationText) {
   return locationText.split(',')[0].trim()
 }
 
+function parseTourDepartureDate(value) {
+  const normalizedValue = String(value ?? '').trim()
+
+  if (!normalizedValue) {
+    return null
+  }
+
+  const displayDateMatch = normalizedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+
+  if (displayDateMatch) {
+    return new Date(
+      Number(displayDateMatch[3]),
+      Number(displayDateMatch[2]) - 1,
+      Number(displayDateMatch[1]),
+    )
+  }
+
+  const isoDateMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+
+  if (isoDateMatch) {
+    return new Date(
+      Number(isoDateMatch[1]),
+      Number(isoDateMatch[2]) - 1,
+      Number(isoDateMatch[3]),
+    )
+  }
+
+  const parsedDate = new Date(normalizedValue)
+
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate
+}
+
+function addDays(date, daysToAdd) {
+  const nextDate = new Date(date)
+  nextDate.setDate(nextDate.getDate() + daysToAdd)
+  return nextDate
+}
+
+function formatDateTimeStamp(date, time = '08:00:00') {
+  const safeDate = date instanceof Date ? date : new Date(date)
+
+  if (Number.isNaN(safeDate.getTime())) {
+    return ''
+  }
+
+  const year = safeDate.getFullYear()
+  const month = String(safeDate.getMonth() + 1).padStart(2, '0')
+  const day = String(safeDate.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}T${time}+07:00`
+}
+
+function buildTourCartItem({
+  adultCount,
+  childCount,
+  departureDate,
+  service,
+  totalPrice,
+}) {
+  const startDate = parseTourDepartureDate(departureDate) ?? new Date()
+  const durationDays = Math.max(Number(service.details?.duration_days ?? 1) || 1, 1)
+  const endDate = addDays(startDate, durationDays - 1)
+
+  return {
+    id: `cart-item-tour-${Date.now()}`,
+    service_id: service.id,
+    service_type: service.service_type,
+    reference_id: service.id,
+    start_at: formatDateTimeStamp(startDate, '08:00:00'),
+    end_at: formatDateTimeStamp(endDate, '18:00:00'),
+    quantity: 1,
+    unit_price_snapshot: totalPrice,
+    options: {
+      adult_count: adultCount,
+      child_count: childCount,
+      departure_date: departureDate,
+      duration_text: service.duration_text,
+      package_name: service.tour_type ?? service.title,
+      transport_text: service.transport_text,
+    },
+    created_at: new Date().toISOString(),
+    service: {
+      service_code: service.service_code,
+      title: service.title,
+      slug: service.slug,
+      short_description: service.short_description,
+      location_text: service.location_text,
+      image_url: service.image_url,
+      status: service.status,
+    },
+  }
+}
+
 export default function useTourServiceDetail() {
+  const navigate = useNavigate()
   const { slug } = useParams()
-  const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { authState, isCustomer } = usePublicSession()
 
   const [service, setService] = useState(null)
   const [recommendedServices, setRecommendedServices] = useState([])
@@ -31,6 +120,7 @@ export default function useTourServiceDetail() {
   const [isFavorite, setIsFavorite] = useState(false)
   const [isShared, setIsShared] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
+  const [pendingAction, setPendingAction] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -62,7 +152,7 @@ export default function useTourServiceDetail() {
         }
 
         const mappedService = mapTourServiceToView(detailResponse.data, {
-          detailPath: buildAuthAwarePath(`/services/${detailResponse.data.slug}`, isCustomer),
+          detailPath: buildPublicAuthPath(`/services/${detailResponse.data.slug}`, isCustomer),
         })
         const featuredResponse = await getFeaturedTourServices({
           excludeSlug: detailResponse.data.slug,
@@ -78,7 +168,7 @@ export default function useTourServiceDetail() {
           Array.isArray(featuredResponse.data)
             ? featuredResponse.data.map((featuredService) =>
                 mapTourServiceToView(featuredService, {
-                  detailPath: buildAuthAwarePath(`/services/${featuredService.slug}`, isCustomer),
+                  detailPath: buildPublicAuthPath(`/services/${featuredService.slug}`, isCustomer),
                 }),
               )
             : [],
@@ -117,6 +207,7 @@ export default function useTourServiceDetail() {
     setIsFavorite(false)
     setIsShared(false)
     setBookingMessage('')
+    setPendingAction('')
   }, [service])
 
   const childUnitPrice = Math.round((service?.sale_price ?? 0) * 0.7)
@@ -137,12 +228,80 @@ export default function useTourServiceDetail() {
     setBookingMessage('Liên kết tour đã được sao chép ở chế độ mô phỏng.')
   }
 
-  function handleBookNow() {
+  function legacyHandleBookNow() {
     setBookingMessage('Yêu cầu giữ chỗ đã được ghi nhận ở chế độ mô phỏng.')
   }
 
-  const breadcrumbHomePath = buildAuthAwarePath('/', isCustomer)
-  const breadcrumbListPath = buildAuthAwarePath('/services', isCustomer)
+  async function createTourCartPreview() {
+    if (!service) {
+      return null
+    }
+
+    const cartItem = buildTourCartItem({
+      adultCount,
+      childCount,
+      departureDate,
+      service,
+      totalPrice,
+    })
+
+    await addCartItemPreview({
+      authState,
+      item: cartItem,
+    })
+
+    return cartItem
+  }
+
+  async function handleAddToCart() {
+    if (!service) {
+      return
+    }
+
+    setPendingAction('cart')
+    setBookingMessage('')
+
+    try {
+      await createTourCartPreview()
+      setBookingMessage('Tour đã được thêm vào giỏ hàng xem trước.')
+      navigate(buildPublicAuthPath('/cart', isCustomer))
+    } catch (error) {
+      setBookingMessage(error?.message ?? 'Không thể thêm tour vào giỏ hàng lúc này.')
+    } finally {
+      setPendingAction('')
+    }
+  }
+
+  async function handleBookNow() {
+    if (!service) {
+      return
+    }
+
+    setPendingAction('checkout')
+    setBookingMessage('')
+
+    try {
+      const cartItem = await createTourCartPreview()
+
+      if (!cartItem) {
+        legacyHandleBookNow()
+        return
+      }
+
+      navigate(buildPublicAuthPath('/checkout', isCustomer), {
+        state: {
+          selectedCartItemIds: [cartItem.id],
+        },
+      })
+    } catch (error) {
+      setBookingMessage(error?.message ?? 'Không thể tiếp tục đặt tour lúc này.')
+    } finally {
+      setPendingAction('')
+    }
+  }
+
+  const breadcrumbHomePath = buildPublicAuthPath('/', isCustomer)
+  const breadcrumbListPath = buildPublicAuthPath('/services', isCustomer)
 
   const infoItems = useMemo(() => {
     if (!service) {
@@ -175,6 +334,7 @@ export default function useTourServiceDetail() {
     childTotal,
     departureDate,
     errorMessage,
+    handleAddToCart,
     handleBookNow,
     handleShareClick,
     infoItems,
@@ -182,6 +342,7 @@ export default function useTourServiceDetail() {
     isLoading,
     isShared,
     leadLocation: service ? getLeadLocation(service.location_text) : '',
+    pendingAction,
     recommendedServices,
     selectedImage,
     service,

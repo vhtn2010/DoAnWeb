@@ -142,7 +142,7 @@
   color: #fff;
   font-size: 1rem;
   font-weight: 900;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   cursor: pointer;
   text-align: center;
   box-shadow: 0 16px 30px rgba(214, 40, 40, 0.18);
@@ -779,6 +779,36 @@
   font-weight: 700;
 }
 
+.auth-login-form__control {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 0 18px;
+  border: 1px solid #eceef2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.04);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.auth-login-form__control:hover {
+  border-color: #d6dae2;
+}
+
+.auth-login-form__control:focus-within {
+  border-color: #d62828;
+  box-shadow: 0 0 0 4px rgba(214, 40, 40, 0.12);
+}
+
+.auth-login-form__control--error {
+  border-color: #d62828;
+  box-shadow: 0 0 0 4px rgba(214, 40, 40, 0.08);
+}
+
 .auth-login-form__input {
   min-height: 56px;
   width: 100%;
@@ -797,6 +827,10 @@
   color: #b1b5bd;
 }
 
+.auth-login-form__input--email::placeholder {
+  font-style: italic;
+}
+
 .auth-login-form__input:hover {
   border-color: #d6dae2;
 }
@@ -810,6 +844,52 @@
 .auth-login-form__input--error {
   border-color: #d62828;
   box-shadow: 0 0 0 4px rgba(214, 40, 40, 0.08);
+}
+
+.auth-login-form__input--password {
+  min-width: 0;
+  min-height: 54px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.auth-login-form__input--password:hover {
+  border-color: transparent;
+}
+
+.auth-login-form__input--password:focus-visible {
+  box-shadow: none;
+}
+
+.auth-login-form__toggle {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #8b8f97;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.auth-login-form__toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.auth-login-form__toggle:hover,
+.auth-login-form__toggle:focus-visible {
+  outline: none;
+  color: #d62828;
+  background: rgba(214, 40, 40, 0.08);
 }
 
 .auth-login-form__meta {
@@ -1089,6 +1169,8 @@
   .auth-forgot-form__inline-button,
   .auth-forgot-form__toggle,
   .auth-forgot-form__button,
+  .auth-login-form__control,
+  .auth-login-form__toggle,
   .auth-login-form__input,
   .auth-login-form__submit,
   .auth-login-form__social-button {

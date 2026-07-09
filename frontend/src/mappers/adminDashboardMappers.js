@@ -6,7 +6,7 @@ import {
   ADMIN_DASHBOARD_SUMMARY_CARD_CONFIG,
   ADMIN_DASHBOARD_TIME_RANGE_OPTIONS,
 } from '../constants/adminDashboard.js'
-import { ROLES } from '../constants/roles.js'
+import { ADMIN_PERMISSIONS, hasPermission } from '../utils/rolePermissions.js'
 import { getAdminRoleLabel } from './adminServiceMappers.js'
 
 const numberFormatter = new Intl.NumberFormat('vi-VN')
@@ -70,7 +70,7 @@ export function formatAdminDashboardShortCurrency(amount) {
 
 export function formatAdminDashboardDateTime(value) {
   if (!value) {
-  return 'Chưa cập nhật'
+    return 'Chưa cập nhật'
   }
 
   return new Intl.DateTimeFormat('vi-VN', {
@@ -93,10 +93,10 @@ export function createAdminDashboardFeedback(tone = 'info', message = '') {
   return { tone, message }
 }
 
-export function createAdminDashboardAccessState(currentRole) {
+export function createAdminDashboardAccessState(currentRole, currentPermissions) {
   const currentRoleLabel = getAdminRoleLabel(currentRole)
 
-  if (currentRole === ROLES.staff) {
+  if (!hasPermission(currentRole, ADMIN_PERMISSIONS.dashboardRead, currentPermissions)) {
     return {
       canViewDashboard: false,
       currentRoleLabel,

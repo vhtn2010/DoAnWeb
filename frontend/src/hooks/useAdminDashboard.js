@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
 import {
   createAdminDashboardAccessState,
   createAdminDashboardFeedback,
@@ -16,12 +15,11 @@ import { getAdminDashboard } from '../repositories/adminDashboardRepository.js'
 
 export default function useAdminDashboard() {
   const outletContext = useOutletContext()
-  const currentRole = normalizeAdminPreviewRole(
-    outletContext?.currentRole ?? ROLES.systemAdmin,
-  )
+  const currentRole = normalizeAdminPreviewRole(outletContext?.currentRole)
+  const currentPermissions = outletContext?.currentPermissions
   const accessState = useMemo(
-    () => createAdminDashboardAccessState(currentRole),
-    [currentRole],
+    () => createAdminDashboardAccessState(currentRole, currentPermissions),
+    [currentPermissions, currentRole],
   )
   const [selectedRange, setSelectedRange] = useState(getAdminDashboardDefaultRange())
   const [dashboardState, setDashboardState] = useState(null)

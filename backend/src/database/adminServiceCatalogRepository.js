@@ -1,5 +1,12 @@
 const { query } = require('./client');
 
+const SERVICE_LIST_ORDER_SQL = Object.freeze({
+  newest: 'updated_at DESC, id DESC',
+  oldest: 'updated_at ASC, id ASC',
+  price_asc: 'public_price ASC, updated_at DESC, id DESC',
+  price_desc: 'public_price DESC, updated_at DESC, id DESC',
+});
+
 const createAdminServiceCatalogRepository = ({ queryImpl = query } = {}) => {
   const buildScopedWhere = ({
     allowedServiceIds,
@@ -58,6 +65,7 @@ const createAdminServiceCatalogRepository = ({ queryImpl = query } = {}) => {
     limit,
     offset,
     serviceStatus,
+    serviceSort = 'newest',
     serviceType,
   }) => {
     const { params, whereSql } = buildScopedWhere({
@@ -103,6 +111,7 @@ const createAdminServiceCatalogRepository = ({ queryImpl = query } = {}) => {
     const dataParams = [...params, limit, offset];
     const limitParam = `$${dataParams.length - 1}`;
     const offsetParam = `$${dataParams.length}`;
+    const orderSql = SERVICE_LIST_ORDER_SQL[serviceSort] || SERVICE_LIST_ORDER_SQL.newest;
     const [countResult, dataResult] = await Promise.all([
       queryImpl(
         `
@@ -119,7 +128,7 @@ const createAdminServiceCatalogRepository = ({ queryImpl = query } = {}) => {
           FROM (
             ${filteredSql}
           ) AS admin_services
-          ORDER BY created_at DESC, id ASC
+          ORDER BY ${orderSql}
           LIMIT ${limitParam}
           OFFSET ${offsetParam}
         `,

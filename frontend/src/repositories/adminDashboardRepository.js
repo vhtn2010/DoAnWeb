@@ -1,19 +1,19 @@
 import {
-  getAdminDashboard as getAdminDashboardWithMockAdapter,
-  getBookingStatusBreakdown as getBookingStatusBreakdownWithMockAdapter,
-  getDashboardOverview as getDashboardOverviewWithMockAdapter,
-  getRecentBookings as getRecentBookingsWithMockAdapter,
-  getRevenueChart as getRevenueChartWithMockAdapter,
-  getTopServices as getTopServicesWithMockAdapter,
-} from '../adapters/mock/adminDashboardMockAdapter.js'
+  getAdminDashboard as getAdminDashboardWithApiAdapter,
+  getBookingStatusBreakdown as getBookingStatusBreakdownWithApiAdapter,
+  getDashboardOverview as getDashboardOverviewWithApiAdapter,
+  getRecentBookings as getRecentBookingsWithApiAdapter,
+  getRevenueChart as getRevenueChartWithApiAdapter,
+  getTopServices as getTopServicesWithApiAdapter,
+} from '../adapters/api/adminDashboardApiAdapter.js'
 
 const adminDashboardAdapter = {
-  getDashboardOverview: getDashboardOverviewWithMockAdapter,
-  getRevenueChart: getRevenueChartWithMockAdapter,
-  getBookingStatusBreakdown: getBookingStatusBreakdownWithMockAdapter,
-  getRecentBookings: getRecentBookingsWithMockAdapter,
-  getTopServices: getTopServicesWithMockAdapter,
-  getAdminDashboard: getAdminDashboardWithMockAdapter,
+  getDashboardOverview: getDashboardOverviewWithApiAdapter,
+  getRevenueChart: getRevenueChartWithApiAdapter,
+  getBookingStatusBreakdown: getBookingStatusBreakdownWithApiAdapter,
+  getRecentBookings: getRecentBookingsWithApiAdapter,
+  getTopServices: getTopServicesWithApiAdapter,
+  getAdminDashboard: getAdminDashboardWithApiAdapter,
 }
 
 export function getDashboardOverview(params) {
@@ -37,6 +37,5 @@ export function getTopServices(params) {
 }
 
 export function getAdminDashboard(params) {
-  // TODO: replace mock dashboard data with admin/report API endpoints in integration phase.
   return adminDashboardAdapter.getAdminDashboard(params)
 }

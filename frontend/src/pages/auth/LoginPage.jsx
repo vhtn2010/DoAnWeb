@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import useLoginForm from '../../hooks/useLoginForm.js'
 import './authTemplate.css'
@@ -18,7 +19,47 @@ function SocialButton({ children, disabled, onClick, provider }) {
   )
 }
 
+function EyeIcon({ visible }) {
+  if (visible) {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path
+          d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        />
+        <circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M3 3 21 21M10.7 6A10.3 10.3 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a15.7 15.7 0 0 1-4 4.7M14.5 14.7A3 3 0 0 1 9.3 9.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M6.8 6.8A15.9 15.9 0 0 0 2.5 12S6 18.5 12 18.5c1.8 0 3.3-.6 4.5-1.4"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
 function LoginPage() {
+  const [showPassword, setShowPassword] = useState(() => false)
   const {
     errors,
     feedbackMessage,
@@ -29,6 +70,16 @@ function LoginPage() {
     handleSubmit,
     isSubmitting,
   } = useLoginForm()
+
+  useEffect(() => {
+    setShowPassword(false)
+  }, [])
+
+  useEffect(() => {
+    if (isSubmitting) {
+      setShowPassword(false)
+    }
+  }, [isSubmitting])
 
   return (
     <section className="auth-login-page">
@@ -62,10 +113,10 @@ function LoginPage() {
             aria-invalid={Boolean(errors.email)}
             className={`auth-login-form__input${
               errors.email ? ' auth-login-form__input--error' : ''
-            }`}
+            } auth-login-form__input--email`}
             id="login-email"
             name="email"
-            placeholder="email@netviet.travel"
+            placeholder="VD: email@gmail.com"
             type="email"
             value={formValues.email}
             onChange={handleFieldChange}
@@ -75,19 +126,31 @@ function LoginPage() {
 
         <label className="auth-login-form__field" htmlFor="login-password">
           <span className="auth-login-form__label">Mật khẩu</span>
-          <input
-            autoComplete="current-password"
-            aria-invalid={Boolean(errors.password)}
-            className={`auth-login-form__input${
-              errors.password ? ' auth-login-form__input--error' : ''
+          <div
+            className={`auth-login-form__control${
+              errors.password ? ' auth-login-form__control--error' : ''
             }`}
-            id="login-password"
-            name="password"
-            placeholder="Nhập mật khẩu"
-            type="password"
-            value={formValues.password}
-            onChange={handleFieldChange}
-          />
+          >
+            <input
+              autoComplete="current-password"
+              aria-invalid={Boolean(errors.password)}
+              className="auth-login-form__input auth-login-form__input--password"
+              id="login-password"
+              name="password"
+              placeholder="Nhập mật khẩu"
+              type={showPassword ? 'text' : 'password'}
+              value={formValues.password}
+              onChange={handleFieldChange}
+            />
+            <button
+              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              className="auth-login-form__toggle"
+              type="button"
+              onClick={() => setShowPassword((currentValue) => !currentValue)}
+            >
+              <EyeIcon visible={showPassword} />
+            </button>
+          </div>
           {errors.password ? <p className="auth-form__field-error">{errors.password}</p> : null}
         </label>
 

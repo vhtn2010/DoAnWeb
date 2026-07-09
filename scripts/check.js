@@ -24,7 +24,11 @@ const tasks = [
   {
     cwd: 'frontend',
     command: process.execPath,
-    args: [resolveNodeTool('frontend', ['oxlint', 'bin', 'oxlint'])],
+    args: [
+      resolveNodeTool('frontend', ['oxlint', 'bin', 'oxlint']),
+      '--ignore-pattern',
+      'build-check/**',
+    ],
   },
   {
     cwd: 'frontend',

@@ -534,7 +534,7 @@ export function sortHotelServices(services, sortValue = 'recommended') {
 }
 
 export function buildHotelSearchParams({
-  auth = '',
+  auth: _auth = '',
   location = '',
   checkin = '',
   checkout = '',
@@ -546,10 +546,6 @@ export function buildHotelSearchParams({
   page = 1,
 } = {}) {
   const nextSearchParams = new URLSearchParams()
-
-  if (auth) {
-    nextSearchParams.set('auth', auth)
-  }
 
   if (location.trim()) {
     nextSearchParams.set('location', location.trim())

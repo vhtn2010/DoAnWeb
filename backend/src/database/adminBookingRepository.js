@@ -297,7 +297,9 @@ const createAdminBookingRepository = ({
         u.full_name AS customer_full_name,
         u.email AS customer_email,
         u.phone AS customer_phone,
-        COUNT(bi.id)::int AS item_count
+        COUNT(bi.id)::int AS item_count,
+        (ARRAY_AGG(bi.title_snapshot ORDER BY bi.start_at ASC NULLS LAST, bi.id ASC)
+          FILTER (WHERE bi.id IS NOT NULL))[1] AS service_title
       FROM bookings b
       LEFT JOIN users u
         ON u.id = b.user_id
@@ -343,7 +345,10 @@ const createAdminBookingRepository = ({
           FROM (
             ${filteredSql}
           ) AS filtered_bookings
-          ORDER BY created_at DESC, id DESC
+          ORDER BY
+            CASE WHEN status = 'paid' THEN 0 ELSE 1 END,
+            created_at DESC,
+            id DESC
           LIMIT ${limitParam}
           OFFSET ${offsetParam}
         `,

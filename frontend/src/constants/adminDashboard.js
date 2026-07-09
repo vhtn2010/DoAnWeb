@@ -1,4 +1,4 @@
-export const ADMIN_DASHBOARD_DEFAULT_RANGE = '7_days'
+export const ADMIN_DASHBOARD_DEFAULT_RANGE = '30_days'
 
 export const ADMIN_DASHBOARD_TIME_RANGE_OPTIONS = Object.freeze([
   { id: 'today', label: 'Hôm nay' },

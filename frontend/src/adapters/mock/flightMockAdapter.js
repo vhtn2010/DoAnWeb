@@ -282,7 +282,7 @@ export async function getFlightSearchDefaults() {
 }
 
 export function buildFlightSearchParams({
-  auth = '',
+  auth: _auth = '',
   trip_type = DEFAULT_FLIGHT_TRIP_TYPE,
   from_location = '',
   to_location = '',
@@ -300,10 +300,6 @@ export function buildFlightSearchParams({
   page = 1,
 } = {}) {
   const searchParams = new URLSearchParams()
-
-  if (auth) {
-    searchParams.set('auth', auth)
-  }
 
   if (trip_type && trip_type !== DEFAULT_FLIGHT_TRIP_TYPE) {
     searchParams.set('trip_type', trip_type)

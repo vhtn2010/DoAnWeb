@@ -1,17 +1,25 @@
-import { login as loginWithApiAdapter } from '../adapters/api/authApiAdapter.js'
 import {
-  register as registerWithMockAdapter,
-  requestPasswordReset as requestPasswordResetWithMockAdapter,
-  resetPassword as resetPasswordWithMockAdapter,
-  verifyResetCode as verifyResetCodeWithMockAdapter,
-} from '../adapters/mock/authMockAdapter.js'
+  login as loginWithApiAdapter,
+  logout as logoutWithApiAdapter,
+  refreshSession as refreshSessionWithApiAdapter,
+  register as registerWithApiAdapter,
+  requestPasswordReset as requestPasswordResetWithApiAdapter,
+  resendVerification as resendVerificationWithApiAdapter,
+  resetPassword as resetPasswordWithApiAdapter,
+  verifyEmail as verifyEmailWithApiAdapter,
+  verifyResetCode as verifyResetCodeWithApiAdapter,
+} from '../adapters/api/authApiAdapter.js'
 
 const authAdapter = {
   login: loginWithApiAdapter,
-  register: registerWithMockAdapter,
-  requestPasswordReset: requestPasswordResetWithMockAdapter,
-  resetPassword: resetPasswordWithMockAdapter,
-  verifyResetCode: verifyResetCodeWithMockAdapter,
+  logout: logoutWithApiAdapter,
+  refreshSession: refreshSessionWithApiAdapter,
+  register: registerWithApiAdapter,
+  requestPasswordReset: requestPasswordResetWithApiAdapter,
+  resendVerification: resendVerificationWithApiAdapter,
+  resetPassword: resetPasswordWithApiAdapter,
+  verifyEmail: verifyEmailWithApiAdapter,
+  verifyResetCode: verifyResetCodeWithApiAdapter,
 }
 
 export function login(payload) {
@@ -32,4 +40,20 @@ export function verifyResetCode(payload) {
 
 export function resetPassword(payload) {
   return authAdapter.resetPassword(payload)
+}
+
+export function refreshSession(payload) {
+  return authAdapter.refreshSession(payload)
+}
+
+export function logout(payload) {
+  return authAdapter.logout(payload)
+}
+
+export function verifyEmail(payload) {
+  return authAdapter.verifyEmail(payload)
+}
+
+export function resendVerification(payload) {
+  return authAdapter.resendVerification(payload)
 }

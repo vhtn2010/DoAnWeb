@@ -4,12 +4,7 @@ import {
 } from '../../constants/hotels.js'
 import { SERVICE_STATUSES } from '../../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
-import {
-  getHotelFixtureBySlug,
-  getHotelRoomsFixtureByHotelServiceId,
-  hotelRelatedSlugMap,
-  hotelServiceFixtures,
-} from '../../fixtures/hotels.fixtures.js'
+import { hotelServiceFixtures } from '../../fixtures/hotels.fixtures.js'
 
 function normalizeText(value = '') {
   return value
@@ -55,12 +50,7 @@ function calculateNightCount(checkinDate, checkoutDate) {
   }
 
   const diffInDays = Math.round((checkout.getTime() - checkin.getTime()) / 86400000)
-
-  if (diffInDays < 1) {
-    return 0
-  }
-
-  return diffInDays
+  return diffInDays >= 1 ? diffInDays : 0
 }
 
 function buildDateTimeStamp(dateText, timeText) {
@@ -150,7 +140,9 @@ function sortHotels(hotels, sortValue) {
   }
 
   if (sortValue === 'rating_desc') {
-    nextHotels.sort((first, second) => (second.rating ?? 0) - (first.rating ?? 0))
+    nextHotels.sort(
+      (first, second) => (second.details?.star_rating ?? 0) - (first.details?.star_rating ?? 0),
+    )
     return nextHotels
   }
 
@@ -161,20 +153,69 @@ function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
-function getRelatedHotels(hotelSlug) {
-  const relatedSlugs = hotelRelatedSlugMap[hotelSlug] ?? []
-
-  return relatedSlugs
-    .map((slug) => getHotelFixtureBySlug(slug))
-    .filter(
-      (hotel) =>
-        hotel &&
-        hotel.service_type === SERVICE_TYPES.hotel &&
-        hotel.status === SERVICE_STATUSES.active,
-    )
+function mapHotelFixture(hotel = {}) {
+  return {
+    ...cloneValue(hotel),
+    address: hotel.details?.address ?? '',
+    amenities: cloneValue(hotel.details?.amenities ?? []),
+    checkin_time: hotel.details?.checkin_time ?? '14:00',
+    checkout_time: hotel.details?.checkout_time ?? '12:00',
+    rating: Number(hotel.details?.star_rating ?? 0),
+    review_count: Array.isArray(hotel.details?.review_items)
+      ? hotel.details.review_items.length
+      : 0,
+  }
 }
 
-function buildHotelBookingOptions({ hotel, room, guests, roomQuantity, nights, checkinDate, checkoutDate }) {
+function mapRoomFixture(room = {}, hotel = {}) {
+  return {
+    id: room.id,
+    hotel_service_id: room.hotel_service_id ?? hotel.id,
+    service_type: SERVICE_TYPES.room,
+    title: room.name ?? '',
+    slug: `${hotel.slug ?? hotel.id ?? 'hotel'}-${room.id ?? 'room'}`,
+    short_description: room.description ?? '',
+    description: room.description ?? '',
+    location_text: hotel.location_text ?? '',
+    base_price: Number(room.base_price ?? hotel.base_price ?? 0),
+    sale_price: Number(room.base_price ?? hotel.sale_price ?? 0),
+    currency: hotel.currency ?? 'VND',
+    status: room.status ?? SERVICE_STATUSES.active,
+    image_url: hotel.image_url ?? '',
+    bed_type: room.bed_type ?? '',
+    room_size: room.room_size ?? '',
+    max_guests: Number(room.max_adults ?? 1) + Number(room.max_children ?? 0),
+    max_adults: Number(room.max_adults ?? 1),
+    max_children: Number(room.max_children ?? 0),
+    total_quantity: Number(room.total_rooms ?? 0),
+    available_quantity: Number(room.available_rooms ?? 0),
+    options: {},
+  }
+}
+
+function getHotelFixtureBySlug(slug) {
+  return hotelServiceFixtures.find((hotel) => hotel.slug === slug) ?? null
+}
+
+function getHotelRoomsFixtureByHotelServiceId(hotelServiceId) {
+  const hotel = hotelServiceFixtures.find((item) => item.id === hotelServiceId) ?? null
+
+  if (!hotel || !Array.isArray(hotel.room_types)) {
+    return []
+  }
+
+  return hotel.room_types.map((room) => mapRoomFixture(room, hotel))
+}
+
+function buildHotelBookingOptions({
+  hotel,
+  room,
+  guests,
+  roomQuantity,
+  nights,
+  checkinDate,
+  checkoutDate,
+}) {
   return {
     hotel_name: hotel.title,
     room_name: room.title,
@@ -217,7 +258,7 @@ export async function listHotels({
       }
 
       const searchableText = normalizeText(
-        `${hotel.title} ${hotel.location_text} ${hotel.address ?? ''}`,
+        `${hotel.title} ${hotel.location_text} ${hotel.details?.address ?? ''}`,
       )
 
       const matchesLocation =
@@ -245,7 +286,7 @@ export async function listHotels({
   return {
     success: true,
     message: 'OK',
-    data: cloneValue(paginatedHotels),
+    data: paginatedHotels,
     meta: {
       page: safePage,
       limit: safeLimit,
@@ -257,7 +298,6 @@ export async function listHotels({
 }
 
 export async function getHotelDetailBySlug(slug) {
-  // TODO: replace mock hotel detail with GET /services/{slug} in API integration phase.
   const hotel = getHotelFixtureBySlug(slug)
 
   if (
@@ -273,28 +313,23 @@ export async function getHotelDetailBySlug(slug) {
   }
 
   const rooms = getHotelRoomsFixtureByHotelServiceId(hotel.id).filter(
-    (room) =>
-      room.service_type === SERVICE_TYPES.room &&
-      room.status === SERVICE_STATUSES.active,
+    (room) => room.service_type === SERVICE_TYPES.room && room.status === SERVICE_STATUSES.active,
   )
 
   return {
     success: true,
     message: 'OK',
     data: {
-      hotel: cloneValue(hotel),
+      hotel: mapHotelFixture(hotel),
       rooms: cloneValue(rooms),
-      related_hotels: cloneValue(getRelatedHotels(hotel.slug)),
+      related_hotels: [],
     },
   }
 }
 
 export async function getHotelRooms(hotelServiceId) {
-  // TODO: replace mock room list with GET /services/{hotel_service_id}/rooms in API integration phase.
   const rooms = getHotelRoomsFixtureByHotelServiceId(hotelServiceId).filter(
-    (room) =>
-      room.service_type === SERVICE_TYPES.room &&
-      room.status === SERVICE_STATUSES.active,
+    (room) => room.service_type === SERVICE_TYPES.room && room.status === SERVICE_STATUSES.active,
   )
 
   return {
@@ -315,7 +350,6 @@ export async function checkHotelAvailability({
   guests = 1,
   quantity = 1,
 } = {}) {
-  // TODO: replace mock availability with hotel/room availability API in integration phase.
   const hotel = hotelServiceFixtures.find((item) => item.id === hotel_service_id) ?? null
   const room = getHotelRoomsFixtureByHotelServiceId(hotel_service_id).find(
     (item) => item.id === selected_room_id,
@@ -333,8 +367,8 @@ export async function checkHotelAvailability({
     Boolean(parseIsoDateValue(checkin_date)) &&
     Boolean(parseIsoDateValue(checkout_date)) &&
     calculateNightCount(checkin_date, checkout_date) >= 1
-  const isGuestCountValid = Number(guests) >= 1 && Number(guests) <= Number(room.max_guests)
   const requestedQuantity = Math.max(Number(quantity) || 1, 1)
+  const isGuestCountValid = Number(guests) >= 1 && Number(guests) <= Number(room.max_guests)
   const isAvailable =
     isDateRangeValid &&
     isGuestCountValid &&
@@ -364,7 +398,6 @@ export async function buildHotelCartItemPayload({
   guests = 1,
   room_quantity = 1,
 } = {}) {
-  // TODO: replace mock cart payload with POST /cart/items in integration phase.
   const hotel = hotelServiceFixtures.find((item) => item.id === hotel_service_id) ?? null
   const room = getHotelRoomsFixtureByHotelServiceId(hotel_service_id).find(
     (item) => item.id === selected_room_id,
@@ -380,6 +413,7 @@ export async function buildHotelCartItemPayload({
 
   const nights = calculateNightCount(checkin_date, checkout_date)
   const quantity = Math.max(Number(room_quantity) || 1, 1)
+  const mappedHotel = mapHotelFixture(hotel)
 
   return {
     success: true,
@@ -388,12 +422,12 @@ export async function buildHotelCartItemPayload({
       service_id: room.id,
       service_type: SERVICE_TYPES.room,
       reference_id: room.hotel_service_id,
-      start_at: buildDateTimeStamp(checkin_date, hotel.checkin_time),
-      end_at: buildDateTimeStamp(checkout_date, hotel.checkout_time),
+      start_at: buildDateTimeStamp(checkin_date, mappedHotel.checkin_time),
+      end_at: buildDateTimeStamp(checkout_date, mappedHotel.checkout_time),
       quantity,
       unit_price_snapshot: room.sale_price * nights,
       options: buildHotelBookingOptions({
-        hotel,
+        hotel: mappedHotel,
         room,
         guests: Number(guests) || 1,
         roomQuantity: quantity,

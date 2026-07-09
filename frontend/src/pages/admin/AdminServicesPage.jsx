@@ -1,8 +1,176 @@
-import AdminServiceFormModal from '../../components/admin/services/AdminServiceFormModal.jsx'
+import AdminServiceFormModal from '../../components/admin/services/AdminServiceFormFigmaModal.jsx'
 import AdminServiceStatusActionModal from '../../components/admin/services/AdminServiceStatusActionModal.jsx'
+import { AdminEmptyState, AdminErrorState, AdminPagination } from '../../components/admin/ui/index.js'
+import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
+import useClickableSelectShell from '../../hooks/useClickableSelectShell.js'
 import useAdminServices from '../../hooks/useAdminServices.js'
 
-const numberFormatter = new Intl.NumberFormat('vi-VN')
+const servicePriceFormatter = new Intl.NumberFormat('en-US', {
+  maximumFractionDigits: 0,
+})
+const serviceDateFormatter = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+})
+const visibleTypeTabs = new Set([
+  'all',
+  SERVICE_TYPES.tour,
+  SERVICE_TYPES.hotel,
+  SERVICE_TYPES.flight,
+  SERVICE_TYPES.train,
+])
+const figmaRowActions = ['edit', 'delete']
+
+function AdminActionSvgIcon({ children }) {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      {children}
+    </svg>
+  )
+}
+
+function ChevronDownIcon() {
+  return (
+    <AdminActionSvgIcon>
+      <path
+        d="m7 10 5 5 5-5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </AdminActionSvgIcon>
+  )
+}
+
+function PlusCircleIcon() {
+  return (
+    <AdminActionSvgIcon>
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M12 8v8M8 12h8"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </AdminActionSvgIcon>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <AdminActionSvgIcon>
+      <path
+        d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </AdminActionSvgIcon>
+  )
+}
+
+function EditIcon() {
+  return (
+    <AdminActionSvgIcon>
+      <path d="M12 20h9" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+      <path
+        d="m16.5 3.5 4 4L8 20H4v-4L16.5 3.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </AdminActionSvgIcon>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <AdminActionSvgIcon>
+      <path
+        d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </AdminActionSvgIcon>
+  )
+}
+
+const serviceActionIcons = Object.freeze({
+  delete: <TrashIcon />,
+  edit: <EditIcon />,
+})
+
+const serviceTableColumns = Object.freeze([
+  { key: 'service', label: 'Thông tin dịch vụ' },
+  { key: 'type', label: 'Danh mục' },
+  { key: 'location', label: 'Điểm đến' },
+  { key: 'price', label: 'Giá (đ)' },
+  { key: 'status', label: 'Trạng thái' },
+  { key: 'updated', label: 'Cập nhật' },
+  { key: 'actions', label: 'Thao tác' },
+])
+
+function formatServicePrice(value) {
+  return servicePriceFormatter.format(value ?? 0)
+}
+
+function formatServiceDate(value) {
+  if (!value) {
+    return 'Chưa cập nhật'
+  }
+
+  return serviceDateFormatter.format(new Date(value))
+}
+
+function getSelectedRowClassName(service, { formModalState, selectedService, statusActionModalState }) {
+  const isSelected =
+    service.id === statusActionModalState.service?.id ||
+    service.id === formModalState.service?.id ||
+    service.id === selectedService?.id
+
+  return isSelected
+    ? 'admin-services-table__row admin-services-table__row--selected'
+    : 'admin-services-table__row'
+}
+
+function getVisibleRowActions(actions) {
+  return figmaRowActions.filter((actionKey) => actions.includes(actionKey))
+}
+
+function getStatusToneClassName(statusMetaItem) {
+  return `admin-services-status admin-services-status--${statusMetaItem?.tone ?? 'neutral'}`
+}
+
+function getTypeSelectOptions(typeOptions) {
+  return typeOptions.map((option) => ({
+    ...option,
+    label: option.value === 'all' ? 'Tất cả danh mục' : option.label,
+  }))
+}
+
+function getStatusSelectOptions(statusOptions) {
+  return statusOptions.map((option) => ({
+    ...option,
+    label: option.value === 'all' ? 'Trạng thái:' : option.label,
+  }))
+}
 
 function AdminServicesPage() {
   const {
@@ -10,96 +178,93 @@ function AdminServicesPage() {
     closeModal,
     confirmStatusAction,
     currentRole,
-    currentRoleLabel,
+    destinationOptions,
     error,
     feedback,
     filters,
     formModalState,
-    formatCurrency,
-    formatDateTime,
     getAllowedActions,
-    getServiceDetailSummary,
     getServiceTypeLabel,
     handleRowAction,
     loading,
     openCreateForm,
     pageNumbers,
     pagination,
+    reloadServices,
     resetFilters,
     resultRange,
     selectedService,
     services,
     setCurrentPage,
+    setDestinationFilter,
     setSearch,
-    setSort,
     setStatusFilter,
     setTypeFilter,
-    sort,
-    sortOptions,
     statusActionModalState,
     statusMeta,
     statusOptions,
     submitServiceForm,
-    summaryCards,
     typeOptions,
   } = useAdminServices()
+  const typeTabs = typeOptions.filter((option) => visibleTypeTabs.has(option.value))
+  const typeSelectOptions = getTypeSelectOptions(typeOptions)
+  const statusSelectOptions = getStatusSelectOptions(statusOptions)
+  const { handlePointerDown: handleTypeSelectPointerDown, selectRef: typeSelectRef } = useClickableSelectShell(loading)
+  const { handlePointerDown: handleStatusSelectPointerDown, selectRef: statusSelectRef } = useClickableSelectShell(loading)
+  const { handlePointerDown: handleDestinationSelectPointerDown, selectRef: destinationSelectRef } = useClickableSelectShell(loading)
 
   return (
-    <main className="admin-services-page">
-      <section className="admin-services-page__hero">
-        <div className="admin-services-page__hero-copy">
-          <p className="admin-services-page__eyebrow">Admin services</p>
-          <h1 className="admin-services-page__title">Quản lý dịch vụ</h1>
-          <p className="admin-services-page__subtitle">
-            Theo dõi, lọc và quản lý kho dịch vụ du lịch
-          </p>
+    <main className="admin-services-page admin-services-page--figma">
+      <header className="admin-services-page__figma-header">
+        <div className="admin-services-page__figma-copy">
+          <h1>Quản lý Dịch vụ</h1>
+          <p>Quản lý các tour, khách sạn và dịch vụ vận chuyển trong hệ thống.</p>
         </div>
 
         <button className="admin-services-page__add-button" type="button" onClick={openCreateForm}>
-          Thêm dịch vụ
+          <PlusCircleIcon />
+          <span>Thêm dịch vụ mới</span>
         </button>
-      </section>
+      </header>
 
-      <section className="admin-services-page__meta-bar" aria-label="Trạng thái mock">
-        <div className="admin-services-page__role-pill">
-          Role mock: <strong>{currentRoleLabel}</strong>
-        </div>
+      {error ? (
+        <AdminErrorState
+          description={error}
+          title="Không thể tải dữ liệu dịch vụ"
+          action={
+            <button
+              className="admin-services-page__empty-action"
+              disabled={loading}
+              type="button"
+              onClick={() => reloadServices()}
+            >
+              Thử lại
+            </button>
+          }
+        />
+      ) : null}
+
+      {feedback?.message ? (
         <p
           className={`admin-services-page__feedback admin-services-page__feedback--${feedback.tone}`}
           role="status"
         >
           {feedback.message}
         </p>
-      </section>
-
-      {error ? (
-        <p className="admin-services-page__feedback admin-services-page__feedback--error" role="status">
-          {error}
-        </p>
       ) : null}
 
-      <section className="admin-services-page__filters admin-services-card" aria-label="Bộ lọc dịch vụ">
-        <div className="admin-services-page__filter-header">
-          <div>
-            <h2 className="admin-services-page__section-title">Bộ lọc danh sách</h2>
-            <p className="admin-services-page__section-copy">
-              Lọc theo query `q`, `type`, `status`, `sort` và `page` qua mock admin service repository.
-            </p>
-          </div>
-
-          <button className="admin-services-page__reset-button" type="button" onClick={resetFilters}>
-            Đặt lại
-          </button>
-        </div>
-
-        <div className="admin-services-page__type-chips" role="group" aria-label="Lọc theo loại dịch vụ">
-          {typeOptions.map((option) => (
+      <section className="admin-services-page__filter-card" aria-label="Bộ lọc dịch vụ">
+        <div className="admin-services-page__tabs" role="group" aria-label="Lọc theo loại dịch vụ">
+          {typeTabs.map((option) => (
             <button
+              className={
+                option.value === filters.type
+                  ? 'admin-services-page__tab admin-services-page__tab--active'
+                  : 'admin-services-page__tab'
+              }
               key={option.value}
-              className={`admin-services-page__type-chip ${
-                filters.type === option.value ? 'admin-services-page__type-chip--active' : ''
-              }`}
               type="button"
+              aria-pressed={option.value === filters.type}
               onClick={() => setTypeFilter(option.value)}
             >
               {option.label}
@@ -107,135 +272,103 @@ function AdminServicesPage() {
           ))}
         </div>
 
-        <div className="admin-services-page__filter-grid">
-          <label className="admin-services-page__field">
-            <span className="admin-services-page__field-label">Tìm kiếm</span>
-            <div className="admin-services-page__search-shell">
-              <input
-                className="admin-services-page__input"
-                placeholder="Tìm theo tên, mã dịch vụ, địa điểm..."
-                type="search"
-                value={filters.search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-
-              {filters.search ? (
-                <button
-                  aria-label="Xóa từ khóa tìm kiếm"
-                  className="admin-services-page__clear-search"
-                  type="button"
-                  onClick={() => setSearch('')}
-                >
-                  Xóa
-                </button>
-              ) : null}
-            </div>
+        <div className="admin-services-page__filter-row">
+          <label className="admin-services-page__search-control">
+            <SearchIcon />
+            <input
+              aria-label="Tìm kiếm tên dịch vụ hoặc mã ID"
+              placeholder="Tên dịch vụ, mã ID..."
+              type="search"
+              value={filters.search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </label>
 
-          <label className="admin-services-page__field">
-            <span className="admin-services-page__field-label">Trạng thái</span>
+          <label className="admin-services-page__select-control" onPointerDown={handleTypeSelectPointerDown}>
             <select
-              className="admin-services-page__select"
+              aria-label="Danh mục dịch vụ"
+              ref={typeSelectRef}
+              value={filters.type}
+              onChange={(event) => setTypeFilter(event.target.value)}
+            >
+              {typeSelectOptions.map((option) => (
+                <option disabled={option.disabled} key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDownIcon />
+          </label>
+
+          <label className="admin-services-page__select-control" onPointerDown={handleStatusSelectPointerDown}>
+            <select
+              aria-label="Trạng thái dịch vụ"
+              ref={statusSelectRef}
               value={filters.status}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
+              {statusSelectOptions.map((option) => (
+                <option disabled={option.disabled} key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
+            <ChevronDownIcon />
           </label>
 
-          <label className="admin-services-page__field">
-            <span className="admin-services-page__field-label">Sắp xếp</span>
+          <label className="admin-services-page__select-control" onPointerDown={handleDestinationSelectPointerDown}>
             <select
-              className="admin-services-page__select"
-              value={sort}
-              onChange={(event) => setSort(event.target.value)}
+              aria-label="Điểm đến"
+              ref={destinationSelectRef}
+              value={filters.destination}
+              onChange={(event) => setDestinationFilter(event.target.value)}
             >
-              {sortOptions.map((option) => (
+              {destinationOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
+            <ChevronDownIcon />
           </label>
         </div>
       </section>
 
-      <section className="admin-services-page__summary-grid" aria-label="Tóm tắt dịch vụ">
-        {summaryCards.map((card) => (
-          <article
-            className={`admin-services-summary-card admin-services-summary-card--${card.tone}`}
-            key={card.key}
-          >
-            <p className="admin-services-summary-card__label">{card.label}</p>
-            <strong className="admin-services-summary-card__value">
-              {numberFormatter.format(card.value)}
-            </strong>
-            <p className="admin-services-summary-card__helper">{card.helper}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="admin-services-card admin-services-table-card">
-        <div className="admin-services-table-card__header">
-          <div>
-            <h2 className="admin-services-page__section-title">Danh sách dịch vụ</h2>
-            <p className="admin-services-page__section-copy">
-              {loading
-                ? 'Đang tải danh sách dịch vụ từ mock admin service adapter...'
-                : `Hiển thị ${numberFormatter.format(pagination.total)} kết quả phù hợp sau khi lọc.`}
-            </p>
-          </div>
-        </div>
-
+      <section className="admin-services-table-card" aria-label="Danh sách dịch vụ">
         <div className="admin-services-table-card__scroller">
           <table className="admin-services-table">
             <thead>
               <tr>
-                <th scope="col">Mã dịch vụ</th>
-                <th scope="col">Dịch vụ</th>
-                <th scope="col">Loại</th>
-                <th scope="col">Địa điểm</th>
-                <th scope="col">Giá</th>
-                <th scope="col">Trạng thái</th>
-                <th scope="col">Cập nhật</th>
-                <th scope="col">Người tạo</th>
-                <th scope="col">Thao tác</th>
+                {serviceTableColumns.map((column) => (
+                  <th key={column.key} scope="col">
+                    {column.label}
+                  </th>
+                ))}
               </tr>
             </thead>
-
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="9">
-                    <div className="admin-services-table__empty" role="status">
-                      <h3>Đang tải dữ liệu dịch vụ</h3>
-                      <p>Mock adapter đang giả lập response list admin services theo API contract.</p>
-                    </div>
-                  </td>
-                </tr>
+                Array.from({ length: 4 }, (_, index) => (
+                  <tr className="admin-services-table__row" key={index}>
+                    <td colSpan={serviceTableColumns.length}>
+                      <span className="admin-services-table__loading-line" />
+                    </td>
+                  </tr>
+                ))
               ) : services.length > 0 ? (
                 services.map((service) => {
                   const status = statusMeta[service.status]
-                  const actions = getAllowedActions(service)
+                  const actions = getVisibleRowActions(getAllowedActions(service))
 
                   return (
                     <tr
-                      className={
-                        service.id === statusActionModalState.service?.id ||
-                        service.id === formModalState.service?.id ||
-                        service.id === selectedService?.id
-                          ? 'admin-services-table__row admin-services-table__row--selected'
-                          : 'admin-services-table__row'
-                      }
+                      className={getSelectedRowClassName(service, {
+                        formModalState,
+                        selectedService,
+                        statusActionModalState,
+                      })}
                       key={service.id}
                     >
-                      <td>
-                        <span className="admin-services-table__code">{service.service_code}</span>
-                      </td>
                       <td>
                         <div className="admin-services-table__service-cell">
                           <img
@@ -247,11 +380,8 @@ function AdminServicesPage() {
                             <strong className="admin-services-table__service-title">
                               {service.title}
                             </strong>
-                            <span className="admin-services-table__service-description">
-                              {service.short_description}
-                            </span>
                             <span className="admin-services-table__service-meta">
-                              {getServiceDetailSummary(service)}
+                              ID: {service.service_code}
                             </span>
                           </div>
                         </div>
@@ -265,47 +395,32 @@ function AdminServicesPage() {
                         <span className="admin-services-table__text">{service.location_text}</span>
                       </td>
                       <td>
-                        <div className="admin-services-table__price">
-                          {service.sale_price ? (
-                            <>
-                              <strong>{formatCurrency(service.sale_price, service.currency)}</strong>
-                              <span>{formatCurrency(service.base_price, service.currency)}</span>
-                            </>
-                          ) : (
-                            <strong>{formatCurrency(service.base_price, service.currency)}</strong>
-                          )}
-                        </div>
+                        <strong className="admin-services-table__price-value">
+                          {formatServicePrice(service.base_price)}
+                        </strong>
                       </td>
                       <td>
-                        <span
-                          className={`admin-services-status admin-services-status--${status?.tone ?? 'draft'}`}
-                        >
-                          <span aria-hidden="true" className="admin-services-status__dot" />
+                        <span className={getStatusToneClassName(status)}>
                           {status?.label ?? service.status}
                         </span>
                       </td>
                       <td>
-                        <div className="admin-services-table__timestamp">
-                          <strong>{formatDateTime(service.updated_at)}</strong>
-                          <span>{service.updated_by_name}</span>
-                        </div>
+                        <span className="admin-services-table__date">
+                          {formatServiceDate(service.updated_at)}
+                        </span>
                       </td>
                       <td>
-                        <div className="admin-services-table__timestamp">
-                          <strong>{service.created_by_name}</strong>
-                          <span>{formatDateTime(service.created_at)}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="admin-services-table__actions">
+                        <div className="admin-services-table__actions" role="group" aria-label="Thao tác">
                           {actions.map((actionKey) => (
                             <button
+                              aria-label={actionMeta[actionKey]?.label ?? actionKey}
+                              className={`admin-services-table__action-button admin-services-table__action-button--${actionKey}`}
                               key={actionKey}
-                              className={`admin-services-table__action admin-services-table__action--${actionMeta[actionKey].variant}`}
+                              title={actionMeta[actionKey]?.label ?? actionKey}
                               type="button"
                               onClick={() => handleRowAction(service, actionKey)}
                             >
-                              {actionMeta[actionKey].label}
+                              {serviceActionIcons[actionKey] ?? null}
                             </button>
                           ))}
                         </div>
@@ -315,18 +430,20 @@ function AdminServicesPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="9">
-                    <div className="admin-services-table__empty" role="status">
-                      <h3>Không có dịch vụ phù hợp</h3>
-                      <p>Thử đổi từ khóa, trạng thái hoặc loại dịch vụ để xem thêm dữ liệu mock.</p>
-                      <button
-                        className="admin-services-page__reset-button"
-                        type="button"
-                        onClick={resetFilters}
-                      >
-                        Đặt lại bộ lọc
-                      </button>
-                    </div>
+                  <td colSpan={serviceTableColumns.length}>
+                    <AdminEmptyState
+                      title="Không có dịch vụ phù hợp"
+                      description="Thử đổi từ khóa, trạng thái, điểm đến hoặc loại dịch vụ để xem thêm dữ liệu."
+                      action={
+                        <button
+                          className="admin-services-page__empty-action"
+                          type="button"
+                          onClick={resetFilters}
+                        >
+                          Đặt lại bộ lọc
+                        </button>
+                      }
+                    />
                   </td>
                 </tr>
               )}
@@ -334,50 +451,21 @@ function AdminServicesPage() {
           </table>
         </div>
 
-        <div className="admin-services-table-card__footer">
+        <footer className="admin-services-table-card__footer">
           <p className="admin-services-table-card__result">
             {pagination.total > 0
-              ? `Hiển thị ${resultRange.start} - ${resultRange.end} trên ${numberFormatter.format(pagination.total)} dịch vụ`
+              ? `Đang hiển thị ${resultRange.start} - ${resultRange.end} trên ${pagination.total} dịch vụ`
               : 'Hiện không có kết quả để hiển thị'}
           </p>
 
-          {pagination.total > 0 ? (
-            <div className="admin-services-pagination" aria-label="Phân trang dịch vụ">
-              <button
-                className="admin-services-pagination__button"
-                disabled={pagination.page === 1}
-                type="button"
-                onClick={() => setCurrentPage(Math.max(1, pagination.page - 1))}
-              >
-                Trước
-              </button>
-
-              {pageNumbers.map((pageNumber) => (
-                <button
-                  key={pageNumber}
-                  className={`admin-services-pagination__button ${
-                    pagination.page === pageNumber
-                      ? 'admin-services-pagination__button--active'
-                      : ''
-                  }`}
-                  type="button"
-                  onClick={() => setCurrentPage(pageNumber)}
-                >
-                  {pageNumber}
-                </button>
-              ))}
-
-              <button
-                className="admin-services-pagination__button"
-                disabled={pagination.page === pagination.total_pages}
-                type="button"
-                onClick={() => setCurrentPage(Math.min(pagination.total_pages, pagination.page + 1))}
-              >
-                Sau
-              </button>
-            </div>
-          ) : null}
-        </div>
+          <AdminPagination
+            className="admin-services-pagination"
+            currentPage={pagination.page}
+            pages={pageNumbers}
+            totalPages={pagination.total_pages}
+            onPageChange={setCurrentPage}
+          />
+        </footer>
       </section>
 
       {formModalState.isOpen ? (
