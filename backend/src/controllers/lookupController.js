@@ -57,7 +57,10 @@ const searchFlights = async (req, res) => {
 };
 
 const getServiceDetail = async (req, res) => {
-  const data = await lookupService.getServiceDetail(req.params);
+  const data = await lookupService.getServiceDetail({
+    ...req.params,
+    ...req.query,
+  });
 
   setCacheHeaders(res, lookupService.DETAIL_CACHE_SECONDS);
   res.success({
