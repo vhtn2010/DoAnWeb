@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
 import { mapFlightDetailResponseToView } from '../mappers/flightMappers.js'
 import { addCartItem } from '../repositories/cartRepository.js'
 import {
@@ -8,20 +7,9 @@ import {
   checkFlightAvailability,
   getFlightDetailBySlug,
 } from '../repositories/flightRepository.js'
-import { hasCustomerSession } from '../utils/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
-
-function buildAuthAwarePath(path, isCustomer) {
-  if (!isCustomer) {
-    return path
-  }
-
-  const [pathname, queryString = ''] = String(path ?? '').split('?')
-  const nextSearchParams = new URLSearchParams(queryString)
-  nextSearchParams.set('auth', ROLES.customer)
-
-  return `${pathname}?${nextSearchParams.toString()}`
-}
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 function createFeedbackState(tone = 'info', message = '') {
   return {
@@ -31,7 +19,7 @@ function createFeedbackState(tone = 'info', message = '') {
 }
 
 function buildLoginPath(pathname, search = '') {
-  const nextPath = buildAuthAwarePath(pathname, true)
+  const nextPath = buildPublicAuthPath(pathname, true)
   const nextSearchParams = new URLSearchParams(search)
   nextSearchParams.set('redirect', nextPath)
 
@@ -92,12 +80,7 @@ export default function useFlightDetail() {
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   const referenceId = searchParams.get('reference_id') ?? ''
-  const isAuthenticatedCustomer = hasCustomerSession()
-  const authState =
-    searchParams.get('auth') === ROLES.customer || isAuthenticatedCustomer
-      ? ROLES.customer
-      : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { authState, isCustomer } = usePublicSession()
 
   const [flight, setFlight] = useState(null)
   const [relatedFlights, setRelatedFlights] = useState([])
@@ -153,7 +136,7 @@ export default function useFlightDetail() {
         setRelatedFlights(
           mappedState.relatedFlights.map((relatedFlight) => ({
             ...relatedFlight,
-            detail_path: buildAuthAwarePath(relatedFlight.detail_path, isCustomer),
+            detail_path: buildPublicAuthPath(relatedFlight.detail_path, isCustomer),
           })),
         )
         setSelectedFareId(defaultFare?.id ?? '')
@@ -195,7 +178,7 @@ export default function useFlightDetail() {
   }, [flight, selectedFareId])
 
   function preserveAuthQuery(path) {
-    return buildAuthAwarePath(path, isCustomer)
+    return buildPublicAuthPath(path, isCustomer)
   }
 
   function selectFare(fareId) {
@@ -327,7 +310,7 @@ export default function useFlightDetail() {
   }
 
   return {
-    currentAuthPreviewQuery: isCustomer ? '?auth=customer' : '',
+    currentAuthPreviewQuery: '',
     error,
     feedback,
     flight,

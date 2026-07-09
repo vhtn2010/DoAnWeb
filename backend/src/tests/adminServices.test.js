@@ -158,6 +158,7 @@ test('adminServiceCatalogService.listServices validates filters and applies staf
           limit: 2,
           offset: 2,
           serviceStatus: 'hidden',
+          serviceSort: 'price_asc',
           serviceType: 'hotel',
         });
 
@@ -201,6 +202,7 @@ test('adminServiceCatalogService.listServices validates filters and applies staf
     limit: '2',
     page: '2',
     q: '  Da Nang ',
+    sort: 'price_asc',
     status: 'hidden',
     type: 'hotel',
   });
@@ -241,6 +243,47 @@ test('adminServiceCatalogService.listServices validates filters and applies staf
   });
 });
 
+test('adminServiceCatalogService.listServices does not scope staff when no service scope is provided', async () => {
+  const service = adminServiceCatalogService.createAdminServiceCatalogService({
+    repository: {
+      listServices: async (filters) => {
+        assert.deepEqual(filters, {
+          allowedServiceIds: null,
+          keyword: null,
+          limit: 20,
+          offset: 0,
+          serviceStatus: null,
+          serviceSort: 'newest',
+          serviceType: null,
+        });
+
+        return {
+          rows: [],
+          total: 0,
+        };
+      },
+    },
+  });
+
+  const result = await service.listServices({
+    auth: {
+      role: 'staff',
+      serviceScopeIds: null,
+    },
+  });
+
+  assert.deepEqual(result, {
+    meta: {
+      has_next: false,
+      limit: 20,
+      page: 1,
+      total: 0,
+      total_pages: 0,
+    },
+    services: [],
+  });
+});
+
 test('adminServiceCatalogService.listServices rejects invalid status and limit', async () => {
   const service = adminServiceCatalogService.createAdminServiceCatalogService({
     repository: {
@@ -274,6 +317,20 @@ test('adminServiceCatalogService.listServices rejects invalid status and limit',
         {
           field: 'limit',
           message: 'limit must be less than or equal to 100',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.listServices({ sort: 'title_asc' }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'sort',
+          message: 'sort must be one of: newest, oldest, price_asc, price_desc',
         },
       ]);
       return true;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
+import usePublicSession from './usePublicSession.js'
 import {
   DEFAULT_TOUR_LIMIT,
   DEFAULT_TOUR_SORT,
@@ -14,6 +14,10 @@ import {
   listTourServices,
 } from '../repositories/publicServiceRepository.js'
 import { mapTourServiceToView } from '../mappers/serviceMappers.js'
+import {
+  buildPublicAuthPath,
+  getPublicAuthQueryValue,
+} from '../utils/publicNavigation.js'
 
 const MAX_CLIENT_TOUR_RESULTS = 50
 
@@ -73,21 +77,13 @@ function buildPageFromSearchParams(searchParams) {
   return parsedPage
 }
 
-function buildAuthAwarePath(path, isCustomer) {
-  return isCustomer ? `${path}?auth=customer` : path
-}
-
 function buildServiceListSearchParams({
-  auth = '',
+  auth: _auth = '',
   keyword = '',
   page = 1,
   sort = DEFAULT_TOUR_SORT,
 } = {}) {
   const nextSearchParams = new URLSearchParams()
-
-  if (auth) {
-    nextSearchParams.set('auth', auth)
-  }
 
   if (keyword.trim()) {
     nextSearchParams.set('location', keyword.trim())
@@ -319,9 +315,7 @@ function createPaginationPages(currentPage, totalPages) {
 
 export default function useTourServiceList() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { isCustomer } = usePublicSession()
 
   const [catalog, setCatalog] = useState(DEFAULT_TOUR_CATALOG)
   const [currentPage, setCurrentPage] = useState(() => buildPageFromSearchParams(searchParams))
@@ -420,7 +414,7 @@ export default function useTourServiceList() {
         const mappedServices = Array.isArray(response.data)
           ? response.data.map((service) =>
               mapTourServiceToView(service, {
-                detailPath: buildAuthAwarePath(`/services/${service.slug}`, isCustomer),
+                detailPath: buildPublicAuthPath(`/services/${service.slug}`, isCustomer),
               }),
             )
           : []
@@ -468,7 +462,7 @@ export default function useTourServiceList() {
   } = {}) {
     setSearchParams(
       buildServiceListSearchParams({
-        auth: isCustomer ? ROLES.customer : '',
+        auth: getPublicAuthQueryValue(isCustomer),
         keyword: nextFilters.keyword,
         page: nextPage,
         sort: nextSort,
@@ -482,6 +476,13 @@ export default function useTourServiceList() {
       [filterKey]: currentFilters[filterKey].includes(value)
         ? currentFilters[filterKey].filter((item) => item !== value)
         : [...currentFilters[filterKey], value],
+    }))
+  }
+
+  function handleKeywordChange(value) {
+    setDraftFilters((currentFilters) => ({
+      ...currentFilters,
+      keyword: value,
     }))
   }
 
@@ -523,7 +524,7 @@ export default function useTourServiceList() {
   }
 
   return {
-    breadcrumbHomePath: buildAuthAwarePath('/', isCustomer),
+    breadcrumbHomePath: buildPublicAuthPath('/', isCustomer),
     canGoNext: meta.page < meta.total_pages,
     canGoPrevious: meta.page > 1,
     categoryOptions: TOUR_CATEGORY_FILTER_OPTIONS,
@@ -532,6 +533,7 @@ export default function useTourServiceList() {
     durationOptions: TOUR_DURATION_FILTER_OPTIONS,
     errorMessage,
     handleApplyFilters,
+    handleKeywordChange,
     handlePageChange,
     handleResetFilters,
     handleSortChange,
@@ -542,7 +544,7 @@ export default function useTourServiceList() {
     resultCount: meta.total,
     selectedSort,
     services,
-    setDraftFilters,
     sortOptions: catalog.sortOptions,
+    totalPages: meta.total_pages,
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { PAYMENT_STATUSES } from '../constants/bookings.js'
 import {
   PAYMENT_DEFAULT_CARD_NUMBER,
@@ -22,15 +22,8 @@ import {
   getPaymentByCode,
   getPaymentConfirmation,
 } from '../repositories/paymentRepository.js'
-import { ROLES } from '../constants/roles.js'
-
-function preserveAuthPath(pathname, authState) {
-  if (authState !== ROLES.customer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 function getUpdatedBookingSummary(booking, paymentSummary) {
   return {
@@ -45,9 +38,7 @@ export default function usePaymentConfirmation() {
   const location = useLocation()
   const navigate = useNavigate()
   const { paymentCode } = useParams()
-  const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+  const { authState, isCustomer } = usePublicSession()
 
   const bookingState = useMemo(
     () => (location.state?.booking ? clonePaymentValue(location.state.booking) : undefined),
@@ -247,11 +238,11 @@ export default function usePaymentConfirmation() {
       ? `/booking-confirmation/${booking.booking_code}`
       : '/booking-confirmation'
 
-    navigate(preserveAuthPath(nextRoute, authState))
+    navigate(buildPublicAuthPath(nextRoute, isCustomer))
   }
 
   function goHome() {
-    navigate(preserveAuthPath('/', authState))
+    navigate(buildPublicAuthPath('/', isCustomer))
   }
 
   function removePaymentItemMock(itemId) {
@@ -369,7 +360,7 @@ export default function usePaymentConfirmation() {
       setIsPaid(true)
 
       const resultPayload = await buildPaymentResultPayload(nextPayment)
-      navigate(preserveAuthPath('/payment-success', authState), {
+      navigate(buildPublicAuthPath('/payment-success', isCustomer), {
         state: {
           booking: nextBooking,
           bookingItems,
@@ -397,7 +388,7 @@ export default function usePaymentConfirmation() {
     paymentMethods,
     paymentSummary,
     qrPayload,
-    preserveAuthQuery: (pathname) => preserveAuthPath(pathname, authState),
+    preserveAuthQuery: (pathname) => buildPublicAuthPath(pathname, isCustomer),
     selectedPaymentMethod,
     viewModel,
     voucherCode,

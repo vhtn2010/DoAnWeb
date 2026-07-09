@@ -318,7 +318,7 @@ Ngày cập nhật: 28/06/2026
 | --- | --- | --- | --- | --- |
 | GET | /promotions?service_type&active_only | PUBLIC | Query | Promotion đang hiển thị |
 | GET | /promotions/{promotion_id} | PUBLIC | None | Chi tiết promotion active |
-| GET | /admin/promotions?status&page&limit | STAFF \| ADMIN \| SYSTEM_ADMIN | Query filters | List admin |
+| GET | /admin/promotions?status&page&limit | STAFF \| ADMIN \| SYSTEM_ADMIN | Query filters | List admin, gồm voucher_count và active_voucher_count |
 | POST | /admin/promotions | STAFF \| ADMIN \| SYSTEM_ADMIN | name, description?, status, valid_from, valid_to, target_service_type? | Tạo promotion |
 | GET | /admin/promotions/{promotion_id} | STAFF \| ADMIN \| SYSTEM_ADMIN | None | Chi tiết admin |
 | PATCH | /admin/promotions/{promotion_id} | STAFF \| ADMIN \| SYSTEM_ADMIN | fields cần sửa | Cập nhật promotion |
@@ -334,7 +334,7 @@ Ngày cập nhật: 28/06/2026
 | POST | /cart/apply-voucher | CUSTOMER | code | Áp dụng voucher |
 | DELETE | /cart/voucher | CUSTOMER | None | Gỡ voucher |
 | GET | /admin/vouchers?status&q&page&limit | STAFF \| ADMIN \| SYSTEM_ADMIN | Query filters | List voucher |
-| POST | /admin/vouchers | STAFF \| ADMIN \| SYSTEM_ADMIN | promotion_id, code, discount_type, discount_value, limits, valid time | Tạo voucher |
+| POST | /admin/vouchers | STAFF \| ADMIN \| SYSTEM_ADMIN | promotion_id, code, discount_type, discount_value, max_discount_amount?, min_order_amount?, usage_limit_total?, usage_limit_per_user?, valid_from, valid_to, status? | Tạo voucher |
 | GET | /admin/vouchers/{voucher_id} | STAFF \| ADMIN \| SYSTEM_ADMIN | None | Chi tiết voucher |
 | PATCH | /admin/vouchers/{voucher_id} | STAFF \| ADMIN \| SYSTEM_ADMIN | fields cần sửa | Cập nhật voucher |
 | DELETE | /admin/vouchers/{voucher_id} | ADMIN \| SYSTEM_ADMIN | reason | Xóa mềm/disable |

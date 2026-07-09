@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ROLES } from '../constants/roles.js'
+import { useNavigate } from 'react-router-dom'
 import {
   getActiveCart,
   removeCartItem,
@@ -12,8 +11,9 @@ import {
   createCartSummaryPayload,
   mapCartResponseToView,
 } from '../mappers/cartMappers.js'
-import { getStoredUserRole } from '../utils/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 const EMPTY_SUMMARY = Object.freeze({
   subtotal_amount: 0,
@@ -22,18 +22,6 @@ const EMPTY_SUMMARY = Object.freeze({
   currency: 'VND',
   selected_item_count: 0,
 })
-
-function preserveAuthPath(pathname, authState) {
-  if (authState !== ROLES.customer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
-
-function buildServicesPath(authState) {
-  return preserveAuthPath('/services', authState)
-}
 
 function createFeedbackState(tone = 'info', message = '') {
   return {
@@ -44,12 +32,7 @@ function createFeedbackState(tone = 'info', message = '') {
 
 export default function useCart() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const hasCustomerSession = getStoredUserRole() === ROLES.customer
-  const authState =
-    searchParams.get('auth') === ROLES.customer || hasCustomerSession
-      ? ROLES.customer
-      : ROLES.guest
+  const { authState, isCustomer } = usePublicSession()
 
   const [cart, setCart] = useState(null)
   const [cartItems, setCartItems] = useState([])
@@ -101,7 +84,7 @@ export default function useCart() {
         setCartItems([])
         setSelectedItemIds([])
         setSummary(EMPTY_SUMMARY)
-        setError(loadError?.message ?? 'Khong the tai gio hang luc nay.')
+        setError(loadError?.message ?? 'Không thể tải giỏ hàng lúc này.')
       } finally {
         if (isActive) {
           setLoading(false)
@@ -132,7 +115,7 @@ export default function useCart() {
       setCartItems([])
       setSelectedItemIds([])
       setSummary(EMPTY_SUMMARY)
-      setError(loadError?.message ?? 'Khong the tai gio hang luc nay.')
+      setError(loadError?.message ?? 'Không thể tải giỏ hàng lúc này.')
     } finally {
       setLoading(false)
     }
@@ -170,7 +153,7 @@ export default function useCart() {
       setSummary(buildSummary(nextCartItems, nextSelectedItemIds))
       setFeedback(createFeedbackState('success', response.message))
     } catch (removeError) {
-      const nextMessage = removeError?.message ?? 'Khong the xoa dich vu khoi gio hang.'
+      const nextMessage = removeError?.message ?? 'Không thể xóa dịch vụ khỏi giỏ hàng.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     }
@@ -204,7 +187,7 @@ export default function useCart() {
 
       setFeedback(createFeedbackState('info', response.message))
     } catch (updateError) {
-      const nextMessage = updateError?.message ?? 'Khong the cap nhat dich vu trong gio hang.'
+      const nextMessage = updateError?.message ?? 'Không thể cập nhật dịch vụ trong giỏ hàng.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     }
@@ -216,7 +199,7 @@ export default function useCart() {
     }
 
     if (selectedItemIds.length === 0) {
-      setFeedback(createFeedbackState('error', 'Vui long chon it nhat mot dich vu de tiep tuc.'))
+      setFeedback(createFeedbackState('error', 'Vui lòng chọn ít nhất một dịch vụ để tiếp tục.'))
       return
     }
 
@@ -226,36 +209,34 @@ export default function useCart() {
       const response = await validateCart(cart.id, selectedItemIds, {
         authState,
       })
-      const selectedItems = Array.isArray(response.data?.items)
-        ? response.data.items.filter((item) => selectedItemIds.includes(item.id))
-        : []
-      const hasInvalidSelectedItems =
-        selectedItems.length !== selectedItemIds.length ||
-        selectedItems.some((item) => item.valid === false)
+      const isValid = response.data?.valid ?? response.data?.is_valid ?? false
+      const resolvedSelectedItemIds = Array.isArray(response.data?.selected_item_ids)
+        ? response.data.selected_item_ids
+        : selectedItemIds
 
-      if (hasInvalidSelectedItems) {
+      if (!isValid) {
         setFeedback(
           createFeedbackState(
             'error',
-            'Mot hoac nhieu dich vu dang chon khong con hop le. Vui long kiem tra lai.',
+            'Một hoặc nhiều dịch vụ đang chọn không còn hợp lệ. Vui lòng kiểm tra lại.',
           ),
         )
         return
       }
 
-      navigate(preserveAuthPath('/booking-confirmation', authState), {
+      navigate(buildPublicAuthPath('/checkout', isCustomer), {
         state: {
-          selectedCartItemIds: selectedItemIds,
+          selectedCartItemIds: resolvedSelectedItemIds,
           cartSummaryPayload: createCartSummaryPayload(
             cart,
-            summary,
-            selectedItemIds,
+            buildSummary(cartItems, resolvedSelectedItemIds),
+            resolvedSelectedItemIds,
           ),
         },
       })
     } catch (validateError) {
       const nextMessage =
-        validateError?.message ?? 'Khong the kiem tra gio hang truoc khi tiep tuc.'
+        validateError?.message ?? 'Không thể kiểm tra giỏ hàng trước khi tiếp tục.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     }
@@ -267,7 +248,7 @@ export default function useCart() {
       return
     }
 
-    navigate(buildServicesPath(authState))
+    navigate(buildPublicAuthPath('/services', isCustomer))
   }
 
   const formattedSummary = useMemo(
@@ -294,8 +275,8 @@ export default function useCart() {
     handleGoBack,
     handleRemoveItem,
     handleToggleItem,
+    isCustomer,
     loading,
-    preserveAuthQuery: (pathname) => preserveAuthPath(pathname, authState),
     reloadCart,
     selectedItemIds,
   }

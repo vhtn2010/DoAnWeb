@@ -55,13 +55,19 @@ export function validateLoginPayload(formValues = {}) {
 }
 
 export function buildRegisterPayload(formValues = {}) {
-  return {
+  const payload = {
     full_name: normalizeText(formValues.full_name),
     email: normalizeText(formValues.email).toLowerCase(),
-    phone: normalizeText(formValues.phone),
     password: String(formValues.password ?? ''),
-    confirm_password: String(formValues.confirm_password ?? ''),
   }
+
+  const phone = normalizeText(formValues.phone)
+
+  if (phone) {
+    payload.phone = phone
+  }
+
+  return payload
 }
 
 export function validateRegisterPayload(formValues = {}) {
@@ -120,20 +126,16 @@ export function validatePasswordResetRequestPayload(formValues = {}) {
 
 export function buildResetPasswordPayload(formValues = {}) {
   return {
-    email: normalizeText(formValues.email).toLowerCase(),
-    otp_code: normalizeText(formValues.otp_code),
     new_password: String(formValues.new_password ?? ''),
-    confirm_password: String(formValues.confirm_password ?? ''),
+    token: normalizeText(formValues.otp_code),
   }
 }
 
 export function validateResetPasswordPayload(formValues = {}) {
-  const errors = {
-    ...validatePasswordResetRequestPayload(formValues),
-  }
+  const errors = {}
 
   if (!normalizeText(formValues.otp_code)) {
-    errors.otp_code = 'Vui lòng nhập mã xác nhận.'
+    errors.otp_code = 'Vui lòng nhập token đặt lại mật khẩu.'
   }
 
   if (!String(formValues.new_password ?? '').trim()) {
@@ -151,4 +153,21 @@ export function validateResetPasswordPayload(formValues = {}) {
   }
 
   return errors
+}
+
+export function mapApiValidationErrors(details = []) {
+  if (!Array.isArray(details)) {
+    return {}
+  }
+
+  return details.reduce((fieldErrors, detail) => {
+    if (detail?.field && detail?.message) {
+      return {
+        ...fieldErrors,
+        [detail.field]: detail.message,
+      }
+    }
+
+    return fieldErrors
+  }, {})
 }

@@ -165,7 +165,9 @@ test('changeEmailRequest sends confirmation to new email and does not update use
   assert.equal(requestMetadata.outcome, 'confirmation_queued');
   assert.equal(requestMetadata.sessions_revoked, false);
   assert.equal(capturedEmailPayload.to.email, 'new@example.com');
-  assert.match(capturedEmailPayload.text, /change-email-token/);
+  assert.match(capturedEmailPayload.text, /change-email\/confirm\?token=change-email-token/);
+  assert.doesNotMatch(capturedEmailPayload.html, /Thong tin ky thuat|POST \/auth|API:/);
+  assert.doesNotMatch(capturedEmailPayload.text, /POST \/auth|API:/);
   assert.equal(
     queries.some((entry) => entry.sql.includes('UPDATE users')),
     false,

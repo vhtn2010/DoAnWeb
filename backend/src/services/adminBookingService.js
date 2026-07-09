@@ -11,6 +11,13 @@ const {
 } = require('../database/adminBookingRepository');
 const { sendEmail } = require('./sendgridService');
 const AppError = require('../utils/AppError');
+const {
+  escapeHtml,
+  renderEmailInfoRows,
+  renderEmailLayout,
+  renderEmailParagraph,
+  renderEmailSection,
+} = require('../utils/emailTemplate');
 
 const DEFAULT_CURRENCY = 'VND';
 const DEFAULT_LIST_LIMIT = 20;
@@ -434,6 +441,7 @@ const sanitizeBookingSummary = (booking) => ({
   expires_at: booking.expires_at,
   id: booking.id,
   item_count: Number(booking.item_count || 0),
+  service_title: booking.service_title || null,
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
   total_amount: roundMoney(booking.total_amount),
@@ -852,7 +860,7 @@ const buildBookingConfirmationResendEmail = ({
       return `${index + 1}. ${item.title_snapshot} (${item.service_type}) - SL ${item.quantity}${schedule ? ` - ${schedule}` : ''}`;
     }).join('\n');
   const itemLinesHtml = items.length === 0
-    ? '<li>Khong co dich vu dinh kem</li>'
+    ? renderEmailParagraph('Khong co dich vu dinh kem')
     : items.map((item) => {
       const schedule = [
         item.start_at ? `Bat dau: ${item.start_at}` : null,
@@ -861,21 +869,71 @@ const buildBookingConfirmationResendEmail = ({
         .filter(Boolean)
         .join(' | ');
 
-      return `<li><strong>${item.title_snapshot}</strong> (${item.service_type}) - SL ${item.quantity}${schedule ? ` - ${schedule}` : ''}</li>`;
+      return [
+        '<tr>',
+        '<td style="padding:14px 0;border-bottom:1px solid #e2e8f0;">',
+        `<div style="color:#0f172a;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;line-height:1.4;">${escapeHtml(item.title_snapshot)}</div>`,
+        `<div style="margin-top:6px;color:#64748b;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;">${escapeHtml(item.service_type)} - SL ${escapeHtml(item.quantity)}${schedule ? ` - ${escapeHtml(schedule)}` : ''}</div>`,
+        '</td>',
+        '</tr>',
+      ].join('');
     }).join('');
 
   return {
-    html: [
-      `<p>Xin chao ${contactName},</p>`,
-      `<p>Chung toi gui lai email xac nhan booking <strong>${booking.booking_code}</strong>.</p>`,
-      `<p>Trang thai booking hien tai: <strong>${booking.status}</strong></p>`,
-      '<p>Danh sach dich vu:</p>',
-      `<ul>${itemLinesHtml}</ul>`,
-      `<p>Tam tinh: ${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}</p>`,
-      `<p>Giam gia: ${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}</p>`,
-      `<p>Tong thanh toan: <strong>${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}</strong></p>`,
-      '<p>Neu can ho tro them, vui long lien he bo phan CSKH.</p>',
-    ].join(''),
+    html: renderEmailLayout({
+      badge: 'Xac nhan booking',
+      body: [
+        renderEmailSection({
+          title: 'Thong tin booking',
+          children: renderEmailInfoRows([
+            {
+              label: 'Ma booking',
+              value: booking.booking_code,
+            },
+            {
+              label: 'Trang thai',
+              value: booking.status,
+            },
+          ]),
+        }),
+        renderEmailSection({
+          title: 'Danh sach dich vu',
+          children: items.length === 0
+            ? itemLinesHtml
+            : [
+                '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">',
+                itemLinesHtml,
+                '</table>',
+              ].join(''),
+        }),
+        renderEmailSection({
+          title: 'Tong ket thanh toan',
+          children: renderEmailInfoRows([
+            {
+              label: 'Tam tinh',
+              value: `${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+            },
+            {
+              label: 'Giam gia',
+              value: `${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+            },
+            {
+              label: 'Tong thanh toan',
+              value: `${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+            },
+          ]),
+        }),
+      ].join(''),
+      footerNote:
+        'Neu can ho tro them, vui long lien he bo phan CSKH de duoc kiem tra booking nhanh nhat.',
+      greeting: `Xin chao ${contactName},`,
+      intro: [
+        `Chung toi gui lai email xac nhan booking ${booking.booking_code}.`,
+        'Cac thong tin quan trong ve dich vu va thanh toan duoc tom tat ben duoi.',
+      ],
+      preheader: `Thong tin xac nhan booking ${booking.booking_code}.`,
+      title: `Booking ${booking.booking_code}`,
+    }),
     subject: `Booking ${booking.booking_code} - Gui lai email xac nhan`,
     text: [
       `Xin chao ${contactName},`,

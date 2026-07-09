@@ -1,30 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   PROFILE_ACTIONS,
   PROFILE_HISTORY_FILTERS,
 } from '../constants/profile.js'
-import { ROLES } from '../constants/roles.js'
+import usePublicSession from './usePublicSession.js'
 import {
   buildProfileActionPayload,
   getCustomerProfile,
 } from '../repositories/profileRepository.js'
 import { buildProfileViewModel } from '../mappers/profileMappers.js'
-
-function preserveAuthPath(pathname, authState) {
-  if (authState !== ROLES.customer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 export default function useProfile() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
-  const isCustomerPreview = authState === ROLES.customer
+  const { authState, isCustomer, isCustomerPreview } = usePublicSession()
 
   const [profile, setProfile] = useState(null)
   const [favoriteDestinations, setFavoriteDestinations] = useState([])
@@ -137,7 +127,7 @@ export default function useProfile() {
   }
 
   function goHome() {
-    navigate(preserveAuthPath('/', authState))
+    navigate(buildPublicAuthPath('/', isCustomer))
   }
 
   async function handleActionRoute(action, target, fallbackMessage) {
@@ -145,7 +135,7 @@ export default function useProfile() {
     const nextRoute = response.data?.route
 
     if (nextRoute) {
-      navigate(preserveAuthPath(nextRoute, authState))
+      navigate(buildPublicAuthPath(nextRoute, isCustomer))
       return
     }
 
@@ -232,7 +222,7 @@ export default function useProfile() {
       openProfileShortcut,
       openUpcomingTripPrimary,
       openUpcomingTripSecondary,
-      preserveAuthQuery: (pathname) => preserveAuthPath(pathname, authState),
+      preserveAuthQuery: (pathname) => buildPublicAuthPath(pathname, isCustomer),
       retry,
       selectBookingHistoryFilter,
     },

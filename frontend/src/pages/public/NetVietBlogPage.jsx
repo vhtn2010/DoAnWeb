@@ -1,5 +1,7 @@
-import { useDeferredValue, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import usePublicCollectionPage from '../../hooks/usePublicCollectionPage.js'
+import usePublicSession from '../../hooks/usePublicSession.js'
+import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 
 const BLOG_CATEGORIES = Object.freeze([
   { id: 'all', label: 'Tất cả' },
@@ -158,14 +160,6 @@ const TRENDING_TOPICS = Object.freeze([
   'Lịch trình 3 ngày 2 đêm',
 ])
 
-function preserveAuthPath(pathname, isCustomer) {
-  if (!isCustomer) {
-    return pathname
-  }
-
-  return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-}
-
 function BlogCompassIcon() {
   return (
     <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
@@ -180,27 +174,30 @@ function BlogCompassIcon() {
   )
 }
 
+function matchesBlogCategory(post, selectedCategory) {
+  return post.category === selectedCategory
+}
+
+function getBlogSearchText(post) {
+  return `${post.title} ${post.excerpt} ${post.destination_label} ${post.highlights.join(' ')}`
+}
+
 function NetVietBlogPage() {
-  const [searchParams] = useSearchParams()
-  const isCustomer = searchParams.get('auth') === 'customer'
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [query, setQuery] = useState('')
-  const deferredQuery = useDeferredValue(query.trim().toLowerCase())
-
+  const { isCustomer } = usePublicSession()
   const featuredPost = BLOG_POSTS.find((post) => post.featured) ?? BLOG_POSTS[0]
-  const filteredPosts = useMemo(() => {
-    return BLOG_POSTS.filter((post) => {
-      const matchesCategory =
-        selectedCategory === 'all' ? true : post.category === selectedCategory
-      const haystack =
-        `${post.title} ${post.excerpt} ${post.destination_label} ${post.highlights.join(' ')}`.toLowerCase()
-      const matchesQuery = deferredQuery ? haystack.includes(deferredQuery) : true
-
-      return matchesCategory && matchesQuery
-    })
-  }, [deferredQuery, selectedCategory])
-
-  const profilePath = preserveAuthPath('/profile', isCustomer)
+  const {
+    filteredItems: filteredPosts,
+    query,
+    resetFilters,
+    selectedFilter: selectedCategory,
+    setQuery,
+    setSelectedFilter: setSelectedCategory,
+  } = usePublicCollectionPage({
+    filterItem: matchesBlogCategory,
+    getSearchText: getBlogSearchText,
+    items: BLOG_POSTS,
+  })
+  const profilePath = buildPublicAuthPath('/profile', isCustomer)
 
   return (
     <div className="netviet-blog-page">
@@ -214,7 +211,7 @@ function NetVietBlogPage() {
           </p>
 
           <div className="netviet-blog-hero__actions">
-            <Link className="netviet-blog-hero__button" to={preserveAuthPath(featuredPost.route, isCustomer)}>
+            <Link className="netviet-blog-hero__button" to={buildPublicAuthPath(featuredPost.route, isCustomer)}>
               Xem dịch vụ liên quan
             </Link>
             <Link
@@ -324,7 +321,7 @@ function NetVietBlogPage() {
 
                     <div className="netviet-blog-card__footer">
                       <span>{post.author}</span>
-                      <Link to={preserveAuthPath(post.route, isCustomer)}>Mở liên quan</Link>
+                      <Link to={buildPublicAuthPath(post.route, isCustomer)}>Mở liên quan</Link>
                     </div>
                   </div>
                 </article>
@@ -338,8 +335,7 @@ function NetVietBlogPage() {
                 className="netviet-blog-empty__button"
                 type="button"
                 onClick={() => {
-                  setQuery('')
-                  setSelectedCategory('all')
+                  resetFilters()
                 }}
               >
                 Xóa bộ lọc

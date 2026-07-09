@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { CHECKOUT_VALID_VOUCHER_CODES } from '../constants/checkout.js'
-import { ROLES } from '../constants/roles.js'
 import {
   applyVoucher,
   buildCheckoutPayload,
@@ -11,6 +10,8 @@ import {
 } from '../repositories/checkoutRepository.js'
 import { syncCheckoutDraftTravellers } from '../mappers/checkoutMappers.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 function clearFieldError(currentErrors, fieldName) {
   if (!currentErrors[fieldName]) {
@@ -25,9 +26,11 @@ function clearFieldError(currentErrors, fieldName) {
 export default function useCheckout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const authState =
-    searchParams.get('auth') === ROLES.customer ? ROLES.customer : ROLES.guest
+  const { authState, isCustomer } = usePublicSession()
+
+  function preserveAuthQuery(pathname) {
+    return buildPublicAuthPath(pathname, isCustomer)
+  }
 
   const selectedCartItemIds = useMemo(() => {
     if (
@@ -57,14 +60,6 @@ export default function useCheckout() {
   const [submitFeedback, setSubmitFeedback] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  function preserveAuthQuery(pathname) {
-    if (authState !== ROLES.customer) {
-      return pathname
-    }
-
-    return pathname.includes('?') ? `${pathname}&auth=customer` : `${pathname}?auth=customer`
-  }
 
   useEffect(() => {
     let isActive = true
@@ -274,22 +269,22 @@ export default function useCheckout() {
 
     setFormErrors({})
 
-    // TODO: replace mock handoff with POST /bookings/checkout response in API integration phase.
+    // TODO: replace mock checkout submit with POST /bookings/checkout in API integration phase.
     const checkoutPayload = buildCheckoutPayload(checkoutDraft)
 
     try {
       const response = await submitCheckout(checkoutPayload)
 
       if (!response.success || !response.data) {
-        setSubmitFeedback(response.message ?? 'Không thể chuẩn bị bước thanh toán lúc này.')
+        setSubmitFeedback(response.message ?? 'Khong the chuan bi buoc thanh toan luc nay.')
         return
       }
 
       setSubmitFeedback(response.message)
       navigate(preserveAuthQuery(response.data.next_route ?? '/payment-confirmation'), {
         state: {
-          checkoutPayload: response.data.checkout_payload ?? checkoutPayload,
           booking: response.data.booking_handoff,
+          checkoutPayload: response.data.checkout_payload ?? checkoutPayload,
           paymentRedirectPayload: response.data.payment_redirect_payload,
           selectedCartItemIds,
         },

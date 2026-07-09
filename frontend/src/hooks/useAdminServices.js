@@ -10,7 +10,6 @@ import {
   ADMIN_SERVICE_SUMMARY_LIMIT,
   ADMIN_SERVICE_TYPE_OPTIONS,
 } from '../constants/adminServices.js'
-import { ROLES } from '../constants/roles.js'
 import {
   buildServicePayloadFromForm,
   createAdminServicesPageNumbers,
@@ -23,6 +22,7 @@ import {
   getAdminServiceTypeLabel,
   getServiceDetailSummary,
   matchesAdminServiceFilters,
+  buildServiceStatusActionPayload,
   normalizeAdminPreviewRole,
 } from '../mappers/adminServiceMappers.js'
 import {
@@ -66,6 +66,7 @@ function createInitialPaginationState() {
 
 function getVisibilityNote(service, filters) {
   return matchesAdminServiceFilters(service, {
+    destination: filters.destination,
     q: filters.search,
     type: filters.type,
     status: filters.status,
@@ -74,33 +75,43 @@ function getVisibilityNote(service, filters) {
     : ' Dịch vụ có thể không còn xuất hiện trong danh sách vì không khớp bộ lọc hiện tại.'
 }
 
-function buildStatusActionRequest(actionKey, serviceId, formValues, currentRole) {
+function buildStatusActionRequest(actionKey, service, formValues, currentRole) {
   const requestOptions = {
     currentRole,
   }
+  const serviceId = service?.id
+  const payload = buildServiceStatusActionPayload(actionKey, service, formValues)
+
+  if (!serviceId || payload === null) {
+    return Promise.resolve({
+      success: false,
+      message: 'Thao tác không hợp lệ với trạng thái hiện tại.',
+      data: null,
+    })
+  }
 
   if (actionKey === 'submit_review') {
-    return submitServiceForReview(serviceId, formValues, requestOptions)
+    return submitServiceForReview(serviceId, payload, requestOptions)
   }
 
   if (actionKey === 'approve') {
-    return approveService(serviceId, formValues, requestOptions)
+    return approveService(serviceId, payload, requestOptions)
   }
 
   if (actionKey === 'reject') {
-    return rejectService(serviceId, formValues, requestOptions)
+    return rejectService(serviceId, payload, requestOptions)
   }
 
   if (actionKey === 'hide') {
-    return hideService(serviceId, formValues, requestOptions)
+    return hideService(serviceId, payload, requestOptions)
   }
 
   if (actionKey === 'restore') {
-    return restoreService(serviceId, formValues, requestOptions)
+    return restoreService(serviceId, payload, requestOptions)
   }
 
   if (actionKey === 'delete') {
-    return softDeleteService(serviceId, formValues, requestOptions)
+    return softDeleteService(serviceId, payload, requestOptions)
   }
 
   return Promise.resolve({
@@ -114,6 +125,7 @@ async function fetchAdminServicesState({ currentRole, nextFilters, nextPage, nex
   const [listResponse, summaryResponse] = await Promise.all([
     listAdminServices({
       currentRole,
+      destination: nextFilters.destination,
       limit: ADMIN_SERVICE_PAGE_SIZE,
       page: nextPage,
       q: nextFilters.search,
@@ -136,17 +148,18 @@ async function fetchAdminServicesState({ currentRole, nextFilters, nextPage, nex
 
 export default function useAdminServices() {
   const outletContext = useOutletContext()
-  const currentRole = normalizeAdminPreviewRole(
-    outletContext?.currentRole ?? ROLES.systemAdmin,
-  )
+  const currentRole = normalizeAdminPreviewRole(outletContext?.currentRole)
+  const currentPermissions = outletContext?.currentPermissions
 
   const [services, setServices] = useState([])
   const [summarySourceServices, setSummarySourceServices] = useState([])
   const [filters, setFilters] = useState({
+    destination: 'all',
     search: '',
     type: 'all',
     status: 'all',
   })
+  const [debouncedFilters, setDebouncedFilters] = useState(filters)
   const [sort, setSortState] = useState('newest')
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState(() => createInitialPaginationState())
@@ -160,7 +173,7 @@ export default function useAdminServices() {
   )
 
   async function loadServicesState({
-    nextFilters = filters,
+    nextFilters = debouncedFilters,
     nextPage = currentPage,
     nextSort = sort,
   } = {}) {
@@ -210,7 +223,7 @@ export default function useAdminServices() {
       try {
         const { listResponse, summaryResponse } = await fetchAdminServicesState({
           currentRole,
-          nextFilters: filters,
+          nextFilters: debouncedFilters,
           nextPage: currentPage,
           nextSort: sort,
         })
@@ -255,7 +268,15 @@ export default function useAdminServices() {
     return () => {
       isActive = false
     }
-  }, [currentRole, currentPage, filters, sort])
+  }, [currentRole, currentPage, debouncedFilters, sort])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedFilters(filters)
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [filters])
 
   function setSearch(value) {
     setFilters((currentFilters) => ({
@@ -281,6 +302,14 @@ export default function useAdminServices() {
     setCurrentPage(1)
   }
 
+  function setDestinationFilter(value) {
+    setFilters((currentFilters) => ({
+      ...currentFilters,
+      destination: value,
+    }))
+    setCurrentPage(1)
+  }
+
   function setSort(value) {
     setSortState(value)
     setCurrentPage(1)
@@ -288,6 +317,7 @@ export default function useAdminServices() {
 
   function resetFilters() {
     setFilters({
+      destination: 'all',
       search: '',
       type: 'all',
       status: 'all',
@@ -357,13 +387,32 @@ export default function useAdminServices() {
 
   async function handleRowAction(service, actionKey) {
     if (actionKey === 'view') {
-      setSelectedService(service)
-      setFeedback(
-        createFeedbackState(
-          'info',
-          `Chi tiết admin service ${service.service_code} sẽ nối GET /admin/services/{service_id} ở giai đoạn tích hợp API.`,
-        ),
-      )
+      setLoading(true)
+      setError('')
+
+      try {
+        const response = await getAdminServiceById(service.id)
+
+        if (!response.success || !response.data) {
+          setError(response.message || 'Không tìm thấy chi tiết dịch vụ.')
+          return
+        }
+
+        setSelectedService(response.data)
+        setFeedback(
+          createFeedbackState(
+            'success',
+            `Đã tải chi tiết dịch vụ ${response.data.service_code} từ API.`,
+          ),
+        )
+      } catch (loadError) {
+        const nextMessage = loadError?.message ?? 'Không thể tải chi tiết dịch vụ lúc này.'
+
+        setError(nextMessage)
+        setFeedback(createFeedbackState('error', nextMessage))
+      } finally {
+        setLoading(false)
+      }
       return
     }
 
@@ -405,13 +454,16 @@ export default function useAdminServices() {
       }
 
       setSelectedService(response.data)
+      const imageWarning = response.data.image_upload_error
+        ? ` Dịch vụ đã lưu, nhưng ảnh bìa chưa được gắn: ${response.data.image_upload_error}`
+        : ''
       setFeedback(
         createFeedbackState(
-          'success',
+          response.data.image_upload_error ? 'warning' : 'success',
           `${response.message} Mã dịch vụ: ${response.data.service_code}.${getVisibilityNote(
             response.data,
             filters,
-          )}`,
+          )}${imageWarning}`,
         ),
       )
       closeModal('form')
@@ -439,7 +491,7 @@ export default function useAdminServices() {
     const serviceId = statusActionModalState.service?.id
 
     if (!actionKey || !serviceId) {
-      setFeedback(createFeedbackState('error', 'Không tìm thấy dịch vụ để xử lý thao tác mock.'))
+      setFeedback(createFeedbackState('error', 'Không tìm thấy dịch vụ để xử lý thao tác.'))
       closeModal('status')
       return
     }
@@ -450,7 +502,7 @@ export default function useAdminServices() {
     try {
       const response = await buildStatusActionRequest(
         actionKey,
-        serviceId,
+        statusActionModalState.service,
         formValues,
         currentRole,
       )
@@ -495,6 +547,21 @@ export default function useAdminServices() {
     () => createAdminServicesSummary(summarySourceServices),
     [summarySourceServices],
   )
+  const destinationOptions = useMemo(() => {
+    const uniqueDestinations = Array.from(
+      new Set(summarySourceServices.map((service) => service.location_text).filter(Boolean)),
+    ).sort((firstDestination, secondDestination) =>
+      firstDestination.localeCompare(secondDestination, 'vi'),
+    )
+
+    return [
+      { value: 'all', label: 'Điểm đến:' },
+      ...uniqueDestinations.map((destination) => ({
+        value: destination,
+        label: destination,
+      })),
+    ]
+  }, [summarySourceServices])
   const pageNumbers = useMemo(
     () => createAdminServicesPageNumbers(pagination.total_pages ?? 1),
     [pagination.total_pages],
@@ -521,12 +588,14 @@ export default function useAdminServices() {
     currentRole,
     currentRoleLabel: getAdminRoleLabel(currentRole),
     error,
+    destinationOptions,
     feedback,
     filters,
     formModalState,
     formatCurrency: formatAdminServiceCurrency,
     formatDateTime: formatAdminServiceDateTime,
-    getAllowedActions: (service) => getAllowedServiceActions(service, currentRole),
+    getAllowedActions: (service) =>
+      getAllowedServiceActions(service, currentRole, currentPermissions),
     getServiceDetailSummary,
     getServiceTypeLabel: getAdminServiceTypeLabel,
     handleRowAction,
@@ -539,10 +608,12 @@ export default function useAdminServices() {
       ...pagination,
       page: safeCurrentPage,
     },
+    reloadServices: loadServicesState,
     resetFilters,
     selectedService,
     services,
     setCurrentPage,
+    setDestinationFilter,
     setSearch,
     setSort,
     setStatusFilter,

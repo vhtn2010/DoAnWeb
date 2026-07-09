@@ -1,22 +1,54 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AUTH_SOCIAL_PROVIDERS } from '../constants/auth.js'
+import { getAdminDefaultPath } from '../constants/adminRoutes.js'
+import { ROLES } from '../constants/roles.js'
 import {
   buildLoginPayload,
   createLoginFormValues,
+  mapApiValidationErrors,
   validateLoginPayload,
 } from '../mappers/authMappers.js'
 import { login } from '../repositories/authRepository.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
-function resolvePostLoginPath(redirectPath) {
-  if (typeof redirectPath !== 'string' || !redirectPath.startsWith('/')) {
-    return '/?auth=customer'
+const ADMIN_AUTH_ROLES = Object.freeze([
+  ROLES.staff,
+  ROLES.admin,
+  ROLES.systemAdmin,
+])
+
+function getPostLoginPath(user) {
+  if (ADMIN_AUTH_ROLES.includes(user?.role)) {
+    return getAdminDefaultPath(user.role)
   }
 
-  return redirectPath
+  return '/'
+}
+
+function isSafeRedirectPath(value) {
+  const path = typeof value === 'string' ? value.trim() : ''
+
+  return path.startsWith('/') && !path.startsWith('//') && !path.startsWith('/\\')
+}
+
+function getProtectedRedirectPath(location, searchParams) {
+  const stateRedirectPath = location.state?.from
+  const queryRedirectPath = searchParams.get('redirect')
+
+  if (isSafeRedirectPath(stateRedirectPath)) {
+    return buildPublicAuthPath(stateRedirectPath)
+  }
+
+  if (isSafeRedirectPath(queryRedirectPath)) {
+    return buildPublicAuthPath(queryRedirectPath)
+  }
+
+  return ''
 }
 
 export default function useLoginForm() {
+  const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [formValues, setFormValues] = useState(() => createLoginFormValues())
@@ -65,8 +97,18 @@ export default function useLoginForm() {
         return
       }
 
-      navigate(resolvePostLoginPath(searchParams.get('redirect')))
+      navigate(
+        getProtectedRedirectPath(location, searchParams) ||
+          getPostLoginPath(response.data?.user),
+        { replace: true },
+      )
     } catch (error) {
+      const apiFieldErrors = mapApiValidationErrors(error?.details)
+
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setErrors(apiFieldErrors)
+      }
+
       setFeedbackMessage(error?.message ?? 'Không thể đăng nhập lúc này.')
       setFeedbackTone('error')
     } finally {

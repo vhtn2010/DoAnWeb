@@ -15,7 +15,7 @@ import {
   validateCart as validateCartWithMockAdapter,
 } from '../adapters/mock/cartMockAdapter.js'
 import { ROLES } from '../constants/roles.js'
-import { getStoredAccessToken, getStoredUserRole } from '../utils/authSession.js'
+import { getAuthSession } from '../services/authSession.js'
 
 const cartAdapter = {
   addCartItemPreview: addCartItemPreviewWithMockAdapter,
@@ -27,11 +27,10 @@ const cartAdapter = {
 }
 
 function shouldUseApi(authState = ROLES.guest) {
-  return (
-    authState === ROLES.customer &&
-    getStoredUserRole() === ROLES.customer &&
-    Boolean(getStoredAccessToken())
-  )
+  const session = getAuthSession()
+  const role = session.user?.role ?? session.user?.role_code ?? ''
+
+  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
 }
 
 export function addCartItemPreview(payload) {
@@ -83,7 +82,7 @@ export function updateCartItem(cartItemId, payload, options = {}) {
 
 export function validateCart(cartId, selectedItemIds, options = {}) {
   if (shouldUseApi(options?.authState)) {
-    return validateCartWithApiAdapter()
+    return validateCartWithApiAdapter(cartId, selectedItemIds)
   }
 
   return cartAdapter.validateCart(cartId, selectedItemIds)

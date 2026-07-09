@@ -1,13 +1,14 @@
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import usePublicSession from '../../hooks/usePublicSession.js'
+import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 
 function TrainDetailComingSoonPage() {
   const navigate = useNavigate()
   const { slug } = useParams()
-  const [searchParams] = useSearchParams()
-  const isCustomer = searchParams.get('auth') === 'customer'
+  const { isCustomer } = usePublicSession()
 
   function handleBack() {
-    navigate(isCustomer ? '/trains?auth=customer' : '/trains')
+    navigate(buildPublicAuthPath('/trains', isCustomer))
   }
 
   return (

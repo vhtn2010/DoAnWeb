@@ -2,6 +2,16 @@ import { Link } from 'react-router-dom'
 import useRegisterForm from '../../hooks/useRegisterForm.js'
 import './authTemplate.css'
 
+function buildVerifyEmailLink(email = '') {
+  const normalizedEmail = String(email).trim().toLowerCase()
+
+  if (!normalizedEmail) {
+    return '/verify-email'
+  }
+
+  return `/verify-email?email=${encodeURIComponent(normalizedEmail)}`
+}
+
 function RegisterPage() {
   const {
     errors,
@@ -11,7 +21,9 @@ function RegisterPage() {
     handleFieldChange,
     handleSubmit,
     isSubmitting,
+    registeredEmail,
   } = useRegisterForm()
+  const shouldShowVerificationActions = feedbackTone === 'success' && Boolean(feedbackMessage)
 
   return (
     <section className="auth-register-page">
@@ -125,6 +137,20 @@ function RegisterPage() {
             <p className={`auth-form__feedback auth-form__feedback--${feedbackTone}`}>
               {feedbackMessage}
             </p>
+          ) : null}
+
+          {shouldShowVerificationActions ? (
+            <div className="auth-template-form__actions">
+              <Link className="auth-template-form__button" to={buildVerifyEmailLink(registeredEmail)}>
+                Xác minh email
+              </Link>
+              <Link
+                className="auth-template-form__button auth-template-form__button--secondary"
+                to="/login"
+              >
+                Đăng nhập
+              </Link>
+            </div>
           ) : null}
 
           <button className="auth-template-form__button" disabled={isSubmitting} type="submit">

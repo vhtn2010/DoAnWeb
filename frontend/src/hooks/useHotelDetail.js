@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
-import { ROLES } from '../constants/roles.js'
 import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
 import { addCartItemPreview } from '../repositories/cartRepository.js'
 import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
-import { hasCustomerSession } from '../utils/authSession.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicSession from './usePublicSession.js'
+import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 function convertDisplayDateToInput(value) {
   const [dayText, monthText, yearText] = String(value ?? '').split('-')
@@ -76,10 +76,6 @@ function buildDateTimeStamp(dateText, timeText) {
   return `${dateText}T${normalizedTime}+07:00`
 }
 
-function buildAuthAwarePath(path, isCustomer) {
-  return isCustomer ? `${path}?auth=customer` : path
-}
-
 function createFeedbackState(tone = 'info', message = '') {
   return {
     tone,
@@ -97,7 +93,7 @@ function createAvailabilityState() {
 }
 
 function buildLoginPath(pathname, search = '') {
-  const nextPath = buildAuthAwarePath(pathname, true)
+  const nextPath = buildPublicAuthPath(pathname, true)
   const nextSearchParams = new URLSearchParams(search)
   nextSearchParams.set('redirect', nextPath)
 
@@ -159,13 +155,7 @@ export default function useHotelDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const [searchParams] = useSearchParams()
-  const isAuthenticatedCustomer = hasCustomerSession()
-  const authState =
-    searchParams.get('auth') === ROLES.customer || isAuthenticatedCustomer
-      ? ROLES.customer
-      : ROLES.guest
-  const isCustomer = authState === ROLES.customer
+  const { authState, isCustomer } = usePublicSession()
 
   const [hotel, setHotel] = useState(null)
   const [rooms, setRooms] = useState([])
@@ -247,7 +237,7 @@ export default function useHotelDetail() {
         setRelatedHotels(
           mappedState.relatedHotels.map((relatedHotel) => ({
             ...relatedHotel,
-            detail_path: buildAuthAwarePath(`/hotels/${relatedHotel.slug}`, isCustomer),
+            detail_path: buildPublicAuthPath(`/hotels/${relatedHotel.slug}`, isCustomer),
           })),
         )
         setSelectedRoomId(mappedState.rooms[0]?.id ?? '')
@@ -469,7 +459,7 @@ export default function useHotelDetail() {
       return
     }
 
-    navigate(buildAuthAwarePath('/cart', isCustomer))
+    navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
   async function goToCheckoutMock(roomIdOverride) {
@@ -479,7 +469,7 @@ export default function useHotelDetail() {
       return
     }
 
-    navigate(buildAuthAwarePath('/checkout', isCustomer), {
+    navigate(buildPublicAuthPath('/checkout', isCustomer), {
       state: {
         selectedCartItemIds: [result.cartItem.id],
       },
@@ -501,8 +491,8 @@ export default function useHotelDetail() {
 
   return {
     availability,
-    breadcrumbHomePath: buildAuthAwarePath('/', isCustomer),
-    breadcrumbListPath: buildAuthAwarePath('/hotels', isCustomer),
+    breadcrumbHomePath: buildPublicAuthPath('/', isCustomer),
+    breadcrumbListPath: buildPublicAuthPath('/hotels', isCustomer),
     checkAvailability: checkAvailabilityForRoom,
     checkinDate,
     checkoutDate,

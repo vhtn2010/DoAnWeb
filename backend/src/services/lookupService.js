@@ -821,7 +821,7 @@ const mapFlightDetail = (detail) => ({
   arrival_at: detail.arrival_at,
   cabin_class: detail.cabin_class,
   seats_available: detail.seats_available,
-      fare_price:
+  fare_price:
     detail.fare_price == null
       ? null
       : Number(detail.fare_price),
@@ -1517,7 +1517,14 @@ const createLookupService = ({
         ? await repository.getFlightDetailById(resolvedReferenceId)
         : await repository.getFlightDetail(service.id);
 
-      if (!detail || detail.service_id !== service.id) {
+      if (!detail) {
+        console.error(
+          `Active public service ${service.id} (${service.slug}) is missing flight_details.`,
+        );
+        throw buildResourceNotFoundError();
+      }
+
+      if (detail.service_id !== service.id) {
         console.error(
           `Active public service ${service.id} (${service.slug}) is missing flight_details.`,
         );
