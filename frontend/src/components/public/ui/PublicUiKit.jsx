@@ -106,8 +106,13 @@ export function PublicNotice({
   children,
   className = '',
   tone = 'info',
+  ...props
 }) {
-  return <div className={cx('public-ui-notice', `public-ui-notice--${tone}`, className)}>{children}</div>
+  return (
+    <div className={cx('public-ui-notice', `public-ui-notice--${tone}`, className)} {...props}>
+      {children}
+    </div>
+  )
 }
 
 export function PublicSkeleton({ className = '', width = '100%' }) {

@@ -5,6 +5,12 @@ import ProfileGuestGate from '../../components/profile/ProfileGuestGate.jsx'
 import ProfileHero from '../../components/profile/ProfileHero.jsx'
 import ProfileShortcutPanel from '../../components/profile/ProfileShortcutPanel.jsx'
 import UpcomingTripCard from '../../components/profile/UpcomingTripCard.jsx'
+import {
+  PublicButton,
+  PublicErrorState,
+  PublicLoadingBlock,
+  PublicNotice,
+} from '../../components/public/ui/index.js'
 import useProfile from '../../hooks/useProfile.js'
 
 function ProfilePage() {
@@ -66,9 +72,12 @@ function ProfilePage() {
     <div className="profile-page">
       <div className="profile-shell">
         {loading ? (
-          <p className="profile-page__status" role="status">
-            Đang chuẩn bị dữ liệu hồ sơ mock theo pattern API-ready...
-          </p>
+          <PublicLoadingBlock
+            className="profile-page__loading"
+            description="Dữ liệu hồ sơ đang được chuẩn bị theo mock adapter và luồng API-ready hiện tại."
+            rows={3}
+            title="Đang chuẩn bị hồ sơ khách hàng"
+          />
         ) : null}
 
         {showGuestGate ? (
@@ -83,12 +92,17 @@ function ProfilePage() {
         ) : null}
 
         {!loading && isCustomerPreview && error ? (
-          <div className="profile-page__status profile-page__status--error" role="status">
-            <p>{error}</p>
-            <button type="button" onClick={actions.retry}>
-              Thử lại
-            </button>
-          </div>
+          <PublicErrorState
+            action={
+              <PublicButton type="button" variant="secondary" onClick={actions.retry}>
+                Thử lại
+              </PublicButton>
+            }
+            className="profile-page__error"
+            description={error}
+            eyebrow="Cần đồng bộ lại"
+            title="Không thể tải hồ sơ khách hàng"
+          />
         ) : null}
 
         {!loading && isCustomerPreview && !error ? (
@@ -102,9 +116,9 @@ function ProfilePage() {
             />
 
             {feedback ? (
-              <p className="profile-page__status profile-page__status--feedback" role="status">
+              <PublicNotice className="profile-page__feedback" role="status" tone="success">
                 {feedback}
-              </p>
+              </PublicNotice>
             ) : null}
 
             <div className="profile-dashboard">
