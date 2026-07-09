@@ -2,49 +2,14 @@ import { Link } from 'react-router-dom'
 import HotelCard from '../../components/hotels/HotelCard.jsx'
 import HotelFilterSidebar from '../../components/hotels/HotelFilterSidebar.jsx'
 import HotelSearchBar from '../../components/hotels/HotelSearchBar.jsx'
+import {
+  PublicEmptyState,
+  PublicErrorState,
+  PublicLoadingBlock,
+  PublicPagination,
+  PublicSectionHeader,
+} from '../../components/public/ui/index.js'
 import useHotelList from '../../hooks/useHotelList.js'
-
-function HotelPagination({ currentPage, totalPages, onPageChange }) {
-  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
-
-  return (
-    <div className="hotel-pagination" aria-label="Phân trang khách sạn">
-      <button
-        aria-label="Trang trước"
-        className="hotel-pagination__button"
-        disabled={currentPage === 1}
-        type="button"
-        onClick={() => onPageChange(currentPage - 1)}
-      >
-        ‹
-      </button>
-
-      {pageNumbers.map((pageNumber) => (
-        <button
-          aria-current={pageNumber === currentPage ? 'page' : undefined}
-          className={`hotel-pagination__button ${
-            pageNumber === currentPage ? 'hotel-pagination__button--active' : ''
-          }`}
-          key={pageNumber}
-          type="button"
-          onClick={() => onPageChange(pageNumber)}
-        >
-          {pageNumber}
-        </button>
-      ))}
-
-      <button
-        aria-label="Trang sau"
-        className="hotel-pagination__button"
-        disabled={currentPage === totalPages}
-        type="button"
-        onClick={() => onPageChange(currentPage + 1)}
-      >
-        ›
-      </button>
-    </div>
-  )
-}
 
 function HotelListPage() {
   const {
@@ -111,10 +76,11 @@ function HotelListPage() {
 
           <div className="hotel-results">
             <div className="hotel-results__header">
-              <div>
-                <h2 className="hotel-results__title">Khách sạn nổi bật</h2>
-                <p className="hotel-results__summary">{resultSummary}</p>
-              </div>
+              <PublicSectionHeader
+                eyebrow="Khách sạn"
+                subtitle={resultSummary}
+                title="Khách sạn nổi bật"
+              />
 
               <label className="hotel-results__sort">
                 <span>Sắp xếp:</span>
@@ -129,15 +95,19 @@ function HotelListPage() {
             </div>
 
             {errorMessage ? (
-              <div className="hotel-results__empty" role="alert">
-                <h3>Không thể tải danh sách khách sạn</h3>
-                <p>{errorMessage}</p>
-              </div>
+              <PublicErrorState
+                className="hotel-results__state"
+                description={errorMessage}
+                eyebrow="Kết nối thất bại"
+                title="Không thể tải danh sách khách sạn"
+              />
             ) : isLoading ? (
-              <div className="hotel-results__empty" role="status">
-                <h3>Đang tải khách sạn</h3>
-                <p>Danh sách đang được đọc từ mock adapter theo API-ready pattern.</p>
-              </div>
+              <PublicLoadingBlock
+                className="hotel-results__state"
+                description="Danh sách đang được đọc từ mock adapter theo API-ready pattern."
+                rows={4}
+                title="Đang tải khách sạn"
+              />
             ) : visibleHotels.length ? (
               <>
                 <div className="hotel-results__grid">
@@ -153,17 +123,20 @@ function HotelListPage() {
                   ))}
                 </div>
 
-                <HotelPagination
+                <PublicPagination
+                  ariaLabel="Phân trang khách sạn"
                   currentPage={currentPage}
                   totalPages={totalPages}
                   onPageChange={handlePageChange}
                 />
               </>
             ) : (
-              <div className="hotel-results__empty" role="status">
-                <h3>Chưa có khách sạn phù hợp</h3>
-                <p>Thử điều chỉnh tìm kiếm hoặc áp dụng bộ lọc khác để xem thêm lựa chọn.</p>
-              </div>
+              <PublicEmptyState
+                className="hotel-results__state"
+                description="Thử điều chỉnh tìm kiếm hoặc áp dụng bộ lọc khác để xem thêm lựa chọn."
+                eyebrow="Chưa có kết quả"
+                title="Chưa có khách sạn phù hợp"
+              />
             )}
           </div>
         </div>
