@@ -6,6 +6,7 @@ import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.
 import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
 import useFavorites from './useFavorites.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicAccessGate from './usePublicAccessGate.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 import {
@@ -99,14 +100,6 @@ function createAvailabilityState() {
   }
 }
 
-function buildLoginPath(pathname, search = '') {
-  const nextPath = buildPublicAuthPath(pathname, true)
-  const nextSearchParams = new URLSearchParams(search)
-  nextSearchParams.set('redirect', nextPath)
-
-  return `/login?${nextSearchParams.toString()}`
-}
-
 function buildCartItemFromPayload({ hotel, payload, room }) {
   return {
     id: `cart-item-room-${Date.now()}`,
@@ -162,6 +155,7 @@ export default function useHotelDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
+  const { openLoginRequiredModal } = usePublicAccessGate()
   const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
   const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
@@ -181,7 +175,6 @@ export default function useHotelDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
-  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
   const [availability, setAvailability] = useState(() => createAvailabilityState())
   const [reloadSeed, setReloadSeed] = useState(0)
 
@@ -479,7 +472,11 @@ export default function useHotelDetail() {
 
   async function goToCartAction(roomIdOverride) {
     if (!isAuthenticatedCustomer) {
-      setIsLoginPromptOpen(true)
+      openLoginRequiredModal({
+        description: 'Đăng nhập để lưu phòng bạn chọn và tiếp tục đặt chỗ thuận tiện hơn.',
+        eyebrow: 'Giỏ hàng',
+        title: 'Vui lòng đăng nhập để có thể thêm vào giỏ hàng',
+      })
       return
     }
 
@@ -493,35 +490,27 @@ export default function useHotelDetail() {
   }
 
   async function goToCheckoutAction(roomIdOverride) {
+    if (!isAuthenticatedCustomer) {
+      openLoginRequiredModal({
+        description:
+          'Đăng nhập để giữ lại phòng đang chọn, nhập thông tin khách lưu trú và hoàn tất đặt chỗ thuận tiện hơn.',
+        eyebrow: 'Thanh toán',
+        title: 'Vui lòng đăng nhập để tiếp tục bước đặt chỗ',
+      })
+      return
+    }
+
     const result = await addSelectedRoomToCart({ roomIdOverride })
 
     if (!result.success) {
       return
     }
 
-    if (isAuthenticatedCustomer) {
-      navigate(buildPublicAuthPath('/cart', isCustomer))
-      return
-    }
-
-    navigate(buildPublicAuthPath('/checkout', isCustomer), {
-      state: {
-        selectedCartItemIds: [result.cartItem.id],
-      },
-    })
+    navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
   function retry() {
     setReloadSeed((currentValue) => currentValue + 1)
-  }
-
-  function closeLoginPrompt() {
-    setIsLoginPromptOpen(false)
-  }
-
-  function goToLoginFromPrompt() {
-    setIsLoginPromptOpen(false)
-    navigate(buildLoginPath(location.pathname, location.search))
   }
 
   function handleToggleFavorite() {
@@ -553,7 +542,6 @@ export default function useHotelDetail() {
     checkAvailability: checkAvailabilityForRoom,
     checkinDate,
     checkoutDate,
-    closeLoginPrompt,
     error,
     feedback,
     formatCurrency: formatCurrencyVND,
@@ -566,12 +554,10 @@ export default function useHotelDetail() {
     goToCartMock: goToCartAction,
     goToCheckoutAction,
     goToCheckoutMock: goToCheckoutAction,
-    goToLoginFromPrompt,
     guests,
     hotel,
     isFavorite,
     isCustomer,
-    isLoginPromptOpen,
     loading,
     relatedHotels,
     retry,

@@ -7,6 +7,7 @@ import {
 } from '../repositories/publicServiceRepository.js'
 import { mapTourServiceToView } from '../mappers/serviceMappers.js'
 import useFavorites from './useFavorites.js'
+import usePublicAccessGate from './usePublicAccessGate.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 import {
@@ -130,6 +131,7 @@ export default function useTourServiceDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
+  const { openLoginRequiredModal } = usePublicAccessGate()
   const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
   const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
@@ -302,6 +304,15 @@ export default function useTourServiceDetail() {
       return
     }
 
+    if (!isAuthenticatedCustomer) {
+      openLoginRequiredModal({
+        description: 'Đăng nhập để lưu tour bạn chọn và tiếp tục đặt chỗ thuận tiện hơn.',
+        eyebrow: 'Giỏ hàng',
+        title: 'Vui lòng đăng nhập để có thể thêm vào giỏ hàng',
+      })
+      return
+    }
+
     setPendingAction('cart')
     setBookingMessage('')
 
@@ -322,6 +333,16 @@ export default function useTourServiceDetail() {
 
   async function handleBookNow() {
     if (!service) {
+      return
+    }
+
+    if (!isAuthenticatedCustomer) {
+      openLoginRequiredModal({
+        description:
+          'Đăng nhập để giữ lại tour đang chọn, nhập thông tin hành khách và hoàn tất đặt chỗ thuận tiện hơn.',
+        eyebrow: 'Thanh toán',
+        title: 'Vui lòng đăng nhập để tiếp tục bước đặt chỗ',
+      })
       return
     }
 

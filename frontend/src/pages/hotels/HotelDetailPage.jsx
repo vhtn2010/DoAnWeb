@@ -1,4 +1,3 @@
-import LoginRequiredModal from '../../components/auth/LoginRequiredModal.jsx'
 import HotelAmenityList from '../../components/hotels/HotelAmenityList.jsx'
 import HotelBookingPanel from '../../components/hotels/HotelBookingPanel.jsx'
 import HotelGallery from '../../components/hotels/HotelGallery.jsx'
@@ -111,18 +110,15 @@ function HeartIcon() {
 function HotelDetailPage() {
   const {
     availability,
-    closeLoginPrompt,
     error,
     feedback,
     formatCurrency,
     galleryState,
-    goToLoginFromPrompt,
     goToCartMock,
     goToCheckoutMock,
     handleToggleFavorite,
     hotel,
     isFavorite,
-    isLoginPromptOpen,
     loading,
     retry,
     rooms,
@@ -169,12 +165,6 @@ function HotelDetailPage() {
   return (
     <div className="hotel-detail-page">
       <div className="hotel-detail-page__shell">
-        <LoginRequiredModal
-          isOpen={isLoginPromptOpen}
-          onClose={closeLoginPrompt}
-          onLogin={goToLoginFromPrompt}
-        />
-
         <section className="hotel-detail-title">
           <div className="hotel-detail-title__copy">
             <HotelStars total={hotel.details?.star_rating ?? 5} />
