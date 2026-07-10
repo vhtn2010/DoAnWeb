@@ -1160,6 +1160,7 @@ select {
 
 .home-hero {
   position: relative;
+  z-index: 3;
   display: grid;
   gap: 0;
 }
@@ -1263,6 +1264,8 @@ select {
 
 .home-search-card {
   position: relative;
+  z-index: 4;
+  isolation: isolate;
   width: min(1240px, 100%);
   margin: -46px auto 0;
   display: grid;
