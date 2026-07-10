@@ -28,6 +28,15 @@ import {
   getPublicAuthQueryValue,
 } from '../utils/publicNavigation.js'
 
+function createCalendarBaseMonth(date) {
+  if (date instanceof Date && !Number.isNaN(date.getTime())) {
+    return new Date(date.getFullYear(), date.getMonth(), 1)
+  }
+
+  const today = new Date()
+  return new Date(today.getFullYear(), today.getMonth(), 1)
+}
+
 export default function useHomePage() {
   const navigate = useNavigate()
   const { authState, isCustomer } = usePublicSession()
@@ -41,13 +50,8 @@ export default function useHomePage() {
     endDate: fallbackHomeState.searchDefaults.endDate,
   })
   const [openMenu, setOpenMenu] = useState(null)
-  const [visibleMonth, setVisibleMonth] = useState(
-    () =>
-      new Date(
-        fallbackHomeState.searchDefaults.startDate.getFullYear(),
-        fallbackHomeState.searchDefaults.startDate.getMonth(),
-        1,
-      ),
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    createCalendarBaseMonth(fallbackHomeState.searchDefaults.startDate),
   )
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -83,13 +87,7 @@ export default function useHomePage() {
         startDate: nextHomeState.searchDefaults.startDate,
         endDate: nextHomeState.searchDefaults.endDate,
       })
-      setVisibleMonth(
-        new Date(
-          nextHomeState.searchDefaults.startDate.getFullYear(),
-          nextHomeState.searchDefaults.startDate.getMonth(),
-          1,
-        ),
-      )
+      setVisibleMonth(createCalendarBaseMonth(nextHomeState.searchDefaults.startDate))
     } catch (error) {
       setHomeData(fallbackHomeState)
       setSearchState(fallbackHomeState.searchDefaults)
@@ -97,14 +95,8 @@ export default function useHomePage() {
         startDate: fallbackHomeState.searchDefaults.startDate,
         endDate: fallbackHomeState.searchDefaults.endDate,
       })
-      setVisibleMonth(
-        new Date(
-          fallbackHomeState.searchDefaults.startDate.getFullYear(),
-          fallbackHomeState.searchDefaults.startDate.getMonth(),
-          1,
-        ),
-      )
-      setErrorMessage(error?.message ?? 'Không thể tải trang chủ lúc này.')
+      setVisibleMonth(createCalendarBaseMonth(fallbackHomeState.searchDefaults.startDate))
+      setErrorMessage(error?.message ?? 'Kh\u00f4ng th\u1ec3 t\u1ea3i trang ch\u1ee7 l\u00fac n\u00e0y.')
     } finally {
       setLoading(false)
     }
@@ -137,9 +129,7 @@ export default function useHomePage() {
       startDate: searchState.startDate,
       endDate: searchState.endDate,
     })
-    setVisibleMonth(
-      new Date(searchState.startDate.getFullYear(), searchState.startDate.getMonth(), 1),
-    )
+    setVisibleMonth(createCalendarBaseMonth(searchState.startDate))
     setOpenMenu('date')
   }
 
@@ -202,7 +192,9 @@ export default function useHomePage() {
 
   function handleSearch() {
     if (!searchState.startDate || !searchState.endDate) {
-      setFeedbackMessage('Vui lòng chọn đầy đủ ngày đi và ngày về.')
+      setFeedbackMessage(
+        'Vui l\u00f2ng ch\u1ecdn \u0111\u1ea7y \u0111\u1ee7 ng\u00e0y \u0111i v\u00e0 ng\u00e0y v\u1ec1.',
+      )
       return
     }
 
@@ -227,14 +219,14 @@ export default function useHomePage() {
     setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))
   }
 
-  const displayedDateRange = formatCompactDateRangeDisplay(
-    searchState.startDate,
-    searchState.endDate,
-  )
+  const displayedDateRange =
+    searchState.startDate && searchState.endDate
+      ? formatCompactDateRangeDisplay(searchState.startDate, searchState.endDate)
+      : 'Ch\u1ecdn ng\u00e0y \u0111i - v\u1ec1'
   const calendarPreview = calendarSelection.endDate
     ? formatCompactDateRangeDisplay(calendarSelection.startDate, calendarSelection.endDate)
     : calendarSelection.startDate
-      ? `${formatDateDisplay(calendarSelection.startDate)} - Chọn ngày về`
+      ? `${formatDateDisplay(calendarSelection.startDate)} - Ch\u1ecdn ng\u00e0y v\u1ec1`
       : displayedDateRange
   const visibleMonths = [visibleMonth, addMonths(visibleMonth, 1)]
   const serviceListPath = buildPublicAuthPath('/services', isCustomer)

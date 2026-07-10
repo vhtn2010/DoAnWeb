@@ -1,4 +1,3 @@
-import { HOME_SORT_OPTIONS } from '../constants/homeFigma.js'
 import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
 
 function createEmptyFilters() {
@@ -7,13 +6,6 @@ function createEmptyFilters() {
     tour: '',
     hotel: '',
     train: '',
-  }
-}
-
-function cloneFilters(filters = {}) {
-  return {
-    ...createEmptyFilters(),
-    ...filters,
   }
 }
 
@@ -41,7 +33,7 @@ export function createDate(year, monthIndex, day) {
   return new Date(year, monthIndex, day)
 }
 
-export function parseFixtureDate(value, fallbackDate = createDate(2026, 6, 12)) {
+export function parseFixtureDate(value, fallbackDate = null) {
   const [yearText, monthText, dayText] = String(value ?? '').split('-')
   const year = Number(yearText)
   const month = Number(monthText)
@@ -82,18 +74,34 @@ export function isSameDay(firstDate, secondDate) {
 }
 
 export function formatDateDisplay(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return ''
+  }
+
   return `${String(date.getDate()).padStart(2, '0')} thg ${date.getMonth() + 1} ${date.getFullYear()}`
 }
 
 export function formatCompactDateDisplay(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return ''
+  }
+
   return `${String(date.getDate()).padStart(2, '0')} Th${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
 export function formatDateRangeDisplay(startDate, endDate) {
+  if (!startDate || !endDate) {
+    return ''
+  }
+
   return `${formatDateDisplay(startDate)} - ${formatDateDisplay(endDate)}`
 }
 
 export function formatCompactDateRangeDisplay(startDate, endDate) {
+  if (!startDate || !endDate) {
+    return ''
+  }
+
   return `${formatCompactDateDisplay(startDate)} - ${formatCompactDateDisplay(endDate)}`
 }
 
@@ -102,6 +110,10 @@ export function formatMonthLabel(date) {
 }
 
 export function formatQueryDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return ''
+  }
+
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
 
@@ -138,9 +150,6 @@ export function getMonthDays(monthDate) {
 }
 
 export function createHomePageViewState(payload = {}) {
-  const startDate = parseFixtureDate(payload.search_defaults?.start_date, createDate(2026, 6, 12))
-  const endDate = parseFixtureDate(payload.search_defaults?.end_date, createDate(2026, 6, 24))
-
   return {
     hero: {
       title_leading: payload.hero?.title_leading ?? '',
@@ -152,14 +161,12 @@ export function createHomePageViewState(payload = {}) {
       art_image_url: payload.hero?.art_image_url ?? '',
     },
     searchDefaults: {
-      from: payload.search_defaults?.from ?? '',
-      to: payload.search_defaults?.to ?? '',
-      startDate,
-      endDate,
-      sort: HOME_SORT_OPTIONS.includes(payload.search_defaults?.sort)
-        ? payload.search_defaults.sort
-        : HOME_SORT_OPTIONS[0],
-      filters: cloneFilters(payload.search_defaults?.filters),
+      from: '',
+      to: '',
+      startDate: null,
+      endDate: null,
+      sort: '',
+      filters: createEmptyFilters(),
     },
     featuredServices: filterActiveServices(payload.featured_services ?? []),
     flashSaleServices: filterActiveServices(payload.flash_sale_services ?? []).map(

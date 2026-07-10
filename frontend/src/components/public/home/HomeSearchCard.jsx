@@ -1,3 +1,8 @@
+const FIELD_PLACEHOLDERS = {
+  from: 'Chọn điểm khởi hành',
+  to: 'Chọn điểm đến',
+}
+
 function ChevronIcon({ isOpen }) {
   return (
     <svg
@@ -94,6 +99,9 @@ function MonthNavIcon({ direction }) {
 }
 
 function HomeSearchField({ field, handleFieldSelect, isOpen, searchState, toggleMenu }) {
+  const fieldValue = searchState[field.key] || FIELD_PLACEHOLDERS[field.key] || ''
+  const isPlaceholder = !searchState[field.key]
+
   return (
     <div className="home-search-card__field-wrap">
       <button
@@ -108,7 +116,13 @@ function HomeSearchField({ field, handleFieldSelect, isOpen, searchState, toggle
         </span>
         <span className="home-search-card__field-copy">
           <span className="home-search-card__label">{field.label}</span>
-          <span className="home-search-card__value">{searchState[field.key]}</span>
+          <span
+            className={`home-search-card__value ${
+              isPlaceholder ? 'home-search-card__value--placeholder' : ''
+            }`}
+          >
+            {fieldValue}
+          </span>
         </span>
         <ChevronIcon isOpen={isOpen} />
       </button>
@@ -344,6 +358,8 @@ export default function HomeSearchCard({
   visibleMonths,
   weekdayLabels,
 }) {
+  const sortLabel = searchState.sort || 'Chưa chọn'
+
   return (
     <div className="home-search-card" ref={searchCardRef}>
       <div className="home-search-card__top-row">
@@ -412,11 +428,11 @@ export default function HomeSearchCard({
               aria-haspopup="listbox"
               className={`home-search-card__sort-button ${
                 openMenu === 'sort' ? 'home-search-card__sort-button--open' : ''
-              }`}
+              } ${searchState.sort ? '' : 'home-search-card__sort-button--placeholder'}`}
               type="button"
               onClick={() => toggleMenu('sort')}
             >
-              <span>{searchState.sort}</span>
+              <span>{sortLabel}</span>
               <ChevronIcon isOpen={openMenu === 'sort'} />
             </button>
 

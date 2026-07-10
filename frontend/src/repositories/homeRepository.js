@@ -330,14 +330,31 @@ export async function getHomeDestinations({ limit = 4, type } = {}) {
 export function buildHomeSearchParams(formState, { auth: _auth = '' } = {}) {
   const params = new URLSearchParams()
 
-  params.set('from', slugifyQueryValue(formState.from))
-  params.set('to', slugifyQueryValue(formState.to))
-  params.set('start', formatQueryDate(formState.startDate))
-  params.set('end', formatQueryDate(formState.endDate))
-  params.set(
-    'sort',
-    HOME_SORT_QUERY_MAP[formState.sort] ?? slugifyQueryValue(formState.sort),
-  )
+  const fromValue = slugifyQueryValue(formState.from)
+  const toValue = slugifyQueryValue(formState.to)
+  const startValue = formatQueryDate(formState.startDate)
+  const endValue = formatQueryDate(formState.endDate)
+  const sortValue = HOME_SORT_QUERY_MAP[formState.sort] ?? slugifyQueryValue(formState.sort)
+
+  if (fromValue) {
+    params.set('from', fromValue)
+  }
+
+  if (toValue) {
+    params.set('to', toValue)
+  }
+
+  if (startValue) {
+    params.set('start', startValue)
+  }
+
+  if (endValue) {
+    params.set('end', endValue)
+  }
+
+  if (sortValue) {
+    params.set('sort', sortValue)
+  }
 
   Object.entries(formState.filters ?? {}).forEach(([key, value]) => {
     if (value) {

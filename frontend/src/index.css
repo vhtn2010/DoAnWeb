@@ -1359,6 +1359,11 @@ select {
   font-weight: 900;
 }
 
+.home-search-card__value--placeholder {
+  color: rgba(25, 27, 36, 0.52);
+  font-weight: 700;
+}
+
 .home-search-card__value--date {
   white-space: nowrap;
   overflow: hidden;
@@ -1671,6 +1676,11 @@ select {
   font-size: 14px;
   font-style: italic;
   font-weight: 900;
+}
+
+.home-search-card__sort-button--placeholder {
+  color: rgba(214, 40, 40, 0.56);
+  font-weight: 700;
 }
 
 .home-search-card__sort-button:hover,
