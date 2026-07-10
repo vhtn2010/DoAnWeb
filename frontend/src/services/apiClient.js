@@ -6,6 +6,7 @@ const ACCESS_TOKEN_STORAGE_KEY = 'net-viet-travel.access-token'
 const REFRESH_TOKEN_STORAGE_KEY = 'net-viet-travel.refresh-token'
 const AUTH_REFRESH_PATH = '/auth/refresh-token'
 const AUTH_EVENT_NAME = 'net-viet-travel.auth'
+const SESSION_ERROR_CODES = new Set(['AUTH_TOKEN_EXPIRED', 'UNAUTHORIZED'])
 
 let authSessionWriter = null
 let authSessionClearer = null
@@ -190,9 +191,11 @@ function shouldRefreshRequest(error) {
   const status = error.response?.status
   const config = error.config ?? {}
   const url = String(config.url ?? '')
+  const errorCode = error.response?.data?.error?.code
 
   return (
     status === 401 &&
+    (!errorCode || SESSION_ERROR_CODES.has(errorCode)) &&
     !config._authRetry &&
     !url.endsWith(AUTH_REFRESH_PATH) &&
     Boolean(getRefreshToken())
@@ -288,6 +291,16 @@ function normalizeApiError(error) {
   return apiError
 }
 
+function shouldClearSessionForError(error) {
+  if (!axios.isAxiosError(error) || error.response?.status !== 401) {
+    return false
+  }
+
+  const errorCode = error.response?.data?.error?.code
+
+  return !errorCode || SESSION_ERROR_CODES.has(errorCode)
+}
+
 function unwrapApiResponse(response) {
   return response.data
 }
@@ -337,7 +350,7 @@ apiClient.interceptors.response.use(
 
     const normalizedError = normalizeApiError(error)
 
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
+    if (shouldClearSessionForError(error)) {
       clearStoredSession('unauthorized')
     }
 

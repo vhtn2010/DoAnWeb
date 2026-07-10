@@ -179,6 +179,12 @@ select {
   letter-spacing: 0;
 }
 
+.public-header__profile-avatar-image {
+  display: block;
+  object-fit: cover;
+  background: #ffffff;
+}
+
 .public-header__link {
   display: inline-flex;
   align-items: center;

@@ -1,8 +1,25 @@
 import { Link } from 'react-router-dom'
 import PublicHeaderIconAction from './PublicHeaderIconAction.jsx'
 
+function getProfileInitials(name = '', fallback = 'NV') {
+  const words = String(name)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (!words.length) {
+    return fallback
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
 function PublicHeaderActions({
   customerCartPath,
+  currentUser,
   customerProfilePath,
   favoriteCount = 0,
   favoritePath,
@@ -18,6 +35,12 @@ function PublicHeaderActions({
     isCartPreview || isCheckoutPreview || isHotelPreview || isTicketActive || isProfilePreview
       ? 'Tài khoản người dùng trên trang preview'
       : 'Tài khoản người dùng'
+  const profileDisplayName = currentUser?.full_name || currentUser?.email || 'Net Viet Travel'
+  const profileAvatarUrl = currentUser?.avatar_url || ''
+  const profileInitials = getProfileInitials(
+    currentUser?.full_name || currentUser?.email || '',
+    'NV',
+  )
 
   return (
     <div className="public-header__actions">
@@ -67,7 +90,15 @@ function PublicHeaderActions({
                 className="public-header__profile-ring"
                 to={customerProfilePath}
               >
-                <span className="public-header__profile-avatar">MQ</span>
+                {profileAvatarUrl ? (
+                  <img
+                    alt={profileDisplayName}
+                    className="public-header__profile-avatar public-header__profile-avatar-image"
+                    src={profileAvatarUrl}
+                  />
+                ) : (
+                  <span className="public-header__profile-avatar">{profileInitials}</span>
+                )}
               </Link>
             </span>
           </>

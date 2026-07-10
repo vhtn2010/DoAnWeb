@@ -18,6 +18,7 @@ const fixedNow = new Date('2026-06-30T00:00:00.000Z');
 
 const createService = (options = {}) =>
   createAuthService({
+    bcryptCompareImpl: options.bcryptCompareImpl,
     buildSessionTokensImpl: options.buildSessionTokensImpl,
     createChangeEmailTokenImpl:
       options.createChangeEmailTokenImpl || (() => 'change-email-token'),
@@ -116,6 +117,11 @@ test('changeEmailRequest sends confirmation to new email and does not update use
     },
   };
   const service = createService({
+    bcryptCompareImpl: async (plainTextPassword, hashedPassword) => {
+      assert.equal(plainTextPassword, 'CurrentPassword123')
+      assert.equal(hashedPassword, 'hashed-password')
+      return true
+    },
     client,
     sendEmailImpl: async (payload) => {
       capturedEmailPayload = payload;
@@ -129,6 +135,7 @@ test('changeEmailRequest sends confirmation to new email and does not update use
 
   const result = await service.changeEmailRequest(
     {
+      current_password: 'CurrentPassword123',
       new_email: 'New@Example.com',
     },
     {
@@ -176,6 +183,7 @@ test('changeEmailRequest sends confirmation to new email and does not update use
 
 test('changeEmailRequest rejects duplicate new_email', async () => {
   const service = createService({
+    bcryptCompareImpl: async () => true,
     client: {
       query: async (sql) => {
         if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
@@ -216,6 +224,7 @@ test('changeEmailRequest rejects duplicate new_email', async () => {
     () =>
       service.changeEmailRequest(
         {
+          current_password: 'CurrentPassword123',
           new_email: 'new@example.com',
         },
         {
@@ -225,6 +234,50 @@ test('changeEmailRequest rejects duplicate new_email', async () => {
     (error) =>
       error.code === API_ERROR_CODES.DUPLICATE_RESOURCE &&
       error.statusCode === 409,
+  );
+});
+
+test('changeEmailRequest rejects incorrect current_password', async () => {
+  const service = createService({
+    bcryptCompareImpl: async () => false,
+    client: {
+      query: async (sql) => {
+        if (sql.includes('FROM users u') && sql.includes('WHERE u.id = $1')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                email: 'current@example.com',
+                full_name: 'Nguyen Van A',
+                id: 'user-1',
+                password_hash: 'hashed-password',
+                role_code: 'customer',
+                role_id: 'role-customer-1',
+                status: USER_STATUS.ACTIVE,
+              },
+            ],
+          };
+        }
+
+        throw new Error(`Unexpected SQL in test: ${sql}`);
+      },
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.changeEmailRequest(
+        {
+          current_password: 'WrongPassword123',
+          new_email: 'new@example.com',
+        },
+        {
+          userId: 'user-1',
+        },
+      ),
+    (error) =>
+      error.code === API_ERROR_CODES.AUTH_INVALID_CREDENTIALS &&
+      error.statusCode === 401,
   );
 });
 

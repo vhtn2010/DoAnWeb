@@ -12,7 +12,7 @@ const PROFILE_AVATAR_UPDATE_ACTION = 'profile.avatar_update';
 const PROFILE_CHANGE_PASSWORD_ACTION = 'profile.change_password';
 const PROFILE_UPDATE_ACTION = 'profile.update';
 const ACCOUNT_DEACTIVATION_REQUEST_ACTION = 'account.deactivation_requested';
-const ALLOWED_UPDATE_FIELDS = new Set(['full_name', 'phone']);
+const ALLOWED_UPDATE_FIELDS = new Set(['current_password', 'full_name', 'phone']);
 const ALLOWED_AVATAR_FIELDS = new Set(['avatar_url']);
 const ALLOWED_PASSWORD_FIELDS = new Set(['current_password', 'new_password']);
 const LOG_METADATA_SENSITIVE_KEYS = new Set([
@@ -309,6 +309,10 @@ const normalizeUpdateProfilePayload = (payload = {}) => {
   const disallowedKeys = providedKeys.filter(
     (key) => !ALLOWED_UPDATE_FIELDS.has(key),
   );
+  const hasCurrentPassword = Object.prototype.hasOwnProperty.call(
+    normalizedPayload,
+    'current_password',
+  );
   const hasFullName = Object.prototype.hasOwnProperty.call(
     normalizedPayload,
     'full_name',
@@ -353,6 +357,9 @@ const normalizeUpdateProfilePayload = (payload = {}) => {
   }
 
   let phone;
+  const currentPassword = hasCurrentPassword
+    ? String(normalizedPayload.current_password || '')
+    : '';
 
   if (hasPhone) {
     phone = trimToNull(normalizedPayload.phone);
@@ -361,6 +368,13 @@ const normalizeUpdateProfilePayload = (payload = {}) => {
       details.push({
         field: 'phone',
         message: 'phone must be at most 20 characters',
+      });
+    }
+
+    if (!currentPassword) {
+      details.push({
+        field: 'current_password',
+        message: 'current_password is required when updating phone',
       });
     }
   }
@@ -374,6 +388,7 @@ const normalizeUpdateProfilePayload = (payload = {}) => {
       ...(hasFullName ? ['full_name'] : []),
       ...(hasPhone ? ['phone'] : []),
     ],
+    currentPassword,
     fullName,
     hasFullName,
     hasPhone,
@@ -783,6 +798,17 @@ const createProfileService = ({
 
       ensureCurrentUserCanAccessProfile(currentUser, 'update');
       const input = normalizeUpdateProfilePayload(payload);
+
+      if (input.hasPhone) {
+        const isCurrentPasswordValid = await bcryptCompareImpl(
+          input.currentPassword,
+          currentUser.password_hash,
+        );
+
+        if (!isCurrentPasswordValid) {
+          throw createInvalidCredentialsError();
+        }
+      }
 
       const setClauses = [];
       const params = [userId];

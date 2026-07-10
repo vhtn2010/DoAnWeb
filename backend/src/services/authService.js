@@ -351,6 +351,7 @@ const normalizeForgotPasswordPayload = (payload = {}) => {
 
 const normalizeChangeEmailRequestPayload = (payload = {}) => {
   const newEmail = String(payload.new_email || '').trim().toLowerCase();
+  const currentPassword = String(payload.current_password || '');
 
   if (!newEmail) {
     throw createValidationError([
@@ -370,7 +371,17 @@ const normalizeChangeEmailRequestPayload = (payload = {}) => {
     ]);
   }
 
+  if (!currentPassword) {
+    throw createValidationError([
+      {
+        field: 'current_password',
+        message: 'current_password is required',
+      },
+    ]);
+  }
+
   return {
+    currentPassword,
     newEmail,
   };
 };
@@ -1494,6 +1505,15 @@ const createAuthService = ({
 
         if (!isEmailChangeAllowed(user)) {
           throw createForbiddenStatusError(user.status, 'change email');
+        }
+
+        const isCurrentPasswordValid = await bcryptCompareImpl(
+          input.currentPassword,
+          user.password_hash,
+        );
+
+        if (!isCurrentPasswordValid) {
+          throw createInvalidCredentialsError();
         }
 
         if (input.newEmail === user.email) {

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { requestChangeEmail } from '../../repositories/authRepository.js'
+import { updateCurrentProfile } from '../../repositories/profileRepository.js'
 
 function SparkIcon() {
   return (
@@ -61,6 +63,55 @@ function EditIcon() {
   )
 }
 
+function EyeOpenIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M2.2 10s2.7-4.8 7.8-4.8 7.8 4.8 7.8 4.8-2.7 4.8-7.8 4.8S2.2 10 2.2 10Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+      <circle cx="10" cy="10" r="2.6" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function EyeClosedIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M3 3.5 17 16.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M8.3 5.5a8.35 8.35 0 0 1 1.7-.3c5.1 0 7.8 4.8 7.8 4.8a12.7 12.7 0 0 1-2.4 2.8"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M5.1 7.2A12.55 12.55 0 0 0 2.2 10s2.7 4.8 7.8 4.8c1 0 1.9-.18 2.7-.48"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M8.5 8.6A2.58 2.58 0 0 0 7.4 10c0 1.43 1.17 2.6 2.6 2.6.56 0 1.08-.18 1.5-.48"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+    </svg>
+  )
+}
+
 function getInitials(name = '') {
   const words = name.trim().split(/\s+/).filter(Boolean)
 
@@ -86,20 +137,74 @@ function isValidPhone(value = '') {
   return /^[0-9+\s().-]{8,20}$/.test(value.trim())
 }
 
+function isUnchangedContactValue(field, nextValue, currentValue) {
+  const normalizedNextValue = String(nextValue ?? '').trim()
+  const normalizedCurrentValue = String(currentValue ?? '').trim()
+
+  if (field === 'email') {
+    return normalizedNextValue.toLowerCase() === normalizedCurrentValue.toLowerCase()
+  }
+
+  return normalizedNextValue === normalizedCurrentValue
+}
+
+function getApiErrorMessage(field, error) {
+  if (error?.code === 'AUTH_INVALID_CREDENTIALS') {
+    return 'Mật khẩu hiện tại không đúng.'
+  }
+
+  if (field === 'email' && error?.code === 'DUPLICATE_RESOURCE') {
+    return 'Email này đã được sử dụng bởi tài khoản khác.'
+  }
+
+  const fieldKeys = field === 'email' ? ['new_email', 'current_password'] : [field, 'current_password']
+  const matchedDetail = error?.details?.find((detail) => fieldKeys.includes(detail.field))
+
+  if (matchedDetail?.field === 'current_password') {
+    return 'Bạn cần nhập đúng mật khẩu hiện tại để xác nhận thay đổi.'
+  }
+
+  if (matchedDetail?.field === 'new_email') {
+    return matchedDetail.message === 'new_email is invalid'
+      ? 'Email chưa đúng định dạng.'
+      : matchedDetail.message
+  }
+
+  if (matchedDetail?.field === 'phone') {
+    return matchedDetail.message === 'phone must be at most 20 characters'
+      ? 'Số điện thoại không được vượt quá 20 ký tự.'
+      : matchedDetail.message
+  }
+
+  return error?.message || 'Không thể cập nhật thông tin lúc này.'
+}
+
 function EditableContactField({
+  errorMessage,
   field,
   icon,
   inputMode,
   isEditing,
+  isPasswordVisible,
+  isSaving,
   label,
   onCancel,
   onChange,
   onEdit,
+  onPasswordChange,
   onSave,
+  onTogglePasswordVisibility,
+  passwordValue,
   placeholder,
   type = 'text',
   value,
 }) {
+  const passwordLabel = `Mật khẩu hiện tại để xác nhận ${label.toLowerCase()}`
+  const helperText = errorMessage || 'Nhập đúng mật khẩu hiện tại để xác nhận thay đổi.'
+  const helperToneClass = errorMessage
+    ? 'profile-hero__member-helper profile-hero__member-helper--error'
+    : 'profile-hero__member-helper'
+
   return (
     <div
       className={
@@ -114,15 +219,48 @@ function EditableContactField({
         </span>
 
         {isEditing ? (
-          <input
-            aria-label={label}
-            className="profile-hero__member-input"
-            inputMode={inputMode}
-            onChange={(event) => onChange(field, event.target.value)}
-            placeholder={placeholder}
-            type={type}
-            value={value}
-          />
+          <div className="profile-hero__member-edit-stack">
+            <input
+              aria-label={label}
+              className="profile-hero__member-input"
+              disabled={isSaving}
+              inputMode={inputMode}
+              onChange={(event) => onChange(field, event.target.value)}
+              placeholder={placeholder}
+              type={type}
+              value={value}
+            />
+
+            <div className="profile-hero__member-password-wrap">
+              <input
+                aria-invalid={errorMessage ? 'true' : 'false'}
+                aria-label={passwordLabel}
+                autoComplete="current-password"
+                className={`profile-hero__member-input${
+                  errorMessage ? ' profile-hero__member-input--error' : ''
+                }`}
+                disabled={isSaving}
+                onChange={(event) => onPasswordChange(field, event.target.value)}
+                placeholder="Nhập mật khẩu hiện tại"
+                type={isPasswordVisible ? 'text' : 'password'}
+                value={passwordValue}
+              />
+
+              <button
+                aria-label={isPasswordVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                className="profile-hero__member-password-toggle"
+                disabled={isSaving}
+                type="button"
+                onClick={() => onTogglePasswordVisibility(field)}
+              >
+                {isPasswordVisible ? <EyeClosedIcon /> : <EyeOpenIcon />}
+              </button>
+            </div>
+
+            <p className={helperToneClass} role={errorMessage ? 'alert' : undefined}>
+              {helperText}
+            </p>
+          </div>
         ) : (
           <span className="profile-hero__member-meta-text">{value}</span>
         )}
@@ -141,11 +279,12 @@ function EditableContactField({
 
       {isEditing ? (
         <div className="profile-hero__member-inline-actions">
-          <button type="button" onClick={() => onSave(field)}>
-            Lưu
+          <button disabled={isSaving} type="button" onClick={() => onSave(field)}>
+            {isSaving ? 'Đang lưu...' : 'Xác nhận'}
           </button>
           <button
             className="profile-hero__member-inline-cancel"
+            disabled={isSaving}
             type="button"
             onClick={() => onCancel(field)}
           >
@@ -173,8 +312,24 @@ function ProfileHero({
     email: profile?.email ?? '',
     phone: profile?.phone ?? '',
   })
+  const [passwordDrafts, setPasswordDrafts] = useState({
+    email: '',
+    phone: '',
+  })
+  const [fieldErrors, setFieldErrors] = useState({
+    email: '',
+    phone: '',
+  })
+  const [visiblePasswords, setVisiblePasswords] = useState({
+    email: false,
+    phone: false,
+  })
   const [editingField, setEditingField] = useState('')
-  const [contactFeedback, setContactFeedback] = useState('')
+  const [savingField, setSavingField] = useState('')
+  const [contactFeedback, setContactFeedback] = useState({
+    message: '',
+    tone: 'success',
+  })
 
   useEffect(() => {
     const nextContactInfo = {
@@ -184,17 +339,56 @@ function ProfileHero({
 
     setContactInfo(nextContactInfo)
     setDraftInfo(nextContactInfo)
+    setPasswordDrafts({
+      email: '',
+      phone: '',
+    })
+    setFieldErrors({
+      email: '',
+      phone: '',
+    })
+    setVisiblePasswords({
+      email: false,
+      phone: false,
+    })
     setEditingField('')
-    setContactFeedback('')
+    setSavingField('')
+    setContactFeedback({
+      message: '',
+      tone: 'success',
+    })
   }, [profile?.email, profile?.phone])
+
+  function clearFieldError(field) {
+    setFieldErrors((currentErrors) => ({
+      ...currentErrors,
+      [field]: '',
+    }))
+  }
+
+  function clearAllFeedback(field) {
+    clearFieldError(field)
+    setContactFeedback({
+      message: '',
+      tone: 'success',
+    })
+  }
 
   function handleEdit(field) {
     setDraftInfo((currentDraft) => ({
       ...currentDraft,
       [field]: contactInfo[field] ?? '',
     }))
+    setPasswordDrafts((currentPasswords) => ({
+      ...currentPasswords,
+      [field]: '',
+    }))
+    clearAllFeedback(field)
+    setVisiblePasswords((currentVisibility) => ({
+      ...currentVisibility,
+      [field]: false,
+    }))
     setEditingField(field)
-    setContactFeedback('')
   }
 
   function handleDraftChange(field, value) {
@@ -202,7 +396,22 @@ function ProfileHero({
       ...currentDraft,
       [field]: value,
     }))
-    setContactFeedback('')
+    clearAllFeedback(field)
+  }
+
+  function handlePasswordChange(field, value) {
+    setPasswordDrafts((currentPasswords) => ({
+      ...currentPasswords,
+      [field]: value,
+    }))
+    clearAllFeedback(field)
+  }
+
+  function handleTogglePasswordVisibility(field) {
+    setVisiblePasswords((currentVisibility) => ({
+      ...currentVisibility,
+      [field]: !currentVisibility[field],
+    }))
   }
 
   function handleCancel(field) {
@@ -210,37 +419,149 @@ function ProfileHero({
       ...currentDraft,
       [field]: contactInfo[field] ?? '',
     }))
+    setPasswordDrafts((currentPasswords) => ({
+      ...currentPasswords,
+      [field]: '',
+    }))
+    clearAllFeedback(field)
+    setVisiblePasswords((currentVisibility) => ({
+      ...currentVisibility,
+      [field]: false,
+    }))
     setEditingField('')
-    setContactFeedback('')
+    setSavingField('')
   }
 
-  function handleSave(field) {
+  async function handleSave(field) {
     const nextValue = draftInfo[field]?.trim() ?? ''
-    const isValid = field === 'email' ? isValidEmail(nextValue) : isValidPhone(nextValue)
+    const currentPassword = passwordDrafts[field]?.trim() ?? ''
+    const unchangedMessage = field === 'email'
+      ? 'Bạn chưa thay đổi email nên hệ thống chưa thể xác nhận cập nhật.'
+      : 'Bạn chưa thay đổi số điện thoại nên hệ thống chưa thể xác nhận cập nhật.'
 
-    if (!isValid) {
-      setContactFeedback(
-        field === 'email'
-          ? 'Email chưa đúng định dạng.'
-          : 'Số điện thoại cần từ 8 đến 20 ký tự hợp lệ.',
-      )
+    if (field === 'email' && !isValidEmail(nextValue)) {
+      const nextErrorMessage = 'Email chưa đúng định dạng.'
+
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: nextErrorMessage,
+      }))
+      setContactFeedback({
+        message: nextErrorMessage,
+        tone: 'error',
+      })
       return
     }
 
-    setContactInfo((currentInfo) => ({
-      ...currentInfo,
-      [field]: nextValue,
-    }))
-    setDraftInfo((currentDraft) => ({
-      ...currentDraft,
-      [field]: nextValue,
-    }))
-    setEditingField('')
-    setContactFeedback(
-      field === 'email'
-        ? 'Đã cập nhật email trong giao diện demo.'
-        : 'Đã cập nhật số điện thoại trong giao diện demo.',
-    )
+    if (field === 'phone' && !isValidPhone(nextValue)) {
+      const nextErrorMessage = 'Số điện thoại cần từ 8 đến 20 ký tự hợp lệ.'
+
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: nextErrorMessage,
+      }))
+      setContactFeedback({
+        message: nextErrorMessage,
+        tone: 'error',
+      })
+      return
+    }
+
+    if (!currentPassword) {
+      const nextErrorMessage = 'Bạn cần nhập đúng mật khẩu hiện tại để xác nhận thay đổi.'
+
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: nextErrorMessage,
+      }))
+      setContactFeedback({
+        message: nextErrorMessage,
+        tone: 'error',
+      })
+      return
+    }
+
+    if (isUnchangedContactValue(field, nextValue, contactInfo[field] ?? '')) {
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: unchangedMessage,
+      }))
+      setContactFeedback({
+        message: unchangedMessage,
+        tone: 'error',
+      })
+      return
+    }
+
+    clearAllFeedback(field)
+    setSavingField(field)
+
+    try {
+      if (field === 'email') {
+        await requestChangeEmail({
+          current_password: currentPassword,
+          new_email: nextValue.toLowerCase(),
+        })
+
+        setPasswordDrafts((currentPasswords) => ({
+          ...currentPasswords,
+          email: '',
+        }))
+        setVisiblePasswords((currentVisibility) => ({
+          ...currentVisibility,
+          email: false,
+        }))
+        setEditingField('')
+        setContactFeedback({
+          message:
+            'Đã gửi email xác nhận tới địa chỉ mới. Vui lòng kiểm tra hộp thư để hoàn tất thay đổi.',
+          tone: 'success',
+        })
+        return
+      }
+
+      const response = await updateCurrentProfile({
+        current_password: currentPassword,
+        phone: nextValue,
+      })
+
+      const nextPhone = response?.data?.phone ?? nextValue
+
+      setContactInfo((currentInfo) => ({
+        ...currentInfo,
+        phone: nextPhone,
+      }))
+      setDraftInfo((currentDraft) => ({
+        ...currentDraft,
+        phone: nextPhone,
+      }))
+      setPasswordDrafts((currentPasswords) => ({
+        ...currentPasswords,
+        phone: '',
+      }))
+      setVisiblePasswords((currentVisibility) => ({
+        ...currentVisibility,
+        phone: false,
+      }))
+      setEditingField('')
+      setContactFeedback({
+        message: 'Đã cập nhật số điện thoại thành công.',
+        tone: 'success',
+      })
+    } catch (error) {
+      const nextErrorMessage = getApiErrorMessage(field, error)
+
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: nextErrorMessage,
+      }))
+      setContactFeedback({
+        message: nextErrorMessage,
+        tone: 'error',
+      })
+    } finally {
+      setSavingField('')
+    }
   }
 
   return (
@@ -298,39 +619,54 @@ function ProfileHero({
 
             <div className="profile-hero__member-meta">
               <EditableContactField
+                errorMessage={fieldErrors.email}
                 field="email"
                 icon={<MailIcon />}
                 inputMode="email"
                 isEditing={editingField === 'email'}
+                isPasswordVisible={visiblePasswords.email}
+                isSaving={savingField === 'email'}
                 label="Email liên hệ"
                 onCancel={handleCancel}
                 onChange={handleDraftChange}
                 onEdit={handleEdit}
+                onPasswordChange={handlePasswordChange}
                 onSave={handleSave}
+                onTogglePasswordVisibility={handleTogglePasswordVisibility}
+                passwordValue={passwordDrafts.email}
                 placeholder="name@example.com"
                 type="email"
                 value={editingField === 'email' ? draftInfo.email : contactInfo.email}
               />
 
               <EditableContactField
+                errorMessage={fieldErrors.phone}
                 field="phone"
                 icon={<PhoneIcon />}
                 inputMode="tel"
                 isEditing={editingField === 'phone'}
+                isPasswordVisible={visiblePasswords.phone}
+                isSaving={savingField === 'phone'}
                 label="Số điện thoại liên hệ"
                 onCancel={handleCancel}
                 onChange={handleDraftChange}
                 onEdit={handleEdit}
+                onPasswordChange={handlePasswordChange}
                 onSave={handleSave}
+                onTogglePasswordVisibility={handleTogglePasswordVisibility}
+                passwordValue={passwordDrafts.phone}
                 placeholder="090 234 5678"
                 type="tel"
                 value={editingField === 'phone' ? draftInfo.phone : contactInfo.phone}
               />
             </div>
 
-            {contactFeedback ? (
-              <p className="profile-hero__member-feedback" role="status">
-                {contactFeedback}
+            {contactFeedback.message ? (
+              <p
+                className={`profile-hero__member-feedback profile-hero__member-feedback--${contactFeedback.tone}`}
+                role="status"
+              >
+                {contactFeedback.message}
               </p>
             ) : null}
 

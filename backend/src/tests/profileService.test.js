@@ -554,6 +554,7 @@ test('updateCurrentProfile updates full_name and phone, sets updated_at, and ret
               deleted_at: null,
               full_name: 'Nguyen Van A',
               id: 'user-1',
+              password_hash: 'stored-password-hash',
               phone: '0909000000',
               status: 'active',
             },
@@ -603,6 +604,11 @@ test('updateCurrentProfile updates full_name and phone, sets updated_at, and ret
     },
   };
   const service = createProfileService({
+    bcryptCompareImpl: async (plainTextPassword, hashedPassword) => {
+      assert.equal(plainTextPassword, 'CurrentPassword123');
+      assert.equal(hashedPassword, 'stored-password-hash');
+      return true;
+    },
     now: () => fixedNow,
     withTransactionImpl: async (callback) => callback(client),
   });
@@ -610,6 +616,7 @@ test('updateCurrentProfile updates full_name and phone, sets updated_at, and ret
   const profile = await service.updateCurrentProfile({
     ipAddress: '127.0.0.1',
     payload: {
+      current_password: 'CurrentPassword123',
       full_name: '  Nguyen Van B  ',
       phone: '   ',
     },
@@ -647,6 +654,90 @@ test('updateCurrentProfile updates full_name and phone, sets updated_at, and ret
     status: 'active',
     updated_at: '2026-06-30T02:00:00.000Z',
   });
+});
+
+test('updateCurrentProfile rejects missing current_password when updating phone', async () => {
+  const service = createProfileService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-password-hash',
+                  phone: '0909000000',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentProfile({
+        payload: {
+          phone: '0909123456',
+        },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some(
+        (detail) =>
+          detail.field === 'current_password' &&
+          detail.message === 'current_password is required when updating phone',
+      ),
+  );
+});
+
+test('updateCurrentProfile rejects incorrect current_password when updating phone', async () => {
+  const service = createProfileService({
+    bcryptCompareImpl: async () => false,
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-password-hash',
+                  phone: '0909000000',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentProfile({
+        payload: {
+          current_password: 'WrongPassword123',
+          phone: '0909123456',
+        },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.AUTH_INVALID_CREDENTIALS &&
+      error.statusCode === 401,
+  );
 });
 
 test('updateCurrentProfile rejects body without allowed fields', async () => {

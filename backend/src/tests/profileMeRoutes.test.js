@@ -376,6 +376,47 @@ test('PATCH /api/me surfaces validation errors for forbidden fields', async () =
   }
 });
 
+test('PATCH /api/me surfaces invalid current password errors', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+
+  profileService.updateCurrentProfile = async () => {
+    throw new AppError('Current password is incorrect', {
+      code: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      statusCode: 401,
+    });
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me`, {
+      body: JSON.stringify({
+        current_password: 'WrongPassword123',
+        phone: '0909123456',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'PATCH',
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_INVALID_CREDENTIALS);
+  } finally {
+    server.close();
+  }
+});
+
 test('PATCH /api/me/avatar requires access token', async () => {
   const server = app.listen(0);
 

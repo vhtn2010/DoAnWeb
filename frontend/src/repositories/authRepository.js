@@ -1,6 +1,7 @@
 import {
   login as loginWithApiAdapter,
   logout as logoutWithApiAdapter,
+  requestChangeEmail as requestChangeEmailWithApiAdapter,
   refreshSession as refreshSessionWithApiAdapter,
   register as registerWithApiAdapter,
   requestPasswordReset as requestPasswordResetWithApiAdapter,
@@ -13,6 +14,7 @@ import {
 const authAdapter = {
   login: loginWithApiAdapter,
   logout: logoutWithApiAdapter,
+  requestChangeEmail: requestChangeEmailWithApiAdapter,
   refreshSession: refreshSessionWithApiAdapter,
   register: registerWithApiAdapter,
   requestPasswordReset: requestPasswordResetWithApiAdapter,
@@ -44,6 +46,10 @@ export function resetPassword(payload) {
 
 export function refreshSession(payload) {
   return authAdapter.refreshSession(payload)
+}
+
+export function requestChangeEmail(payload) {
+  return authAdapter.requestChangeEmail(payload)
 }
 
 export function logout(payload) {

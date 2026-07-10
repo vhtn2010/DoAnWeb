@@ -44,6 +44,7 @@ function PublicHeader({ publicSession }) {
         />
         <PublicHeaderActions
           customerCartPath={customerCartPath}
+          currentUser={publicSession?.currentUser ?? null}
           customerProfilePath={customerProfilePath}
           favoriteCount={favoriteCount}
           favoritePath={favoritePath}

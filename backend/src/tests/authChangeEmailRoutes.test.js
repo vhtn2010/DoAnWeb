@@ -83,6 +83,7 @@ test('POST /api/auth/change-email/request requires authenticated user', async ()
   try {
     const response = await request(server, `${apiPrefix}/auth/change-email/request`, {
       body: JSON.stringify({
+        current_password: 'CurrentPassword123',
         new_email: 'new@example.com',
       }),
       headers: {
@@ -120,6 +121,7 @@ test('POST /api/auth/change-email/request returns generic success for authentica
   try {
     const response = await request(server, `${apiPrefix}/auth/change-email/request`, {
       body: JSON.stringify({
+        current_password: 'CurrentPassword123',
         new_email: 'new@example.com',
       }),
       headers: {
@@ -137,6 +139,7 @@ test('POST /api/auth/change-email/request returns generic success for authentica
       acknowledged: true,
     });
     assert.deepEqual(capturedPayload, {
+      current_password: 'CurrentPassword123',
       new_email: 'new@example.com',
     });
     assert.equal(capturedContext.userId, 'user-1');
@@ -163,6 +166,7 @@ test('POST /api/auth/change-email/request returns 429 when request rate limit is
     for (let index = 0; index < 6; index += 1) {
       lastResponse = await request(server, `${apiPrefix}/auth/change-email/request`, {
         body: JSON.stringify({
+          current_password: 'CurrentPassword123',
           new_email: 'new@example.com',
         }),
         headers: {
@@ -180,6 +184,38 @@ test('POST /api/auth/change-email/request returns 429 when request rate limit is
       'Too many change email requests. Please try again later.',
     );
     assert.equal(lastResponse.body.error.code, API_ERROR_CODES.RATE_LIMITED);
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/auth/change-email/request surfaces invalid current password errors', async () => {
+  const server = app.listen(0);
+
+  authService.resolveAuthenticatedUser = async () => authenticatedContext;
+  authService.changeEmailRequest = async () => {
+    throw new AppError('Current password is incorrect', {
+      code: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      statusCode: 401,
+    });
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/auth/change-email/request`, {
+      body: JSON.stringify({
+        current_password: 'WrongPassword123',
+        new_email: 'new@example.com',
+      }),
+      headers: {
+        Authorization: createAuthHeader(),
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_INVALID_CREDENTIALS);
   } finally {
     server.close();
   }
