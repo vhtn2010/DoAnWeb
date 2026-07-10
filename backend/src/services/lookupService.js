@@ -1008,6 +1008,21 @@ const mapTrainSearchResult = (train) => ({
   currency: train.currency || DEFAULT_AVAILABILITY_CURRENCY,
 });
 
+const dedupeTrainSearchRows = (rows = []) => {
+  const seenServiceIds = new Set();
+
+  return rows.filter((row) => {
+    const serviceId = row?.service_id;
+
+    if (!serviceId || seenServiceIds.has(serviceId)) {
+      return false;
+    }
+
+    seenServiceIds.add(serviceId);
+    return true;
+  });
+};
+
 const mapComboDetail = ({
   comboItems,
   isBookable,
@@ -1673,9 +1688,18 @@ const createLookupService = ({
     }
 
     if (service.service_type === SERVICE_TYPE.TRAIN) {
-      const detail = await repository.getTrainDetail(service.id);
+      const detail = resolvedReferenceId
+        ? await repository.getTrainDetailById(resolvedReferenceId)
+        : await repository.getTrainDetail(service.id);
 
       if (!detail) {
+        console.error(
+          `Active public service ${service.id} (${service.slug}) is missing train_details.`,
+        );
+        throw buildResourceNotFoundError();
+      }
+
+      if (detail.service_id && detail.service_id !== service.id) {
         console.error(
           `Active public service ${service.id} (${service.slug}) is missing train_details.`,
         );
@@ -2348,8 +2372,9 @@ const createLookupService = ({
     }
 
     const rows = await repository.searchTrains(repositoryFilters);
+    const dedupedRows = dedupeTrainSearchRows(rows);
 
-    return rows.map(mapTrainSearchResult);
+    return dedupedRows.map(mapTrainSearchResult);
   };
 
   return {

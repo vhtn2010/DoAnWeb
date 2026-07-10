@@ -329,7 +329,7 @@ export function buildTrainSearchParams({
   return searchParams
 }
 
-export async function getTrainDetailBySlug(slug) {
+export async function getTrainDetailBySlug(slug, _params = {}) {
   // TODO: replace mock train detail with GET /services/{slug} in API integration phase.
   const train = getTrainFixtureBySlug(slug)
 

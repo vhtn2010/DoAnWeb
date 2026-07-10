@@ -106,6 +106,7 @@ export default function useTrainDetail() {
   const navigate = useNavigate()
   const { slug } = useParams()
   const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const referenceId = new URLSearchParams(location.search).get('reference_id') ?? ''
 
   const [train, setTrain] = useState(null)
   const [relatedTrains, setRelatedTrains] = useState([])
@@ -133,7 +134,9 @@ export default function useTrainDetail() {
       setFeedback(createFeedbackState())
 
       try {
-        const response = await getTrainDetailBySlug(slug)
+        const response = await getTrainDetailBySlug(slug, {
+          reference_id: referenceId,
+        })
 
         if (!isActive) {
           return
@@ -191,7 +194,7 @@ export default function useTrainDetail() {
     return () => {
       isActive = false
     }
-  }, [isCustomer, reloadSeed, slug])
+  }, [isCustomer, referenceId, reloadSeed, slug])
 
   const selectedCar = useMemo(() => {
     return train?.cars?.find((car) => car.id === selectedCarId) ?? train?.cars?.[0] ?? null

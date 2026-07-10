@@ -942,6 +942,144 @@ test('lookupService.searchTrains returns all open trains when query is omitted',
   ]);
 });
 
+test('lookupService.searchTrains deduplicates public train results by service_id', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchTrains: async () => [
+        {
+          arrival_at: '2099-07-20T13:00:00.000Z',
+          arrival_station: 'Ga Hà Nội',
+          currency: 'VND',
+          departure_at: '2099-07-20T03:00:00.000Z',
+          departure_station: 'Ga Sài Gòn',
+          fare_price: '990000',
+          seat_class: 'sleeper',
+          seats_available: '5',
+          service_id: 'train-service-1',
+          slug: 'train-sgn-han',
+          train_detail_id: 'train-detail-1',
+          train_number: 'SE3',
+        },
+        {
+          arrival_at: '2099-07-20T14:00:00.000Z',
+          arrival_station: 'Ga Hà Nội',
+          currency: 'VND',
+          departure_at: '2099-07-20T04:00:00.000Z',
+          departure_station: 'Ga Sài Gòn',
+          fare_price: '1090000',
+          seat_class: 'vip',
+          seats_available: '3',
+          service_id: 'train-service-1',
+          slug: 'train-sgn-han',
+          train_detail_id: 'train-detail-2',
+          train_number: 'SE3',
+        },
+        {
+          arrival_at: '2099-07-21T10:00:00.000Z',
+          arrival_station: 'Ga Đà Nẵng',
+          currency: 'VND',
+          departure_at: '2099-07-21T06:00:00.000Z',
+          departure_station: 'Ga Huế',
+          fare_price: '450000',
+          seat_class: 'soft_seat',
+          seats_available: '8',
+          service_id: 'train-service-2',
+          slug: 'train-hue-dna',
+          train_detail_id: 'train-detail-3',
+          train_number: 'HD1',
+        },
+      ],
+    },
+  });
+
+  const result = await service.searchTrains({});
+
+  assert.deepEqual(result, [
+    {
+      arrival_at: '2099-07-20T13:00:00.000Z',
+      arrival_station: 'Ga Hà Nội',
+      currency: 'VND',
+      departure_at: '2099-07-20T03:00:00.000Z',
+      departure_station: 'Ga Sài Gòn',
+      fare_price: 990000,
+      seat_class: 'sleeper',
+      seats_available: 5,
+      service_id: 'train-service-1',
+      slug: 'train-sgn-han',
+      train_detail_id: 'train-detail-1',
+      train_number: 'SE3',
+    },
+    {
+      arrival_at: '2099-07-21T10:00:00.000Z',
+      arrival_station: 'Ga Đà Nẵng',
+      currency: 'VND',
+      departure_at: '2099-07-21T06:00:00.000Z',
+      departure_station: 'Ga Huế',
+      fare_price: 450000,
+      seat_class: 'soft_seat',
+      seats_available: 8,
+      service_id: 'train-service-2',
+      slug: 'train-hue-dna',
+      train_detail_id: 'train-detail-3',
+      train_number: 'HD1',
+    },
+  ]);
+});
+
+test('lookupService.getServiceDetail uses train reference_id when provided', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceBySlug: async (slug) => {
+        assert.equal(slug, 'train-sgn-han');
+
+        return {
+          id: 'train-service-1',
+          service_type: 'train',
+          title: 'Train SGN - HAN',
+          slug,
+          short_description: 'Night train',
+          description: 'Train detail',
+          provider_name: 'Đường sắt Việt Nam',
+          location_text: 'Hà Nội',
+          base_price: '990000',
+          sale_price: '990000',
+          public_price: '990000',
+          currency: 'VND',
+          cancellation_policy: null,
+          primary_image: null,
+        };
+      },
+      getTrainDetailById: async (referenceId) => {
+        assert.equal(referenceId, '33333333-3333-4333-8333-333333333333');
+
+        return {
+          id: referenceId,
+          service_id: 'train-service-1',
+          train_number: 'SE3',
+          departure_station: 'Ga Sài Gòn',
+          arrival_station: 'Ga Hà Nội',
+          departure_at: '2099-07-20T03:00:00.000Z',
+          arrival_at: '2099-07-20T13:00:00.000Z',
+          seat_class: 'sleeper',
+          seats_available: '5',
+          fare_price: '990000',
+          status: 'open',
+        };
+      },
+    },
+  });
+
+  const result = await service.getServiceDetail({
+    reference_id: '33333333-3333-4333-8333-333333333333',
+    slug: 'train-sgn-han',
+  });
+
+  assert.equal(result.service_type, 'train');
+  assert.equal(result.slug, 'train-sgn-han');
+  assert.equal(result.details.train_number, 'SE3');
+  assert.equal(result.details.seat_class, 'sleeper');
+});
+
 test('lookupService.searchTrains rejects invalid seat class and duplicate route aliases', async () => {
   const service = lookupService.createLookupService({
     repository: {
@@ -2682,6 +2820,61 @@ test('GET /api/services/{slug} forwards reference_id query to service detail loo
       response.body.data.details.id,
       '11111111-1111-4111-8111-111111111111',
     );
+  } finally {
+    lookupService.getServiceDetail = originalGetServiceDetail;
+    server.close();
+  }
+});
+
+test('GET /api/services/{slug} forwards train reference_id query to service detail lookup', async () => {
+  const originalGetServiceDetail = lookupService.getServiceDetail;
+  const server = app.listen(0);
+
+  lookupService.getServiceDetail = async (params) => {
+    assert.deepEqual({ ...params }, {
+      reference_id: '33333333-3333-4333-8333-333333333333',
+      slug: 'train-sgn-han',
+    });
+
+    return {
+      base_price: 990000,
+      cancellation_policy: null,
+      currency: 'VND',
+      description: 'Train detail',
+      details: {
+        arrival_at: '2099-07-20T13:00:00.000Z',
+        arrival_station: 'Ga Hà Nội',
+        departure_at: '2099-07-20T03:00:00.000Z',
+        departure_station: 'Ga Sài Gòn',
+        fare_price: 990000,
+        is_bookable: true,
+        seat_class: 'sleeper',
+        seats_available: 5,
+        train_number: 'SE3',
+      },
+      id: 'train-service-1',
+      location_text: 'Hà Nội',
+      primary_image: null,
+      provider_name: 'Đường sắt Việt Nam',
+      public_price: 990000,
+      sale_price: 990000,
+      service_type: 'train',
+      short_description: 'Night train',
+      slug: 'train-sgn-han',
+      title: 'Train SGN - HAN',
+    };
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/train-sgn-han?reference_id=33333333-3333-4333-8333-333333333333`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.service_type, 'train');
+    assert.equal(response.body.data.slug, 'train-sgn-han');
   } finally {
     lookupService.getServiceDetail = originalGetServiceDetail;
     server.close();

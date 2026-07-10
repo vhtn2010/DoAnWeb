@@ -390,7 +390,7 @@ export default function useTrainList() {
     }
 
     setSelectedTrainId(nextTrain.id)
-    navigate(preserveAuthQuery(`/trains/${nextTrain.slug}`))
+    navigate(preserveAuthQuery(nextTrain.detail_path ?? `/trains/${nextTrain.slug}`))
   }
 
   function retry() {

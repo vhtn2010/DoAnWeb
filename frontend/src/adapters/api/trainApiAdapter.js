@@ -225,7 +225,7 @@ function mapSearchRecordToTrain(record = {}) {
   })
 
   return {
-    id: record.train_detail_id ?? record.service_id ?? record.slug ?? '',
+    id: record.service_id ?? record.train_detail_id ?? record.slug ?? '',
     service_id: record.service_id ?? '',
     service_code: '',
     service_type: SERVICE_TYPES.train,
@@ -527,9 +527,12 @@ export function buildTrainSearchParams({
   return searchParams
 }
 
-export async function getTrainDetailBySlug(slug) {
+export async function getTrainDetailBySlug(slug, { reference_id = '' } = {}) {
   const response = await apiGet(`/services/${encodeURIComponent(slug)}`, {
     auth: false,
+    query: {
+      reference_id,
+    },
   })
   const service = response.data ?? null
 
