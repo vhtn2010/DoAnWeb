@@ -348,11 +348,12 @@ export default function useTrainDetail() {
     }
 
     try {
-      // TODO: replace mock train availability with train availability API in integration phase.
       const availabilityResponse = await checkTrainAvailability({
-        selected_train_id: train.id,
-        selected_car_id: selectedCar.id,
+        quantity: selectedSeats.length,
+        reference_id: train.reference_id,
         selected_seat_ids: selectedSeats.map((seat) => seat.id),
+        selected_train_id: train.id,
+        start_at: train.departure_at,
       })
 
       if (!availabilityResponse.success || !availabilityResponse.data?.is_available) {

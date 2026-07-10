@@ -144,24 +144,6 @@ function sortTrains(trains, sortValue) {
   return nextTrains
 }
 
-function shouldUseFigmaDisplayTotal({
-  departure_date = '',
-  departure_windows = [],
-  from_station = '',
-  price_ranges = [],
-  to_station = '',
-  train_types = [],
-}) {
-  return (
-    from_station === 'SGN' &&
-    to_station === 'HAN' &&
-    departure_date === '2026-10-12' &&
-    !train_types.length &&
-    !price_ranges.length &&
-    !departure_windows.length
-  )
-}
-
 function resolveSelectedSeatArgument(selectedSeatOrSearchState = null) {
   if (
     selectedSeatOrSearchState &&
@@ -248,17 +230,6 @@ export async function listTrains({
   const safePage = Math.min(Math.max(Number(page) || 1, 1), totalPages)
   const startIndex = (safePage - 1) * safeLimit
   const paginatedTrains = filteredTrains.slice(startIndex, startIndex + safeLimit)
-  const totalDisplay = shouldUseFigmaDisplayTotal({
-    departure_date,
-    departure_windows,
-    from_station,
-    price_ranges,
-    to_station,
-    train_types,
-  })
-    ? 35
-    : total
-
   return {
     success: true,
     message: 'OK',
@@ -267,7 +238,7 @@ export async function listTrains({
       page: safePage,
       limit: safeLimit,
       total,
-      total_display: totalDisplay,
+      total_display: total,
       total_pages: totalPages,
       has_next: safePage < totalPages,
       trip_type,

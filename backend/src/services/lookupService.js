@@ -49,6 +49,94 @@ const SORT_OPTION_VALUES = Object.freeze([
   'oldest',
   'popular',
 ]);
+const TRAIN_STATION_OPTIONS = Object.freeze([
+  {
+    code: 'HAN',
+    city: 'Hà Nội',
+    stationName: 'Ga Hà Nội',
+  },
+  {
+    code: 'PLY',
+    city: 'Phủ Lý',
+    stationName: 'Ga Phủ Lý',
+  },
+  {
+    code: 'NDI',
+    city: 'Nam Định',
+    stationName: 'Ga Nam Định',
+  },
+  {
+    code: 'NBI',
+    city: 'Ninh Bình',
+    stationName: 'Ga Ninh Bình',
+  },
+  {
+    code: 'THH',
+    city: 'Thanh Hóa',
+    stationName: 'Ga Thanh Hóa',
+  },
+  {
+    code: 'VIN',
+    city: 'Vinh',
+    stationName: 'Ga Vinh',
+  },
+  {
+    code: 'DBH',
+    city: 'Đồng Hới',
+    stationName: 'Ga Đồng Hới',
+  },
+  {
+    code: 'HUE',
+    city: 'Huế',
+    stationName: 'Ga Huế',
+  },
+  {
+    code: 'DNA',
+    city: 'Đà Nẵng',
+    stationName: 'Ga Đà Nẵng',
+  },
+  {
+    code: 'TAM',
+    city: 'Tam Kỳ',
+    stationName: 'Ga Tam Kỳ',
+  },
+  {
+    code: 'QNG',
+    city: 'Quảng Ngãi',
+    stationName: 'Ga Quảng Ngãi',
+  },
+  {
+    code: 'DTR',
+    city: 'Quy Nhơn',
+    stationName: 'Ga Diêu Trì',
+  },
+  {
+    code: 'THY',
+    city: 'Tuy Hòa',
+    stationName: 'Ga Tuy Hòa',
+  },
+  {
+    code: 'NTR',
+    city: 'Nha Trang',
+    stationName: 'Ga Nha Trang',
+  },
+  {
+    code: 'PCM',
+    city: 'Phan Rang - Tháp Chàm',
+    stationName: 'Ga Tháp Chàm',
+  },
+  {
+    code: 'PHT',
+    city: 'Phan Thiết',
+    stationName: 'Ga Phan Thiết',
+  },
+  {
+    code: 'SGN',
+    city: 'TP. Hồ Chí Minh',
+    stationName: 'Ga Sài Gòn',
+    aliases: ['Hồ Chí Minh', 'Ho Chi Minh', 'Sài Gòn', 'Sai Gon'],
+  },
+]);
 
 const buildValidationError = (field, message) =>
   new AppError('Validation failed', {
@@ -69,6 +157,38 @@ const buildResourceNotFoundError = (message = 'Service not found') =>
   });
 
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
+const stripDiacritics = (value) =>
+  String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+const normalizeSearchKey = (value) =>
+  normalizeWhitespace(stripDiacritics(value)).toLocaleLowerCase(LOCALE);
+const TRAIN_STATION_LOOKUP = (() => {
+  const lookup = new Map();
+
+  for (const station of TRAIN_STATION_OPTIONS) {
+    const candidates = [
+      station.code,
+      station.city,
+      station.stationName,
+      `${station.city} (${station.code})`,
+      station.stationName.replace(/^Ga\s+/i, ''),
+      ...(Array.isArray(station.aliases) ? station.aliases : []),
+    ];
+
+    for (const candidate of candidates) {
+      const normalizedCandidate = normalizeSearchKey(candidate);
+
+      if (normalizedCandidate) {
+        lookup.set(normalizedCandidate, station);
+      }
+    }
+  }
+
+  return lookup;
+})();
 
 const toTitleCase = (value) =>
   value
@@ -987,7 +1107,29 @@ const buildPaginationMeta = ({ limit, page, total }) => {
   };
 };
 
-const parseOptionalTransportRouteQuery = ({ departureDate, from, to }) => {
+const normalizeTransportRouteIdentity = (value) =>
+  String(value).toLocaleLowerCase(LOCALE);
+
+const resolveCanonicalTrainStation = (value) => {
+  const normalizedValue = normalizeSearchKey(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const station = TRAIN_STATION_LOOKUP.get(normalizedValue);
+  return station ? station.stationName : String(value);
+};
+
+const normalizeTrainRouteIdentity = (value) =>
+  normalizeSearchKey(resolveCanonicalTrainStation(value) ?? value);
+
+const parseOptionalTransportRouteQuery = ({
+  departureDate,
+  from,
+  normalizeRouteValue = normalizeTransportRouteIdentity,
+  to,
+}) => {
   const resolvedFrom = parseTextFilter({
     field: 'from',
     maxLength: MAX_LOCATION_LENGTH,
@@ -1004,8 +1146,7 @@ const parseOptionalTransportRouteQuery = ({ departureDate, from, to }) => {
   if (
     resolvedFrom &&
     resolvedTo &&
-    resolvedFrom.toLocaleLowerCase(LOCALE) ===
-    resolvedTo.toLocaleLowerCase(LOCALE)
+    normalizeRouteValue(resolvedFrom) === normalizeRouteValue(resolvedTo)
   ) {
     throw buildValidationError('route', 'from and to must be different');
   }
@@ -1020,13 +1161,7 @@ const parseOptionalTransportRouteQuery = ({ departureDate, from, to }) => {
   };
 };
 
-const parseTransportRouteQuery = ({ departureDate, from, to }) => {
-  const resolvedRoute = parseOptionalTransportRouteQuery({
-    departureDate,
-    from,
-    to,
-  });
-
+const requireTransportRouteQuery = (resolvedRoute) => {
   if (!resolvedRoute.from) {
     throw buildValidationError('from', 'from is required');
   }
@@ -1043,6 +1178,32 @@ const parseTransportRouteQuery = ({ departureDate, from, to }) => {
   }
 
   return resolvedRoute;
+};
+
+const parseTransportRouteQuery = ({ departureDate, from, to }) =>
+  requireTransportRouteQuery(
+    parseOptionalTransportRouteQuery({
+      departureDate,
+      from,
+      to,
+    }),
+  );
+
+const parseTrainRouteQuery = ({ departureDate, from, to }) => {
+  const resolvedRoute = requireTransportRouteQuery(
+    parseOptionalTransportRouteQuery({
+      departureDate,
+      from,
+      normalizeRouteValue: normalizeTrainRouteIdentity,
+      to,
+    }),
+  );
+
+  return {
+    ...resolvedRoute,
+    from: resolveCanonicalTrainStation(resolvedRoute.from) ?? resolvedRoute.from,
+    to: resolveCanonicalTrainStation(resolvedRoute.to) ?? resolvedRoute.to,
+  };
 };
 
 const parseComboFilters = ({
@@ -2180,7 +2341,7 @@ const createLookupService = ({
     seat_class: seatClass,
     to,
   } = {}) => {
-    const resolvedRoute = parseTransportRouteQuery({
+    const resolvedRoute = parseTrainRouteQuery({
       departureDate,
       from,
       to,

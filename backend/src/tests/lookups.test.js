@@ -846,18 +846,18 @@ test('lookupService.searchTrains validates input and returns mapped train result
         assert.deepEqual(filters, {
           departureDateEnd: new Date('2099-07-20T17:00:00.000Z'),
           departureDateStart: new Date('2099-07-19T17:00:00.000Z'),
-          from: 'ha noi',
+          from: 'ga sài gòn',
           seatClass: 'soft_seat',
-          to: 'da nang',
+          to: 'ga đà nẵng',
         });
 
         return [
           {
             arrival_at: '2099-07-20T13:00:00.000Z',
-            arrival_station: 'Da Nang',
+            arrival_station: 'Ga Đà Nẵng',
             currency: 'VND',
             departure_at: '2099-07-20T03:00:00.000Z',
-            departure_station: 'Ha Noi',
+            departure_station: 'Ga Sài Gòn',
             fare_price: '850000',
             seat_class: 'soft_seat',
             seats_available: '12',
@@ -873,7 +873,7 @@ test('lookupService.searchTrains validates input and returns mapped train result
 
   const result = await service.searchTrains({
     departure_date: '2099-07-20',
-    from: ' Ha Noi ',
+    from: ' SGN ',
     seat_class: 'soft_seat',
     to: 'Da Nang',
   });
@@ -881,10 +881,10 @@ test('lookupService.searchTrains validates input and returns mapped train result
   assert.deepEqual(result, [
     {
       arrival_at: '2099-07-20T13:00:00.000Z',
-      arrival_station: 'Da Nang',
+      arrival_station: 'Ga Đà Nẵng',
       currency: 'VND',
       departure_at: '2099-07-20T03:00:00.000Z',
-      departure_station: 'Ha Noi',
+      departure_station: 'Ga Sài Gòn',
       fare_price: 850000,
       seat_class: 'soft_seat',
       seats_available: 12,
@@ -914,6 +914,24 @@ test('lookupService.searchTrains rejects missing from and invalid seat class', a
         {
           field: 'from',
           message: 'from is required',
+        },
+      ]);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => service.searchTrains({
+      departure_date: '2099-07-20',
+      from: 'SGN',
+      to: 'Ga Sai Gon',
+    }),
+    (error) => {
+      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
+      assert.deepEqual(error.details, [
+        {
+          field: 'route',
+          message: 'from and to must be different',
         },
       ]);
       return true;
@@ -2395,18 +2413,18 @@ test('GET /api/services/trains/search returns public train search results', asyn
   lookupService.searchTrains = async (query) => {
     assert.deepEqual({ ...query }, {
       departure_date: '2099-07-20',
-      from: 'Ha Noi',
+      from: 'SGN',
       seat_class: 'sleeper',
-      to: 'Da Nang',
+      to: 'HAN',
     });
 
     return [
       {
         arrival_at: '2099-07-20T13:00:00.000Z',
-        arrival_station: 'Da Nang',
+        arrival_station: 'Ga Hà Nội',
         currency: 'VND',
         departure_at: '2099-07-20T03:00:00.000Z',
-        departure_station: 'Ha Noi',
+        departure_station: 'Ga Sài Gòn',
         fare_price: 990000,
         seat_class: 'sleeper',
         seats_available: 5,
@@ -2421,7 +2439,7 @@ test('GET /api/services/trains/search returns public train search results', asyn
   try {
     const response = await request(
       server,
-      `${apiPrefix}/services/trains/search?from=Ha%20Noi&to=Da%20Nang&departure_date=2099-07-20&seat_class=sleeper`,
+      `${apiPrefix}/services/trains/search?from=SGN&to=HAN&departure_date=2099-07-20&seat_class=sleeper`,
     );
 
     assert.equal(response.statusCode, 200);
@@ -2430,10 +2448,10 @@ test('GET /api/services/trains/search returns public train search results', asyn
     assert.deepEqual(response.body.data, [
       {
         arrival_at: '2099-07-20T13:00:00.000Z',
-        arrival_station: 'Da Nang',
+        arrival_station: 'Ga Hà Nội',
         currency: 'VND',
         departure_at: '2099-07-20T03:00:00.000Z',
-        departure_station: 'Ha Noi',
+        departure_station: 'Ga Sài Gòn',
         fare_price: 990000,
         seat_class: 'sleeper',
         seats_available: 5,

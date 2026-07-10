@@ -165,26 +165,6 @@ function sortFlights(flights, sortValue) {
   return nextFlights
 }
 
-function shouldUseFigmaDisplayTotal({
-  airline_codes = [],
-  departure_date = '',
-  departure_windows = [],
-  from_location = '',
-  price_ranges = [],
-  stop_counts = [],
-  to_location = '',
-}) {
-  return (
-    from_location === 'HAN' &&
-    to_location === 'SGN' &&
-    departure_date === '2026-07-10' &&
-    !airline_codes.length &&
-    !price_ranges.length &&
-    !departure_windows.length &&
-    !stop_counts.length
-  )
-}
-
 export async function listFlights({
   trip_type = DEFAULT_FLIGHT_TRIP_TYPE,
   from_location = '',
@@ -243,18 +223,6 @@ export async function listFlights({
   const safePage = Math.min(Math.max(Number(page) || 1, 1), totalPages)
   const pageStart = (safePage - 1) * safeLimit
   const paginatedFlights = filteredFlights.slice(pageStart, pageStart + safeLimit)
-  const totalDisplay = shouldUseFigmaDisplayTotal({
-    airline_codes,
-    departure_date,
-    departure_windows,
-    from_location,
-    price_ranges,
-    stop_counts,
-    to_location,
-  })
-    ? 35
-    : total
-
   return {
     success: true,
     message: 'OK',
@@ -263,7 +231,7 @@ export async function listFlights({
       page: safePage,
       limit: safeLimit,
       total,
-      total_display: totalDisplay,
+      total_display: total,
       total_pages: totalPages,
       has_next: safePage < totalPages,
       trip_type,
