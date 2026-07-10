@@ -73,7 +73,11 @@ function TrainFilterSidebar({ draftFilters, onApply, onToggle }) {
       </FilterSection>
 
       <div className="train-filter-sidebar__actions">
-        <button className="train-filter-sidebar__button" type="button" onClick={onApply}>
+        <button
+          className="train-filter-sidebar__button train-filter-sidebar__button--primary"
+          type="button"
+          onClick={onApply}
+        >
           Áp dụng bộ lọc
         </button>
       </div>

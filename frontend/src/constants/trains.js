@@ -1,18 +1,18 @@
 export const DEFAULT_TRAIN_PAGE_SIZE = 3
-export const DEFAULT_TRAIN_SORT = 'price_asc'
+export const DEFAULT_TRAIN_SORT = ''
 export const DEFAULT_TRAIN_TRIP_TYPE = 'one_way'
 
 export const DEFAULT_TRAIN_PASSENGERS = Object.freeze({
-  adults: 1,
+  adults: 0,
   children: 0,
   infants: 0,
 })
 
 export const DEFAULT_TRAIN_SEARCH_STATE = Object.freeze({
   trip_type: DEFAULT_TRAIN_TRIP_TYPE,
-  from_station: 'SGN',
-  to_station: 'HAN',
-  departure_date: '2026-10-12',
+  from_station: '',
+  to_station: '',
+  departure_date: '',
   return_date: '',
 })
 

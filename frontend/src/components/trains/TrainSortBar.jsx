@@ -1,4 +1,8 @@
 function getSortLabel(selectedSort) {
+  if (!selectedSort) {
+    return 'Chọn sắp xếp'
+  }
+
   if (selectedSort === 'price_asc') {
     return 'Giá thấp nhất'
   }
@@ -22,8 +26,16 @@ function TrainSortBar({ resultSummary, selectedSort, sortOptions, onSortChange }
   return (
     <div className="train-results__sort-bar">
       <p className="train-results__summary">
-        Tìm thấy <strong>{resultSummary.total}</strong> chuyến tàu từ{' '}
-        <span>{resultSummary.fromLabel}</span> đến <span>{resultSummary.toLabel}</span>
+        {resultSummary.hasRoute ? (
+          <>
+            Tìm thấy <strong>{resultSummary.total}</strong> chuyến tàu từ{' '}
+            <span>{resultSummary.fromLabel}</span> đến <span>{resultSummary.toLabel}</span>
+          </>
+        ) : (
+          <>
+            Hiện có <strong>{resultSummary.total}</strong> chuyến tàu đang mở bán
+          </>
+        )}
       </p>
 
       <label className="train-results__sort-control">
@@ -39,6 +51,7 @@ function TrainSortBar({ resultSummary, selectedSort, sortOptions, onSortChange }
             value={selectedSort}
             onChange={onSortChange}
           >
+            <option value="">Chọn sắp xếp</option>
             {sortOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}

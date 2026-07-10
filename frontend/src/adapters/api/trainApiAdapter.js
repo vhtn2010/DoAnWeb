@@ -164,6 +164,10 @@ function matchesDepartureWindows(train, departureWindows = []) {
 function sortTrains(trains = [], sort = DEFAULT_TRAIN_SORT) {
   const nextTrains = [...trains]
 
+  if (!sort) {
+    return nextTrains
+  }
+
   if (sort === 'price_desc') {
     return nextTrains.sort((leftTrain, rightTrain) => rightTrain.sale_price - leftTrain.sale_price)
   }
@@ -181,7 +185,13 @@ function sortTrains(trains = [], sort = DEFAULT_TRAIN_SORT) {
     )
   }
 
-  return nextTrains.sort((leftTrain, rightTrain) => leftTrain.sale_price - rightTrain.sale_price)
+  if (sort === 'price_asc') {
+    return nextTrains.sort(
+      (leftTrain, rightTrain) => leftTrain.sale_price - rightTrain.sale_price,
+    )
+  }
+
+  return nextTrains
 }
 
 function paginateTrains(trains = [], { limit = DEFAULT_TRAIN_PAGE_SIZE, page = 1 } = {}) {
@@ -328,21 +338,17 @@ async function searchTrainRows({
   seat_class = '',
   to_station = '',
 } = {}) {
-  if (!departure_date || !from_station || !to_station) {
-    return {
-      success: true,
-      message: 'OK',
-      data: [],
-    }
-  }
-
   return apiGet('/services/trains/search', {
     auth: false,
     query: {
-      departure_date,
-      from: String(from_station ?? '').trim(),
+      ...(departure_date ? { departure_date } : {}),
+      ...(String(from_station ?? '').trim()
+        ? { from: String(from_station ?? '').trim() }
+        : {}),
       ...(seat_class ? { seat_class } : {}),
-      to: String(to_station ?? '').trim(),
+      ...(String(to_station ?? '').trim()
+        ? { to: String(to_station ?? '').trim() }
+        : {}),
     },
   })
 }

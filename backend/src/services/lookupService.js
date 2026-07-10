@@ -1161,48 +1161,22 @@ const parseOptionalTransportRouteQuery = ({
   };
 };
 
-const requireTransportRouteQuery = (resolvedRoute) => {
-  if (!resolvedRoute.from) {
-    throw buildValidationError('from', 'from is required');
-  }
-
-  if (!resolvedRoute.to) {
-    throw buildValidationError('to', 'to is required');
-  }
-
-  if (!resolvedRoute.departureDate) {
-    throw buildValidationError(
-      'departure_date',
-      'departure_date is required',
-    );
-  }
-
-  return resolvedRoute;
-};
-
-const parseTransportRouteQuery = ({ departureDate, from, to }) =>
-  requireTransportRouteQuery(
-    parseOptionalTransportRouteQuery({
-      departureDate,
-      from,
-      to,
-    }),
-  );
-
-const parseTrainRouteQuery = ({ departureDate, from, to }) => {
-  const resolvedRoute = requireTransportRouteQuery(
-    parseOptionalTransportRouteQuery({
-      departureDate,
-      from,
-      normalizeRouteValue: normalizeTrainRouteIdentity,
-      to,
-    }),
-  );
+const parseOptionalTrainRouteQuery = ({ departureDate, from, to }) => {
+  const resolvedRoute = parseOptionalTransportRouteQuery({
+    departureDate,
+    from,
+    normalizeRouteValue: normalizeTrainRouteIdentity,
+    to,
+  });
 
   return {
     ...resolvedRoute,
-    from: resolveCanonicalTrainStation(resolvedRoute.from) ?? resolvedRoute.from,
-    to: resolveCanonicalTrainStation(resolvedRoute.to) ?? resolvedRoute.to,
+    from: resolvedRoute.from
+      ? resolveCanonicalTrainStation(resolvedRoute.from) ?? resolvedRoute.from
+      : null,
+    to: resolvedRoute.to
+      ? resolveCanonicalTrainStation(resolvedRoute.to) ?? resolvedRoute.to
+      : null,
   };
 };
 
@@ -2341,7 +2315,7 @@ const createLookupService = ({
     seat_class: seatClass,
     to,
   } = {}) => {
-    const resolvedRoute = parseTrainRouteQuery({
+    const resolvedRoute = parseOptionalTrainRouteQuery({
       departureDate,
       from,
       to,
@@ -2351,16 +2325,29 @@ const createLookupService = ({
       SEAT_CLASS_VALUES,
       seatClass,
     );
-    const departureRange = buildVietnamDateRange(
-      resolvedRoute.departureDate,
-    );
-    const rows = await repository.searchTrains({
-      departureDateEnd: departureRange.end,
-      departureDateStart: departureRange.start,
-      from: resolvedRoute.from.toLocaleLowerCase(LOCALE),
-      seatClass: resolvedSeatClass,
-      to: resolvedRoute.to.toLocaleLowerCase(LOCALE),
-    });
+    const repositoryFilters = {};
+
+    if (resolvedSeatClass) {
+      repositoryFilters.seatClass = resolvedSeatClass;
+    }
+
+    if (resolvedRoute.departureDate) {
+      const departureRange = buildVietnamDateRange(
+        resolvedRoute.departureDate,
+      );
+      repositoryFilters.departureDateEnd = departureRange.end;
+      repositoryFilters.departureDateStart = departureRange.start;
+    }
+
+    if (resolvedRoute.from) {
+      repositoryFilters.from = resolvedRoute.from.toLocaleLowerCase(LOCALE);
+    }
+
+    if (resolvedRoute.to) {
+      repositoryFilters.to = resolvedRoute.to.toLocaleLowerCase(LOCALE);
+    }
+
+    const rows = await repository.searchTrains(repositoryFilters);
 
     return rows.map(mapTrainSearchResult);
   };

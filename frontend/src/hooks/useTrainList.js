@@ -290,19 +290,19 @@ export default function useTrainList() {
   }
 
   function submitSearch() {
-    if (searchState.from_station === searchState.to_station) {
+    if (
+      searchState.from_station &&
+      searchState.to_station &&
+      searchState.from_station === searchState.to_station
+    ) {
       setFeedback(createFeedbackState('error', 'Ga đi và ga đến cần khác nhau.'))
-      return
-    }
-
-    if (!searchState.departure_date) {
-      setFeedback(createFeedbackState('error', 'Vui lòng chọn ngày đi.'))
       return
     }
 
     if (
       searchState.trip_type === 'round_trip' &&
-      (!searchState.departure_date || !searchState.return_date)
+      searchState.departure_date &&
+      !searchState.return_date
     ) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn đủ ngày đi và ngày về.'))
       return
@@ -399,6 +399,7 @@ export default function useTrainList() {
 
   const resultSummary = useMemo(() => {
     return {
+      hasRoute: Boolean(searchState.from_station) && Boolean(searchState.to_station),
       total: meta.total_display ?? meta.total ?? 0,
       fromLabel: getStationLabel(defaults.stations, searchState.from_station),
       toLabel: getStationLabel(defaults.stations, searchState.to_station),

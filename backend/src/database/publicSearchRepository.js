@@ -512,10 +512,6 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
       'active',
       'train',
       'open',
-      from,
-      to,
-      departureDateStart.toISOString(),
-      departureDateEnd.toISOString(),
     ];
     let sql = `
       SELECT
@@ -539,11 +535,24 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
         AND td.status = $3
         AND td.seats_available > 0
         AND td.departure_at >= NOW()
-        AND ${buildNormalizedTextSql('td.departure_station')} = $4
-        AND ${buildNormalizedTextSql('td.arrival_station')} = $5
-        AND td.departure_at >= $6
-        AND td.departure_at < $7
     `;
+
+    if (from) {
+      params.push(from);
+      sql += ` AND ${buildNormalizedTextSql('td.departure_station')} = $${params.length}`;
+    }
+
+    if (to) {
+      params.push(to);
+      sql += ` AND ${buildNormalizedTextSql('td.arrival_station')} = $${params.length}`;
+    }
+
+    if (departureDateStart && departureDateEnd) {
+      params.push(departureDateStart.toISOString());
+      sql += ` AND td.departure_at >= $${params.length}`;
+      params.push(departureDateEnd.toISOString());
+      sql += ` AND td.departure_at < $${params.length}`;
+    }
 
     if (seatClass) {
       params.push(seatClass);

@@ -896,29 +896,58 @@ test('lookupService.searchTrains validates input and returns mapped train result
   ]);
 });
 
-test('lookupService.searchTrains rejects missing from and invalid seat class', async () => {
+test('lookupService.searchTrains returns all open trains when query is omitted', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      searchTrains: async (filters) => {
+        assert.deepEqual(filters, {});
+
+        return [
+          {
+            arrival_at: '2099-07-21T13:00:00.000Z',
+            arrival_station: 'Ga Hà Nội',
+            currency: 'VND',
+            departure_at: '2099-07-20T03:00:00.000Z',
+            departure_station: 'Ga Sài Gòn',
+            fare_price: '990000',
+            seat_class: 'sleeper',
+            seats_available: '5',
+            service_id: 'train-service-2',
+            slug: 'train-sgn-han',
+            train_detail_id: 'train-detail-2',
+            train_number: 'SE5',
+          },
+        ];
+      },
+    },
+  });
+
+  const result = await service.searchTrains();
+
+  assert.deepEqual(result, [
+    {
+      arrival_at: '2099-07-21T13:00:00.000Z',
+      arrival_station: 'Ga Hà Nội',
+      currency: 'VND',
+      departure_at: '2099-07-20T03:00:00.000Z',
+      departure_station: 'Ga Sài Gòn',
+      fare_price: 990000,
+      seat_class: 'sleeper',
+      seats_available: 5,
+      service_id: 'train-service-2',
+      slug: 'train-sgn-han',
+      train_detail_id: 'train-detail-2',
+      train_number: 'SE5',
+    },
+  ]);
+});
+
+test('lookupService.searchTrains rejects invalid seat class and duplicate route aliases', async () => {
   const service = lookupService.createLookupService({
     repository: {
       searchTrains: async () => [],
     },
   });
-
-  await assert.rejects(
-    () => service.searchTrains({
-      departure_date: '2099-07-20',
-      to: 'Da Nang',
-    }),
-    (error) => {
-      assert.equal(error.code, API_ERROR_CODES.VALIDATION_ERROR);
-      assert.deepEqual(error.details, [
-        {
-          field: 'from',
-          message: 'from is required',
-        },
-      ]);
-      return true;
-    },
-  );
 
   await assert.rejects(
     () => service.searchTrains({
@@ -1811,6 +1840,62 @@ test('GET /api/lookups/enums returns public lookup enums and cache headers', asy
     ]);
     assert.match(response.headers['cache-control'], /max-age=86400/);
   } finally {
+    server.close();
+  }
+});
+
+test('GET /api/services/trains/search without query returns all public train results', async () => {
+  const originalSearchTrains = lookupService.searchTrains;
+  const server = app.listen(0);
+
+  lookupService.searchTrains = async (query) => {
+    assert.deepEqual({ ...query }, {});
+
+    return [
+      {
+        arrival_at: '2099-07-20T13:00:00.000Z',
+        arrival_station: 'Ga Hà Nội',
+        currency: 'VND',
+        departure_at: '2099-07-20T03:00:00.000Z',
+        departure_station: 'Ga Sài Gòn',
+        fare_price: 990000,
+        seat_class: 'sleeper',
+        seats_available: 5,
+        service_id: 'train-service-2',
+        slug: 'train-sgn-han',
+        train_detail_id: 'train-detail-2',
+        train_number: 'SE5',
+      },
+    ];
+  };
+
+  try {
+    const response = await request(
+      server,
+      `${apiPrefix}/services/trains/search`,
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.message, 'Trains retrieved successfully');
+    assert.deepEqual(response.body.data, [
+      {
+        arrival_at: '2099-07-20T13:00:00.000Z',
+        arrival_station: 'Ga Hà Nội',
+        currency: 'VND',
+        departure_at: '2099-07-20T03:00:00.000Z',
+        departure_station: 'Ga Sài Gòn',
+        fare_price: 990000,
+        seat_class: 'sleeper',
+        seats_available: 5,
+        service_id: 'train-service-2',
+        slug: 'train-sgn-han',
+        train_detail_id: 'train-detail-2',
+        train_number: 'SE5',
+      },
+    ]);
+  } finally {
+    lookupService.searchTrains = originalSearchTrains;
     server.close();
   }
 });

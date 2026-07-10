@@ -114,7 +114,7 @@ function TrainListPage() {
             ) : loading && !trains.length ? (
               <PublicLoadingBlock
                 className="train-results__state"
-                description="Danh sách đang được đọc từ mock adapter theo pattern API-ready hiện tại."
+                description="Danh sách chuyến tàu đang được cập nhật."
                 rows={4}
                 title="Đang tìm chuyến tàu phù hợp"
               />
@@ -139,12 +139,19 @@ function TrainListPage() {
                   onLoadMore={() => setPage(currentPage + 1)}
                 />
               </>
-            ) : (
+            ) : resultSummary.hasRoute ? (
               <PublicEmptyState
                 className="train-results__state"
                 description="Thử thay đổi ga đi, ga đến, ngày đi hoặc bộ lọc để xem thêm kết quả."
                 eyebrow="Chưa có kết quả"
                 title="Chưa có chuyến tàu phù hợp"
+              />
+            ) : (
+              <PublicEmptyState
+                className="train-results__state"
+                description="Hiện chưa có vé tàu nào đang mở bán để hiển thị."
+                eyebrow="Danh sách trống"
+                title="Chưa có vé tàu khả dụng"
               />
             )}
           </div>
