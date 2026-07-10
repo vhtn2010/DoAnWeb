@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom'
+import { PublicPagination } from '../../components/public/ui/index.js'
 import ServiceCard from '../../components/service/ServiceCard.jsx'
 import useTourServiceList from '../../hooks/useTourServiceList.js'
 
 function ServiceListPage() {
   const {
     breadcrumbHomePath,
-    canGoNext,
-    canGoPrevious,
     categoryOptions,
     currentPage,
     draftFilters,
@@ -18,13 +17,13 @@ function ServiceListPage() {
     handleSortChange,
     handleToggleValue,
     isLoading,
-    paginationPages,
     priceOptions,
     resultCount,
     selectedSort,
     services,
     setDraftFilters,
     sortOptions,
+    totalPages,
   } = useTourServiceList()
 
   return (
@@ -169,39 +168,13 @@ function ServiceListPage() {
                   ))}
                 </div>
 
-                <div className="service-pagination" aria-label="Phân trang tour">
-                  <button
-                    className="service-pagination__button"
-                    disabled={!canGoPrevious}
-                    type="button"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                  >
-                    ‹
-                  </button>
-                  {paginationPages.map((pageNumber) => (
-                    <button
-                      aria-current={pageNumber === currentPage ? 'page' : undefined}
-                      className={`service-pagination__button ${
-                        pageNumber === currentPage
-                          ? 'service-pagination__button--active'
-                          : ''
-                      }`}
-                      key={pageNumber}
-                      type="button"
-                      onClick={() => handlePageChange(pageNumber)}
-                    >
-                      {pageNumber}
-                    </button>
-                  ))}
-                  <button
-                    className="service-pagination__button"
-                    disabled={!canGoNext}
-                    type="button"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                  >
-                    ›
-                  </button>
-                </div>
+                <PublicPagination
+                  ariaLabel="Phân trang tour"
+                  className="service-pagination"
+                  currentPage={currentPage}
+                  onPageChange={handlePageChange}
+                  totalPages={totalPages}
+                />
               </>
             ) : (
               <div className="service-results__empty" role="status">

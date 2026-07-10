@@ -198,16 +198,7 @@ export default function useTrainList() {
           ? response.data.map(mapTrainToCardView)
           : []
 
-        setTrains((currentTrains) => {
-          if (currentPage <= 1) {
-            return mappedTrains
-          }
-
-          const existingIds = new Set(currentTrains.map((train) => train.id))
-          const nextTrains = mappedTrains.filter((train) => !existingIds.has(train.id))
-
-          return [...currentTrains, ...nextTrains]
-        })
+        setTrains(mappedTrains)
         setMeta(response.meta ?? EMPTY_META)
       } catch (loadError) {
         if (!isActive) {
@@ -361,10 +352,13 @@ export default function useTrainList() {
   }
 
   function setPage(nextPage) {
-    if (nextPage === currentPage) {
+    const maxPage = Math.max(1, Number(meta.total_pages) || 1)
+
+    if (nextPage < 1 || nextPage > maxPage || nextPage === currentPage) {
       return
     }
 
+    setSelectedTrainId('')
     setCurrentPage(nextPage)
     syncSearchParams({ nextPage })
   }
@@ -424,7 +418,6 @@ export default function useTrainList() {
     error,
     feedback,
     formatCurrency: formatCurrencyVND,
-    hasMore: Boolean(meta.has_next),
     loading,
     openTrainDetail,
     preserveAuthQuery,
@@ -440,6 +433,7 @@ export default function useTrainList() {
     setSort,
     selectTrain,
     submitSearch,
+    totalPages: meta.total_pages ?? 1,
     trains,
     updatePassengers,
     updateSearchField,

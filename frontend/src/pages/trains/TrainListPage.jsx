@@ -7,25 +7,20 @@ import {
   PublicEmptyState,
   PublicErrorState,
   PublicLoadingBlock,
+  PublicPagination,
 } from '../../components/public/ui/index.js'
 import useTrainList from '../../hooks/useTrainList.js'
 
-function TrainResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
+function TrainResultsFooter({ currentPage, disabled = false, onPageChange, totalPages }) {
   return (
     <div className="train-results__footer">
-      <PublicButton
-        className="train-results__load-more"
-        disabled={!canLoadMore || isLoading}
-        loading={isLoading}
-        variant="secondary"
-        type="button"
-        onClick={onLoadMore}
-      >
-        <span>Xem thêm chuyến tàu</span>
-        <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-          <path d="m7 10 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-        </svg>
-      </PublicButton>
+      <PublicPagination
+        ariaLabel="Phân trang chuyến tàu"
+        currentPage={currentPage}
+        disabled={disabled}
+        onPageChange={onPageChange}
+        totalPages={totalPages}
+      />
     </div>
   )
 }
@@ -39,7 +34,6 @@ function TrainListPage() {
     error,
     feedback,
     formatCurrency,
-    hasMore,
     loading,
     openTrainDetail,
     resultSummary,
@@ -52,6 +46,7 @@ function TrainListPage() {
     setSort,
     selectTrain,
     submitSearch,
+    totalPages,
     trains,
     updatePassengers,
     updateSearchField,
@@ -134,9 +129,10 @@ function TrainListPage() {
                 </div>
 
                 <TrainResultsFooter
-                  canLoadMore={hasMore}
-                  isLoading={loading}
-                  onLoadMore={() => setPage(currentPage + 1)}
+                  currentPage={currentPage}
+                  disabled={loading}
+                  onPageChange={setPage}
+                  totalPages={totalPages}
                 />
               </>
             ) : resultSummary.hasRoute ? (

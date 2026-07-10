@@ -13,7 +13,6 @@ function TrainListPageV2() {
     error,
     feedback,
     formatCurrency,
-    hasMore,
     loading,
     openTrainDetail,
     resultSummary,
@@ -26,6 +25,7 @@ function TrainListPageV2() {
     setSort,
     selectTrain,
     submitSearch,
+    totalPages,
     trains,
     updatePassengers,
     updateSearchField,
@@ -63,7 +63,6 @@ function TrainListPageV2() {
             currentPage={currentPage}
             error={error}
             formatCurrency={formatCurrency}
-            hasMore={hasMore}
             loading={loading}
             openTrainDetail={openTrainDetail}
             resultSummary={resultSummary}
@@ -74,6 +73,7 @@ function TrainListPageV2() {
             setPage={setPage}
             setSort={setSort}
             sortOptions={defaults.sort_options}
+            totalPages={totalPages}
             trains={trains}
           />
         </div>

@@ -12,7 +12,6 @@ export default function TrainResultsSection({
   currentPage,
   error,
   formatCurrency,
-  hasMore,
   loading,
   openTrainDetail,
   resultSummary,
@@ -23,6 +22,7 @@ export default function TrainResultsSection({
   setPage,
   setSort,
   sortOptions,
+  totalPages,
   trains,
 }) {
   return (
@@ -69,9 +69,10 @@ export default function TrainResultsSection({
           </div>
 
           <TrainResultsFooter
-            canLoadMore={hasMore}
-            isLoading={loading}
-            onLoadMore={() => setPage(currentPage + 1)}
+            currentPage={currentPage}
+            disabled={loading}
+            onPageChange={setPage}
+            totalPages={totalPages}
           />
         </>
       ) : resultSummary.hasRoute ? (

@@ -14,7 +14,6 @@ function FlightListPageV2() {
     feedback,
     flights,
     formatCurrency,
-    hasMore,
     loading,
     openFlightDetail,
     resultSummary,
@@ -27,6 +26,7 @@ function FlightListPageV2() {
     setPage,
     setSort,
     submitSearch,
+    totalPages,
     updatePassengers,
     updateSearchField,
     updateTripType,
@@ -66,7 +66,6 @@ function FlightListPageV2() {
             error={error}
             flights={flights}
             formatCurrency={formatCurrency}
-            hasMore={hasMore}
             loading={loading}
             openFlightDetail={openFlightDetail}
             resultSummary={resultSummary}
@@ -77,6 +76,7 @@ function FlightListPageV2() {
             setPage={setPage}
             setSort={setSort}
             sortOptions={defaults.sort_options}
+            totalPages={totalPages}
           />
         </div>
       </section>

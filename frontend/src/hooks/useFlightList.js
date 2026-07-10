@@ -214,16 +214,7 @@ export default function useFlightList() {
           ? response.data.map(mapFlightToCardView)
           : []
 
-        setFlights((currentFlights) => {
-          if (currentPage <= 1) {
-            return mappedFlights
-          }
-
-          const existingIds = new Set(currentFlights.map((flight) => flight.id))
-          const nextFlights = mappedFlights.filter((flight) => !existingIds.has(flight.id))
-
-          return [...currentFlights, ...nextFlights]
-        })
+        setFlights(mappedFlights)
         if (Array.isArray(response.meta?.airlines)) {
           setDefaults((currentDefaults) => ({
             ...currentDefaults,
@@ -395,10 +386,13 @@ export default function useFlightList() {
   }
 
   function setPage(nextPage) {
-    if (nextPage === currentPage) {
+    const maxPage = Math.max(1, Number(meta.total_pages) || 1)
+
+    if (nextPage < 1 || nextPage > maxPage || nextPage === currentPage) {
       return
     }
 
+    setSelectedFlightId('')
     setCurrentPage(nextPage)
     syncSearchParams({ nextPage })
   }
@@ -446,7 +440,6 @@ export default function useFlightList() {
     feedback,
     flights,
     formatCurrency: formatCurrencyVND,
-    hasMore: Boolean(meta.has_next),
     loading,
     openFlightDetail,
     preserveAuthQuery,
@@ -461,6 +454,7 @@ export default function useFlightList() {
     setPage,
     setSort,
     submitSearch,
+    totalPages: meta.total_pages ?? 1,
     updatePassengers,
     updateSearchField,
     updateTripType,
