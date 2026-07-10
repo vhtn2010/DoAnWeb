@@ -17,7 +17,7 @@ import {
   deleteMyNotification,
   getMyNotificationDetail,
   listMyNotifications,
-  markMyNotificationsBulkRead,
+  markAllMyNotificationsRead,
   markMyNotificationRead,
 } from '../../repositories/notificationRepository.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
@@ -264,6 +264,10 @@ function NotificationsPage() {
     () => visibleNotifications.filter((notification) => !notification.read_at).length,
     [visibleNotifications],
   )
+  const hasUnreadNotifications = useMemo(
+    () => notifications.some((notification) => !notification.read_at),
+    [notifications],
+  )
 
   useEffect(() => {
     if (!visibleNotifications.length) {
@@ -369,34 +373,23 @@ function NotificationsPage() {
   const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
 
   async function handleMarkAllRead() {
-    const unreadVisibleNotificationIds = visibleNotifications
-      .filter((notification) => !notification.read_at)
-      .map((notification) => notification.id)
-
-    if (!unreadVisibleNotificationIds.length) {
+    if (!hasUnreadNotifications) {
       return
     }
 
     try {
-      const response = await markMyNotificationsBulkRead(unreadVisibleNotificationIds)
+      const response = await markAllMyNotificationsRead()
       const readTimestamp = new Date().toISOString()
 
       setNotifications((currentItems) =>
         currentItems.map((item) => ({
           ...item,
-          read_at:
-            unreadVisibleNotificationIds.includes(item.id) && !item.read_at
-              ? readTimestamp
-              : item.read_at,
-          status:
-            unreadVisibleNotificationIds.includes(item.id) && !item.read_at
-              ? 'read'
-              : item.status,
+          read_at: item.read_at || readTimestamp,
+          status: item.read_at ? item.status : 'read',
         })),
       )
       setSelectedNotification((currentDetail) =>
         currentDetail
-          && unreadVisibleNotificationIds.includes(currentDetail.id)
           ? {
               ...currentDetail,
               read_at: currentDetail.read_at || readTimestamp,
@@ -406,7 +399,7 @@ function NotificationsPage() {
       )
       setFeedback({
         message:
-          response?.message || 'Các thông báo quan trọng trong danh sách này đã được đánh dấu đã đọc.',
+          response?.message || 'Tất cả thông báo trong tài khoản của bạn đã được đánh dấu đã đọc.',
         tone: 'success',
       })
     } catch (markError) {
@@ -514,7 +507,7 @@ function NotificationsPage() {
               <PublicSectionHeader
                 actions={
                   <PublicButton
-                    disabled={visibleNotifications.length === 0 || visibleUnreadCount === 0}
+                    disabled={visibleNotifications.length === 0 || !hasUnreadNotifications}
                     type="button"
                     variant="secondary"
                     onClick={handleMarkAllRead}

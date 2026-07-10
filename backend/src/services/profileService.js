@@ -15,6 +15,11 @@ const ACCOUNT_DEACTIVATION_REQUEST_ACTION = 'account.deactivation_requested';
 const ALLOWED_UPDATE_FIELDS = new Set(['current_password', 'full_name', 'phone']);
 const ALLOWED_AVATAR_FIELDS = new Set(['avatar_url']);
 const ALLOWED_PASSWORD_FIELDS = new Set(['current_password', 'new_password']);
+const CURRENT_USER_VOUCHER_EXCLUDED_BOOKING_STATUSES = [
+  'cancelled',
+  'failed',
+  'expired',
+];
 const LOG_METADATA_SENSITIVE_KEYS = new Set([
   'access_token',
   'authorization',
@@ -130,6 +135,8 @@ const trimToNull = (value) => {
   return normalizedValue || null;
 };
 
+const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
+
 const parsePositiveInteger = (value) => {
   if (value == null || value === '') {
     return null;
@@ -175,6 +182,89 @@ const mapUserLogRow = (row) => ({
   metadata: maskSensitiveMetadata(row.metadata || null),
   user_agent: row.user_agent,
 });
+
+const isDateWithinWindow = (value, currentTime) => {
+  if (!value) {
+    return false;
+  }
+
+  return currentTime <= new Date(value);
+};
+
+const formatVoucherTitle = (voucher) => {
+  const promotionName = trimToNull(voucher.promotion_name);
+  const discountValue = Number(voucher.discount_value || 0);
+
+  if (promotionName) {
+    return promotionName;
+  }
+
+  if (voucher.discount_type === 'percent') {
+    return `Giảm ${discountValue}%`;
+  }
+
+  return `Giảm ${roundMoney(discountValue)}`;
+};
+
+const mapCurrentUserVoucherRow = (row, currentTime) => {
+  const userUsageCount = Number(row.user_usage_count || 0);
+  const totalUsageReached =
+    row.usage_limit_total != null &&
+    Number(row.used_count || 0) >= Number(row.usage_limit_total);
+  const userUsageReached =
+    row.usage_limit_per_user != null &&
+    userUsageCount >= Number(row.usage_limit_per_user);
+  const promotionActive =
+    row.promotion_status === 'active' &&
+    currentTime >= new Date(row.promotion_valid_from) &&
+    isDateWithinWindow(row.promotion_valid_to, currentTime);
+  const voucherActive =
+    row.voucher_status === 'active' &&
+    currentTime >= new Date(row.voucher_valid_from) &&
+    isDateWithinWindow(row.voucher_valid_to, currentTime);
+  const isActiveForCurrentUser =
+    promotionActive &&
+    voucherActive &&
+    !totalUsageReached &&
+    !userUsageReached;
+  const status = isActiveForCurrentUser
+    ? 'active'
+    : userUsageCount > 0
+      ? 'used'
+      : 'expired';
+
+  return {
+    code: row.code,
+    description:
+      trimToNull(row.promotion_description) ||
+      'Ưu đãi đang được áp dụng cho các dịch vụ phù hợp trên hệ thống.',
+    discount_type: row.discount_type,
+    discount_value: Number(row.discount_value),
+    id: row.id,
+    max_discount_amount:
+      row.max_discount_amount == null
+        ? null
+        : Number(row.max_discount_amount),
+    min_order_amount: Number(row.min_order_amount || 0),
+    promotion: {
+      id: row.promotion_id,
+      name: trimToNull(row.promotion_name) || 'Ưu đãi hệ thống',
+      status: row.promotion_status,
+    },
+    status,
+    target_service_type: row.target_service_type || null,
+    title: formatVoucherTitle(row),
+    usage_limit_per_user: Number(row.usage_limit_per_user || 0),
+    usage_limit_total:
+      row.usage_limit_total == null ? null : Number(row.usage_limit_total),
+    used_at: row.last_used_at?.toISOString?.() || row.last_used_at || null,
+    user_usage_count: userUsageCount,
+    valid_from:
+      row.voucher_valid_from?.toISOString?.() || row.voucher_valid_from || null,
+    valid_to:
+      row.voucher_valid_to?.toISOString?.() || row.voucher_valid_to || null,
+  };
+};
 
 const buildDisallowedFieldDetails = (
   fields,
@@ -728,6 +818,79 @@ const findPendingDeactivationRequest = async (client, userId) => {
   return result.rows[0] || null;
 };
 
+const listCurrentUserVoucherRows = async (queryExecutor, userId, currentTime) => {
+  const result = await queryExecutor(
+    `
+      WITH user_voucher_usage AS (
+        SELECT
+          b.voucher_id,
+          COUNT(*)::int AS usage_count,
+          MAX(b.created_at) AS last_used_at
+        FROM bookings b
+        WHERE b.user_id = $1
+          AND b.voucher_id IS NOT NULL
+          AND b.status::text <> ALL($2::text[])
+        GROUP BY b.voucher_id
+      )
+      SELECT
+        v.id,
+        v.promotion_id,
+        v.code,
+        v.discount_type,
+        v.discount_value,
+        v.max_discount_amount,
+        v.min_order_amount,
+        v.usage_limit_total,
+        v.usage_limit_per_user,
+        v.used_count,
+        v.status AS voucher_status,
+        v.valid_from AS voucher_valid_from,
+        v.valid_to AS voucher_valid_to,
+        p.name AS promotion_name,
+        p.description AS promotion_description,
+        p.status AS promotion_status,
+        p.valid_from AS promotion_valid_from,
+        p.valid_to AS promotion_valid_to,
+        p.target_service_type,
+        COALESCE(uvu.usage_count, 0) AS user_usage_count,
+        uvu.last_used_at
+      FROM vouchers v
+      INNER JOIN promotions p
+        ON p.id = v.promotion_id
+      LEFT JOIN user_voucher_usage uvu
+        ON uvu.voucher_id = v.id
+      WHERE COALESCE(uvu.usage_count, 0) > 0
+      ORDER BY
+        CASE
+          WHEN (
+            p.status = 'active'
+            AND v.status = 'active'
+            AND p.valid_from <= $3
+            AND p.valid_to >= $3
+            AND v.valid_from <= $3
+            AND v.valid_to >= $3
+            AND COALESCE(uvu.usage_count, 0) < v.usage_limit_per_user
+            AND (
+              v.usage_limit_total IS NULL
+              OR v.used_count < v.usage_limit_total
+            )
+          ) THEN 0
+          ELSE 1
+        END ASC,
+        COALESCE(uvu.last_used_at, LEAST(v.valid_to, p.valid_to)) DESC,
+        v.created_at DESC,
+        v.id ASC
+    `,
+    [
+      userId,
+      CURRENT_USER_VOUCHER_EXCLUDED_BOOKING_STATUSES,
+      currentTime,
+    ],
+  );
+
+  return result.rows;
+};
+
 const createProfileService = ({
   bcryptCompareImpl = bcrypt.compare,
   bcryptHashImpl = bcrypt.hash,
@@ -790,6 +953,16 @@ const createProfileService = ({
         total_pages: totalPages,
       },
     };
+  };
+
+  const getCurrentUserVouchers = async ({ userId }) => {
+    const currentUser = await loadCurrentUserState(queryImpl, userId);
+
+    ensureCurrentUserIsActive(currentUser, 'view');
+    const currentTime = now();
+    const rows = await listCurrentUserVoucherRows(queryImpl, userId, currentTime);
+
+    return rows.map((row) => mapCurrentUserVoucherRow(row, currentTime));
   };
 
   const updateCurrentProfile = async ({ payload, userId, ipAddress, userAgent }) => {
@@ -1009,6 +1182,7 @@ const createProfileService = ({
   return {
     getCurrentProfile,
     getCurrentUserLogs,
+    getCurrentUserVouchers,
     requestAccountDeactivation,
     updateCurrentAvatar,
     updateCurrentPassword,

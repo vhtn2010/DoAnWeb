@@ -29,11 +29,23 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .profile-dashboard__utility-cell .profile-shortcut-panel {
   height: 100%;
+}
+
+.profile-dashboard__utility-cell--stack {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 24px;
+}
+
+.profile-dashboard__logout-area {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 @media (max-width: 1100px) {

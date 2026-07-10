@@ -21,12 +21,15 @@ function LockIcon() {
 }
 
 function PaymentOrderSummary({
+  canCancelPayment = false,
   disableVoucherEditing = false,
   feedback,
+  isCancellingPayment = false,
   isDisabled,
   isPaid,
   isSubmitting = false,
   onApplyVoucher,
+  onCancelPayment,
   onPay,
   onVoucherChange,
   payLabel,
@@ -67,7 +70,7 @@ function PaymentOrderSummary({
         </label>
         <div className="payment-order-summary__voucher-controls">
           <input
-            disabled={disableVoucherEditing || isSubmitting}
+            disabled={disableVoucherEditing || isSubmitting || isCancellingPayment}
             id="payment-voucher-code"
             placeholder="Nhập mã ưu đãi"
             type="text"
@@ -75,7 +78,7 @@ function PaymentOrderSummary({
             onChange={onVoucherChange}
           />
           <button
-            disabled={disableVoucherEditing || isSubmitting}
+            disabled={disableVoucherEditing || isSubmitting || isCancellingPayment}
             type="button"
             onClick={onApplyVoucher}
           >
@@ -91,12 +94,23 @@ function PaymentOrderSummary({
 
       <button
         className="payment-order-summary__button"
-        disabled={isDisabled || isSubmitting}
+        disabled={isDisabled || isSubmitting || isCancellingPayment}
         type="button"
         onClick={onPay}
       >
         {isSubmitting ? 'Đang xử lý...' : payLabel ?? (isPaid ? 'Đã thanh toán' : 'Thanh toán')}
       </button>
+
+      {canCancelPayment ? (
+        <button
+          className="payment-order-summary__secondary-button"
+          disabled={isSubmitting || isCancellingPayment}
+          type="button"
+          onClick={onCancelPayment}
+        >
+          {isCancellingPayment ? 'Đang hủy yêu cầu...' : 'Hủy yêu cầu thanh toán'}
+        </button>
+      ) : null}
 
       <p className="payment-order-summary__security-note">
         <span aria-hidden="true">

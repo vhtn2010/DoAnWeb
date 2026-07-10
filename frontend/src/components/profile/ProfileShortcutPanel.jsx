@@ -102,6 +102,27 @@ function ShortcutIcon({ icon }) {
     )
   }
 
+  if (icon === 'logout') {
+    return (
+      <svg fill="none" viewBox="0 0 24 24">
+        <path
+          d="M10 6.5H7.5A2.5 2.5 0 0 0 5 9v6a2.5 2.5 0 0 0 2.5 2.5H10"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M13 8.5 18 12l-5 3.5M18 12H9"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        />
+      </svg>
+    )
+  }
+
   return (
     <svg fill="none" viewBox="0 0 24 24">
       <path

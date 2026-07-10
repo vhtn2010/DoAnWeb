@@ -149,8 +149,8 @@ function HelpCenterPage() {
           <span className="help-center-hero__pill">Self-service FAQ</span>
           <strong>{filteredArticles.length} bài viết phù hợp với lựa chọn hiện tại</strong>
           <p>
-            Nội dung được trình bày theo pattern API-ready, đủ để người dùng tự tra cứu và
-            giúp đội phát triển dễ thay bằng dữ liệu thật sau này.
+            Các câu hỏi được sắp theo từng nhóm để bạn tra cứu nhanh và chuyển sang chat
+            hỗ trợ khi cần.
           </p>
         </div>
       </section>

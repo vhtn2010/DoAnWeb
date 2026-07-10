@@ -56,8 +56,8 @@ function TrainDetailTopActions({ isFavorite, onToggleFavorite }) {
 
 function TrainDetailPage() {
   const {
-    addToCartMock,
-    bookNowMock,
+    addToCartAction,
+    bookNowAction,
     bookingSummary,
     closeLoginPrompt,
     error,
@@ -131,7 +131,7 @@ function TrainDetailPage() {
           <section className="train-detail-state-card" role="status">
             <p className="train-detail-state-card__eyebrow">Đang tải</p>
             <h1>Chi tiết vé tàu đang được chuẩn bị</h1>
-            <p>Dữ liệu đang được đọc từ mock adapter theo đúng pattern API-ready hiện tại.</p>
+            <p>Hệ thống đang tải lịch trình, chỗ ngồi và giá vé phù hợp cho chuyến bạn đang xem.</p>
           </section>
         </div>
       </div>
@@ -192,8 +192,8 @@ function TrainDetailPage() {
             <TrainBookingSummary
               bookingSummary={bookingSummary}
               formatCurrency={formatCurrency}
-              onAddToCart={addToCartMock}
-              onBookNow={bookNowMock}
+              onAddToCart={addToCartAction}
+              onBookNow={bookNowAction}
             />
           </aside>
         </div>

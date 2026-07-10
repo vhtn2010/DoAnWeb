@@ -29,6 +29,7 @@ function PublicHeaderActions({
   isFavoritePreview,
   isHotelPreview,
   isNotificationPreview = false,
+  isProfileHydrating = false,
   isProfilePreview,
   isTicketActive,
   notificationCount = 0,
@@ -39,7 +40,8 @@ function PublicHeaderActions({
       ? 'Tài khoản người dùng trên trang preview'
       : 'Tài khoản người dùng'
   const profileDisplayName = currentUser?.full_name || currentUser?.email || 'Net Viet Travel'
-  const profileAvatarUrl = currentUser?.avatar_url || ''
+  const profileAvatarUrl =
+    typeof currentUser?.avatar_url === 'string' ? currentUser.avatar_url.trim() : ''
   const profileInitials = getProfileInitials(
     currentUser?.full_name || currentUser?.email || '',
     'NV',
@@ -107,6 +109,11 @@ function PublicHeaderActions({
                     alt={profileDisplayName}
                     className="public-header__profile-avatar public-header__profile-avatar-image"
                     src={profileAvatarUrl}
+                  />
+                ) : isProfileHydrating ? (
+                  <span
+                    aria-hidden="true"
+                    className="public-header__profile-avatar public-header__profile-avatar--placeholder"
                   />
                 ) : (
                   <span className="public-header__profile-avatar">{profileInitials}</span>

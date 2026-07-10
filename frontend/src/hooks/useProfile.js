@@ -9,6 +9,7 @@ import {
   buildProfileActionPayload,
   getCustomerProfile,
 } from '../repositories/profileRepository.js'
+import { logout } from '../repositories/authRepository.js'
 import { buildProfileViewModel } from '../mappers/profileMappers.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
@@ -130,6 +131,16 @@ export default function useProfile() {
     navigate(buildPublicAuthPath('/', isCustomer))
   }
 
+  async function logoutAction() {
+    try {
+      await logout()
+    } catch {
+      // The auth adapter still clears the local session if the request fails.
+    } finally {
+      window.location.assign('/')
+    }
+  }
+
   async function handleActionRoute(action, target, fallbackMessage) {
     const response = await buildProfileActionPayload(action, target)
     const nextRoute = response.data?.route
@@ -217,6 +228,7 @@ export default function useProfile() {
     actions: {
       goHome,
       goLogin,
+      logout: logoutAction,
       openBookingHistoryItem,
       openFavoriteDestination,
       openProfileShortcut,

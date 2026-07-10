@@ -1,4 +1,4 @@
-import { apiGet, apiPatch } from '../../services/apiClient.js'
+import { apiGet, apiPatch, apiPost } from '../../services/apiClient.js'
 import { setAuthSession } from '../../services/authSession.js'
 
 function normalizeProfileUser(profile = {}) {
@@ -75,6 +75,10 @@ export async function updateCurrentPassword(payload = {}) {
 
 export function getCurrentProfileLogs(params = {}) {
   return apiGet('/me/logs', { params })
+}
+
+export function getCurrentUserVouchers() {
+  return apiGet('/me/vouchers')
 }
 
 export function requestAccountDeactivation(payload = {}) {

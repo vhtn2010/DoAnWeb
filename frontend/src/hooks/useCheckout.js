@@ -241,7 +241,7 @@ export default function useCheckout() {
       )
 
       if (!response.success || !response.data) {
-        setVoucherFeedback(response.message ?? 'Mã ưu đãi không hợp lệ trong dữ liệu mock.')
+        setVoucherFeedback(response.message ?? 'Mã ưu đãi không hợp lệ hoặc chưa áp dụng được.')
         return
       }
 

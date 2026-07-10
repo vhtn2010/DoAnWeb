@@ -185,6 +185,12 @@ select {
   background: #ffffff;
 }
 
+.public-header__profile-avatar--placeholder {
+  background:
+    linear-gradient(135deg, rgba(255, 237, 213, 0.96), rgba(255, 255, 255, 0.98));
+  color: transparent;
+}
+
 .public-header__link {
   display: inline-flex;
   align-items: center;
@@ -1007,6 +1013,16 @@ select {
   height: 46px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.public-footer__social:hover,
+.public-footer__social:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
 }
 
 .public-footer__social-icon {
@@ -1052,6 +1068,38 @@ select {
   align-items: flex-start;
 }
 
+.public-footer__link,
+.public-footer__contact-copy a,
+.public-footer__bottom-links a,
+.public-footer__empty-copy a {
+  color: rgba(255, 255, 255, 0.82);
+  transition:
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.public-footer__link:hover,
+.public-footer__link:focus-visible,
+.public-footer__contact-copy a:hover,
+.public-footer__contact-copy a:focus-visible,
+.public-footer__bottom-links a:hover,
+.public-footer__bottom-links a:focus-visible,
+.public-footer__empty-copy a:hover,
+.public-footer__empty-copy a:focus-visible {
+  color: var(--color-accent);
+  outline: none;
+}
+
+.public-footer__contact-copy {
+  min-width: 0;
+  line-height: 1.6;
+}
+
+.public-footer__contact-copy a,
+.public-footer__contact-copy span {
+  overflow-wrap: anywhere;
+}
+
 .public-footer__contact-icon {
   display: inline-flex;
   align-items: center;
@@ -1088,6 +1136,13 @@ select {
 .public-footer__bottom-links {
   display: flex;
   gap: 32px;
+}
+
+.public-footer__empty-copy {
+  margin: 24px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 800;
+  line-height: 1.6;
 }
 
 .home-page {

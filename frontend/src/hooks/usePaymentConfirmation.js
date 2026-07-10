@@ -9,6 +9,7 @@ import {
   validatePaymentConfirmationForm,
 } from '../mappers/paymentMappers.js'
 import {
+  cancelCustomerPayment,
   createCustomerDirectPayment,
   getPaymentByBookingCode,
   getPaymentByCode,
@@ -155,6 +156,10 @@ function buildResultMessage(payment, proof) {
     return 'Yêu cầu thanh toán đã được tạo. Bạn có thể bổ sung chứng từ ngay trên màn hình này hoặc quay lại sau.'
   }
 
+  if (payment.status === PAYMENT_STATUSES.cancelled) {
+    return 'Yêu cầu thanh toán trước đó đã được hủy. Bạn có thể tạo lại khi sẵn sàng.'
+  }
+
   return ''
 }
 
@@ -177,6 +182,10 @@ function buildActionLabel({
 
   if (payment?.status === PAYMENT_STATUSES.pending) {
     return 'Theo dõi thanh toán'
+  }
+
+  if (payment?.status === PAYMENT_STATUSES.cancelled) {
+    return 'Tạo lại thanh toán'
   }
 
   return 'Tạo thanh toán'
@@ -210,6 +219,7 @@ export default function usePaymentConfirmation() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [uploadingProof, setUploadingProof] = useState(false)
+  const [cancellingPayment, setCancellingPayment] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
@@ -331,6 +341,8 @@ export default function usePaymentConfirmation() {
   )
 
   const isPaid = SUCCESS_PAYMENT_STATUSES.has(payment?.status)
+  const canCancelPendingPayment =
+    Boolean(payment?.id) && payment?.status === PAYMENT_STATUSES.pending
   const voucherEditingLocked = isCustomer
   const payActionLabel = buildActionLabel({
     isPaid,
@@ -441,6 +453,36 @@ export default function usePaymentConfirmation() {
 
   function applyVoucherLocked() {
     setFeedback('Mã ưu đãi chỉ có thể áp dụng ở bước checkout trước khi tạo đơn hàng.')
+  }
+
+  async function cancelPendingPaymentAction() {
+    if (!canCancelPendingPayment || !payment?.id) {
+      return
+    }
+
+    setCancellingPayment(true)
+    setFieldErrors({})
+
+    try {
+      const response = await cancelCustomerPayment(payment.id)
+      const nextPayment = response?.data ?? null
+
+      setPayment(nextPayment)
+      setPaymentProof(null)
+      setProofForm({
+        bank_transaction_code: '',
+        file: null,
+        transfer_note: '',
+      })
+      setFeedback(
+        response?.message ||
+          'Yêu cầu thanh toán đã được hủy. Bạn có thể chọn lại phương thức và tạo yêu cầu mới khi sẵn sàng.',
+      )
+    } catch (cancelError) {
+      setFeedback(cancelError?.message ?? 'Không thể hủy yêu cầu thanh toán lúc này.')
+    } finally {
+      setCancellingPayment(false)
+    }
   }
 
   async function persistBookingContactChanges() {
@@ -558,6 +600,8 @@ export default function usePaymentConfirmation() {
     authState,
     booking,
     bookingItems,
+    canCancelPendingPayment,
+    cancellingPayment,
     cardNumber,
     contactForm,
     error,
@@ -582,6 +626,7 @@ export default function usePaymentConfirmation() {
     actions: {
       applyVoucher: applyVoucherLocked,
       applyVoucherMock: applyVoucherLocked,
+      cancelPendingPayment: cancelPendingPaymentAction,
       confirmPayment: confirmPaymentAction,
       confirmPaymentMock: confirmPaymentAction,
       goBackToBookingConfirmation,

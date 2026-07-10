@@ -17,6 +17,7 @@ const AppError = require('../utils/AppError');
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetCurrentProfile = profileService.getCurrentProfile;
 const originalGetCurrentUserLogs = profileService.getCurrentUserLogs;
+const originalGetCurrentUserVouchers = profileService.getCurrentUserVouchers;
 const originalRequestAccountDeactivation =
   profileService.requestAccountDeactivation;
 const originalUpdateCurrentAvatar = profileService.updateCurrentAvatar;
@@ -74,6 +75,7 @@ test.beforeEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.getCurrentUserLogs = originalGetCurrentUserLogs;
+  profileService.getCurrentUserVouchers = originalGetCurrentUserVouchers;
   profileService.requestAccountDeactivation =
     originalRequestAccountDeactivation;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
@@ -86,6 +88,7 @@ test.afterEach(() => {
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.getCurrentUserLogs = originalGetCurrentUserLogs;
+  profileService.getCurrentUserVouchers = originalGetCurrentUserVouchers;
   profileService.requestAccountDeactivation =
     originalRequestAccountDeactivation;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
@@ -864,6 +867,102 @@ test('GET /api/me/logs surfaces validation errors for invalid pagination', async
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, API_ERROR_CODES.VALIDATION_ERROR);
     assert.equal(response.body.error.details[0].field, 'limit');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/me/vouchers returns current user vouchers for authenticated customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+  profileService.getCurrentUserVouchers = async (context) => {
+    capturedContext = context;
+
+    return [
+      {
+        code: 'NETVIET500',
+        description: 'Ưu đãi cho tour nội địa.',
+        discount_type: 'fixed_amount',
+        discount_value: 500000,
+        id: 'voucher-1',
+        max_discount_amount: null,
+        min_order_amount: 6000000,
+        promotion: {
+          id: 'promotion-1',
+          name: 'Hè du lịch',
+          status: 'active',
+        },
+        status: 'active',
+        target_service_type: 'tour',
+        title: 'Giảm 500.000đ cho tour nội địa',
+        usage_limit_per_user: 1,
+        usage_limit_total: 100,
+        used_at: null,
+        user_usage_count: 0,
+        valid_from: '2026-07-01T00:00:00.000Z',
+        valid_to: '2026-07-25T00:00:00.000Z',
+      },
+    ];
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/vouchers`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(
+      response.body.message,
+      'Profile vouchers retrieved successfully',
+    );
+    assert.equal(response.body.data[0].code, 'NETVIET500');
+    assert.equal(response.body.data[0].status, 'active');
+    assert.deepEqual(capturedContext, {
+      userId: 'user-1',
+    });
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/me/vouchers returns 403 for non-customer role', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'staff',
+    userId: 'user-1',
+  });
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'staff',
+      userId: 'user-1',
+    });
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/vouchers`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
   } finally {
     server.close();
   }

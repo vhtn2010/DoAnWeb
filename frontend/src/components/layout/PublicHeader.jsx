@@ -92,6 +92,7 @@ function PublicHeader({ publicSession }) {
           isFavoritePreview={isFavoritePreview}
           isHotelPreview={isHotelPreview}
           isNotificationPreview={isNotificationPreview}
+          isProfileHydrating={Boolean(publicSession?.isProfileHydrating)}
           isProfilePreview={isProfilePreview}
           isTicketActive={isTicketActive}
           notificationCount={unreadNotificationCount}

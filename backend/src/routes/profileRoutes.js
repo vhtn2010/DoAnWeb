@@ -3,6 +3,7 @@ const { profileRateLimit } = require('../config/auth');
 const {
   getMe,
   getMyLogs,
+  getMyVouchers,
   requestAccountDeactivation,
   updateMe,
   updateMeAvatar,
@@ -38,6 +39,14 @@ router.get(
   }),
   requirePermissions(['profile.read_self']),
   asyncHandler(getMyLogs),
+);
+router.get(
+  '/me/vouchers',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  requirePermissions(['profile.read_self']),
+  asyncHandler(getMyVouchers),
 );
 router.patch(
   '/me',

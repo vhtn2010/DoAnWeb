@@ -10,6 +10,8 @@ function PaymentConfirmationPage() {
   const {
     actions,
     booking,
+    canCancelPendingPayment,
+    cancellingPayment,
     cardNumber,
     contactForm,
     error,
@@ -108,12 +110,15 @@ function PaymentConfirmationPage() {
 
             <aside className="payment-confirmation-page__sidebar">
               <PaymentOrderSummary
+                canCancelPayment={canCancelPendingPayment}
                 disableVoucherEditing={voucherEditingLocked}
                 feedback={feedback}
+                isCancellingPayment={cancellingPayment}
                 isDisabled={viewModel.items.length === 0 || isPaid}
                 isPaid={isPaid}
                 isSubmitting={submitting || uploadingProof}
                 onApplyVoucher={actions.applyVoucher}
+                onCancelPayment={actions.cancelPendingPayment}
                 onPay={actions.confirmPayment}
                 onVoucherChange={actions.updateVoucherCode}
                 payLabel={payActionLabel}

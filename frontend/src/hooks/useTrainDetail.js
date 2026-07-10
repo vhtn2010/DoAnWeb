@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { mapTrainDetailResponseToView } from '../mappers/trainMappers.js'
-import { addCartItemPreview } from '../repositories/cartRepository.js'
+import { addCartItem } from '../repositories/cartRepository.js'
 import {
   buildTrainSelectionPayload,
   checkTrainAvailability,
@@ -271,7 +271,7 @@ export default function useTrainDetail() {
       title: train.header_title,
       line_title: `${train.train_number_label} | ${selectedSeatOption?.name ?? train.seat_class}`,
       line_subtitle: `${train.departure_station_code} - ${train.arrival_station_code}`,
-      quantity_label: `${selectedSeats.length} Chỗ`,
+      quantity_label: `${selectedSeats.length} chỗ`,
       seat_class_label: selectedSeatOption?.name ?? train.seat_class,
       seat_label: seatNumbers.length
         ? `${selectedCar?.name ?? 'Toa'} - Chỗ ${seatNumbers.join(', ')}`
@@ -371,7 +371,7 @@ export default function useTrainDetail() {
     )
   }
 
-  async function buildMockBooking({
+  async function buildTrainBooking({
     missingSeatMessage = 'Vui lòng chọn chỗ trước khi tiếp tục.',
   } = {}) {
     if (!train || !selectedCar || !selectedSeats.length || !selectedSeatOption) {
@@ -394,8 +394,7 @@ export default function useTrainDetail() {
         setFeedback(
           createFeedbackState(
             'error',
-            availabilityResponse.message ??
-              'Chỗ ngồi hiện không còn khả dụng trong dữ liệu mock.',
+            availabilityResponse.message ?? 'Chỗ ngồi hiện không còn khả dụng. Vui lòng chọn chỗ khác.',
           ),
         )
         return {
@@ -403,7 +402,6 @@ export default function useTrainDetail() {
         }
       }
 
-      // TODO: replace mock cart payload with POST /cart/items in integration phase.
       const payloadResponse = await buildTrainSelectionPayload(
         train,
         selectedSeats,
@@ -415,7 +413,7 @@ export default function useTrainDetail() {
         setFeedback(
           createFeedbackState(
             'error',
-            payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến tàu mock.',
+            payloadResponse.message ?? 'Không thể chuẩn bị dữ liệu chuyến tàu lúc này.',
           ),
         )
         return {
@@ -431,15 +429,15 @@ export default function useTrainDetail() {
         train,
       })
 
-      await addCartItemPreview({
+      await addCartItem(payloadResponse.data, {
         authState,
-        item: cartItem,
+        previewItem: cartItem,
       })
 
       setFeedback(
         createFeedbackState(
           'success',
-          `Đã tạo payload mock cho ${selectedSeats.length} chỗ đã chọn và lưu vào giỏ hàng preview.`,
+          `Đã thêm ${selectedSeats.length} chỗ đã chọn vào giỏ hàng của bạn.`,
         ),
       )
 
@@ -452,7 +450,7 @@ export default function useTrainDetail() {
       setFeedback(
         createFeedbackState(
           'error',
-          bookingError?.message ?? 'Không thể xử lý vé tàu trong luồng mock lúc này.',
+          bookingError?.message ?? 'Không thể xử lý vé tàu lúc này.',
         ),
       )
 
@@ -462,13 +460,13 @@ export default function useTrainDetail() {
     }
   }
 
-  async function addToCartMock() {
+  async function addToCartAction() {
     if (!isAuthenticatedCustomer) {
       setIsLoginPromptOpen(true)
       return
     }
 
-    const result = await buildMockBooking({
+    const result = await buildTrainBooking({
       missingSeatMessage: 'Vui lòng chọn chỗ trước khi thêm vào giỏ hàng.',
     })
 
@@ -479,8 +477,13 @@ export default function useTrainDetail() {
     navigate(preserveAuthQuery('/cart'))
   }
 
-  async function bookNowMock() {
-    const result = await buildMockBooking({
+  async function bookNowAction() {
+    if (!isAuthenticatedCustomer) {
+      setIsLoginPromptOpen(true)
+      return
+    }
+
+    const result = await buildTrainBooking({
       missingSeatMessage: 'Vui lòng chọn chỗ trước khi tiếp tục.',
     })
 
@@ -488,11 +491,7 @@ export default function useTrainDetail() {
       return
     }
 
-    navigate(preserveAuthQuery('/checkout'), {
-      state: {
-        selectedCartItemIds: [result.cartItem.id],
-      },
-    })
+    navigate(preserveAuthQuery('/cart'))
   }
 
   function goBackToTrains() {
@@ -534,8 +533,8 @@ export default function useTrainDetail() {
   }
 
   return {
-    addToCartMock,
-    bookNowMock,
+    addToCartAction,
+    bookNowAction,
     bookingSummary,
     closeLoginPrompt,
     currentAuthPreviewQuery: '',

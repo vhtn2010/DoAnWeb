@@ -11,6 +11,7 @@ import {
 import {
   getCurrentProfileLogs as getCurrentProfileLogsWithApiAdapter,
   getCurrentProfile as getCurrentProfileWithApiAdapter,
+  getCurrentUserVouchers as getCurrentUserVouchersWithApiAdapter,
   requestAccountDeactivation as requestAccountDeactivationWithApiAdapter,
   updateCurrentAvatar as updateCurrentAvatarWithApiAdapter,
   updateCurrentPassword as updateCurrentPasswordWithApiAdapter,
@@ -25,6 +26,7 @@ const profileAdapter = {
   getCustomerProfile: getCustomerProfileWithMockAdapter,
   getCurrentProfileLogs: getCurrentProfileLogsWithApiAdapter,
   getCurrentProfile: getCurrentProfileWithApiAdapter,
+  getCurrentUserVouchers: getCurrentUserVouchersWithApiAdapter,
   getFavoriteDestinations: getFavoriteDestinationsWithMockAdapter,
   getUpcomingTrip: getUpcomingTripWithMockAdapter,
   requestAccountDeactivation: requestAccountDeactivationWithApiAdapter,
@@ -82,6 +84,10 @@ export function updateCurrentPassword(payload = {}) {
 
 export function getCurrentProfileLogs(params = {}) {
   return profileAdapter.getCurrentProfileLogs(params)
+}
+
+export function getCurrentUserVouchers() {
+  return profileAdapter.getCurrentUserVouchers()
 }
 
 export function requestAccountDeactivation(payload = {}) {

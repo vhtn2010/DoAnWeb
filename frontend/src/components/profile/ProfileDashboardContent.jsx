@@ -7,6 +7,27 @@ import UpcomingTripCard from './UpcomingTripCard.jsx'
 import { PublicNotice } from '../public/ui/index.js'
 import './profileDashboardLayout.css'
 
+function LogoutIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path
+        d="M10 6.5H7.5A2.5 2.5 0 0 0 5 9v6a2.5 2.5 0 0 0 2.5 2.5H10"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M13 8.5 18 12l-5 3.5M18 12H9"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
 export default function ProfileDashboardContent({
   actions,
   feedback,
@@ -93,7 +114,7 @@ export default function ProfileDashboardContent({
             />
           </div>
 
-          <div className="profile-dashboard__utility-cell">
+          <div className="profile-dashboard__utility-cell profile-dashboard__utility-cell--stack">
             <ProfileShortcutPanel
               description="Khi cần thêm thông tin hoặc hỗ trợ, bạn có thể bắt đầu từ các điểm chạm quen thuộc này."
               eyebrow="Hỗ trợ"
@@ -102,6 +123,23 @@ export default function ProfileDashboardContent({
               title="Hỗ trợ"
               tone="support"
             />
+
+            <div className="profile-dashboard__logout-area">
+              <button
+                className="profile-dashboard__logout-button"
+                type="button"
+                onClick={actions.logout}
+              >
+                <span className="profile-dashboard__logout-button-icon" aria-hidden="true">
+                  <LogoutIcon />
+                </span>
+
+                <span className="profile-dashboard__logout-button-copy">
+                  <strong>Đăng xuất</strong>
+                  <small>Thoát phiên hiện tại</small>
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
