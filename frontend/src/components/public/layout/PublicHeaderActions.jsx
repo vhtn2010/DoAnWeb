@@ -28,8 +28,11 @@ function PublicHeaderActions({
   isCustomer,
   isFavoritePreview,
   isHotelPreview,
+  isNotificationPreview = false,
   isProfilePreview,
   isTicketActive,
+  notificationCount = 0,
+  notificationPath = '/notifications',
 }) {
   const profileAriaLabel =
     isCartPreview || isCheckoutPreview || isHotelPreview || isTicketActive || isProfilePreview
@@ -45,12 +48,21 @@ function PublicHeaderActions({
   return (
     <div className="public-header__actions">
       <div className="public-header__customer-actions">
-        <PublicHeaderIconAction href="#" label="Ngôn ngữ">
-          <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.8" />
+        <PublicHeaderIconAction
+          badgeCount={notificationCount}
+          isActive={isNotificationPreview}
+          label={notificationCount ? `Thông báo (${notificationCount})` : 'Thông báo'}
+          to={notificationPath}
+        >
           <path
-            d="M3.9 12h16.2M12 3.75c2.2 2.25 3.44 5.14 3.5 8.25-.06 3.11-1.3 6-3.5 8.25-2.2-2.25-3.44-5.14-3.5-8.25.06-3.11 1.3-6 3.5-8.25Z"
+            d="M7 10a5 5 0 1 1 10 0v3.06c0 .69.22 1.37.62 1.93l.88 1.23a1 1 0 0 1-.81 1.58H6.31a1 1 0 0 1-.81-1.58l.88-1.23A3.33 3.33 0 0 0 7 13.06V10Z"
             stroke="currentColor"
-            strokeLinejoin="round"
+            strokeWidth="1.8"
+          />
+          <path
+            d="M10 18.5a2 2 0 0 0 4 0"
+            stroke="currentColor"
+            strokeLinecap="round"
             strokeWidth="1.8"
           />
         </PublicHeaderIconAction>

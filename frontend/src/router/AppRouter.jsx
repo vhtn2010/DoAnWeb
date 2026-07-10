@@ -8,6 +8,7 @@ import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
 import VerifyEmailPage from '../pages/auth/VerifyEmailPage.jsx'
+import ChangeEmailConfirmPage from '../pages/auth/ChangeEmailConfirmPage.jsx'
 import BookingConfirmationPage from '../pages/booking/BookingConfirmationPage.jsx'
 import CartPage from '../pages/cart/CartPage.jsx'
 import CheckoutPage from '../pages/checkout/CheckoutPage.jsx'
@@ -20,6 +21,7 @@ import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
 import FavoritesPage from '../pages/profile/FavoritesPage.jsx'
 import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
+import NotificationsPage from '../pages/profile/NotificationsPage.jsx'
 import ProfilePage from '../pages/profile/ProfilePageV2.jsx'
 import TravelHandbookPage from '../pages/profile/TravelHandbookPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPageV2.jsx'
@@ -72,6 +74,7 @@ function AppRouter() {
           <Route path="/departure-reminders" element={<DepartureRemindersPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/my-vouchers" element={<MyVouchersPage />} />
           <Route path="/travel-handbook" element={<TravelHandbookPage />} />
           <Route path="/blog" element={<NetVietBlogPage />} />
@@ -88,6 +91,10 @@ function AppRouter() {
           <Route element={<ProtectedRoute />}>
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route
+              path="/change-email/confirm"
+              element={<ChangeEmailConfirmPage />}
+            />
           </Route>
         </Route>
         <Route element={<AuthLayout />}>

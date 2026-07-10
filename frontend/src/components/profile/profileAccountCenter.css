@@ -1,0 +1,134 @@
+.profile-account-center {
+  display: grid;
+  gap: 22px;
+}
+
+.profile-account-center__grid {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  align-items: start;
+}
+
+.profile-account-center__stack,
+.profile-account-center__card,
+.profile-account-center__logs,
+.profile-account-center__log-list {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-account-center__stack {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.profile-account-center__card {
+  height: 100%;
+}
+
+.profile-account-center__card:first-child {
+  grid-column: 1 / -1;
+}
+
+.profile-account-center__form {
+  display: grid;
+  gap: 14px;
+}
+
+.profile-account-center__field {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-account-center__field span {
+  color: #10243e;
+  font-weight: 700;
+}
+
+.profile-account-center__field input,
+.profile-account-center__field textarea {
+  width: 100%;
+  border: 1px solid rgba(223, 227, 230, 0.92);
+  border-radius: 16px;
+  background: #fff;
+  color: #10243e;
+  font: inherit;
+  min-height: 48px;
+  padding: 12px 14px;
+}
+
+.profile-account-center__field input[type="file"] {
+  padding: 10px 12px;
+}
+
+.profile-account-center__field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.profile-account-center__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profile-account-center__feedback {
+  margin: 0;
+}
+
+.profile-account-center__feedback--error {
+  color: #b91c1c;
+}
+
+.profile-account-center__log-item {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid rgba(223, 227, 230, 0.82);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.profile-account-center__log-head,
+.profile-account-center__log-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profile-account-center__log-head {
+  justify-content: flex-end;
+}
+
+.profile-account-center__log-item strong {
+  color: #10243e;
+}
+
+.profile-account-center__log-item p,
+.profile-account-center__log-meta span {
+  margin: 0;
+  color: var(--color-text-soft);
+  line-height: 1.65;
+}
+
+.profile-account-center__log-item p {
+  color: #243b53;
+  font-weight: 600;
+}
+
+@media (max-width: 1180px) {
+  .profile-account-center__grid,
+  .profile-account-center__stack {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .profile-account-center__grid,
+  .profile-account-center__stack {
+    grid-template-columns: 1fr;
+  }
+}

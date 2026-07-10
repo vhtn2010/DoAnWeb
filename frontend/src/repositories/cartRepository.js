@@ -1,7 +1,10 @@
 import {
   addCartItem as addCartItemWithApiAdapter,
+  applyCartVoucher as applyCartVoucherWithApiAdapter,
+  clearCartItems as clearCartItemsWithApiAdapter,
   getActiveCart as getActiveCartWithApiAdapter,
   getCartSummary as getCartSummaryWithApiAdapter,
+  removeCartVoucher as removeCartVoucherWithApiAdapter,
   removeCartItem as removeCartItemWithApiAdapter,
   updateCartItem as updateCartItemWithApiAdapter,
   validateCart as validateCartWithApiAdapter,
@@ -86,4 +89,40 @@ export function validateCart(cartId, selectedItemIds, options = {}) {
   }
 
   return cartAdapter.validateCart(cartId, selectedItemIds)
+}
+
+export function applyCartVoucher(payload = {}, options = {}) {
+  if (shouldUseApi(options?.authState)) {
+    return applyCartVoucherWithApiAdapter(payload)
+  }
+
+  return Promise.resolve({
+    data: null,
+    message: 'Tài khoản xem trước chưa hỗ trợ áp dụng voucher vào giỏ hàng.',
+    success: false,
+  })
+}
+
+export function removeCartVoucher(options = {}) {
+  if (shouldUseApi(options?.authState)) {
+    return removeCartVoucherWithApiAdapter()
+  }
+
+  return Promise.resolve({
+    data: null,
+    message: 'Tài khoản xem trước chưa hỗ trợ gỡ voucher trong giỏ hàng.',
+    success: false,
+  })
+}
+
+export function clearCartItems(options = {}) {
+  if (shouldUseApi(options?.authState)) {
+    return clearCartItemsWithApiAdapter()
+  }
+
+  return Promise.resolve({
+    data: null,
+    message: 'Tài khoản xem trước chưa hỗ trợ xóa toàn bộ giỏ hàng.',
+    success: false,
+  })
 }

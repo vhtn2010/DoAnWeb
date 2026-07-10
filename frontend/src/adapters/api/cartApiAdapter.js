@@ -60,6 +60,18 @@ export function getCartSummary() {
   return apiGet('/cart/summary')
 }
 
+export function applyCartVoucher(payload = {}) {
+  return apiPost('/cart/apply-voucher', payload)
+}
+
+export function removeCartVoucher() {
+  return apiDelete('/cart/voucher')
+}
+
+export function clearCartItems() {
+  return apiDelete('/cart/items')
+}
+
 export function removeCartItem(cartItemId) {
   return apiDelete(`/cart/items/${cartItemId}`)
 }

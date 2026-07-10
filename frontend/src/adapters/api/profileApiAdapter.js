@@ -76,3 +76,7 @@ export async function updateCurrentPassword(payload = {}) {
 export function getCurrentProfileLogs(params = {}) {
   return apiGet('/me/logs', { params })
 }
+
+export function requestAccountDeactivation(payload = {}) {
+  return apiPost('/me/account-deactivation-request', payload)
+}

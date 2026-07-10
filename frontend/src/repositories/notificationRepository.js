@@ -1,5 +1,6 @@
 import {
   deleteMyNotification as deleteMyNotificationWithApiAdapter,
+  getMyNotificationDetail as getMyNotificationDetailWithApiAdapter,
   getUnreadNotificationCount as getUnreadNotificationCountWithApiAdapter,
   listMyNotifications as listMyNotificationsWithApiAdapter,
   markAllMyNotificationsRead as markAllMyNotificationsReadWithApiAdapter,
@@ -25,6 +26,10 @@ export function markMyNotificationRead(notificationId) {
 
 export function markMyNotificationsBulkRead(notificationIds = []) {
   return markMyNotificationsBulkReadWithApiAdapter(notificationIds)
+}
+
+export function getMyNotificationDetail(notificationId) {
+  return getMyNotificationDetailWithApiAdapter(notificationId)
 }
 
 export function deleteMyNotification(notificationId) {

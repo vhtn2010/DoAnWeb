@@ -2,9 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { buildBookingConfirmationViewModel } from '../mappers/bookingMappers.js'
 import {
+  downloadMyBookingSummary,
   getBookingByCode,
   getBookingConfirmation,
+  getMyBookingInvoice,
+  getMyBookingStatusHistory,
+  requestBookingCancellation,
 } from '../repositories/bookingRepository.js'
+import {
+  cancelCustomerRefundRequest,
+  createCustomerRefundRequest,
+  getCustomerRefundDetail,
+  listCustomerBookingRefunds,
+} from '../repositories/paymentRepository.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
@@ -41,6 +51,21 @@ function normalizeBooking(booking = {}) {
   }
 }
 
+function createRefundDraftState() {
+  return {
+    amount: '',
+    paymentId: '',
+    reason: '',
+  }
+}
+
+function createServiceFeedbackState() {
+  return {
+    message: '',
+    tone: 'info',
+  }
+}
+
 export default function useBookingConfirmation() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -53,6 +78,17 @@ export default function useBookingConfirmation() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
+  const [statusHistory, setStatusHistory] = useState([])
+  const [invoice, setInvoice] = useState(null)
+  const [refunds, setRefunds] = useState([])
+  const [selectedRefund, setSelectedRefund] = useState(null)
+  const [extraLoading, setExtraLoading] = useState(false)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [cancellationLoading, setCancellationLoading] = useState(false)
+  const [refundLoading, setRefundLoading] = useState(false)
+  const [cancellationReason, setCancellationReason] = useState('')
+  const [refundDraft, setRefundDraft] = useState(createRefundDraftState)
+  const [serviceFeedback, setServiceFeedback] = useState(createServiceFeedbackState)
 
   useEffect(() => {
     let isActive = true
@@ -79,12 +115,21 @@ export default function useBookingConfirmation() {
         if (!response.success || !response.data?.booking) {
           setBooking(null)
           setBookingItems([])
-          setError(response.message ?? 'Không thể tải thông tin xác nhận đơn hàng lúc này.')
+          setStatusHistory([])
+          setInvoice(null)
+          setRefunds([])
+          setSelectedRefund(null)
+          setError(
+            response.message ?? 'Không thể tải thông tin xác nhận đơn hàng lúc này.',
+          )
           return
         }
 
-        setBooking(normalizeBooking(response.data.booking))
+        const nextBooking = normalizeBooking(response.data.booking)
+
+        setBooking(nextBooking)
         setBookingItems(normalizeBookingItems(response.data.booking_items))
+        setRefunds(Array.isArray(nextBooking.refunds) ? nextBooking.refunds : [])
       } catch (loadError) {
         if (!isActive) {
           return
@@ -92,7 +137,13 @@ export default function useBookingConfirmation() {
 
         setBooking(null)
         setBookingItems([])
-        setError(loadError?.message ?? 'Không thể tải thông tin xác nhận đơn hàng lúc này.')
+        setStatusHistory([])
+        setInvoice(null)
+        setRefunds([])
+        setSelectedRefund(null)
+        setError(
+          loadError?.message ?? 'Không thể tải thông tin xác nhận đơn hàng lúc này.',
+        )
       } finally {
         if (isActive) {
           setLoading(false)
@@ -106,6 +157,70 @@ export default function useBookingConfirmation() {
       isActive = false
     }
   }, [authState, bookingCode, location.state?.bookingId, reloadToken])
+
+  useEffect(() => {
+    if (authState !== 'customer' || !booking?.id) {
+      setStatusHistory([])
+      setInvoice(null)
+      setSelectedRefund(null)
+      return
+    }
+
+    let isActive = true
+
+    async function loadSelfServiceData() {
+      setExtraLoading(true)
+
+      try {
+        const [statusHistoryResponse, invoiceResponse, refundsResponse] = await Promise.all([
+          getMyBookingStatusHistory(booking.id),
+          getMyBookingInvoice(booking.id),
+          listCustomerBookingRefunds(booking.id).catch(() => ({
+            data: {
+              refunds: Array.isArray(booking.refunds) ? booking.refunds : [],
+            },
+          })),
+        ])
+
+        if (!isActive) {
+          return
+        }
+
+        setStatusHistory(
+          Array.isArray(statusHistoryResponse.data) ? statusHistoryResponse.data : [],
+        )
+        setInvoice(invoiceResponse.data ?? null)
+        setRefunds(
+          Array.isArray(refundsResponse.data?.refunds)
+            ? refundsResponse.data.refunds
+            : Array.isArray(booking.refunds)
+              ? booking.refunds
+              : [],
+        )
+      } catch (loadError) {
+        if (!isActive) {
+          return
+        }
+
+        setServiceFeedback({
+          message:
+            loadError?.message ||
+            'Không thể đồng bộ các công cụ tự phục vụ của đơn hàng.',
+          tone: 'error',
+        })
+      } finally {
+        if (isActive) {
+          setExtraLoading(false)
+        }
+      }
+    }
+
+    loadSelfServiceData()
+
+    return () => {
+      isActive = false
+    }
+  }, [authState, booking?.id, booking?.refunds, reloadToken])
 
   const viewModel = useMemo(
     () =>
@@ -178,6 +293,177 @@ export default function useBookingConfirmation() {
     }
   }
 
+  function reloadSelfService() {
+    setServiceFeedback(createServiceFeedbackState())
+    setReloadToken((currentToken) => currentToken + 1)
+  }
+
+  function handleCancellationReasonChange(event) {
+    setCancellationReason(event.target.value)
+    setServiceFeedback(createServiceFeedbackState())
+  }
+
+  function handleRefundDraftChange(event) {
+    const { name, value } = event.target
+
+    setRefundDraft((currentDraft) => ({
+      ...currentDraft,
+      [name]: value,
+    }))
+    setServiceFeedback(createServiceFeedbackState())
+  }
+
+  async function submitCancellationRequest(event) {
+    event.preventDefault()
+
+    const reason = cancellationReason.trim()
+
+    if (!booking?.id || !reason) {
+      setServiceFeedback({
+        message: 'Vui lòng nhập lý do trước khi gửi yêu cầu hủy đơn.',
+        tone: 'error',
+      })
+      return
+    }
+
+    setCancellationLoading(true)
+
+    try {
+      const response = await requestBookingCancellation(booking.id, { reason })
+
+      setCancellationReason('')
+      setServiceFeedback({
+        message: response?.message || 'Yêu cầu hủy đơn đã được gửi thành công.',
+        tone: 'success',
+      })
+      setReloadToken((currentToken) => currentToken + 1)
+    } catch (submitError) {
+      setServiceFeedback({
+        message: submitError?.message || 'Không thể gửi yêu cầu hủy đơn lúc này.',
+        tone: 'error',
+      })
+    } finally {
+      setCancellationLoading(false)
+    }
+  }
+
+  async function submitRefundRequest(event) {
+    event.preventDefault()
+
+    if (!booking?.id) {
+      return
+    }
+
+    const amount = Number(refundDraft.amount)
+    const paymentId = String(refundDraft.paymentId ?? '').trim()
+    const reason = refundDraft.reason.trim()
+
+    if (!paymentId || !Number.isFinite(amount) || amount <= 0 || !reason) {
+      setServiceFeedback({
+        message: 'Vui lòng chọn thanh toán, nhập số tiền hoàn hợp lệ và lý do.',
+        tone: 'error',
+      })
+      return
+    }
+
+    setRefundLoading(true)
+
+    try {
+      const response = await createCustomerRefundRequest(booking.id, {
+        amount,
+        payment_id: paymentId,
+        reason,
+      })
+
+      setRefundDraft(createRefundDraftState())
+      setServiceFeedback({
+        message: response?.message || 'Yêu cầu hoàn tiền đã được ghi nhận.',
+        tone: 'success',
+      })
+      setReloadToken((currentToken) => currentToken + 1)
+    } catch (submitError) {
+      setServiceFeedback({
+        message:
+          submitError?.message || 'Không thể tạo yêu cầu hoàn tiền lúc này.',
+        tone: 'error',
+      })
+    } finally {
+      setRefundLoading(false)
+    }
+  }
+
+  async function openRefundDetail(refundId) {
+    try {
+      const response = await getCustomerRefundDetail(refundId)
+      setSelectedRefund(response.data?.refund ?? response.data ?? null)
+      setServiceFeedback({
+        message: 'Đã tải chi tiết yêu cầu hoàn tiền.',
+        tone: 'success',
+      })
+    } catch (detailError) {
+      setServiceFeedback({
+        message:
+          detailError?.message || 'Không thể tải chi tiết yêu cầu hoàn tiền.',
+        tone: 'error',
+      })
+    }
+  }
+
+  async function cancelRefundRequest(refundId) {
+    try {
+      const response = await cancelCustomerRefundRequest(refundId, {
+        reason: 'Khách hàng chủ động hủy yêu cầu hoàn tiền.',
+      })
+
+      setSelectedRefund(response.data?.refund ?? null)
+      setServiceFeedback({
+        message: response?.message || 'Yêu cầu hoàn tiền đã được hủy.',
+        tone: 'success',
+      })
+      setReloadToken((currentToken) => currentToken + 1)
+    } catch (cancelError) {
+      setServiceFeedback({
+        message:
+          cancelError?.message || 'Không thể hủy yêu cầu hoàn tiền lúc này.',
+        tone: 'error',
+      })
+    }
+  }
+
+  async function handleDownloadBookingSummary() {
+    if (!booking?.id) {
+      return
+    }
+
+    setSummaryLoading(true)
+
+    try {
+      const downloadPayload = await downloadMyBookingSummary(booking.id)
+      const objectUrl = URL.createObjectURL(downloadPayload.blob)
+      const downloadLink = document.createElement('a')
+
+      downloadLink.href = objectUrl
+      downloadLink.download = downloadPayload.filename || 'booking-summary.pdf'
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
+      document.body.removeChild(downloadLink)
+      URL.revokeObjectURL(objectUrl)
+
+      setServiceFeedback({
+        message: 'Đã chuẩn bị tệp tóm tắt đơn hàng để tải xuống.',
+        tone: 'success',
+      })
+    } catch (downloadError) {
+      setServiceFeedback({
+        message:
+          downloadError?.message || 'Không thể tải tóm tắt đơn hàng lúc này.',
+        tone: 'error',
+      })
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
+
   return {
     authState,
     booking,
@@ -186,15 +472,36 @@ export default function useBookingConfirmation() {
     feedback,
     loading,
     preserveAuthQuery: (pathname) => buildPublicAuthPath(pathname, isCustomer),
+    selfService: {
+      cancellationLoading,
+      cancellationReason,
+      extraLoading,
+      feedback: serviceFeedback,
+      invoice,
+      refundDraft,
+      refundLoading,
+      refunds,
+      selectedRefund,
+      statusHistory,
+      summaryLoading,
+    },
     viewModel,
     actions: {
       canContinueToPayment,
+      cancelRefundRequest,
       confirmBooking,
       copyBookingCode,
+      downloadBookingSummary: handleDownloadBookingSummary,
       editBookingItem,
       goBackToCart,
+      handleCancellationReasonChange,
+      handleRefundDraftChange,
+      openRefundDetail,
+      reloadSelfService,
       removeBookingItem,
       retry,
+      submitCancellationRequest,
+      submitRefundRequest,
     },
   }
 }

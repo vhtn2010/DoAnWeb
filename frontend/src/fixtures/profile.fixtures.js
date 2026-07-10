@@ -213,6 +213,14 @@ export const customerProfileFixture = Object.freeze({
       detail_path: '/my-vouchers',
     },
     {
+      id: 'travel-utility-002',
+      title: 'Hộp thư thông báo',
+      description: 'Xem nhanh cập nhật đơn hàng, thanh toán và thông báo hệ thống dành riêng cho tài khoản của bạn.',
+      action_label: 'Mở hộp thư',
+      icon: 'bell',
+      detail_path: '/notifications',
+    },
+    {
       id: 'travel-utility-003',
       title: 'Nhắc lịch khởi hành',
       description: 'Bật nhắc giờ check-in, giờ ra sân bay và lịch trình trước mỗi chuyến đi.',

@@ -62,3 +62,30 @@ export async function uploadPaymentProofAsset(file) {
     },
   }
 }
+
+export async function uploadAvatarAsset(file) {
+  const signatureResponse = await createUploadSignature({
+    folder: 'avatar',
+    resource_type: 'image',
+  })
+
+  const uploadedAsset = await uploadSignedAsset({
+    file,
+    signature: signatureResponse.data,
+  })
+
+  const completeResponse = await completeUpload({
+    asset_url: uploadedAsset.secure_url,
+    public_id: uploadedAsset.public_id,
+    purpose: 'avatar',
+    resource_type: 'image',
+  })
+
+  return {
+    ...completeResponse,
+    data: {
+      ...completeResponse.data,
+      original_filename: file.name,
+    },
+  }
+}

@@ -1,0 +1,50 @@
+.profile-dashboard {
+  display: grid;
+  gap: 24px;
+}
+
+.profile-dashboard__section,
+.profile-dashboard__spotlight-card,
+.profile-dashboard__utility-cell {
+  min-width: 0;
+}
+
+.profile-dashboard__spotlight-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.profile-dashboard__spotlight-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.profile-dashboard__spotlight-card,
+.profile-dashboard__spotlight-card > * {
+  height: 100%;
+}
+
+.profile-dashboard__utility-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.profile-dashboard__utility-cell .profile-shortcut-panel {
+  height: 100%;
+}
+
+@media (max-width: 1100px) {
+  .profile-dashboard__spotlight-grid,
+  .profile-dashboard__utility-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .profile-dashboard {
+    gap: 20px;
+  }
+}

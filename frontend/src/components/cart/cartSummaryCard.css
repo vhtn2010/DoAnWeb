@@ -1,0 +1,63 @@
+.cart-summary-card__voucher-field {
+  display: grid;
+  gap: 8px;
+}
+
+.cart-summary-card__voucher-field span {
+  color: #6b7280;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.cart-summary-card__voucher-input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(223, 227, 230, 0.9);
+  border-radius: 14px;
+  background: #fff;
+  color: #10243e;
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.cart-summary-card__voucher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cart-summary-card__ghost-button {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(223, 227, 230, 0.9);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #39506a;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 14px;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.cart-summary-card__ghost-button:hover,
+.cart-summary-card__ghost-button:focus-visible {
+  border-color: rgba(214, 40, 40, 0.18);
+  color: #a02020;
+  background: rgba(255, 248, 242, 0.9);
+  outline: none;
+}
+
+.cart-summary-card__ghost-button:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .cart-summary-card__ghost-button {
+    width: 100%;
+  }
+}

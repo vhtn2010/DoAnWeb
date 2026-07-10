@@ -1,4 +1,5 @@
 import {
+  confirmChangeEmail as confirmChangeEmailWithApiAdapter,
   login as loginWithApiAdapter,
   logout as logoutWithApiAdapter,
   requestChangeEmail as requestChangeEmailWithApiAdapter,
@@ -12,6 +13,7 @@ import {
 } from '../adapters/api/authApiAdapter.js'
 
 const authAdapter = {
+  confirmChangeEmail: confirmChangeEmailWithApiAdapter,
   login: loginWithApiAdapter,
   logout: logoutWithApiAdapter,
   requestChangeEmail: requestChangeEmailWithApiAdapter,
@@ -50,6 +52,10 @@ export function refreshSession(payload) {
 
 export function requestChangeEmail(payload) {
   return authAdapter.requestChangeEmail(payload)
+}
+
+export function confirmChangeEmail(payload) {
+  return authAdapter.confirmChangeEmail(payload)
 }
 
 export function logout(payload) {

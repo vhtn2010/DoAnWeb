@@ -35,6 +35,10 @@ export function markMyNotificationsBulkRead(notificationIds = []) {
   })
 }
 
+export function getMyNotificationDetail(notificationId) {
+  return apiGet(`/notifications/${notificationId}`)
+}
+
 export function deleteMyNotification(notificationId) {
   return apiDelete(`/notifications/${notificationId}`)
 }

@@ -1,10 +1,14 @@
 import {
   cancelCustomerPayment as cancelCustomerPaymentWithApiAdapter,
+  cancelCustomerRefundRequest as cancelCustomerRefundRequestWithApiAdapter,
   createCustomerDirectPayment as createCustomerDirectPaymentWithApiAdapter,
+  createCustomerRefundRequest as createCustomerRefundRequestWithApiAdapter,
   getCustomerPaymentDetail as getCustomerPaymentDetailWithApiAdapter,
   getCustomerPaymentProof as getCustomerPaymentProofWithApiAdapter,
+  getCustomerRefundDetail as getCustomerRefundDetailWithApiAdapter,
   getDirectPaymentMethods as getDirectPaymentMethodsWithApiAdapter,
   listCustomerBookingPayments as listCustomerBookingPaymentsWithApiAdapter,
+  listCustomerBookingRefunds as listCustomerBookingRefundsWithApiAdapter,
   uploadCustomerPaymentProof as uploadCustomerPaymentProofWithApiAdapter,
 } from '../adapters/api/paymentApiAdapter.js'
 import {
@@ -225,6 +229,22 @@ export function getCustomerPaymentDetail(paymentId) {
 
 export function cancelCustomerPayment(paymentId, payload = {}) {
   return cancelCustomerPaymentWithApiAdapter(paymentId, payload)
+}
+
+export function createCustomerRefundRequest(bookingId, payload = {}, options = {}) {
+  return createCustomerRefundRequestWithApiAdapter(bookingId, payload, options)
+}
+
+export function listCustomerBookingRefunds(bookingId) {
+  return listCustomerBookingRefundsWithApiAdapter(bookingId)
+}
+
+export function getCustomerRefundDetail(refundId) {
+  return getCustomerRefundDetailWithApiAdapter(refundId)
+}
+
+export function cancelCustomerRefundRequest(refundId, payload = {}) {
+  return cancelCustomerRefundRequestWithApiAdapter(refundId, payload)
 }
 
 export function uploadCustomerPaymentProof(paymentId, payload = {}) {
