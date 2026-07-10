@@ -1,4 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+
+function shouldSkipCardNavigation(target) {
+  return target instanceof Element && Boolean(target.closest('a, button'))
+}
 
 function formatCurrency(value) {
   return `${new Intl.NumberFormat('vi-VN').format(value)} đ`
@@ -61,6 +65,7 @@ function StarIcon() {
 }
 
 function ServiceCard({ isFavorite = false, onToggleFavorite, service }) {
+  const navigate = useNavigate()
   const detailPath = service.detail_path ?? `/services/${service.slug}`
   const featuredPill =
     service.badge_text === 'Bán chạy'
@@ -72,7 +77,29 @@ function ServiceCard({ isFavorite = false, onToggleFavorite, service }) {
           : null
 
   return (
-    <article className="service-card">
+    <article
+      className="service-card service-card--interactive"
+      role="link"
+      tabIndex={0}
+      onClick={(event) => {
+        if (shouldSkipCardNavigation(event.target)) {
+          return
+        }
+
+        navigate(detailPath)
+      }}
+      onKeyDown={(event) => {
+        if (
+          shouldSkipCardNavigation(event.target) ||
+          (event.key !== 'Enter' && event.key !== ' ')
+        ) {
+          return
+        }
+
+        event.preventDefault()
+        navigate(detailPath)
+      }}
+    >
       <Link className="service-card__media-link" to={detailPath}>
         <img
           alt={service.title}

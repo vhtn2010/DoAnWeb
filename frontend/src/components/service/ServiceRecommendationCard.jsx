@@ -34,8 +34,8 @@ function ServiceRecommendationCard({ service }) {
   }
 
   return (
-    <article className="service-recommendation-card">
-      <Link className="service-recommendation-card__image-link" to={detailPath}>
+    <Link className="service-recommendation-card" to={detailPath}>
+      <div className="service-recommendation-card__image-link">
         <img
           alt={service.title}
           className="service-recommendation-card__image"
@@ -45,13 +45,11 @@ function ServiceRecommendationCard({ service }) {
         {service.badge_text ? (
           <span className="service-recommendation-card__badge">{service.badge_text}</span>
         ) : null}
-      </Link>
+      </div>
 
       <div className="service-recommendation-card__body">
         <p className="service-recommendation-card__eyebrow">{buildEyebrow(service)}</p>
-        <h3 className="service-recommendation-card__title">
-          <Link to={detailPath}>{service.title}</Link>
-        </h3>
+        <h3 className="service-recommendation-card__title">{service.title}</h3>
 
         <div className="service-recommendation-card__footer">
           <p className="service-recommendation-card__price">
@@ -66,7 +64,7 @@ function ServiceRecommendationCard({ service }) {
           </p>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
 

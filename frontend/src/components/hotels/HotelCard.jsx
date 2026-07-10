@@ -1,4 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+
+function shouldSkipCardNavigation(target) {
+  return target instanceof Element && Boolean(target.closest('a, button'))
+}
 
 function HeartIcon({ isActive }) {
   return (
@@ -36,6 +40,7 @@ function HotelCard({
   formatCurrency,
   actionLabel = 'Đặt ngay',
 }) {
+  const navigate = useNavigate()
   const detailPath = hotel.detail_path ?? `/hotels/${hotel.slug}`
   const hasSalePrice =
     hotel.sale_price != null &&
@@ -44,7 +49,29 @@ function HotelCard({
   const currentPrice = hasSalePrice ? hotel.sale_price : hotel.base_price
 
   return (
-    <article className="hotel-card">
+    <article
+      className="hotel-card hotel-card--interactive"
+      role="link"
+      tabIndex={0}
+      onClick={(event) => {
+        if (shouldSkipCardNavigation(event.target)) {
+          return
+        }
+
+        navigate(detailPath)
+      }}
+      onKeyDown={(event) => {
+        if (
+          shouldSkipCardNavigation(event.target) ||
+          (event.key !== 'Enter' && event.key !== ' ')
+        ) {
+          return
+        }
+
+        event.preventDefault()
+        navigate(detailPath)
+      }}
+    >
       <div className="hotel-card__media">
         <Link className="hotel-card__media-link" to={detailPath}>
           <img alt={hotel.title} className="hotel-card__image" src={hotel.image_url} />
@@ -54,7 +81,11 @@ function HotelCard({
           aria-label={isFavorite ? 'Bỏ yêu thích khách sạn' : 'Thêm khách sạn vào yêu thích'}
           className={`hotel-card__favorite ${isFavorite ? 'hotel-card__favorite--active' : ''}`}
           type="button"
-          onClick={() => onToggleFavorite?.(hotel)}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onToggleFavorite?.(hotel)
+          }}
         >
           <HeartIcon isActive={isFavorite} />
         </button>

@@ -1,8 +1,36 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+
+function shouldSkipCardNavigation(target) {
+  return target instanceof Element && Boolean(target.closest('a, button'))
+}
 
 function TrainRelatedRouteCard({ formatCurrency, train }) {
+  const navigate = useNavigate()
+
   return (
-    <article className="train-related-route-card">
+    <article
+      className="train-related-route-card train-related-route-card--interactive"
+      role="link"
+      tabIndex={0}
+      onClick={(event) => {
+        if (shouldSkipCardNavigation(event.target)) {
+          return
+        }
+
+        navigate(train.detail_path)
+      }}
+      onKeyDown={(event) => {
+        if (
+          shouldSkipCardNavigation(event.target) ||
+          (event.key !== 'Enter' && event.key !== ' ')
+        ) {
+          return
+        }
+
+        event.preventDefault()
+        navigate(train.detail_path)
+      }}
+    >
       <div className="train-related-route-card__media">
         <img alt={train.image_alt} src={train.image_url} />
         <span>{train.train_number_label}</span>

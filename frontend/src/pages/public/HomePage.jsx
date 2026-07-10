@@ -1,6 +1,26 @@
 import { Link } from 'react-router-dom'
 import useHomePage from '../../hooks/useHomePage.js'
 
+function buildHomeServiceDetailPath(service = {}) {
+  if (service.detail_path) {
+    return service.detail_path
+  }
+
+  if (service.service_type === 'hotel' || service.service_type === 'room') {
+    return `/hotels/${service.slug}`
+  }
+
+  if (service.service_type === 'flight') {
+    return `/flights/${service.slug}`
+  }
+
+  if (service.service_type === 'train') {
+    return `/trains/${service.slug}`
+  }
+
+  return `/services/${service.slug}`
+}
+
 function ChevronIcon({ isOpen }) {
   return (
     <svg
@@ -148,10 +168,12 @@ function DestinationCard({ service }) {
     small: 'home-destination-card--small',
     wide: 'home-destination-card--wide',
   }[service.size]
+  const detailPath = buildHomeServiceDetailPath(service)
 
   return (
-    <article
+    <Link
       className={`home-destination-card ${modifierClass ?? ''}`}
+      to={detailPath}
       style={{ backgroundImage: `url(${service.image_url})` }}
     >
       <div className="home-destination-card__overlay" />
@@ -162,13 +184,15 @@ function DestinationCard({ service }) {
         <h3 className="home-destination-card__title">{service.title}</h3>
         <p className="home-destination-card__description">{service.short_description}</p>
       </div>
-    </article>
+    </Link>
   )
 }
 
-function FlashSaleCard({ formatCurrency, service, serviceListPath }) {
+function FlashSaleCard({ formatCurrency, service }) {
+  const detailPath = buildHomeServiceDetailPath(service)
+
   return (
-    <article className="home-offer-card">
+    <Link className="home-offer-card" to={detailPath}>
       <div className="home-offer-card__image-frame">
         <div
           aria-hidden="true"
@@ -188,12 +212,12 @@ function FlashSaleCard({ formatCurrency, service, serviceListPath }) {
             </span>
           </div>
 
-          <Link className="home-offer-card__action" to={serviceListPath}>
+          <span className="home-offer-card__action">
             Đặt Ngay
-          </Link>
+          </span>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
 
@@ -226,7 +250,6 @@ function HomePage() {
     searchCardRef,
     searchFieldOptions,
     searchState,
-    serviceListPath,
     showNextMonth,
     showPreviousMonth,
     sortOptions,
@@ -615,7 +638,6 @@ function HomePage() {
               formatCurrency={formatCurrency}
               key={service.slug}
               service={service}
-              serviceListPath={serviceListPath}
             />
           ))}
         </div>

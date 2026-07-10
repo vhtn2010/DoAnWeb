@@ -1,5 +1,25 @@
 import { Link } from 'react-router-dom'
 
+function buildHomeServiceDetailPath(service = {}) {
+  if (service.detail_path) {
+    return service.detail_path
+  }
+
+  if (service.service_type === 'hotel' || service.service_type === 'room') {
+    return `/hotels/${service.slug}`
+  }
+
+  if (service.service_type === 'flight') {
+    return `/flights/${service.slug}`
+  }
+
+  if (service.service_type === 'train') {
+    return `/trains/${service.slug}`
+  }
+
+  return `/services/${service.slug}`
+}
+
 function FlashSaleBoltIcon() {
   return (
     <svg aria-hidden="true" className="home-flash-sale__eyebrow-mark" viewBox="0 0 16 20">
@@ -11,9 +31,11 @@ function FlashSaleBoltIcon() {
   )
 }
 
-function FlashSaleCard({ formatCurrency, service, serviceListPath }) {
+function FlashSaleCard({ formatCurrency, service }) {
+  const detailPath = buildHomeServiceDetailPath(service)
+
   return (
-    <article className="home-offer-card">
+    <Link className="home-offer-card" to={detailPath}>
       <div className="home-offer-card__image-frame">
         <div
           aria-hidden="true"
@@ -33,12 +55,12 @@ function FlashSaleCard({ formatCurrency, service, serviceListPath }) {
             </span>
           </div>
 
-          <Link className="home-offer-card__action" to={serviceListPath}>
+          <span className="home-offer-card__action">
             Đặt Ngay
-          </Link>
+          </span>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
 
@@ -46,7 +68,6 @@ export default function HomeFlashSaleSection({
   flashSaleMeta,
   flashSaleServices,
   formatCurrency,
-  serviceListPath,
 }) {
   return (
     <section className="home-flash-sale">
@@ -86,7 +107,6 @@ export default function HomeFlashSaleSection({
             formatCurrency={formatCurrency}
             key={service.slug}
             service={service}
-            serviceListPath={serviceListPath}
           />
         ))}
       </div>
