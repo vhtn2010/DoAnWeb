@@ -16,7 +16,10 @@ function CartPage() {
     handleEditItem,
     handleGoBack,
     handleRemoveItem,
+    handleToggleAll,
     handleToggleItem,
+    isAllSelected,
+    isCustomer,
     loading,
     reloadCart,
     selectedItemIds,
@@ -34,7 +37,9 @@ function CartPage() {
           error={error}
           handleEditItem={handleEditItem}
           handleRemoveItem={handleRemoveItem}
+          handleToggleAll={handleToggleAll}
           handleToggleItem={handleToggleItem}
+          isAllSelected={isAllSelected}
           loading={loading}
           reloadCart={reloadCart}
           selectedItemIds={selectedItemIds}
@@ -42,7 +47,11 @@ function CartPage() {
 
         <aside className="cart-page__sidebar">
           <CartSummaryCard
-            feedbackHint="Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo."
+            feedbackHint={
+              isCustomer
+                ? 'Với tài khoản thành viên, backend hiện checkout theo toàn bộ giỏ hàng. Bạn có thể dùng nút "Chọn tất cả" rồi tiếp tục.'
+                : 'Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo.'
+            }
             isContinueDisabled={!canContinue}
             onContinue={handleContinueCheckout}
             summary={formattedSummary}

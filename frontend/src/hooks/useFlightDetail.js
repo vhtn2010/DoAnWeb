@@ -80,7 +80,7 @@ export default function useFlightDetail() {
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   const referenceId = searchParams.get('reference_id') ?? ''
-  const { authState, isCustomer } = usePublicSession()
+  const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
 
   const [flight, setFlight] = useState(null)
   const [relatedFlights, setRelatedFlights] = useState([])

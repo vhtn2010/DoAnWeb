@@ -105,7 +105,7 @@ export default function useTrainDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const { authState, isCustomer } = usePublicSession()
+  const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
 
   const [train, setTrain] = useState(null)
   const [relatedTrains, setRelatedTrains] = useState([])

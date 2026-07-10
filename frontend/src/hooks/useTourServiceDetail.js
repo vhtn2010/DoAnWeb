@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { addCartItemPreview } from '../repositories/cartRepository.js'
+import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
 import {
   getFeaturedTourServices,
   getTourServiceBySlug,
@@ -75,6 +75,7 @@ function buildTourCartItem({
   const startDate = parseTourDepartureDate(departureDate) ?? new Date()
   const durationDays = Math.max(Number(service.details?.duration_days ?? 1) || 1, 1)
   const endDate = addDays(startDate, durationDays - 1)
+  const travellerCount = Math.max(adultCount + childCount, 1)
 
   return {
     id: `cart-item-tour-${Date.now()}`,
@@ -83,7 +84,7 @@ function buildTourCartItem({
     reference_id: service.id,
     start_at: formatDateTimeStamp(startDate, '08:00:00'),
     end_at: formatDateTimeStamp(endDate, '18:00:00'),
-    quantity: 1,
+    quantity: travellerCount,
     unit_price_snapshot: totalPrice,
     options: {
       adult_count: adultCount,
@@ -106,10 +107,22 @@ function buildTourCartItem({
   }
 }
 
+function toCartPayload(cartItem) {
+  return {
+    end_at: cartItem.end_at,
+    options: cartItem.options,
+    quantity: cartItem.quantity,
+    reference_id: cartItem.reference_id,
+    service_id: cartItem.service_id,
+    service_type: cartItem.service_type,
+    start_at: cartItem.start_at,
+  }
+}
+
 export default function useTourServiceDetail() {
   const navigate = useNavigate()
   const { slug } = useParams()
-  const { authState, isCustomer } = usePublicSession()
+  const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
 
   const [service, setService] = useState(null)
   const [recommendedServices, setRecommendedServices] = useState([])
@@ -220,19 +233,15 @@ export default function useTourServiceDetail() {
       try {
         await navigator.clipboard.writeText(window.location.href)
       } catch {
-        // Keep the mocked share state even when clipboard is unavailable.
+        // Keep the share state even when clipboard is unavailable.
       }
     }
 
     setIsShared(true)
-    setBookingMessage('Liên kết tour đã được sao chép ở chế độ mô phỏng.')
+    setBookingMessage('Liên kết tour đã được sao chép.')
   }
 
-  function legacyHandleBookNow() {
-    setBookingMessage('Yêu cầu giữ chỗ đã được ghi nhận ở chế độ mô phỏng.')
-  }
-
-  async function createTourCartPreview() {
+  async function createTourCart() {
     if (!service) {
       return null
     }
@@ -244,6 +253,14 @@ export default function useTourServiceDetail() {
       service,
       totalPrice,
     })
+
+    if (isAuthenticatedCustomer) {
+      await addCartItem(toCartPayload(cartItem), {
+        authState,
+        previewItem: cartItem,
+      })
+      return cartItem
+    }
 
     await addCartItemPreview({
       authState,
@@ -262,8 +279,12 @@ export default function useTourServiceDetail() {
     setBookingMessage('')
 
     try {
-      await createTourCartPreview()
-      setBookingMessage('Tour đã được thêm vào giỏ hàng xem trước.')
+      await createTourCart()
+      setBookingMessage(
+        isAuthenticatedCustomer
+          ? 'Tour đã được thêm vào giỏ hàng của bạn.'
+          : 'Tour đã được thêm vào giỏ hàng xem trước.',
+      )
       navigate(buildPublicAuthPath('/cart', isCustomer))
     } catch (error) {
       setBookingMessage(error?.message ?? 'Không thể thêm tour vào giỏ hàng lúc này.')
@@ -281,10 +302,15 @@ export default function useTourServiceDetail() {
     setBookingMessage('')
 
     try {
-      const cartItem = await createTourCartPreview()
+      const cartItem = await createTourCart()
 
       if (!cartItem) {
-        legacyHandleBookNow()
+        setBookingMessage('Không thể chuẩn bị đơn đặt tour lúc này.')
+        return
+      }
+
+      if (isAuthenticatedCustomer) {
+        navigate(buildPublicAuthPath('/cart', isCustomer))
         return
       }
 

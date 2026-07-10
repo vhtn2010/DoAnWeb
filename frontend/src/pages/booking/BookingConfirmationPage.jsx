@@ -37,7 +37,7 @@ function BookingConfirmationPage() {
 
         {loading ? (
           <p className="booking-confirmation-page__status" role="status">
-            Đang chuẩn bị dữ liệu xác nhận đơn hàng mock theo pattern API-ready...
+            Đang chuẩn bị thông tin xác nhận đơn hàng...
           </p>
         ) : null}
 
@@ -57,12 +57,12 @@ function BookingConfirmationPage() {
           <div className="booking-confirmation-page__layout">
             <div className="booking-confirmation-page__main">
               <BookingChoiceCard
-                feedback=""
+                feedback={feedback}
                 itemCountLabel={viewModel.itemCountLabel}
                 items={viewModel.items}
-                onEdit={actions.editBookingItemMock}
+                onEdit={actions.editBookingItem}
                 onReturnToCart={actions.goBackToCart}
-                onRemove={actions.removeBookingItemMock}
+                onRemove={actions.removeBookingItem}
               />
             </div>
 
@@ -70,8 +70,8 @@ function BookingConfirmationPage() {
               <BookingDetailSummary
                 bookingCode={viewModel.bookingCode}
                 feedback={feedback}
-                isDisabled={viewModel.items.length === 0}
-                onConfirm={actions.confirmBookingMock}
+                isDisabled={viewModel.items.length === 0 || !actions.canContinueToPayment}
+                onConfirm={actions.confirmBooking}
                 onCopyBookingCode={actions.copyBookingCode}
                 summary={viewModel.summary}
               />

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   getActiveCart,
   removeCartItem,
-  updateCartItem,
   validateCart,
 } from '../repositories/cartRepository.js'
 import {
@@ -11,6 +10,7 @@ import {
   createCartSummaryPayload,
   mapCartResponseToView,
 } from '../mappers/cartMappers.js'
+import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
@@ -28,6 +28,29 @@ function createFeedbackState(tone = 'info', message = '') {
     tone,
     message,
   }
+}
+
+function buildItemRoute(item) {
+  const slug = item?.service?.slug
+  const serviceType = item?.service_type
+
+  if (!slug) {
+    return ''
+  }
+
+  if (serviceType === SERVICE_TYPES.flight) {
+    return `/flights/${slug}`
+  }
+
+  if (serviceType === SERVICE_TYPES.train) {
+    return `/trains/${slug}`
+  }
+
+  if (serviceType === SERVICE_TYPES.hotel || serviceType === SERVICE_TYPES.room) {
+    return `/hotels/${slug}`
+  }
+
+  return `/services/${slug}`
 }
 
 export default function useCart() {
@@ -136,6 +159,27 @@ export default function useCart() {
     setError('')
   }
 
+  function handleToggleAll() {
+    if (!cart?.id || cartItems.length === 0) {
+      return
+    }
+
+    const shouldSelectAll = selectedItemIds.length !== cartItems.length
+    const nextSelectedItemIds = shouldSelectAll ? cartItems.map((item) => item.id) : []
+
+    setSelectedItemIds(nextSelectedItemIds)
+    setSummary(buildSummary(cartItems, nextSelectedItemIds))
+    setFeedback(
+      createFeedbackState(
+        'info',
+        shouldSelectAll
+          ? 'Đã chọn toàn bộ dịch vụ trong giỏ hàng.'
+          : 'Đã bỏ chọn toàn bộ dịch vụ trong giỏ hàng.',
+      ),
+    )
+    setError('')
+  }
+
   async function handleRemoveItem(itemId) {
     if (!cart?.id) {
       return
@@ -159,38 +203,26 @@ export default function useCart() {
     }
   }
 
-  async function handleEditItem(item) {
-    setError('')
+  function handleEditItem(item) {
+    const nextRoute = buildItemRoute(item)
 
-    try {
-      const response = await updateCartItem(
-        item.id,
-        {
-          options: item.options,
-        },
-        {
-          authState,
-        },
+    if (!nextRoute) {
+      setFeedback(
+        createFeedbackState(
+          'error',
+          'Không tìm thấy trang dịch vụ tương ứng để chỉnh sửa lựa chọn này.',
+        ),
       )
-      const nextCartItem = response.data?.cart_item ?? null
-
-      if (nextCartItem) {
-        setCartItems((currentItems) => {
-          const nextCartItems = currentItems.map((currentItem) =>
-            currentItem.id === nextCartItem.id ? nextCartItem : currentItem,
-          )
-
-          setSummary(buildSummary(nextCartItems, selectedItemIds))
-          return nextCartItems
-        })
-      }
-
-      setFeedback(createFeedbackState('info', response.message))
-    } catch (updateError) {
-      const nextMessage = updateError?.message ?? 'Không thể cập nhật dịch vụ trong giỏ hàng.'
-      setError(nextMessage)
-      setFeedback(createFeedbackState('error', nextMessage))
+      return
     }
+
+    setFeedback(
+      createFeedbackState(
+        'info',
+        'Đang mở lại trang dịch vụ để bạn điều chỉnh ngày đi, hạng vé hoặc tùy chọn liên quan.',
+      ),
+    )
+    navigate(buildPublicAuthPath(nextRoute, isCustomer))
   }
 
   async function handleContinueCheckout() {
@@ -206,6 +238,13 @@ export default function useCart() {
     setError('')
 
     try {
+      if (authState === 'customer' && selectedItemIds.length !== cartItems.length) {
+        const nextMessage =
+          'Backend hiện xử lý checkout theo toàn bộ giỏ hàng. Bạn có thể dùng nút "Chọn tất cả" rồi tiếp tục để đảm bảo đơn hàng khớp dữ liệu hệ thống.'
+        setFeedback(createFeedbackState('error', nextMessage))
+        return
+      }
+
       const response = await validateCart(cart.id, selectedItemIds, {
         authState,
       })
@@ -261,6 +300,7 @@ export default function useCart() {
   )
 
   const canContinue = selectedItemIds.length > 0
+  const isAllSelected = cartItems.length > 0 && selectedItemIds.length === cartItems.length
 
   return {
     authState,
@@ -274,7 +314,9 @@ export default function useCart() {
     handleEditItem,
     handleGoBack,
     handleRemoveItem,
+    handleToggleAll,
     handleToggleItem,
+    isAllSelected,
     isCustomer,
     loading,
     reloadCart,

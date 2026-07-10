@@ -19,13 +19,24 @@ function ChevronIcon({ isOpen }) {
 
 function SearchFieldIcon({ type }) {
   const icons = {
-    departure: (
-      <>
-        <path d="M3 19h18" />
-        <path d="m2.5 13.5 18-6-5.8 5.2-1 6.3-3.4-4.1-4.4.9 2.8-2.8Z" />
-        <path d="M10.8 14.8 7.2 11.2" />
-      </>
-    ),
+    departure: {
+      viewBox: '0 0 24 24',
+      content: (
+        <>
+          <path
+            d="M4 18.25h11.5"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.7"
+          />
+          <path
+            d="M20.73 10.37a.78.78 0 0 0-.94-.56l-4.57 1.22-5.97-5.56-1.24.33 3.57 6.19-4.28 1.15-1.82-1.41-.95.25 2.02 3.5 15.62-4.19a.78.78 0 0 0 .56-.92Z"
+            fill="currentColor"
+          />
+        </>
+      ),
+    },
     destination: (
       <>
         <path d="M12 21s6-4.7 6-9.2a6 6 0 1 0-12 0c0 4.5 6 9.2 6 9.2Z" />
@@ -46,18 +57,23 @@ function SearchFieldIcon({ type }) {
     ),
   }
 
+  const iconDefinition =
+    typeof icons[type] === 'object' && 'content' in icons[type]
+      ? icons[type]
+      : { viewBox: '0 0 24 24', content: icons[type] }
+
   return (
     <svg
       aria-hidden="true"
-      className="home-search-card__field-icon-svg"
-      viewBox="0 0 24 24"
+      className={`home-search-card__field-icon-svg home-search-card__field-icon-svg--${type}`}
+      viewBox={iconDefinition.viewBox}
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="1.8"
     >
-      {icons[type]}
+      {iconDefinition.content}
     </svg>
   )
 }

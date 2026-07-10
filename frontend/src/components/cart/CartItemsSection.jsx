@@ -1,5 +1,10 @@
 import CartItemCard from './CartItemCard.jsx'
-import { PublicButton, PublicEmptyState, PublicErrorState, PublicLoadingBlock } from '../public/ui/index.js'
+import {
+  PublicButton,
+  PublicEmptyState,
+  PublicErrorState,
+  PublicLoadingBlock,
+} from '../public/ui/index.js'
 import { formatCurrencyVND } from '../../utils/formatCurrency.js'
 
 function CartBasketIcon() {
@@ -27,7 +32,9 @@ export default function CartItemsSection({
   error,
   handleEditItem,
   handleRemoveItem,
+  handleToggleAll,
   handleToggleItem,
+  isAllSelected,
   loading,
   reloadCart,
   selectedItemIds,
@@ -41,21 +48,38 @@ export default function CartItemsSection({
           </span>
           <h2 className="cart-list-card__title">Lựa chọn của bạn</h2>
         </div>
-        <span className="cart-list-card__pill">{cartItems.length} Mục</span>
+
+        <div className="cart-list-card__header-actions">
+          {cartItems.length > 0 ? (
+            <button
+              className="cart-item-card__action"
+              type="button"
+              onClick={handleToggleAll}
+            >
+              {isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+            </button>
+          ) : null}
+          <span className="cart-list-card__pill">{cartItems.length} Mục</span>
+        </div>
       </div>
 
       <div className="cart-list-card__items">
         {loading ? (
           <PublicLoadingBlock
             className="cart-list-card__state"
-            description="Dữ liệu mock đang được nạp theo flow API-ready cho màn hình giỏ hàng."
+            description="Giỏ hàng đang được đồng bộ từ dữ liệu hiện tại của bạn."
             rows={3}
             title="Đang tải giỏ hàng"
           />
         ) : error && cartItems.length === 0 ? (
           <PublicErrorState
             action={
-              <PublicButton className="cart-list-card__retry" type="button" variant="secondary" onClick={reloadCart}>
+              <PublicButton
+                className="cart-list-card__retry"
+                type="button"
+                variant="secondary"
+                onClick={reloadCart}
+              >
                 Tải lại
               </PublicButton>
             }
@@ -79,7 +103,7 @@ export default function CartItemsSection({
         ) : (
           <PublicEmptyState
             className="cart-list-card__state"
-            description="Thêm dịch vụ vào giỏ để tiếp tục preview quy trình đặt đơn ở các task sau."
+            description="Thêm dịch vụ vào giỏ để tiếp tục đặt chỗ và thanh toán."
             eyebrow="Chưa có lựa chọn"
             title="Giỏ hàng đang trống"
           />

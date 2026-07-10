@@ -474,6 +474,14 @@ select {
   font-weight: 900;
 }
 
+.cart-list-card__header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .cart-list-card__pill {
   min-height: 34px;
   padding: 6px 14px;
@@ -1233,6 +1241,11 @@ select {
 }
 
 .home-search-card__field-icon-svg {
+  width: 22px;
+  height: 22px;
+}
+
+.home-search-card__field-icon-svg--departure {
   width: 22px;
   height: 22px;
 }

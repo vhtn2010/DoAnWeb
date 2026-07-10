@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
 import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
-import { addCartItemPreview } from '../repositories/cartRepository.js'
+import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
 import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 import usePublicSession from './usePublicSession.js'
@@ -86,9 +86,9 @@ function createFeedbackState(tone = 'info', message = '') {
 function createAvailabilityState() {
   return {
     checked: false,
+    data: null,
     isAvailable: false,
     message: '',
-    data: null,
   }
 }
 
@@ -100,7 +100,7 @@ function buildLoginPath(pathname, search = '') {
   return `/login?${nextSearchParams.toString()}`
 }
 
-function buildCartItemFromPayload({ hotel, room, payload }) {
+function buildCartItemFromPayload({ hotel, payload, room }) {
   return {
     id: `cart-item-room-${Date.now()}`,
     service_id: payload.service_id,
@@ -155,7 +155,7 @@ export default function useHotelDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const { authState, isCustomer } = usePublicSession()
+  const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
 
   const [hotel, setHotel] = useState(null)
   const [rooms, setRooms] = useState([])
@@ -319,13 +319,13 @@ export default function useHotelDetail() {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn phòng trước khi tiếp tục.'))
       setAvailability({
         checked: true,
+        data: null,
         isAvailable: false,
         message: 'Chưa có phòng nào được chọn để kiểm tra.',
-        data: null,
       })
       return {
-        success: false,
         data: null,
+        success: false,
       }
     }
 
@@ -352,13 +352,13 @@ export default function useHotelDetail() {
     }
     const nextMessage = isAvailable
       ? `Còn ${response.data?.available_quantity ?? 0} phòng khả dụng cho lựa chọn hiện tại.`
-      : 'Lựa chọn hiện tại chưa khả dụng trong dữ liệu mock. Vui lòng đổi ngày hoặc số khách.'
+      : 'Lựa chọn hiện tại chưa khả dụng. Vui lòng đổi ngày hoặc số khách.'
 
     setAvailability({
       checked: true,
+      data: response.data,
       isAvailable,
       message: nextMessage,
-      data: response.data,
     })
 
     if (!isAvailable) {
@@ -368,7 +368,7 @@ export default function useHotelDetail() {
     return response
   }
 
-  async function addSelectedRoomToCartMock({ roomIdOverride } = {}) {
+  async function addSelectedRoomToCart({ roomIdOverride } = {}) {
     const nextRoom = resolveRoom(roomIdOverride)
 
     if (!hotel || !nextRoom) {
@@ -393,67 +393,69 @@ export default function useHotelDetail() {
     const requestedGuests = Math.max(1, Number(guests) || 1)
     const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
     const nights = calculateStayNights(checkinDate, checkoutDate)
-    const payloadResponse = {
-      data: {
-        end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
-        options: buildHotelBookingOptions({
-          checkinDate,
-          checkoutDate,
-          guests: requestedGuests,
-          hotel,
-          nights,
-          room: nextRoom,
-          roomQuantity: requestedQuantity,
-        }),
-        quantity: requestedQuantity,
-        reference_id: nextRoom.hotel_service_id,
-        service_id: nextRoom.id,
-        service_type: nextRoom.service_type,
-        start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
-        unit_price_snapshot: resolveCurrentPrice(nextRoom) * nights,
-      },
-      success: true,
-    }
-
-    if (!payloadResponse.success || !payloadResponse.data) {
-      setFeedback(createFeedbackState('error', payloadResponse.message ?? 'Không thể chuẩn bị đặt phòng mock.'))
-      return {
-        success: false,
-      }
+    const payload = {
+      end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
+      options: buildHotelBookingOptions({
+        checkinDate,
+        checkoutDate,
+        guests: requestedGuests,
+        hotel,
+        nights,
+        room: nextRoom,
+        roomQuantity: requestedQuantity,
+      }),
+      quantity: requestedQuantity,
+      reference_id: nextRoom.id,
+      service_id: hotel.id,
+      service_type: hotel.service_type ?? 'hotel',
+      start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
+      unit_price_snapshot: resolveCurrentPrice(nextRoom) * Math.max(nights, 1),
     }
 
     const cartItem = buildCartItemFromPayload({
       hotel,
+      payload,
       room: nextRoom,
-      payload: payloadResponse.data,
     })
+
+    if (isAuthenticatedCustomer) {
+      await addCartItem(payload, {
+        authState,
+        previewItem: cartItem,
+      })
+      setFeedback(createFeedbackState('success', 'Phòng đã được thêm vào giỏ hàng của bạn.'))
+      return {
+        cartItem,
+        payload,
+        success: true,
+      }
+    }
 
     await addCartItemPreview({
       authState,
       item: cartItem,
     })
-
     setFeedback(
       createFeedbackState(
         'success',
-        'Đã tạo payload mock và thêm phòng vào giỏ hàng preview.',
+        'Phòng đã được thêm vào giỏ hàng xem trước. Đăng nhập để đồng bộ với tài khoản của bạn.',
       ),
     )
 
     return {
-      success: true,
       cartItem,
-      payload: payloadResponse.data,
+      payload,
+      success: true,
     }
   }
 
-  async function goToCartMock(roomIdOverride) {
+  async function goToCartAction(roomIdOverride) {
     if (!isAuthenticatedCustomer) {
       setIsLoginPromptOpen(true)
       return
     }
 
-    const result = await addSelectedRoomToCartMock({ roomIdOverride })
+    const result = await addSelectedRoomToCart({ roomIdOverride })
 
     if (!result.success) {
       return
@@ -462,10 +464,15 @@ export default function useHotelDetail() {
     navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
-  async function goToCheckoutMock(roomIdOverride) {
-    const result = await addSelectedRoomToCartMock({ roomIdOverride })
+  async function goToCheckoutAction(roomIdOverride) {
+    const result = await addSelectedRoomToCart({ roomIdOverride })
 
     if (!result.success) {
+      return
+    }
+
+    if (isAuthenticatedCustomer) {
+      navigate(buildPublicAuthPath('/cart', isCustomer))
       return
     }
 
@@ -490,12 +497,14 @@ export default function useHotelDetail() {
   }
 
   return {
+    addSelectedRoomToCart,
     availability,
     breadcrumbHomePath: buildPublicAuthPath('/', isCustomer),
     breadcrumbListPath: buildPublicAuthPath('/hotels', isCustomer),
     checkAvailability: checkAvailabilityForRoom,
     checkinDate,
     checkoutDate,
+    closeLoginPrompt,
     error,
     feedback,
     formatCurrency: formatCurrencyVND,
@@ -504,15 +513,16 @@ export default function useHotelDetail() {
       selectedImage,
       setSelectedImage,
     },
-    goToCartMock,
-    goToCheckoutMock,
+    goToCartAction,
+    goToCartMock: goToCartAction,
+    goToCheckoutAction,
+    goToCheckoutMock: goToCheckoutAction,
+    goToLoginFromPrompt,
     guests,
     hotel,
-    isLoginPromptOpen,
     isCustomer,
+    isLoginPromptOpen,
     loading,
-    closeLoginPrompt,
-    goToLoginFromPrompt,
     relatedHotels,
     retry,
     roomQuantity,
@@ -524,6 +534,5 @@ export default function useHotelDetail() {
     updateDateRange,
     updateGuests,
     updateRoomQuantity,
-    addSelectedRoomToCartMock,
   }
 }

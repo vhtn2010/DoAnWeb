@@ -8,8 +8,37 @@ import {
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
-function getTaxAndFeeAmount(booking) {
-  return Number(booking?.tax_amount ?? 0) + Number(booking?.service_fee_amount ?? 0)
+const FALLBACK_SERVICE_IMAGE_URL = '/assets/template/service/detail/ha-long-gallery-main.png'
+
+function normalizeBookingItems(items = []) {
+  return items.map((item) => {
+    const serviceSnapshot = item.service_snapshot ?? {}
+
+    return {
+      ...item,
+      id: item.id,
+      image_url: serviceSnapshot.image_url ?? FALLBACK_SERVICE_IMAGE_URL,
+      options: {
+        duration_label: item.options?.duration_label,
+        location_text: serviceSnapshot.location_text ?? '',
+        schedule_label: item.options?.schedule_label,
+      },
+      service_title:
+        serviceSnapshot.title ??
+        item.title_snapshot ??
+        item.title ??
+        'Dịch vụ đang được cập nhật',
+      total_amount: Number(item.total_amount ?? 0),
+    }
+  })
+}
+
+function normalizeBooking(booking = {}) {
+  return {
+    ...booking,
+    booking_status: booking.booking_status ?? booking.status,
+    id: booking.id ?? booking.booking_id,
+  }
 }
 
 export default function useBookingConfirmation() {
@@ -18,26 +47,8 @@ export default function useBookingConfirmation() {
   const { bookingCode } = useParams()
   const { authState, isCustomer } = usePublicSession()
 
-  const checkoutPayload = useMemo(
-    () => (location.state?.checkoutPayload ? { ...location.state.checkoutPayload } : undefined),
-    [location.state?.checkoutPayload],
-  )
-  const selectedCartItemIds = useMemo(
-    () =>
-      Array.isArray(location.state?.selectedCartItemIds)
-        ? [...location.state.selectedCartItemIds]
-        : undefined,
-    [location.state?.selectedCartItemIds],
-  )
-  const cartSummaryPayload = useMemo(
-    () => (location.state?.cartSummaryPayload ? { ...location.state.cartSummaryPayload } : undefined),
-    [location.state?.cartSummaryPayload],
-  )
-
   const [booking, setBooking] = useState(null)
   const [bookingItems, setBookingItems] = useState([])
-  const [travellers, setTravellers] = useState([])
-  const [paymentOptions, setPaymentOptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -55,36 +66,25 @@ export default function useBookingConfirmation() {
         const response = bookingCode
           ? await getBookingByCode(bookingCode, {
               authState,
-              cartSummaryPayload,
-              checkoutPayload,
-              selectedCartItemIds,
             })
           : await getBookingConfirmation({
               authState,
-              cartSummaryPayload,
-              checkoutPayload,
-              selectedCartItemIds,
+              bookingId: location.state?.bookingId,
             })
 
         if (!isActive) {
           return
         }
 
-        if (!response.success || !response.data) {
+        if (!response.success || !response.data?.booking) {
           setBooking(null)
           setBookingItems([])
-          setTravellers([])
-          setPaymentOptions([])
           setError(response.message ?? 'Không thể tải thông tin xác nhận đơn hàng lúc này.')
           return
         }
 
-        setBooking(response.data.booking ?? null)
-        setBookingItems(Array.isArray(response.data.booking_items) ? response.data.booking_items : [])
-        setTravellers(Array.isArray(response.data.travellers) ? response.data.travellers : [])
-        setPaymentOptions(
-          Array.isArray(response.data.payment_options) ? response.data.payment_options : [],
-        )
+        setBooking(normalizeBooking(response.data.booking))
+        setBookingItems(normalizeBookingItems(response.data.booking_items))
       } catch (loadError) {
         if (!isActive) {
           return
@@ -92,8 +92,6 @@ export default function useBookingConfirmation() {
 
         setBooking(null)
         setBookingItems([])
-        setTravellers([])
-        setPaymentOptions([])
         setError(loadError?.message ?? 'Không thể tải thông tin xác nhận đơn hàng lúc này.')
       } finally {
         if (isActive) {
@@ -107,82 +105,56 @@ export default function useBookingConfirmation() {
     return () => {
       isActive = false
     }
-  }, [authState, bookingCode, cartSummaryPayload, checkoutPayload, reloadToken, selectedCartItemIds])
+  }, [authState, bookingCode, location.state?.bookingId, reloadToken])
 
   const viewModel = useMemo(
     () =>
       buildBookingConfirmationViewModel({
         booking,
         bookingItems,
-        paymentOptions,
+        paymentOptions: [],
       }),
-    [booking, bookingItems, paymentOptions],
+    [booking, bookingItems],
   )
+
+  const canContinueToPayment = booking?.booking_status === 'pending_payment'
 
   function retry() {
     setReloadToken((currentToken) => currentToken + 1)
   }
 
   function goBackToCart() {
-    navigate(buildPublicAuthPath('/cart', isCustomer), {
-      state: {
-        cartSummaryPayload,
-        checkoutPayload,
-        selectedCartItemIds,
-      },
-    })
+    navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
-  function editBookingItemMock(itemId) {
-    setFeedback(`Đang quay lại giỏ hàng để chỉnh sửa mục ${itemId}.`)
-    goBackToCart()
-  }
-
-  function removeBookingItemMock(itemId) {
-    const nextBookingItems = bookingItems.filter((item) => item.id !== itemId)
-
-    setBookingItems(nextBookingItems)
-    setTravellers((currentTravellers) =>
-      currentTravellers.filter((traveller, index) => index < nextBookingItems.length),
+  function editBookingItem(itemId) {
+    setFeedback(
+      `Đơn hàng ${booking?.booking_code ?? ''} đã được tạo trên hệ thống. Để thay đổi mục ${itemId}, vui lòng quay lại giỏ trước khi checkout hoặc liên hệ chăm sóc khách hàng.`,
     )
-    setBooking((currentBooking) => {
-      if (!currentBooking) {
-        return currentBooking
-      }
-
-      const nextSubtotalAmount = nextBookingItems.reduce(
-        (totalAmount, item) => totalAmount + Number(item.total_amount ?? 0),
-        0,
-      )
-      const taxAndFeeAmount = getTaxAndFeeAmount(currentBooking)
-      const discountAmount =
-        nextBookingItems.length > 0 ? Number(currentBooking.discount_amount ?? 0) : 0
-
-      return {
-        ...currentBooking,
-        subtotal_amount: nextSubtotalAmount,
-        discount_amount: discountAmount,
-        total_amount: Math.max(nextSubtotalAmount + taxAndFeeAmount - discountAmount, 0),
-      }
-    })
-    setFeedback('Đã xóa mục khỏi đơn hàng mock.')
   }
 
-  async function confirmBookingMock() {
+  function removeBookingItem(itemId) {
+    setFeedback(
+      `Backend customer hiện chưa hỗ trợ xóa trực tiếp mục ${itemId} sau khi checkout. Bạn có thể mở hỗ trợ để được xử lý tiếp.`,
+    )
+  }
+
+  function confirmBooking() {
     if (!booking) {
       return
     }
 
-    if (bookingItems.length === 0) {
-      setFeedback('Đơn hàng hiện chưa có dịch vụ để xác nhận.')
+    if (!canContinueToPayment) {
+      setFeedback('Đơn hàng này hiện không còn ở trạng thái chờ thanh toán.')
       return
     }
 
-    // TODO: replace mock handoff with POST /bookings/checkout response in API integration phase.
-    navigate(buildPublicAuthPath('/checkout', isCustomer), {
+    navigate(buildPublicAuthPath('/payment-confirmation', isCustomer), {
       state: {
-        cartSummaryPayload,
-        selectedCartItemIds,
+        booking,
+        bookingCode: booking.booking_code,
+        bookingId: booking.id,
+        bookingItems,
       },
     })
   }
@@ -213,16 +185,15 @@ export default function useBookingConfirmation() {
     error,
     feedback,
     loading,
-    paymentOptions,
     preserveAuthQuery: (pathname) => buildPublicAuthPath(pathname, isCustomer),
-    travellers,
     viewModel,
     actions: {
-      confirmBookingMock,
+      canContinueToPayment,
+      confirmBooking,
       copyBookingCode,
-      editBookingItemMock,
+      editBookingItem,
       goBackToCart,
-      removeBookingItemMock,
+      removeBookingItem,
       retry,
     },
   }
