@@ -21,6 +21,7 @@ function ServiceDetailPageV2() {
     handleAddToCart,
     handleBookNow,
     handleShareClick,
+    handleToggleFavorite,
     infoItems,
     isFavorite,
     isLoading,
@@ -33,7 +34,6 @@ function ServiceDetailPageV2() {
     setAdultCount,
     setChildCount,
     setDepartureDate,
-    setIsFavorite,
     setSelectedImage,
     totalPrice,
   } = useTourServiceDetail()
@@ -72,7 +72,7 @@ function ServiceDetailPageV2() {
           isShared={isShared}
           service={service}
           onShare={handleShareClick}
-          onToggleFavorite={() => setIsFavorite((currentValue) => !currentValue)}
+          onToggleFavorite={handleToggleFavorite}
         />
 
         <ServiceDetailGallery

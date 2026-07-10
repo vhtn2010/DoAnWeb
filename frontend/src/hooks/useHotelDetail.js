@@ -4,9 +4,16 @@ import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
 import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
 import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
 import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
+import useFavorites from './useFavorites.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+import {
+  buildFavoriteItem,
+  buildFavoriteKey,
+  buildFavoriteSourcePath,
+  getFavoriteSourceLabel,
+} from '../services/favoriteStorage.js'
 
 function convertDisplayDateToInput(value) {
   const [dayText, monthText, yearText] = String(value ?? '').split('-')
@@ -155,7 +162,8 @@ export default function useHotelDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
   const [hotel, setHotel] = useState(null)
   const [rooms, setRooms] = useState([])
@@ -270,6 +278,26 @@ export default function useHotelDetail() {
     () => rooms.find((room) => room.id === selectedRoomId) ?? null,
     [rooms, selectedRoomId],
   )
+  const favoriteItem = useMemo(() => {
+    if (!hotel) {
+      return null
+    }
+
+    return buildFavoriteItem({
+      favorite_key: buildFavoriteKey('hotel', hotel.service_id ?? hotel.id ?? hotel.slug),
+      service_type: 'hotel',
+      service_id: hotel.service_id ?? hotel.id ?? '',
+      slug: hotel.slug,
+      title: hotel.title,
+      image_url: hotel.image_url,
+      detail_path: hotel.detail_path ?? `/hotels/${hotel.slug}`,
+      source_path: buildFavoriteSourcePath(location),
+      source_label: getFavoriteSourceLabel('hotel'),
+      summary: hotel.address ?? hotel.location_text ?? '',
+      location_text: hotel.location_text ?? hotel.address ?? '',
+    })
+  }, [hotel, location])
+  const isFavorite = favoriteItem ? hasFavorite(favoriteItem.favorite_key) : false
   const stayNights = useMemo(
     () => calculateStayNights(checkinDate, checkoutDate),
     [checkinDate, checkoutDate],
@@ -496,6 +524,27 @@ export default function useHotelDetail() {
     navigate(buildLoginPath(location.pathname, location.search))
   }
 
+  function handleToggleFavorite() {
+    if (!favoriteItem) {
+      return
+    }
+
+    const result = toggleFavorite(favoriteItem)
+
+    if (!result.updated) {
+      return
+    }
+
+    setFeedback(
+      createFeedbackState(
+        result.nextState ? 'success' : 'info',
+        result.nextState
+          ? 'Khách sạn đã được lưu vào danh sách yêu thích.'
+          : 'Khách sạn đã được bỏ khỏi danh sách yêu thích.',
+      ),
+    )
+  }
+
   return {
     addSelectedRoomToCart,
     availability,
@@ -520,6 +569,7 @@ export default function useHotelDetail() {
     goToLoginFromPrompt,
     guests,
     hotel,
+    isFavorite,
     isCustomer,
     isLoginPromptOpen,
     loading,
@@ -531,6 +581,7 @@ export default function useHotelDetail() {
     selectedRoom,
     selectedRoomId,
     stayNights,
+    handleToggleFavorite,
     updateDateRange,
     updateGuests,
     updateRoomQuantity,

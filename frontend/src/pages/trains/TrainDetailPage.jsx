@@ -36,13 +36,18 @@ function HeartIcon() {
   )
 }
 
-function TrainDetailTopActions() {
+function TrainDetailTopActions({ isFavorite, onToggleFavorite }) {
   return (
     <div className="train-detail-page__actions" aria-label="Tác vụ vé tàu">
       <button className="train-detail-page__action" type="button" aria-label="Chia sẻ">
         <ShareIcon />
       </button>
-      <button className="train-detail-page__action" type="button" aria-label="Lưu chuyến tàu">
+      <button
+        aria-label="Lưu chuyến tàu"
+        className={`train-detail-page__action ${isFavorite ? 'train-detail-page__action--active' : ''}`}
+        type="button"
+        onClick={onToggleFavorite}
+      >
         <HeartIcon />
       </button>
     </div>
@@ -60,6 +65,8 @@ function TrainDetailPage() {
     formatCurrency,
     goToLoginFromPrompt,
     goBackToTrains,
+    handleToggleFavorite,
+    isFavorite,
     isLoginPromptOpen,
     loading,
     relatedTrains,
@@ -142,7 +149,10 @@ function TrainDetailPage() {
 
         <section className="train-detail-hero">
           <div className="train-detail-page__topbar">
-            <TrainDetailTopActions />
+            <TrainDetailTopActions
+              isFavorite={isFavorite}
+              onToggleFavorite={handleToggleFavorite}
+            />
           </div>
 
           <TrainDetailHeaderCard train={train} />
@@ -176,7 +186,6 @@ function TrainDetailPage() {
                 ))}
               </div>
             </section>
-
           </div>
 
           <aside className="train-detail-sidebar">

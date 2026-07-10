@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
 import {
   getFeaturedTourServices,
   getTourServiceBySlug,
 } from '../repositories/publicServiceRepository.js'
 import { mapTourServiceToView } from '../mappers/serviceMappers.js'
+import useFavorites from './useFavorites.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+import {
+  buildFavoriteItem,
+  buildFavoriteKey,
+  buildFavoriteSourcePath,
+  getFavoriteSourceLabel,
+} from '../services/favoriteStorage.js'
 
 function getLeadLocation(locationText) {
   return locationText.split(',')[0].trim()
@@ -120,9 +127,11 @@ function toCartPayload(cartItem) {
 }
 
 export default function useTourServiceDetail() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
   const [service, setService] = useState(null)
   const [recommendedServices, setRecommendedServices] = useState([])
@@ -130,7 +139,6 @@ export default function useTourServiceDetail() {
   const [departureDate, setDepartureDate] = useState('')
   const [adultCount, setAdultCount] = useState(2)
   const [childCount, setChildCount] = useState(0)
-  const [isFavorite, setIsFavorite] = useState(false)
   const [isShared, setIsShared] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
   const [pendingAction, setPendingAction] = useState('')
@@ -217,7 +225,6 @@ export default function useTourServiceDetail() {
     setDepartureDate(service.details.departure_dates[0] ?? '')
     setAdultCount(2)
     setChildCount(0)
-    setIsFavorite(false)
     setIsShared(false)
     setBookingMessage('')
     setPendingAction('')
@@ -227,6 +234,26 @@ export default function useTourServiceDetail() {
   const adultTotal = adultCount * (service?.sale_price ?? 0)
   const childTotal = childCount * childUnitPrice
   const totalPrice = adultTotal + childTotal
+  const favoriteItem = useMemo(() => {
+    if (!service) {
+      return null
+    }
+
+    return buildFavoriteItem({
+      favorite_key: buildFavoriteKey(service.service_type ?? 'tour', service.service_id ?? service.id ?? service.slug),
+      service_type: service.service_type ?? 'tour',
+      service_id: service.service_id ?? service.id ?? '',
+      slug: service.slug,
+      title: service.title,
+      image_url: service.image_url,
+      detail_path: service.detail_path ?? `/services/${service.slug}`,
+      source_path: buildFavoriteSourcePath(location),
+      source_label: getFavoriteSourceLabel(service.service_type ?? 'tour'),
+      summary: [service.duration_text, service.transport_text].filter(Boolean).join(' • '),
+      location_text: service.location_text,
+    })
+  }, [location, service])
+  const isFavorite = favoriteItem ? hasFavorite(favoriteItem.favorite_key) : false
 
   async function handleShareClick() {
     if (typeof window !== 'undefined' && navigator?.clipboard?.writeText) {
@@ -350,6 +377,24 @@ export default function useTourServiceDetail() {
     ]
   }, [service])
 
+  function handleToggleFavorite() {
+    if (!favoriteItem) {
+      return
+    }
+
+    const result = toggleFavorite(favoriteItem)
+
+    if (!result.updated) {
+      return
+    }
+
+    setBookingMessage(
+      result.nextState
+        ? 'Tour đã được lưu vào danh sách yêu thích.'
+        : 'Tour đã được bỏ khỏi danh sách yêu thích.',
+    )
+  }
+
   return {
     adultCount,
     adultTotal,
@@ -375,8 +420,8 @@ export default function useTourServiceDetail() {
     setAdultCount,
     setChildCount,
     setDepartureDate,
-    setIsFavorite,
     setSelectedImage,
+    handleToggleFavorite,
     totalPrice,
   }
 }

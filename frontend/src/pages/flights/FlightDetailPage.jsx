@@ -35,13 +35,18 @@ function HeartIcon() {
   )
 }
 
-function FlightDetailTopActions() {
+function FlightDetailTopActions({ isFavorite, onToggleFavorite }) {
   return (
     <div className="flight-detail-page__actions" aria-label="Tác vụ vé máy bay">
       <button className="flight-detail-page__action" type="button" aria-label="Chia sẻ">
         <ShareIcon />
       </button>
-      <button className="flight-detail-page__action" type="button" aria-label="Lưu chuyến bay">
+      <button
+        aria-label="Lưu chuyến bay"
+        className={`flight-detail-page__action ${isFavorite ? 'flight-detail-page__action--active' : ''}`}
+        type="button"
+        onClick={onToggleFavorite}
+      >
         <HeartIcon />
       </button>
     </div>
@@ -59,6 +64,8 @@ function FlightDetailPage() {
     formatCurrency,
     goToLoginFromPrompt,
     goBackToFlights,
+    handleToggleFavorite,
+    isFavorite,
     isLoginPromptOpen,
     loginPromptVariant,
     loading,
@@ -72,7 +79,7 @@ function FlightDetailPage() {
     loginPromptVariant === 'booking'
       ? {
           eyebrow: 'Đặt chỗ',
-          title: 'Đăng nhập để có thể Đặt chỗ chuyến bay',
+          title: 'Đăng nhập để có thể đặt chỗ chuyến bay',
           description: 'Đăng nhập để tiếp tục đặt chỗ chuyến bay bạn đã chọn nhanh hơn.',
         }
       : {
@@ -134,7 +141,10 @@ function FlightDetailPage() {
         />
 
         <section className="flight-detail-page__topbar">
-          <FlightDetailTopActions />
+          <FlightDetailTopActions
+            isFavorite={isFavorite}
+            onToggleFavorite={handleToggleFavorite}
+          />
         </section>
 
         {feedback.message ? (

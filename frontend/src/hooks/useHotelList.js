@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import {
   DEFAULT_HOTEL_PAGE_SIZE,
   DEFAULT_HOTEL_SEARCH_VALUES,
@@ -8,12 +8,19 @@ import {
 } from '../constants/hotels.js'
 import { mapHotelSummaryToCardView } from '../mappers/hotelMappers.generated.js'
 import { listHotels } from '../repositories/hotelRepository.js'
+import useFavorites from './useFavorites.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 import usePublicSession from './usePublicSession.js'
 import {
   buildPublicAuthPath,
   getPublicAuthQueryValue,
 } from '../utils/publicNavigation.js'
+import {
+  buildFavoriteItem,
+  buildFavoriteKey,
+  buildFavoriteSourcePath,
+  getFavoriteSourceLabel,
+} from '../services/favoriteStorage.js'
 
 function parseArraySearchParam(searchParams, key) {
   const value = searchParams.get(key)
@@ -119,8 +126,10 @@ function buildHotelSearchParams({
 }
 
 export default function useHotelList() {
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { isCustomer } = usePublicSession()
+  const { currentUser, isCustomer } = usePublicSession()
+  const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
   const [searchDraft, setSearchDraft] = useState(() => createInitialSearchState(searchParams))
   const [appliedSearch, setAppliedSearch] = useState(() =>
@@ -134,7 +143,6 @@ export default function useHotelList() {
     () => searchParams.get('sort') ?? DEFAULT_HOTEL_SORT,
   )
   const [currentPage, setCurrentPage] = useState(() => Number(searchParams.get('page') ?? 1))
-  const [favoriteIds, setFavoriteIds] = useState([])
   const [responseState, setResponseState] = useState({
     data: [],
     meta: {
@@ -286,12 +294,20 @@ export default function useHotelList() {
     syncSearchParams({ nextPage })
   }
 
-  function handleToggleFavorite(hotelId) {
-    setFavoriteIds((currentIds) =>
-      currentIds.includes(hotelId)
-        ? currentIds.filter((currentId) => currentId !== hotelId)
-        : [...currentIds, hotelId],
-    )
+  function handleToggleFavorite(hotel) {
+    toggleFavorite(buildFavoriteItem({
+      favorite_key: buildFavoriteKey('hotel', hotel.service_id ?? hotel.id ?? hotel.slug),
+      service_type: 'hotel',
+      service_id: hotel.service_id ?? hotel.id ?? '',
+      slug: hotel.slug,
+      title: hotel.title,
+      image_url: hotel.image_url,
+      detail_path: hotel.detail_path ?? `/hotels/${hotel.slug}`,
+      source_path: buildFavoriteSourcePath(location),
+      source_label: getFavoriteSourceLabel('hotel'),
+      summary: hotel.displayAddress ?? hotel.address ?? '',
+      location_text: hotel.location_text ?? hotel.displayAddress ?? hotel.address ?? '',
+    }))
   }
 
   const visibleHotels = useMemo(
@@ -305,6 +321,13 @@ export default function useHotelList() {
   )
   const totalPages = responseState.meta.total_pages ?? 1
   const safeCurrentPage = responseState.meta.page ?? currentPage
+  const favoriteIds = useMemo(
+    () =>
+      visibleHotels
+        .filter((hotel) => hasFavorite(buildFavoriteKey('hotel', hotel.service_id ?? hotel.id ?? hotel.slug)))
+        .map((hotel) => hotel.id),
+    [hasFavorite, visibleHotels],
+  )
   const breadcrumbHomePath = buildPublicAuthPath('/', isCustomer)
   const resultSummary = useMemo(() => {
     if (isLoading) {

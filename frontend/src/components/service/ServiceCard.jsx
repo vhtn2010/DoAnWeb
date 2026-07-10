@@ -34,12 +34,12 @@ function TransportIcon() {
   )
 }
 
-function HeartIcon() {
+function HeartIcon({ isActive = false }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20">
       <path
         d="m10 16.25-.96-.87C5.2 11.94 2.75 9.7 2.75 6.88A3.63 3.63 0 0 1 6.4 3.25c1.39 0 2.7.66 3.6 1.7.9-1.04 2.21-1.7 3.6-1.7a3.63 3.63 0 0 1 3.65 3.63c0 2.82-2.45 5.06-6.29 8.5l-.96.87Z"
-        fill="none"
+        fill={isActive ? 'currentColor' : 'none'}
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -60,7 +60,7 @@ function StarIcon() {
   )
 }
 
-function ServiceCard({ service }) {
+function ServiceCard({ isFavorite = false, onToggleFavorite, service }) {
   const detailPath = service.detail_path ?? `/services/${service.slug}`
   const featuredPill =
     service.badge_text === 'Bán chạy'
@@ -85,9 +85,18 @@ function ServiceCard({ service }) {
             {featuredPill.value}
           </span>
         ) : null}
-        <span aria-hidden="true" className="service-card__favorite">
-          <HeartIcon />
-        </span>
+        <button
+          aria-label={isFavorite ? 'Bỏ tour khỏi yêu thích' : 'Thêm tour vào yêu thích'}
+          className={`service-card__favorite ${isFavorite ? 'service-card__favorite--active' : ''}`}
+          type="button"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onToggleFavorite?.(service)
+          }}
+        >
+          <HeartIcon isActive={isFavorite} />
+        </button>
       </Link>
 
       <div className="service-card__body">

@@ -54,7 +54,7 @@ function HotelCard({
           aria-label={isFavorite ? 'Bỏ yêu thích khách sạn' : 'Thêm khách sạn vào yêu thích'}
           className={`hotel-card__favorite ${isFavorite ? 'hotel-card__favorite--active' : ''}`}
           type="button"
-          onClick={() => onToggleFavorite?.(hotel.id)}
+          onClick={() => onToggleFavorite?.(hotel)}
         >
           <HeartIcon isActive={isFavorite} />
         </button>

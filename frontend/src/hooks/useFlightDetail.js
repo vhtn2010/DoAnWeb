@@ -7,7 +7,14 @@ import {
   checkFlightAvailability,
   getFlightDetailBySlug,
 } from '../repositories/flightRepository.js'
+import {
+  buildFavoriteItem,
+  buildFavoriteKey,
+  buildFavoriteSourcePath,
+  getFavoriteSourceLabel,
+} from '../services/favoriteStorage.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import useFavorites from './useFavorites.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
@@ -80,7 +87,8 @@ export default function useFlightDetail() {
   const { slug } = useParams()
   const [searchParams] = useSearchParams()
   const referenceId = searchParams.get('reference_id') ?? ''
-  const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
   const [flight, setFlight] = useState(null)
   const [relatedFlights, setRelatedFlights] = useState([])
@@ -176,6 +184,28 @@ export default function useFlightDetail() {
       null
     )
   }, [flight, selectedFareId])
+
+  const favoriteItem = useMemo(() => {
+    if (!flight) {
+      return null
+    }
+
+    return buildFavoriteItem({
+      favorite_key: buildFavoriteKey('flight', flight.service_id ?? flight.id ?? flight.slug),
+      service_type: 'flight',
+      service_id: flight.service_id ?? flight.id ?? '',
+      slug: flight.slug,
+      title: `${flight.departure_city_label} - ${flight.arrival_city_label}`,
+      image_url: flight.image_url,
+      detail_path: flight.detail_path ?? `/flights/${flight.slug}`,
+      source_path: buildFavoriteSourcePath(location),
+      source_label: getFavoriteSourceLabel('flight'),
+      summary: `${flight.airline_name} • ${flight.flight_number_label} • ${flight.departure_time_label} - ${flight.arrival_time_label}`,
+      location_text: `${flight.departure_city_label} - ${flight.arrival_city_label}`,
+    })
+  }, [flight, location])
+
+  const isFavorite = favoriteItem ? hasFavorite(favoriteItem.favorite_key) : false
 
   function preserveAuthQuery(path) {
     return buildPublicAuthPath(path, isCustomer)
@@ -288,7 +318,6 @@ export default function useFlightDetail() {
         previewItem: result.cartItem,
       })
       navigate(preserveAuthQuery('/cart'))
-      return
     }
   }
 
@@ -309,25 +338,48 @@ export default function useFlightDetail() {
     navigate(buildLoginPath(location.pathname, location.search))
   }
 
+  function handleToggleFavorite() {
+    if (!favoriteItem) {
+      return
+    }
+
+    const result = toggleFavorite(favoriteItem)
+
+    if (!result.updated) {
+      return
+    }
+
+    setFeedback(
+      createFeedbackState(
+        result.nextState ? 'success' : 'info',
+        result.nextState
+          ? 'Chuyến bay đã được lưu vào danh sách yêu thích.'
+          : 'Chuyến bay đã được bỏ khỏi danh sách yêu thích.',
+      ),
+    )
+  }
+
   return {
+    addToCartAction,
+    bookNowAction,
+    closeLoginPrompt,
     currentAuthPreviewQuery: '',
     error,
     feedback,
     flight,
     formatCurrency: formatCurrencyVND,
     goBackToFlights,
+    goToLoginFromPrompt,
+    handleToggleFavorite,
+    isFavorite,
+    isLoginPromptOpen,
     loading,
+    loginPromptVariant,
     preserveAuthQuery,
     relatedFlights,
     retry,
     selectFare,
     selectedFare,
     selectedFareId,
-    addToCartAction,
-    bookNowAction,
-    closeLoginPrompt,
-    goToLoginFromPrompt,
-    isLoginPromptOpen,
-    loginPromptVariant,
   }
 }

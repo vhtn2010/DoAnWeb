@@ -7,7 +7,14 @@ import {
   checkTrainAvailability,
   getTrainDetailBySlug,
 } from '../repositories/trainRepository.js'
+import {
+  buildFavoriteItem,
+  buildFavoriteKey,
+  buildFavoriteSourcePath,
+  getFavoriteSourceLabel,
+} from '../services/favoriteStorage.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import useFavorites from './useFavorites.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
@@ -105,7 +112,8 @@ export default function useTrainDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const { authState, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
   const referenceId = new URLSearchParams(location.search).get('reference_id') ?? ''
 
   const [train, setTrain] = useState(null)
@@ -218,6 +226,28 @@ export default function useTrainDetail() {
     )
   }, [selectedCar?.id, selectedSeatOptionId, train])
 
+  const favoriteItem = useMemo(() => {
+    if (!train) {
+      return null
+    }
+
+    return buildFavoriteItem({
+      favorite_key: buildFavoriteKey('train', train.service_id ?? train.id ?? train.slug),
+      service_type: 'train',
+      service_id: train.service_id ?? train.id ?? '',
+      slug: train.slug,
+      title: train.header_title,
+      image_url: train.image_url,
+      detail_path: train.detail_path ?? `/trains/${train.slug}`,
+      source_path: buildFavoriteSourcePath(location),
+      source_label: getFavoriteSourceLabel('train'),
+      summary: `${train.departure_time_label} - ${train.arrival_time_label} • ${train.train_number_label}`,
+      location_text: `${train.departure_city} - ${train.arrival_city}`,
+    })
+  }, [location, train])
+
+  const isFavorite = favoriteItem ? hasFavorite(favoriteItem.favorite_key) : false
+
   const bookingSummary = useMemo(() => {
     if (!train) {
       return null
@@ -252,8 +282,7 @@ export default function useTrainDetail() {
       service_fee: serviceFee,
       base_price: seatPrice,
       total_price: seatPrice + serviceFee,
-      security_note:
-        train.payment_summary?.security_note ?? 'Thanh toán bảo mật SSL 256-bit',
+      security_note: train.payment_summary?.security_note ?? 'Thanh toán bảo mật SSL 256-bit',
       cta_primary: train.payment_summary?.cta_primary ?? 'Đặt ngay',
       cta_secondary: train.payment_summary?.cta_secondary ?? 'Thêm vào giỏ hàng',
     }
@@ -301,7 +330,9 @@ export default function useTrainDetail() {
     }
 
     if (selectedSeatIds.includes(nextSeat.id)) {
-      setSelectedSeatIds((currentSeatIds) => currentSeatIds.filter((currentSeatId) => currentSeatId !== nextSeat.id))
+      setSelectedSeatIds((currentSeatIds) =>
+        currentSeatIds.filter((currentSeatId) => currentSeatId !== nextSeat.id),
+      )
       setFeedback(createFeedbackState('info', `Đã bỏ chọn ${selectedCar.name} - chỗ ${nextSeat.number}.`))
       return
     }
@@ -481,6 +512,27 @@ export default function useTrainDetail() {
     navigate(buildLoginPath(location.pathname, location.search))
   }
 
+  function handleToggleFavorite() {
+    if (!favoriteItem) {
+      return
+    }
+
+    const result = toggleFavorite(favoriteItem)
+
+    if (!result.updated) {
+      return
+    }
+
+    setFeedback(
+      createFeedbackState(
+        result.nextState ? 'success' : 'info',
+        result.nextState
+          ? 'Chuyến tàu đã được lưu vào danh sách yêu thích.'
+          : 'Chuyến tàu đã được bỏ khỏi danh sách yêu thích.',
+      ),
+    )
+  }
+
   return {
     addToCartMock,
     bookNowMock,
@@ -490,8 +542,10 @@ export default function useTrainDetail() {
     error,
     feedback,
     formatCurrency: formatCurrencyVND,
-    goToLoginFromPrompt,
     goBackToTrains,
+    goToLoginFromPrompt,
+    handleToggleFavorite,
+    isFavorite,
     isLoginPromptOpen,
     loading,
     preserveAuthQuery,

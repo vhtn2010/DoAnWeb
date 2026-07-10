@@ -18,6 +18,7 @@ import HotelListPage from '../pages/hotels/HotelListPageV2.jsx'
 import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.jsx'
 import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
+import FavoritesPage from '../pages/profile/FavoritesPage.jsx'
 import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
 import ProfilePage from '../pages/profile/ProfilePageV2.jsx'
 import TravelHandbookPage from '../pages/profile/TravelHandbookPage.jsx'
@@ -69,6 +70,7 @@ function AppRouter() {
           <Route path="/payment-success" element={<PaymentSuccessPage />} />
           <Route path="/payment-success/:paymentCode" element={<PaymentSuccessPage />} />
           <Route path="/departure-reminders" element={<DepartureRemindersPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/my-vouchers" element={<MyVouchersPage />} />
           <Route path="/travel-handbook" element={<TravelHandbookPage />} />

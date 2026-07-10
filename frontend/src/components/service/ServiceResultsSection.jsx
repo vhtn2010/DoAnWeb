@@ -25,10 +25,12 @@ function SortChevronIcon() {
 export default function ServiceResultsSection({
   currentPage,
   errorMessage,
+  isFavorite,
   isLoading,
   onPageChange,
   onResetFilters,
   onSortChange,
+  onToggleFavorite,
   resultCount,
   selectedSort,
   services,
@@ -77,7 +79,12 @@ export default function ServiceResultsSection({
         <>
           <div className="service-results__grid">
             {services.map((service) => (
-              <ServiceCard key={service.slug} service={service} />
+              <ServiceCard
+                isFavorite={isFavorite?.(service)}
+                key={service.slug}
+                service={service}
+                onToggleFavorite={onToggleFavorite}
+              />
             ))}
           </div>
 

@@ -28,9 +28,14 @@ function HotelStars({ total = 5 }) {
   )
 }
 
-function TitleActionButton({ label, children }) {
+function TitleActionButton({ active = false, children, label, onClick }) {
   return (
-    <button aria-label={label} className="hotel-detail-title__action" type="button">
+    <button
+      aria-label={label}
+      className={`hotel-detail-title__action ${active ? 'hotel-detail-title__action--active' : ''}`}
+      type="button"
+      onClick={onClick}
+    >
       {children}
     </button>
   )
@@ -114,7 +119,9 @@ function HotelDetailPage() {
     goToLoginFromPrompt,
     goToCartMock,
     goToCheckoutMock,
+    handleToggleFavorite,
     hotel,
+    isFavorite,
     isLoginPromptOpen,
     loading,
     retry,
@@ -129,11 +136,11 @@ function HotelDetailPage() {
       <div className="hotel-detail-page">
         <div className="hotel-detail-page__shell">
           <section className="hotel-detail-card hotel-detail-card--empty">
-            <p className="hotel-detail-page__eyebrow">Khong kha dung</p>
-            <h1 className="hotel-detail-page__title">Khong tim thay khach san</h1>
+            <p className="hotel-detail-page__eyebrow">Không khả dụng</p>
+            <h1 className="hotel-detail-page__title">Không tìm thấy khách sạn</h1>
             <p className="hotel-detail-page__description">{error}</p>
             <button className="hotel-detail-page__retry" type="button" onClick={retry}>
-              Tai lai du lieu
+              Tải lại dữ liệu
             </button>
           </section>
         </div>
@@ -146,10 +153,10 @@ function HotelDetailPage() {
       <div className="hotel-detail-page">
         <div className="hotel-detail-page__shell">
           <section className="hotel-detail-card hotel-detail-card--empty">
-            <p className="hotel-detail-page__eyebrow">Dang tai</p>
-            <h1 className="hotel-detail-page__title">Chi tiet khach san dang duoc chuan bi</h1>
+            <p className="hotel-detail-page__eyebrow">Đang tải</p>
+            <h1 className="hotel-detail-page__title">Chi tiết khách sạn đang được chuẩn bị</h1>
             <p className="hotel-detail-page__description">
-              Du lieu khach san dang duoc tai tu he thong.
+              Dữ liệu khách sạn đang được tải từ hệ thống.
             </p>
           </section>
         </div>
@@ -189,7 +196,11 @@ function HotelDetailPage() {
               <TitleActionButton label="Chia sẻ khách sạn">
                 <ShareIcon />
               </TitleActionButton>
-              <TitleActionButton label="Lưu khách sạn">
+              <TitleActionButton
+                active={isFavorite}
+                label="Lưu khách sạn"
+                onClick={handleToggleFavorite}
+              >
                 <HeartIcon />
               </TitleActionButton>
             </div>
