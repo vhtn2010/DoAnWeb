@@ -16,12 +16,15 @@ function PaymentSuccessPage() {
       <div className="payment-success-shell">
         {loading ? (
           <p className="payment-success-page__status" role="status">
-            Đang chuẩn bị dữ liệu thanh toán thành công mock theo pattern API-ready...
+            Đang tải trạng thái thanh toán mới nhất...
           </p>
         ) : null}
 
         {error ? (
-          <div className="payment-success-page__status payment-success-page__status--error" role="status">
+          <div
+            className="payment-success-page__status payment-success-page__status--error"
+            role="status"
+          >
             <p>{error}</p>
             <button type="button" onClick={actions.retry}>
               Thử lại

@@ -9,19 +9,26 @@ import usePaymentConfirmation from '../../hooks/usePaymentConfirmation.js'
 function PaymentConfirmationPage() {
   const {
     actions,
+    booking,
+    cardNumber,
+    contactForm,
     error,
     feedback,
     fieldErrors,
     isPaid,
     loading,
+    payActionLabel,
+    payment,
     paymentMethods,
+    paymentProof,
+    proofForm,
+    selectedMethodMeta,
     selectedPaymentMethod,
-    cardNumber,
-    contactForm,
-    booking,
-    qrPayload,
+    submitting,
+    uploadingProof,
     viewModel,
     voucherCode,
+    voucherEditingLocked,
   } = usePaymentConfirmation()
 
   return (
@@ -37,7 +44,7 @@ function PaymentConfirmationPage() {
 
         {loading ? (
           <p className="payment-confirmation-page__status" role="status">
-            Đang chuẩn bị dữ liệu thanh toán mock theo pattern API-ready...
+            Đang chuẩn bị thông tin thanh toán cho đơn hàng của bạn...
           </p>
         ) : null}
 
@@ -57,8 +64,11 @@ function PaymentConfirmationPage() {
           <div className="payment-confirmation-page__layout">
             <div className="payment-confirmation-page__main">
               {isPaid ? (
-                <div className="payment-confirmation-page__status payment-confirmation-page__status--success" role="status">
-                  <p>{feedback || 'Thanh toán mock đã hoàn tất thành công.'}</p>
+                <div
+                  className="payment-confirmation-page__status payment-confirmation-page__status--success"
+                  role="status"
+                >
+                  <p>{feedback || 'Thanh toán đã được xác nhận thành công.'}</p>
                   <button type="button" onClick={actions.goHome}>
                     Về trang chủ
                   </button>
@@ -84,20 +94,29 @@ function PaymentConfirmationPage() {
                 errors={fieldErrors}
                 methods={paymentMethods}
                 onCardNumberChange={actions.updateCardNumber}
+                onProofFieldChange={actions.updateProofField}
+                onProofFileChange={actions.updateProofFile}
                 onSelectMethod={actions.selectPaymentMethod}
-                qrPayload={qrPayload}
+                payment={payment}
+                paymentProof={paymentProof}
+                proofForm={proofForm}
                 selectedMethod={selectedPaymentMethod}
+                selectedMethodMeta={selectedMethodMeta}
+                uploadingProof={uploadingProof}
               />
             </div>
 
             <aside className="payment-confirmation-page__sidebar">
               <PaymentOrderSummary
+                disableVoucherEditing={voucherEditingLocked}
                 feedback={feedback}
                 isDisabled={viewModel.items.length === 0 || isPaid}
                 isPaid={isPaid}
-                onApplyVoucher={actions.applyVoucherMock}
-                onPay={actions.confirmPaymentMock}
+                isSubmitting={submitting || uploadingProof}
+                onApplyVoucher={actions.applyVoucher}
+                onPay={actions.confirmPayment}
                 onVoucherChange={actions.updateVoucherCode}
+                payLabel={payActionLabel}
                 summary={viewModel.summary}
                 voucherCode={voucherCode}
               />

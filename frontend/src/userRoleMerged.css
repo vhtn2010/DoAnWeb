@@ -2527,6 +2527,75 @@
   font-size: 1rem;
 }
 
+.payment-qr-code-panel__details,
+.payment-qr-code-panel__proof {
+  display: grid;
+  gap: 12px;
+}
+
+.payment-qr-code-panel__detail {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 248, 245, 0.92);
+  border: 1px solid rgba(241, 225, 222, 0.98);
+}
+
+.payment-qr-code-panel__detail span {
+  color: #7a6863;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.payment-qr-code-panel__detail strong {
+  color: #241716;
+  text-align: right;
+}
+
+.payment-qr-code-panel__field {
+  display: grid;
+  gap: 10px;
+}
+
+.payment-qr-code-panel__textarea,
+.payment-qr-code-panel__file-input {
+  width: 100%;
+  border: 1px solid rgba(182, 190, 204, 0.72);
+  border-radius: 22px;
+  background: #f3f4f6;
+  color: #241716;
+  font: inherit;
+}
+
+.payment-qr-code-panel__textarea {
+  min-height: 112px;
+  padding: 14px 18px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.payment-qr-code-panel__file-input {
+  min-height: 58px;
+  padding: 14px 18px;
+}
+
+.payment-qr-code-panel__textarea:focus-visible,
+.payment-qr-code-panel__file-input:focus-visible {
+  outline: 2px solid rgba(215, 0, 24, 0.18);
+  outline-offset: 2px;
+  border-color: rgba(215, 0, 24, 0.28);
+}
+
+.payment-qr-code-panel__hint,
+.payment-order-summary__voucher-hint {
+  color: #7a6863;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
 .payment-method-panel__card-lock {
   width: 42px;
   color: #a09a9a;
@@ -2638,6 +2707,12 @@
   padding: 0 16px;
   font-weight: 900;
   box-shadow: 0 14px 24px rgba(245, 158, 11, 0.24);
+}
+
+.payment-order-summary__voucher-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
 }
 
 .payment-order-summary__button {
@@ -10123,6 +10198,10 @@
   box-shadow: 0 16px 28px rgba(95, 68, 61, 0.08);
 }
 
+.customer-care-topic--compact {
+  text-align: left;
+}
+
 @media (max-width: 1024px) {
   .customer-care-hero,
   .customer-care-layout {
@@ -10753,6 +10832,46 @@
   outline: none;
   border-color: rgba(214, 40, 40, 0.42);
   box-shadow: 0 0 0 4px rgba(214, 40, 40, 0.12);
+}
+
+.my-vouchers-validator__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.my-vouchers-validator__feedback {
+  margin: 16px 0 0;
+  color: #8c2f16;
+  font-weight: 700;
+}
+
+.my-vouchers-validator__result {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(214, 40, 40, 0.12);
+  border-radius: 22px;
+  background: rgba(255, 248, 244, 0.84);
+}
+
+.my-vouchers-validator__result > strong {
+  color: #34130f;
+  font-size: 1.1rem;
+}
+
+.my-vouchers-validator__result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #5b332d;
+}
+
+.my-vouchers-validator__result-row strong {
+  color: #34130f;
 }
 
 .my-vouchers-filter-list {

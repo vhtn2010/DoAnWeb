@@ -1,4 +1,5 @@
 import { PAYMENT_METHOD_CODES } from '../../constants/payments.js'
+import { normalizePaymentMethod } from '../../mappers/paymentMappers.js'
 import PaymentQrCodePanel from './PaymentQrCodePanel.jsx'
 
 function PaymentIcon() {
@@ -52,11 +53,18 @@ function PaymentMethodPanel({
   errors,
   methods,
   onCardNumberChange,
+  onProofFieldChange,
+  onProofFileChange,
   onSelectMethod,
-  qrPayload,
+  payment,
+  paymentProof,
+  proofForm,
   selectedMethod,
+  selectedMethodMeta,
+  uploadingProof,
 }) {
-  const isCardMethod = selectedMethod === PAYMENT_METHOD_CODES.card
+  const isCardMethod =
+    normalizePaymentMethod(selectedMethod) === PAYMENT_METHOD_CODES.card
 
   return (
     <section className="payment-method-panel">
@@ -66,7 +74,9 @@ function PaymentMethodPanel({
         </span>
         <div>
           <h2 className="payment-method-panel__title">Phương thức thanh toán</h2>
-          <p className="payment-method-panel__subtitle">Chọn cách thanh toán phù hợp nhất cho đơn hàng của bạn.</p>
+          <p className="payment-method-panel__subtitle">
+            Chọn cách thanh toán phù hợp nhất cho đơn hàng của bạn.
+          </p>
         </div>
       </header>
 
@@ -122,7 +132,14 @@ function PaymentMethodPanel({
         <PaymentQrCodePanel
           amountLabel={amountLabel}
           bookingCode={bookingCode}
-          payload={qrPayload}
+          errors={errors}
+          method={selectedMethodMeta}
+          onProofFieldChange={onProofFieldChange}
+          onProofFileChange={onProofFileChange}
+          payment={payment}
+          paymentProof={paymentProof}
+          proofForm={proofForm}
+          uploadingProof={uploadingProof}
         />
       )}
     </section>

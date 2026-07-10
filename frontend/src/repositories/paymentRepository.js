@@ -1,4 +1,13 @@
 import {
+  cancelCustomerPayment as cancelCustomerPaymentWithApiAdapter,
+  createCustomerDirectPayment as createCustomerDirectPaymentWithApiAdapter,
+  getCustomerPaymentDetail as getCustomerPaymentDetailWithApiAdapter,
+  getCustomerPaymentProof as getCustomerPaymentProofWithApiAdapter,
+  getDirectPaymentMethods as getDirectPaymentMethodsWithApiAdapter,
+  listCustomerBookingPayments as listCustomerBookingPaymentsWithApiAdapter,
+  uploadCustomerPaymentProof as uploadCustomerPaymentProofWithApiAdapter,
+} from '../adapters/api/paymentApiAdapter.js'
+import {
   applyPaymentVoucher as applyPaymentVoucherWithMockAdapter,
   buildInvoiceDownloadPayloadWithMock,
   buildPaymentResultPayloadWithMock,
@@ -9,6 +18,8 @@ import {
   getPaymentSuccess as getPaymentSuccessWithMockAdapter,
   getPaymentSuccessByCode as getPaymentSuccessByCodeWithMockAdapter,
 } from '../adapters/mock/paymentMockAdapter.js'
+import { ROLES } from '../constants/roles.js'
+import { getAuthSession } from '../services/authSession.js'
 
 const paymentAdapter = {
   applyPaymentVoucher: applyPaymentVoucherWithMockAdapter,
@@ -22,15 +33,139 @@ const paymentAdapter = {
   getPaymentSuccessByCode: getPaymentSuccessByCodeWithMockAdapter,
 }
 
+function shouldUseApi(authState = ROLES.guest) {
+  const session = getAuthSession()
+  const role = session.user?.role ?? session.user?.role_code ?? ''
+
+  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
+}
+
+async function findBookingByCodeFromSession(bookingCode) {
+  const bookingRepository = await import('./bookingRepository.js')
+  const bookingResponse = await bookingRepository.getBookingByCode(bookingCode, {
+    authState: ROLES.customer,
+  })
+
+  return bookingResponse?.data ?? null
+}
+
+async function findPaymentByCode(paymentCode) {
+  const bookingRepository = await import('./bookingRepository.js')
+  let page = 1
+  let hasNext = true
+
+  while (hasNext && page <= 5) {
+    const bookingsResponse = await bookingRepository.listMyBookings({
+      limit: 50,
+      page,
+    })
+    const bookings = Array.isArray(bookingsResponse.data) ? bookingsResponse.data : []
+
+    for (const booking of bookings) {
+      const paymentsResponse = await listCustomerBookingPaymentsWithApiAdapter(booking.id)
+      const payment = Array.isArray(paymentsResponse.data)
+        ? paymentsResponse.data.find(
+            (currentPayment) =>
+              String(currentPayment.payment_code ?? '').trim().toUpperCase() ===
+              String(paymentCode ?? '').trim().toUpperCase(),
+          )
+        : null
+
+      if (payment) {
+        return {
+          booking,
+          payment,
+        }
+      }
+    }
+
+    hasNext = Boolean(bookingsResponse.meta?.has_next)
+    page += 1
+  }
+
+  return null
+}
+
 export function getPaymentConfirmation(params) {
   return paymentAdapter.getPaymentConfirmation(params)
 }
 
-export function getPaymentByCode(paymentCode, params) {
+export async function getPaymentByCode(paymentCode, params) {
+  if (shouldUseApi(params?.authState)) {
+    const result = await findPaymentByCode(paymentCode)
+
+    if (!result) {
+      return {
+        success: false,
+        message: 'Không tìm thấy giao dịch thanh toán phù hợp.',
+        data: null,
+      }
+    }
+
+    const bookingRepository = await import('./bookingRepository.js')
+    const [detailResponse, proofResponse, methodsResponse, bookingItemsResponse] = await Promise.all([
+      getCustomerPaymentDetailWithApiAdapter(result.payment.id),
+      getCustomerPaymentProofWithApiAdapter(result.payment.id),
+      getDirectPaymentMethodsWithApiAdapter(),
+      bookingRepository.getMyBookingItems(result.booking.id),
+    ])
+
+    return {
+      success: detailResponse.success && methodsResponse.success,
+      message: detailResponse.message,
+      data: {
+        booking: params?.booking ?? result.booking,
+        booking_id: result.booking.id,
+        booking_items: bookingItemsResponse.data ?? params?.bookingItems ?? [],
+        payment: detailResponse.data,
+        payment_methods: methodsResponse.data?.methods ?? [],
+        payment_proof: proofResponse.data?.proof ?? null,
+      },
+    }
+  }
+
   return paymentAdapter.getPaymentByCode(paymentCode, params)
 }
 
-export function getPaymentByBookingCode(bookingCode, params) {
+export async function getPaymentByBookingCode(bookingCode, params) {
+  if (shouldUseApi(params?.authState)) {
+    const bookingPayload = await findBookingByCodeFromSession(bookingCode)
+    const booking = bookingPayload?.booking ?? null
+
+    if (!booking) {
+      return {
+        success: false,
+        message: 'Không tìm thấy đơn hàng phù hợp để thanh toán.',
+        data: null,
+      }
+    }
+
+    const [paymentsResponse, methodsResponse] = await Promise.all([
+      listCustomerBookingPaymentsWithApiAdapter(booking.id),
+      getDirectPaymentMethodsWithApiAdapter(),
+    ])
+    const latestPayment =
+      Array.isArray(paymentsResponse.data) && paymentsResponse.data.length > 0
+        ? paymentsResponse.data[0]
+        : null
+    const proofResponse = latestPayment
+      ? await getCustomerPaymentProofWithApiAdapter(latestPayment.id)
+      : { data: { proof: null } }
+
+    return {
+      success: true,
+      message: 'OK',
+      data: {
+        booking,
+        booking_id: booking.id,
+        booking_items: bookingPayload?.booking_items ?? params?.bookingItems ?? [],
+        payment: latestPayment,
+        payment_methods: methodsResponse.data?.methods ?? [],
+        payment_proof: proofResponse.data?.proof ?? null,
+      },
+    }
+  }
+
   return paymentAdapter.getPaymentByBookingCode(bookingCode, params)
 }
 
@@ -47,13 +182,55 @@ export function buildPaymentResultPayload(payment) {
 }
 
 export function getPaymentSuccess(params) {
+  if (shouldUseApi(params?.authState)) {
+    if (params?.payment?.payment_code) {
+      return getPaymentByCode(params.payment.payment_code, params)
+    }
+
+    if (params?.booking?.booking_code) {
+      return getPaymentByBookingCode(params.booking.booking_code, params)
+    }
+  }
+
   return paymentAdapter.getPaymentSuccess(params)
 }
 
-export function getPaymentSuccessByCode(paymentCode, params) {
+export async function getPaymentSuccessByCode(paymentCode, params) {
+  if (shouldUseApi(params?.authState)) {
+    return getPaymentByCode(paymentCode, params)
+  }
+
   return paymentAdapter.getPaymentSuccessByCode(paymentCode, params)
 }
 
 export function buildInvoiceDownloadPayload(paymentSuccess) {
   return paymentAdapter.buildInvoiceDownloadPayload(paymentSuccess)
+}
+
+export function getDirectPaymentMethods() {
+  return getDirectPaymentMethodsWithApiAdapter()
+}
+
+export function createCustomerDirectPayment(bookingId, payload = {}, options = {}) {
+  return createCustomerDirectPaymentWithApiAdapter(bookingId, payload, options)
+}
+
+export function listCustomerBookingPayments(bookingId) {
+  return listCustomerBookingPaymentsWithApiAdapter(bookingId)
+}
+
+export function getCustomerPaymentDetail(paymentId) {
+  return getCustomerPaymentDetailWithApiAdapter(paymentId)
+}
+
+export function cancelCustomerPayment(paymentId, payload = {}) {
+  return cancelCustomerPaymentWithApiAdapter(paymentId, payload)
+}
+
+export function uploadCustomerPaymentProof(paymentId, payload = {}) {
+  return uploadCustomerPaymentProofWithApiAdapter(paymentId, payload)
+}
+
+export function getCustomerPaymentProof(paymentId) {
+  return getCustomerPaymentProofWithApiAdapter(paymentId)
 }

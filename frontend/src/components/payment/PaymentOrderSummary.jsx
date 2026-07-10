@@ -21,12 +21,15 @@ function LockIcon() {
 }
 
 function PaymentOrderSummary({
+  disableVoucherEditing = false,
   feedback,
   isDisabled,
   isPaid,
+  isSubmitting = false,
   onApplyVoucher,
   onPay,
   onVoucherChange,
+  payLabel,
   summary,
   voucherCode,
 }) {
@@ -64,32 +67,42 @@ function PaymentOrderSummary({
         </label>
         <div className="payment-order-summary__voucher-controls">
           <input
+            disabled={disableVoucherEditing || isSubmitting}
             id="payment-voucher-code"
             placeholder="Nhập mã ưu đãi"
             type="text"
             value={voucherCode}
             onChange={onVoucherChange}
           />
-          <button type="button" onClick={onApplyVoucher}>
+          <button
+            disabled={disableVoucherEditing || isSubmitting}
+            type="button"
+            onClick={onApplyVoucher}
+          >
             Áp dụng
           </button>
         </div>
+        {disableVoucherEditing ? (
+          <small className="payment-order-summary__voucher-hint">
+            Voucher chỉ có thể áp dụng ở bước checkout trước khi tạo đơn hàng.
+          </small>
+        ) : null}
       </div>
 
       <button
         className="payment-order-summary__button"
-        disabled={isDisabled}
+        disabled={isDisabled || isSubmitting}
         type="button"
         onClick={onPay}
       >
-        {isPaid ? 'Đã thanh toán' : 'Thanh toán'}
+        {isSubmitting ? 'Đang xử lý...' : payLabel ?? (isPaid ? 'Đã thanh toán' : 'Thanh toán')}
       </button>
 
       <p className="payment-order-summary__security-note">
         <span aria-hidden="true">
           <LockIcon />
         </span>
-        MÃ HÓA SSL & THANH TOÁN AN TOÀN
+        Mã hóa SSL & thanh toán an toàn
       </p>
 
       {feedback ? (
