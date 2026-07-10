@@ -6,12 +6,19 @@ import {
   getUpcomingTrip as getUpcomingTripWithMockAdapter,
 } from '../adapters/mock/profileMockAdapter.js'
 import {
+  getCustomerProfile as getCustomerProfileDashboardWithApiAdapter,
+} from '../adapters/api/profileDashboardApiAdapter.js'
+import {
   getCurrentProfileLogs as getCurrentProfileLogsWithApiAdapter,
   getCurrentProfile as getCurrentProfileWithApiAdapter,
+  getCurrentUserVouchers as getCurrentUserVouchersWithApiAdapter,
+  requestAccountDeactivation as requestAccountDeactivationWithApiAdapter,
   updateCurrentAvatar as updateCurrentAvatarWithApiAdapter,
   updateCurrentPassword as updateCurrentPasswordWithApiAdapter,
   updateCurrentProfile as updateCurrentProfileWithApiAdapter,
 } from '../adapters/api/profileApiAdapter.js'
+import { ROLES } from '../constants/roles.js'
+import { getAuthSession } from '../services/authSession.js'
 
 const profileAdapter = {
   buildProfileActionPayload: buildProfileActionPayloadWithMock,
@@ -19,14 +26,27 @@ const profileAdapter = {
   getCustomerProfile: getCustomerProfileWithMockAdapter,
   getCurrentProfileLogs: getCurrentProfileLogsWithApiAdapter,
   getCurrentProfile: getCurrentProfileWithApiAdapter,
+  getCurrentUserVouchers: getCurrentUserVouchersWithApiAdapter,
   getFavoriteDestinations: getFavoriteDestinationsWithMockAdapter,
   getUpcomingTrip: getUpcomingTripWithMockAdapter,
+  requestAccountDeactivation: requestAccountDeactivationWithApiAdapter,
   updateCurrentAvatar: updateCurrentAvatarWithApiAdapter,
   updateCurrentPassword: updateCurrentPasswordWithApiAdapter,
   updateCurrentProfile: updateCurrentProfileWithApiAdapter,
 }
 
+function shouldUseApi(authState = ROLES.guest) {
+  const session = getAuthSession()
+  const role = session.user?.role ?? session.user?.role_code ?? ''
+
+  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
+}
+
 export function getCustomerProfile(params) {
+  if (shouldUseApi(params?.authState)) {
+    return getCustomerProfileDashboardWithApiAdapter(params)
+  }
+
   return profileAdapter.getCustomerProfile(params)
 }
 
@@ -64,4 +84,12 @@ export function updateCurrentPassword(payload = {}) {
 
 export function getCurrentProfileLogs(params = {}) {
   return profileAdapter.getCurrentProfileLogs(params)
+}
+
+export function getCurrentUserVouchers() {
+  return profileAdapter.getCurrentUserVouchers()
+}
+
+export function requestAccountDeactivation(payload = {}) {
+  return profileAdapter.requestAccountDeactivation(payload)
 }

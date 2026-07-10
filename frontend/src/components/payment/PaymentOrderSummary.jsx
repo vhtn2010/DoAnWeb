@@ -21,12 +21,18 @@ function LockIcon() {
 }
 
 function PaymentOrderSummary({
+  canCancelPayment = false,
+  disableVoucherEditing = false,
   feedback,
+  isCancellingPayment = false,
   isDisabled,
   isPaid,
+  isSubmitting = false,
   onApplyVoucher,
+  onCancelPayment,
   onPay,
   onVoucherChange,
+  payLabel,
   summary,
   voucherCode,
 }) {
@@ -64,32 +70,53 @@ function PaymentOrderSummary({
         </label>
         <div className="payment-order-summary__voucher-controls">
           <input
+            disabled={disableVoucherEditing || isSubmitting || isCancellingPayment}
             id="payment-voucher-code"
             placeholder="Nhập mã ưu đãi"
             type="text"
             value={voucherCode}
             onChange={onVoucherChange}
           />
-          <button type="button" onClick={onApplyVoucher}>
+          <button
+            disabled={disableVoucherEditing || isSubmitting || isCancellingPayment}
+            type="button"
+            onClick={onApplyVoucher}
+          >
             Áp dụng
           </button>
         </div>
+        {disableVoucherEditing ? (
+          <small className="payment-order-summary__voucher-hint">
+            Voucher chỉ có thể áp dụng ở bước checkout trước khi tạo đơn hàng.
+          </small>
+        ) : null}
       </div>
 
       <button
         className="payment-order-summary__button"
-        disabled={isDisabled}
+        disabled={isDisabled || isSubmitting || isCancellingPayment}
         type="button"
         onClick={onPay}
       >
-        {isPaid ? 'Đã thanh toán' : 'Thanh toán'}
+        {isSubmitting ? 'Đang xử lý...' : payLabel ?? (isPaid ? 'Đã thanh toán' : 'Thanh toán')}
       </button>
+
+      {canCancelPayment ? (
+        <button
+          className="payment-order-summary__secondary-button"
+          disabled={isSubmitting || isCancellingPayment}
+          type="button"
+          onClick={onCancelPayment}
+        >
+          {isCancellingPayment ? 'Đang hủy yêu cầu...' : 'Hủy yêu cầu thanh toán'}
+        </button>
+      ) : null}
 
       <p className="payment-order-summary__security-note">
         <span aria-hidden="true">
           <LockIcon />
         </span>
-        MÃ HÓA SSL & THANH TOÁN AN TOÀN
+        Mã hóa SSL & thanh toán an toàn
       </p>
 
       {feedback ? (

@@ -1,5 +1,6 @@
 import BookingChoiceCard from '../../components/booking/BookingChoiceCard.jsx'
 import BookingDetailSummary from '../../components/booking/BookingDetailSummary.jsx'
+import BookingSelfServicePanel from '../../components/booking/BookingSelfServicePanel.jsx'
 import BookingStepper from '../../components/booking/BookingStepper.jsx'
 import BookingTrustCards from '../../components/booking/BookingTrustCards.jsx'
 import useBookingConfirmation from '../../hooks/useBookingConfirmation.js'
@@ -7,10 +8,12 @@ import useBookingConfirmation from '../../hooks/useBookingConfirmation.js'
 function BookingConfirmationPage() {
   const {
     actions,
+    authState,
     booking,
     error,
     feedback,
     loading,
+    selfService,
     viewModel,
   } = useBookingConfirmation()
 
@@ -37,7 +40,7 @@ function BookingConfirmationPage() {
 
         {loading ? (
           <p className="booking-confirmation-page__status" role="status">
-            Đang chuẩn bị dữ liệu xác nhận đơn hàng mock theo pattern API-ready...
+            Đang chuẩn bị thông tin xác nhận đơn hàng...
           </p>
         ) : null}
 
@@ -57,12 +60,12 @@ function BookingConfirmationPage() {
           <div className="booking-confirmation-page__layout">
             <div className="booking-confirmation-page__main">
               <BookingChoiceCard
-                feedback=""
+                feedback={feedback}
                 itemCountLabel={viewModel.itemCountLabel}
                 items={viewModel.items}
-                onEdit={actions.editBookingItemMock}
+                onEdit={actions.editBookingItem}
                 onReturnToCart={actions.goBackToCart}
-                onRemove={actions.removeBookingItemMock}
+                onRemove={actions.removeBookingItem}
               />
             </div>
 
@@ -70,10 +73,16 @@ function BookingConfirmationPage() {
               <BookingDetailSummary
                 bookingCode={viewModel.bookingCode}
                 feedback={feedback}
-                isDisabled={viewModel.items.length === 0}
-                onConfirm={actions.confirmBookingMock}
+                isDisabled={viewModel.items.length === 0 || !actions.canContinueToPayment}
+                onConfirm={actions.confirmBooking}
                 onCopyBookingCode={actions.copyBookingCode}
                 summary={viewModel.summary}
+              />
+              <BookingSelfServicePanel
+                actions={actions}
+                authState={authState}
+                booking={booking}
+                selfService={selfService}
               />
               <BookingTrustCards />
             </aside>

@@ -1,12 +1,40 @@
 import { Link } from 'react-router-dom'
 
-function PublicHeaderIconAction({ children, href, label, to }) {
+function PublicHeaderIconActionContent({ badgeCount = 0, children }) {
+  const safeBadgeCount = Math.max(Number(badgeCount) || 0, 0)
+
+  return (
+    <>
+      <svg fill="none" viewBox="0 0 24 24">
+        {children}
+      </svg>
+      {safeBadgeCount > 0 ? (
+        <span className="public-header__icon-badge" aria-hidden="true">
+          {safeBadgeCount > 99 ? '99+' : safeBadgeCount}
+        </span>
+      ) : null}
+    </>
+  )
+}
+
+function getClassName(isActive = false) {
+  return `public-header__icon-action${isActive ? ' public-header__icon-action--active' : ''}`
+}
+
+function PublicHeaderIconAction({
+  badgeCount = 0,
+  children,
+  href,
+  isActive = false,
+  label,
+  to,
+}) {
   if (to) {
     return (
-      <Link aria-label={label} className="public-header__icon-action" to={to}>
-        <svg fill="none" viewBox="0 0 24 24">
+      <Link aria-label={label} className={getClassName(isActive)} to={to}>
+        <PublicHeaderIconActionContent badgeCount={badgeCount}>
           {children}
-        </svg>
+        </PublicHeaderIconActionContent>
       </Link>
     )
   }
@@ -14,13 +42,13 @@ function PublicHeaderIconAction({ children, href, label, to }) {
   return (
     <a
       aria-label={label}
-      className="public-header__icon-action"
+      className={getClassName(isActive)}
       href={href}
       onClick={(event) => event.preventDefault()}
     >
-      <svg fill="none" viewBox="0 0 24 24">
+      <PublicHeaderIconActionContent badgeCount={badgeCount}>
         {children}
-      </svg>
+      </PublicHeaderIconActionContent>
     </a>
   )
 }

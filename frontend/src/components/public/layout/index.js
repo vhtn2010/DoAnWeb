@@ -8,5 +8,7 @@ export { default as PublicHeaderIconAction } from './PublicHeaderIconAction.jsx'
 export { default as PublicHeaderNav } from './PublicHeaderNav.jsx'
 export {
   PUBLIC_FOOTER_COMPANY_LINKS,
+  PUBLIC_FOOTER_CONTACT_ITEM_DEFINITIONS,
+  PUBLIC_FOOTER_SOCIAL_ITEMS,
   PUBLIC_FOOTER_SUPPORT_LINKS,
 } from './publicLayoutData.jsx'

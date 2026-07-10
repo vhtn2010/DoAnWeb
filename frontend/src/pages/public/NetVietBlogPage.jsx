@@ -238,9 +238,9 @@ function NetVietBlogPage() {
 
       <section className="netviet-blog-highlights" aria-label="Tổng quan blog">
         <article className="netviet-blog-highlight-card">
-          <span>Bài viết mock</span>
+          <span>Bài viết nổi bật</span>
           <strong>{BLOG_POSTS.length}</strong>
-          <p>Được dựng hoàn toàn từ dữ liệu cục bộ, không gọi API thật.</p>
+          <p>Tổng hợp các bài viết ngắn, dễ đọc và sẵn sàng cho người đang lên kế hoạch đi.</p>
         </article>
 
         <article className="netviet-blog-highlight-card">

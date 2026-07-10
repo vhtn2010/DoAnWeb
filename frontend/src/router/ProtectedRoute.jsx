@@ -2,18 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { subscribeAuthEvents } from '../services/apiClient.js'
 import { getAuthSession } from '../services/authSession.js'
-
-function getReturnPath(location) {
-  return `${location.pathname}${location.search}${location.hash}`
-}
-
-function buildLoginPath(returnPath) {
-  if (!returnPath || returnPath === '/') {
-    return '/login'
-  }
-
-  return `/login?redirect=${encodeURIComponent(returnPath)}`
-}
+import { buildLoginRedirectPath, getReturnPath } from '../utils/loginRedirect.js'
 
 function ProtectedRoute({ children }) {
   const location = useLocation()
@@ -36,7 +25,7 @@ function ProtectedRoute({ children }) {
       <Navigate
         replace
         state={{ from: returnPath }}
-        to={buildLoginPath(returnPath)}
+        to={buildLoginRedirectPath(returnPath)}
       />
     )
   }

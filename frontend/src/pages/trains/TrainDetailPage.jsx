@@ -36,13 +36,18 @@ function HeartIcon() {
   )
 }
 
-function TrainDetailTopActions() {
+function TrainDetailTopActions({ isFavorite, onToggleFavorite }) {
   return (
     <div className="train-detail-page__actions" aria-label="Tác vụ vé tàu">
       <button className="train-detail-page__action" type="button" aria-label="Chia sẻ">
         <ShareIcon />
       </button>
-      <button className="train-detail-page__action" type="button" aria-label="Lưu chuyến tàu">
+      <button
+        aria-label="Lưu chuyến tàu"
+        className={`train-detail-page__action ${isFavorite ? 'train-detail-page__action--active' : ''}`}
+        type="button"
+        onClick={onToggleFavorite}
+      >
         <HeartIcon />
       </button>
     </div>
@@ -51,8 +56,8 @@ function TrainDetailTopActions() {
 
 function TrainDetailPage() {
   const {
-    addToCartMock,
-    bookNowMock,
+    addToCartAction,
+    bookNowAction,
     bookingSummary,
     closeLoginPrompt,
     error,
@@ -60,6 +65,8 @@ function TrainDetailPage() {
     formatCurrency,
     goToLoginFromPrompt,
     goBackToTrains,
+    handleToggleFavorite,
+    isFavorite,
     isLoginPromptOpen,
     loading,
     relatedTrains,
@@ -124,7 +131,7 @@ function TrainDetailPage() {
           <section className="train-detail-state-card" role="status">
             <p className="train-detail-state-card__eyebrow">Đang tải</p>
             <h1>Chi tiết vé tàu đang được chuẩn bị</h1>
-            <p>Dữ liệu đang được đọc từ mock adapter theo đúng pattern API-ready hiện tại.</p>
+            <p>Hệ thống đang tải lịch trình, chỗ ngồi và giá vé phù hợp cho chuyến bạn đang xem.</p>
           </section>
         </div>
       </div>
@@ -142,7 +149,10 @@ function TrainDetailPage() {
 
         <section className="train-detail-hero">
           <div className="train-detail-page__topbar">
-            <TrainDetailTopActions />
+            <TrainDetailTopActions
+              isFavorite={isFavorite}
+              onToggleFavorite={handleToggleFavorite}
+            />
           </div>
 
           <TrainDetailHeaderCard train={train} />
@@ -176,15 +186,14 @@ function TrainDetailPage() {
                 ))}
               </div>
             </section>
-
           </div>
 
           <aside className="train-detail-sidebar">
             <TrainBookingSummary
               bookingSummary={bookingSummary}
               formatCurrency={formatCurrency}
-              onAddToCart={addToCartMock}
-              onBookNow={bookNowMock}
+              onAddToCart={addToCartAction}
+              onBookNow={bookNowAction}
             />
           </aside>
         </div>

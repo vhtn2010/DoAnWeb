@@ -198,16 +198,7 @@ export default function useTrainList() {
           ? response.data.map(mapTrainToCardView)
           : []
 
-        setTrains((currentTrains) => {
-          if (currentPage <= 1) {
-            return mappedTrains
-          }
-
-          const existingIds = new Set(currentTrains.map((train) => train.id))
-          const nextTrains = mappedTrains.filter((train) => !existingIds.has(train.id))
-
-          return [...currentTrains, ...nextTrains]
-        })
+        setTrains(mappedTrains)
         setMeta(response.meta ?? EMPTY_META)
       } catch (loadError) {
         if (!isActive) {
@@ -290,19 +281,19 @@ export default function useTrainList() {
   }
 
   function submitSearch() {
-    if (searchState.from_station === searchState.to_station) {
+    if (
+      searchState.from_station &&
+      searchState.to_station &&
+      searchState.from_station === searchState.to_station
+    ) {
       setFeedback(createFeedbackState('error', 'Ga đi và ga đến cần khác nhau.'))
-      return
-    }
-
-    if (!searchState.departure_date) {
-      setFeedback(createFeedbackState('error', 'Vui lòng chọn ngày đi.'))
       return
     }
 
     if (
       searchState.trip_type === 'round_trip' &&
-      (!searchState.departure_date || !searchState.return_date)
+      searchState.departure_date &&
+      !searchState.return_date
     ) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn đủ ngày đi và ngày về.'))
       return
@@ -361,10 +352,13 @@ export default function useTrainList() {
   }
 
   function setPage(nextPage) {
-    if (nextPage === currentPage) {
+    const maxPage = Math.max(1, Number(meta.total_pages) || 1)
+
+    if (nextPage < 1 || nextPage > maxPage || nextPage === currentPage) {
       return
     }
 
+    setSelectedTrainId('')
     setCurrentPage(nextPage)
     syncSearchParams({ nextPage })
   }
@@ -390,7 +384,7 @@ export default function useTrainList() {
     }
 
     setSelectedTrainId(nextTrain.id)
-    navigate(preserveAuthQuery(`/trains/${nextTrain.slug}`))
+    navigate(preserveAuthQuery(nextTrain.detail_path ?? `/trains/${nextTrain.slug}`))
   }
 
   function retry() {
@@ -399,6 +393,7 @@ export default function useTrainList() {
 
   const resultSummary = useMemo(() => {
     return {
+      hasRoute: Boolean(searchState.from_station) && Boolean(searchState.to_station),
       total: meta.total_display ?? meta.total ?? 0,
       fromLabel: getStationLabel(defaults.stations, searchState.from_station),
       toLabel: getStationLabel(defaults.stations, searchState.to_station),
@@ -423,7 +418,6 @@ export default function useTrainList() {
     error,
     feedback,
     formatCurrency: formatCurrencyVND,
-    hasMore: Boolean(meta.has_next),
     loading,
     openTrainDetail,
     preserveAuthQuery,
@@ -439,6 +433,7 @@ export default function useTrainList() {
     setSort,
     selectTrain,
     submitSearch,
+    totalPages: meta.total_pages ?? 1,
     trains,
     updatePassengers,
     updateSearchField,

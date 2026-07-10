@@ -63,11 +63,74 @@ function resolvePaymentMethodLabel(methodCode, fallbackLabel = '') {
   const normalizedMethod = normalizePaymentMethod(methodCode)
   const matchedMethod = PAYMENT_METHOD_OPTIONS.find((method) => method.code === normalizedMethod)
 
+  if (fallbackLabel) {
+    return fallbackLabel
+  }
+
   if (normalizedMethod === PAYMENT_METHOD_CODES.card) {
     return 'Thẻ tín dụng (Visa/Mastercard)'
   }
 
-  return fallbackLabel || matchedMethod?.label || 'Ví điện tử / Momo / VNPay'
+  if (normalizedMethod === PAYMENT_METHOD_CODES.wallet) {
+    return matchedMethod?.label || 'Ví điện tử / Momo / VNPay'
+  }
+
+  if (normalizedMethod === PAYMENT_METHOD_CODES.manualBankTransfer) {
+    return matchedMethod?.label || 'Chuyển khoản ngân hàng'
+  }
+
+  if (normalizedMethod === PAYMENT_METHOD_CODES.cashAtOffice) {
+    return matchedMethod?.label || 'Thanh toán tại văn phòng'
+  }
+
+  if (normalizedMethod === PAYMENT_METHOD_CODES.staffCollect) {
+    return matchedMethod?.label || 'Nhân viên hỗ trợ thu hộ'
+  }
+
+  return matchedMethod?.label || 'Thanh toán trực tiếp'
+}
+
+function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending) {
+  if (
+    paymentStatus === PAYMENT_STATUSES.success ||
+    paymentStatus === PAYMENT_STATUSES.reconciled
+  ) {
+    return {
+      description:
+        'Cảm ơn quý khách đã tin tưởng lựa chọn Nét Việt Travel. Chúng tôi rất hân hạnh được đồng hành cùng bạn trong hành trình sắp tới.',
+      title: 'Thanh toán thành công!',
+    }
+  }
+
+  if (
+    paymentStatus === PAYMENT_STATUSES.pending ||
+    paymentStatus === PAYMENT_STATUSES.processing ||
+    paymentStatus === PAYMENT_STATUSES.initiated
+  ) {
+    return {
+      description:
+        'Hệ thống đã ghi nhận yêu cầu thanh toán. Bộ phận vận hành sẽ xác nhận ngay khi kiểm tra xong chứng từ hoặc phương thức bạn đã chọn.',
+      title: 'Đã ghi nhận yêu cầu thanh toán',
+    }
+  }
+
+  if (
+    paymentStatus === PAYMENT_STATUSES.failed ||
+    paymentStatus === PAYMENT_STATUSES.cancelled ||
+    paymentStatus === PAYMENT_STATUSES.expired
+  ) {
+    return {
+      description:
+        'Giao dịch này chưa hoàn tất. Bạn có thể quay lại bước thanh toán để thử lại hoặc liên hệ chăm sóc khách hàng nếu cần hỗ trợ.',
+      title: 'Thanh toán chưa hoàn tất',
+    }
+  }
+
+  return {
+    description:
+      'Trạng thái thanh toán đã được cập nhật. Bạn có thể tiếp tục theo dõi trong tài khoản của mình.',
+    title: 'Trạng thái thanh toán đã được cập nhật',
+  }
 }
 
 export function clonePaymentValue(value) {
@@ -93,6 +156,29 @@ export function normalizePaymentMethod(methodCode) {
     normalizedMethod === 'vnpay'
   ) {
     return PAYMENT_METHOD_CODES.wallet
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.manualBankTransfer ||
+    normalizedMethod === 'manual-bank-transfer' ||
+    normalizedMethod === 'manual transfer'
+  ) {
+    return PAYMENT_METHOD_CODES.manualBankTransfer
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.cashAtOffice ||
+    normalizedMethod === 'cash_at_branch' ||
+    normalizedMethod === 'cash'
+  ) {
+    return PAYMENT_METHOD_CODES.cashAtOffice
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.staffCollect ||
+    normalizedMethod === 'staff_collecting'
+  ) {
+    return PAYMENT_METHOD_CODES.staffCollect
   }
 
   return PAYMENT_METHOD_CODES.card
@@ -275,7 +361,7 @@ export function validatePaymentConfirmationForm({
     normalizePaymentMethod(selectedPaymentMethod) === PAYMENT_METHOD_CODES.card &&
     !normalizeText(cardNumber)
   ) {
-    errors.card_number = 'Vui lòng nhập số thẻ mock.'
+    errors.card_number = 'Vui lòng nhập số thẻ thanh toán.'
   }
 
   return errors
@@ -369,6 +455,7 @@ export function buildPaymentSuccessData({
     booking_code: resolvedBookingCode ?? '',
     payment_status:
       payment?.payment_status ??
+      payment?.status ??
       paymentResultPayload?.payment_status ??
       fallbackPaymentSuccess.payment_status ??
       PAYMENT_STATUSES.success,
@@ -412,10 +499,13 @@ export function buildPaymentSuccessData({
 }
 
 export function buildPaymentSuccessViewModel(paymentSuccess = {}) {
+  const presentation = buildPaymentStatusPresentation(
+    paymentSuccess.payment_status ?? PAYMENT_STATUSES.pending,
+  )
+
   return {
-    title: 'Thanh toán thành công!',
-    description:
-      'Cảm ơn quý khách đã tin tưởng lựa chọn Nét Việt Travel. Chúng tôi rất hân hạnh được đồng hành cùng bạn trong hành trình sắp tới.',
+    title: presentation.title,
+    description: presentation.description,
     orderInfo: {
       sectionTitle: 'Thông tin đơn đặt tour',
       leftColumn: [

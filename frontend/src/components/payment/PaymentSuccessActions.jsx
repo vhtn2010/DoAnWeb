@@ -37,7 +37,7 @@ function PaymentSuccessActions({
         type="button"
         onClick={onDownloadInvoice}
       >
-        <span>Tải về hóa đơn điện tử</span>
+        <span>Tải tóm tắt đơn hàng</span>
         <span className="payment-success-actions__icon" aria-hidden="true">
           <DownloadIcon />
         </span>

@@ -26,27 +26,27 @@ function CounterControl({ description, label, min = 0, value, onChange }) {
   )
 }
 
-function formatPassengerDisplayLines(passengers = {}) {
+function formatPassengerDisplay(passengers = {}) {
   const adults = Math.max(Number(passengers.adults ?? 1) || 0, 1)
   const children = Math.max(Number(passengers.children ?? 0) || 0, 0)
   const infants = Math.max(Number(passengers.infants ?? 0) || 0, 0)
-  const firstLineParts = [`${adults} Người lớn`]
+  const parts = [`${adults} Người lớn`]
 
   if (children > 0) {
-    firstLineParts.push(`${children} Trẻ em`)
+    parts.push(`${children} Trẻ em`)
   }
 
   if (infants > 0) {
-    return [firstLineParts.join(', '), `${infants} Em bé`]
+    parts.push(`${infants} Em bé`)
   }
 
-  return [firstLineParts.join(', ')]
+  return parts.join(', ')
 }
 
 function FlightPassengerSelector({ className = '', passengers, onChange }) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
-  const passengerLines = formatPassengerDisplayLines(passengers)
+  const passengerSummary = formatPassengerDisplay(passengers)
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -94,10 +94,8 @@ function FlightPassengerSelector({ className = '', passengers, onChange }) {
           </svg>
         </span>
 
-        <span className="flight-search-panel__field-value flight-passenger-selector__copy flight-passenger-selector__copy--lines">
-          {passengerLines.map((line, index) => (
-            <span key={`${line}-${index}`}>{line}</span>
-          ))}
+        <span className="flight-search-panel__field-value flight-passenger-selector__copy">
+          {passengerSummary}
         </span>
 
         <span className="flight-passenger-selector__chevron" aria-hidden="true">

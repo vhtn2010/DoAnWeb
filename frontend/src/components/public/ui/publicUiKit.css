@@ -386,18 +386,80 @@
 .public-ui-pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 8px;
   flex-wrap: wrap;
+  width: 100%;
+}
+
+.public-ui-pagination .public-ui-button {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 16px;
+  box-shadow: none;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.public-ui-pagination .public-ui-button:hover,
+.public-ui-pagination .public-ui-button:focus-visible {
+  transform: none;
 }
 
 .public-ui-pagination__page {
-  min-width: 46px;
+  min-width: 48px;
+}
+
+.public-ui-pagination .public-ui-button--primary {
+  background: var(--color-brand-primary);
+  color: #fff;
+  border-color: var(--color-brand-primary);
+  box-shadow: none;
+}
+
+.public-ui-pagination .public-ui-button--primary:hover,
+.public-ui-pagination .public-ui-button--primary:focus-visible {
+  background: #b80c2a;
+  border-color: #b80c2a;
+}
+
+.public-ui-pagination .public-ui-button--secondary {
+  background: #fff;
+  color: var(--color-text);
+  border-color: rgba(234, 216, 212, 1);
+}
+
+.public-ui-pagination .public-ui-button--secondary:hover,
+.public-ui-pagination .public-ui-button--secondary:focus-visible {
+  background: #fff7f7;
+  color: var(--color-brand-primary);
+  border-color: rgba(200, 16, 46, 0.34);
+}
+
+.public-ui-pagination .public-ui-button--ghost {
+  background: transparent;
+  color: var(--color-text);
+  border-color: transparent;
+}
+
+.public-ui-pagination .public-ui-button--ghost:hover,
+.public-ui-pagination .public-ui-button--ghost:focus-visible {
+  background: rgba(237, 238, 239, 0.84);
+  color: var(--color-brand-primary);
+  border-color: transparent;
+}
+
+.public-ui-pagination .public-ui-button:disabled {
+  opacity: 0.56;
 }
 
 .public-ui-pagination__ellipsis {
+  min-width: 32px;
   color: var(--color-text-soft);
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 @keyframes public-ui-spin {
@@ -441,5 +503,9 @@
     padding: 22px 20px;
     border-radius: 24px;
     flex-direction: column;
+  }
+
+  .public-ui-pagination {
+    justify-content: center;
   }
 }

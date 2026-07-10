@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { addCartItemPreview } from '../repositories/cartRepository.js'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
 import {
   getFeaturedTourServices,
   getTourServiceBySlug,
 } from '../repositories/publicServiceRepository.js'
 import { mapTourServiceToView } from '../mappers/serviceMappers.js'
+import useFavorites from './useFavorites.js'
+import usePublicAccessGate from './usePublicAccessGate.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+import {
+  buildFavoriteItem,
+  buildFavoriteKey,
+  buildFavoriteSourcePath,
+  getFavoriteSourceLabel,
+} from '../services/favoriteStorage.js'
 
 function getLeadLocation(locationText) {
   return locationText.split(',')[0].trim()
@@ -75,6 +83,7 @@ function buildTourCartItem({
   const startDate = parseTourDepartureDate(departureDate) ?? new Date()
   const durationDays = Math.max(Number(service.details?.duration_days ?? 1) || 1, 1)
   const endDate = addDays(startDate, durationDays - 1)
+  const travellerCount = Math.max(adultCount + childCount, 1)
 
   return {
     id: `cart-item-tour-${Date.now()}`,
@@ -83,7 +92,7 @@ function buildTourCartItem({
     reference_id: service.id,
     start_at: formatDateTimeStamp(startDate, '08:00:00'),
     end_at: formatDateTimeStamp(endDate, '18:00:00'),
-    quantity: 1,
+    quantity: travellerCount,
     unit_price_snapshot: totalPrice,
     options: {
       adult_count: adultCount,
@@ -106,10 +115,25 @@ function buildTourCartItem({
   }
 }
 
+function toCartPayload(cartItem) {
+  return {
+    end_at: cartItem.end_at,
+    options: cartItem.options,
+    quantity: cartItem.quantity,
+    reference_id: cartItem.reference_id,
+    service_id: cartItem.service_id,
+    service_type: cartItem.service_type,
+    start_at: cartItem.start_at,
+  }
+}
+
 export default function useTourServiceDetail() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const { authState, isCustomer } = usePublicSession()
+  const { openLoginRequiredModal } = usePublicAccessGate()
+  const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
   const [service, setService] = useState(null)
   const [recommendedServices, setRecommendedServices] = useState([])
@@ -117,7 +141,6 @@ export default function useTourServiceDetail() {
   const [departureDate, setDepartureDate] = useState('')
   const [adultCount, setAdultCount] = useState(2)
   const [childCount, setChildCount] = useState(0)
-  const [isFavorite, setIsFavorite] = useState(false)
   const [isShared, setIsShared] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
   const [pendingAction, setPendingAction] = useState('')
@@ -204,7 +227,6 @@ export default function useTourServiceDetail() {
     setDepartureDate(service.details.departure_dates[0] ?? '')
     setAdultCount(2)
     setChildCount(0)
-    setIsFavorite(false)
     setIsShared(false)
     setBookingMessage('')
     setPendingAction('')
@@ -214,25 +236,41 @@ export default function useTourServiceDetail() {
   const adultTotal = adultCount * (service?.sale_price ?? 0)
   const childTotal = childCount * childUnitPrice
   const totalPrice = adultTotal + childTotal
+  const favoriteItem = useMemo(() => {
+    if (!service) {
+      return null
+    }
+
+    return buildFavoriteItem({
+      favorite_key: buildFavoriteKey(service.service_type ?? 'tour', service.service_id ?? service.id ?? service.slug),
+      service_type: service.service_type ?? 'tour',
+      service_id: service.service_id ?? service.id ?? '',
+      slug: service.slug,
+      title: service.title,
+      image_url: service.image_url,
+      detail_path: service.detail_path ?? `/services/${service.slug}`,
+      source_path: buildFavoriteSourcePath(location),
+      source_label: getFavoriteSourceLabel(service.service_type ?? 'tour'),
+      summary: [service.duration_text, service.transport_text].filter(Boolean).join(' • '),
+      location_text: service.location_text,
+    })
+  }, [location, service])
+  const isFavorite = favoriteItem ? hasFavorite(favoriteItem.favorite_key) : false
 
   async function handleShareClick() {
     if (typeof window !== 'undefined' && navigator?.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(window.location.href)
       } catch {
-        // Keep the mocked share state even when clipboard is unavailable.
+        // Keep the share state even when clipboard is unavailable.
       }
     }
 
     setIsShared(true)
-    setBookingMessage('Liên kết tour đã được sao chép ở chế độ mô phỏng.')
+    setBookingMessage('Liên kết tour đã được sao chép.')
   }
 
-  function legacyHandleBookNow() {
-    setBookingMessage('Yêu cầu giữ chỗ đã được ghi nhận ở chế độ mô phỏng.')
-  }
-
-  async function createTourCartPreview() {
+  async function createTourCart() {
     if (!service) {
       return null
     }
@@ -244,6 +282,14 @@ export default function useTourServiceDetail() {
       service,
       totalPrice,
     })
+
+    if (isAuthenticatedCustomer) {
+      await addCartItem(toCartPayload(cartItem), {
+        authState,
+        previewItem: cartItem,
+      })
+      return cartItem
+    }
 
     await addCartItemPreview({
       authState,
@@ -258,12 +304,25 @@ export default function useTourServiceDetail() {
       return
     }
 
+    if (!isAuthenticatedCustomer) {
+      openLoginRequiredModal({
+        description: 'Đăng nhập để lưu tour bạn chọn và tiếp tục đặt chỗ thuận tiện hơn.',
+        eyebrow: 'Giỏ hàng',
+        title: 'Vui lòng đăng nhập để có thể thêm vào giỏ hàng',
+      })
+      return
+    }
+
     setPendingAction('cart')
     setBookingMessage('')
 
     try {
-      await createTourCartPreview()
-      setBookingMessage('Tour đã được thêm vào giỏ hàng xem trước.')
+      await createTourCart()
+      setBookingMessage(
+        isAuthenticatedCustomer
+          ? 'Tour đã được thêm vào giỏ hàng của bạn.'
+          : 'Tour đã được thêm vào giỏ hàng xem trước.',
+      )
       navigate(buildPublicAuthPath('/cart', isCustomer))
     } catch (error) {
       setBookingMessage(error?.message ?? 'Không thể thêm tour vào giỏ hàng lúc này.')
@@ -277,14 +336,29 @@ export default function useTourServiceDetail() {
       return
     }
 
+    if (!isAuthenticatedCustomer) {
+      openLoginRequiredModal({
+        description:
+          'Đăng nhập để giữ lại tour đang chọn, nhập thông tin hành khách và hoàn tất đặt chỗ thuận tiện hơn.',
+        eyebrow: 'Thanh toán',
+        title: 'Vui lòng đăng nhập để tiếp tục bước đặt chỗ',
+      })
+      return
+    }
+
     setPendingAction('checkout')
     setBookingMessage('')
 
     try {
-      const cartItem = await createTourCartPreview()
+      const cartItem = await createTourCart()
 
       if (!cartItem) {
-        legacyHandleBookNow()
+        setBookingMessage('Không thể chuẩn bị đơn đặt tour lúc này.')
+        return
+      }
+
+      if (isAuthenticatedCustomer) {
+        navigate(buildPublicAuthPath('/cart', isCustomer))
         return
       }
 
@@ -324,6 +398,24 @@ export default function useTourServiceDetail() {
     ]
   }, [service])
 
+  function handleToggleFavorite() {
+    if (!favoriteItem) {
+      return
+    }
+
+    const result = toggleFavorite(favoriteItem)
+
+    if (!result.updated) {
+      return
+    }
+
+    setBookingMessage(
+      result.nextState
+        ? 'Tour đã được lưu vào danh sách yêu thích.'
+        : 'Tour đã được bỏ khỏi danh sách yêu thích.',
+    )
+  }
+
   return {
     adultCount,
     adultTotal,
@@ -349,8 +441,8 @@ export default function useTourServiceDetail() {
     setAdultCount,
     setChildCount,
     setDepartureDate,
-    setIsFavorite,
     setSelectedImage,
+    handleToggleFavorite,
     totalPrice,
   }
 }

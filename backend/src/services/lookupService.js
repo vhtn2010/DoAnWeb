@@ -49,6 +49,94 @@ const SORT_OPTION_VALUES = Object.freeze([
   'oldest',
   'popular',
 ]);
+const TRAIN_STATION_OPTIONS = Object.freeze([
+  {
+    code: 'HAN',
+    city: 'Hà Nội',
+    stationName: 'Ga Hà Nội',
+  },
+  {
+    code: 'PLY',
+    city: 'Phủ Lý',
+    stationName: 'Ga Phủ Lý',
+  },
+  {
+    code: 'NDI',
+    city: 'Nam Định',
+    stationName: 'Ga Nam Định',
+  },
+  {
+    code: 'NBI',
+    city: 'Ninh Bình',
+    stationName: 'Ga Ninh Bình',
+  },
+  {
+    code: 'THH',
+    city: 'Thanh Hóa',
+    stationName: 'Ga Thanh Hóa',
+  },
+  {
+    code: 'VIN',
+    city: 'Vinh',
+    stationName: 'Ga Vinh',
+  },
+  {
+    code: 'DBH',
+    city: 'Đồng Hới',
+    stationName: 'Ga Đồng Hới',
+  },
+  {
+    code: 'HUE',
+    city: 'Huế',
+    stationName: 'Ga Huế',
+  },
+  {
+    code: 'DNA',
+    city: 'Đà Nẵng',
+    stationName: 'Ga Đà Nẵng',
+  },
+  {
+    code: 'TAM',
+    city: 'Tam Kỳ',
+    stationName: 'Ga Tam Kỳ',
+  },
+  {
+    code: 'QNG',
+    city: 'Quảng Ngãi',
+    stationName: 'Ga Quảng Ngãi',
+  },
+  {
+    code: 'DTR',
+    city: 'Quy Nhơn',
+    stationName: 'Ga Diêu Trì',
+  },
+  {
+    code: 'THY',
+    city: 'Tuy Hòa',
+    stationName: 'Ga Tuy Hòa',
+  },
+  {
+    code: 'NTR',
+    city: 'Nha Trang',
+    stationName: 'Ga Nha Trang',
+  },
+  {
+    code: 'PCM',
+    city: 'Phan Rang - Tháp Chàm',
+    stationName: 'Ga Tháp Chàm',
+  },
+  {
+    code: 'PHT',
+    city: 'Phan Thiết',
+    stationName: 'Ga Phan Thiết',
+  },
+  {
+    code: 'SGN',
+    city: 'TP. Hồ Chí Minh',
+    stationName: 'Ga Sài Gòn',
+    aliases: ['Hồ Chí Minh', 'Ho Chi Minh', 'Sài Gòn', 'Sai Gon'],
+  },
+]);
 
 const buildValidationError = (field, message) =>
   new AppError('Validation failed', {
@@ -69,6 +157,38 @@ const buildResourceNotFoundError = (message = 'Service not found') =>
   });
 
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
+const stripDiacritics = (value) =>
+  String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+const normalizeSearchKey = (value) =>
+  normalizeWhitespace(stripDiacritics(value)).toLocaleLowerCase(LOCALE);
+const TRAIN_STATION_LOOKUP = (() => {
+  const lookup = new Map();
+
+  for (const station of TRAIN_STATION_OPTIONS) {
+    const candidates = [
+      station.code,
+      station.city,
+      station.stationName,
+      `${station.city} (${station.code})`,
+      station.stationName.replace(/^Ga\s+/i, ''),
+      ...(Array.isArray(station.aliases) ? station.aliases : []),
+    ];
+
+    for (const candidate of candidates) {
+      const normalizedCandidate = normalizeSearchKey(candidate);
+
+      if (normalizedCandidate) {
+        lookup.set(normalizedCandidate, station);
+      }
+    }
+  }
+
+  return lookup;
+})();
 
 const toTitleCase = (value) =>
   value
@@ -888,6 +1008,21 @@ const mapTrainSearchResult = (train) => ({
   currency: train.currency || DEFAULT_AVAILABILITY_CURRENCY,
 });
 
+const dedupeTrainSearchRows = (rows = []) => {
+  const seenServiceIds = new Set();
+
+  return rows.filter((row) => {
+    const serviceId = row?.service_id;
+
+    if (!serviceId || seenServiceIds.has(serviceId)) {
+      return false;
+    }
+
+    seenServiceIds.add(serviceId);
+    return true;
+  });
+};
+
 const mapComboDetail = ({
   comboItems,
   isBookable,
@@ -987,7 +1122,29 @@ const buildPaginationMeta = ({ limit, page, total }) => {
   };
 };
 
-const parseOptionalTransportRouteQuery = ({ departureDate, from, to }) => {
+const normalizeTransportRouteIdentity = (value) =>
+  String(value).toLocaleLowerCase(LOCALE);
+
+const resolveCanonicalTrainStation = (value) => {
+  const normalizedValue = normalizeSearchKey(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const station = TRAIN_STATION_LOOKUP.get(normalizedValue);
+  return station ? station.stationName : String(value);
+};
+
+const normalizeTrainRouteIdentity = (value) =>
+  normalizeSearchKey(resolveCanonicalTrainStation(value) ?? value);
+
+const parseOptionalTransportRouteQuery = ({
+  departureDate,
+  from,
+  normalizeRouteValue = normalizeTransportRouteIdentity,
+  to,
+}) => {
   const resolvedFrom = parseTextFilter({
     field: 'from',
     maxLength: MAX_LOCATION_LENGTH,
@@ -1004,8 +1161,7 @@ const parseOptionalTransportRouteQuery = ({ departureDate, from, to }) => {
   if (
     resolvedFrom &&
     resolvedTo &&
-    resolvedFrom.toLocaleLowerCase(LOCALE) ===
-    resolvedTo.toLocaleLowerCase(LOCALE)
+    normalizeRouteValue(resolvedFrom) === normalizeRouteValue(resolvedTo)
   ) {
     throw buildValidationError('route', 'from and to must be different');
   }
@@ -1020,29 +1176,23 @@ const parseOptionalTransportRouteQuery = ({ departureDate, from, to }) => {
   };
 };
 
-const parseTransportRouteQuery = ({ departureDate, from, to }) => {
+const parseOptionalTrainRouteQuery = ({ departureDate, from, to }) => {
   const resolvedRoute = parseOptionalTransportRouteQuery({
     departureDate,
     from,
+    normalizeRouteValue: normalizeTrainRouteIdentity,
     to,
   });
 
-  if (!resolvedRoute.from) {
-    throw buildValidationError('from', 'from is required');
-  }
-
-  if (!resolvedRoute.to) {
-    throw buildValidationError('to', 'to is required');
-  }
-
-  if (!resolvedRoute.departureDate) {
-    throw buildValidationError(
-      'departure_date',
-      'departure_date is required',
-    );
-  }
-
-  return resolvedRoute;
+  return {
+    ...resolvedRoute,
+    from: resolvedRoute.from
+      ? resolveCanonicalTrainStation(resolvedRoute.from) ?? resolvedRoute.from
+      : null,
+    to: resolvedRoute.to
+      ? resolveCanonicalTrainStation(resolvedRoute.to) ?? resolvedRoute.to
+      : null,
+  };
 };
 
 const parseComboFilters = ({
@@ -1538,9 +1688,18 @@ const createLookupService = ({
     }
 
     if (service.service_type === SERVICE_TYPE.TRAIN) {
-      const detail = await repository.getTrainDetail(service.id);
+      const detail = resolvedReferenceId
+        ? await repository.getTrainDetailById(resolvedReferenceId)
+        : await repository.getTrainDetail(service.id);
 
       if (!detail) {
+        console.error(
+          `Active public service ${service.id} (${service.slug}) is missing train_details.`,
+        );
+        throw buildResourceNotFoundError();
+      }
+
+      if (detail.service_id && detail.service_id !== service.id) {
         console.error(
           `Active public service ${service.id} (${service.slug}) is missing train_details.`,
         );
@@ -2180,7 +2339,7 @@ const createLookupService = ({
     seat_class: seatClass,
     to,
   } = {}) => {
-    const resolvedRoute = parseTransportRouteQuery({
+    const resolvedRoute = parseOptionalTrainRouteQuery({
       departureDate,
       from,
       to,
@@ -2190,18 +2349,32 @@ const createLookupService = ({
       SEAT_CLASS_VALUES,
       seatClass,
     );
-    const departureRange = buildVietnamDateRange(
-      resolvedRoute.departureDate,
-    );
-    const rows = await repository.searchTrains({
-      departureDateEnd: departureRange.end,
-      departureDateStart: departureRange.start,
-      from: resolvedRoute.from.toLocaleLowerCase(LOCALE),
-      seatClass: resolvedSeatClass,
-      to: resolvedRoute.to.toLocaleLowerCase(LOCALE),
-    });
+    const repositoryFilters = {};
 
-    return rows.map(mapTrainSearchResult);
+    if (resolvedSeatClass) {
+      repositoryFilters.seatClass = resolvedSeatClass;
+    }
+
+    if (resolvedRoute.departureDate) {
+      const departureRange = buildVietnamDateRange(
+        resolvedRoute.departureDate,
+      );
+      repositoryFilters.departureDateEnd = departureRange.end;
+      repositoryFilters.departureDateStart = departureRange.start;
+    }
+
+    if (resolvedRoute.from) {
+      repositoryFilters.from = resolvedRoute.from.toLocaleLowerCase(LOCALE);
+    }
+
+    if (resolvedRoute.to) {
+      repositoryFilters.to = resolvedRoute.to.toLocaleLowerCase(LOCALE);
+    }
+
+    const rows = await repository.searchTrains(repositoryFilters);
+    const dedupedRows = dedupeTrainSearchRows(rows);
+
+    return dedupedRows.map(mapTrainSearchResult);
   };
 
   return {

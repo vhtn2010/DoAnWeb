@@ -7,25 +7,20 @@ import {
   PublicEmptyState,
   PublicErrorState,
   PublicLoadingBlock,
+  PublicPagination,
 } from '../../components/public/ui/index.js'
 import useFlightList from '../../hooks/useFlightList.js'
 
-function FlightResultsFooter({ canLoadMore, isLoading, onLoadMore }) {
+function FlightResultsFooter({ currentPage, disabled = false, onPageChange, totalPages }) {
   return (
     <div className="flight-results__footer">
-      <PublicButton
-        className="flight-results__load-more"
-        disabled={!canLoadMore || isLoading}
-        loading={isLoading}
-        variant="secondary"
-        type="button"
-        onClick={onLoadMore}
-      >
-        <span>Xem thêm chuyến bay</span>
-        <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-          <path d="m7 10 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-        </svg>
-      </PublicButton>
+      <PublicPagination
+        ariaLabel="Phân trang chuyến bay"
+        currentPage={currentPage}
+        disabled={disabled}
+        onPageChange={onPageChange}
+        totalPages={totalPages}
+      />
     </div>
   )
 }
@@ -40,7 +35,6 @@ function FlightListPage() {
     feedback,
     flights,
     formatCurrency,
-    hasMore,
     loading,
     openFlightDetail,
     resultSummary,
@@ -53,6 +47,7 @@ function FlightListPage() {
     setPage,
     setSort,
     submitSearch,
+    totalPages,
     updatePassengers,
     updateSearchField,
     updateTripType,
@@ -143,9 +138,10 @@ function FlightListPage() {
                 </div>
 
                 <FlightResultsFooter
-                  canLoadMore={hasMore}
-                  isLoading={loading}
-                  onLoadMore={() => setPage(currentPage + 1)}
+                  currentPage={currentPage}
+                  disabled={loading}
+                  onPageChange={setPage}
+                  totalPages={totalPages}
                 />
               </>
             ) : (

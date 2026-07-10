@@ -1,4 +1,4 @@
-﻿import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import useCustomerCare from '../../hooks/useCustomerCare.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
@@ -30,32 +30,61 @@ const SUPPORT_HIGHLIGHTS = Object.freeze([
   {
     id: 'availability',
     title: 'Phản hồi nhanh',
-    description: 'Hệ thống phản hồi tức thì cho các câu hỏi phổ biến trước khi chuyển tiếp nhân viên.',
+    description: 'Các câu hỏi phổ biến được tiếp nhận ngay trước khi chuyển tiếp cho nhân viên.',
   },
   {
     id: 'handoff',
-    title: 'Escalation rõ ràng',
-    description: 'Những yêu cầu cần xử lý sâu hơn sẽ được ghi nhận để bộ phận vận hành tiếp tục hỗ trợ.',
+    title: 'Theo dõi tập trung',
+    description: 'Mọi trao đổi về đơn hàng, thanh toán và thay đổi lịch trình đều nằm trong cùng một luồng xử lý.',
   },
   {
     id: 'history',
-    title: 'Theo ngữ cảnh chuyến đi',
-    description: 'Bạn có thể hỏi về đơn hàng, lịch trình, thanh toán hoặc thay đổi dịch vụ ngay trong cùng một luồng chat.',
+    title: 'Lưu vết trạng thái',
+    description: 'Khách hàng đã đăng nhập có thể xem lại phiếu hỗ trợ gần đây và tiếp tục trao đổi bất cứ lúc nào.',
   },
 ])
+
+function formatTicketStatus(status = '') {
+  switch (status) {
+    case 'open':
+      return 'Mới tiếp nhận'
+    case 'waiting_staff':
+      return 'Đang chờ nhân viên'
+    case 'resolved':
+      return 'Đã phản hồi'
+    case 'closed':
+      return 'Đã đóng'
+    case 'spam':
+      return 'Không hợp lệ'
+    default:
+      return 'Đang xử lý'
+  }
+}
 
 function CustomerCarePage() {
   const { isCustomer } = usePublicSession()
   const {
+    activeTicket,
     draft,
+    error,
+    feedback,
+    handleCloseTicket,
+    handleSelectTicket,
     handleSubmit,
     handleTopicSelect,
+    loading,
     logRef,
     messages,
+    recentTickets,
     sending,
     setDraft,
   } = useCustomerCare({ isCustomer })
   const backToProfilePath = buildPublicAuthPath('/profile', isCustomer)
+  const canCloseTicket =
+    Boolean(activeTicket?.id) &&
+    activeTicket.status !== 'closed' &&
+    activeTicket.status !== 'spam'
+
   return (
     <div className="customer-care-page">
       <section className="customer-care-hero">
@@ -64,7 +93,7 @@ function CustomerCarePage() {
           <h1>Trò chuyện trực tiếp với hệ thống hỗ trợ</h1>
           <p>
             Gửi câu hỏi về đơn hàng, thay đổi lịch trình, hoàn tiền hoặc voucher. Hệ thống sẽ
-            phản hồi ngay với các hướng dẫn cơ bản trước khi cần chuyển tiếp thêm.
+            tiếp nhận ngay và đồng bộ nội dung vào phiếu hỗ trợ của bạn khi đang đăng nhập.
           </p>
 
           <div className="customer-care-hero__actions">
@@ -84,11 +113,28 @@ function CustomerCarePage() {
           <span className="customer-care-hero__status">
             {isCustomer ? 'Đang ở chế độ thành viên' : 'Khách vãng lai'}
           </span>
-          <strong>Phản hồi tự động trong vài giây</strong>
+          <strong>
+            {activeTicket?.ticket_code
+              ? `Phiếu hiện tại: ${activeTicket.ticket_code}`
+              : 'Sẵn sàng tiếp nhận yêu cầu mới'}
+          </strong>
           <p>
-            Đây là kênh hỗ trợ mock theo hướng API-ready. Nội dung chat hiện được mô phỏng để
-            người dùng có thể thao tác và hình dung luồng chăm sóc khách hàng.
+            {activeTicket
+              ? `Trạng thái hiện tại: ${formatTicketStatus(activeTicket.status)}.`
+              : isCustomer
+                ? 'Bạn chưa có phiếu hỗ trợ mở nào trong tài khoản hiện tại.'
+                : 'Khách vãng lai có thể hỏi nhanh ngay trên giao diện này.'}
           </p>
+          {canCloseTicket ? (
+            <button
+              className="customer-care-hero__button customer-care-hero__button--secondary"
+              type="button"
+              onClick={handleCloseTicket}
+              disabled={sending}
+            >
+              Đóng phiếu hiện tại
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -107,7 +153,7 @@ function CustomerCarePage() {
                   className="customer-care-topic"
                   type="button"
                   onClick={() => handleTopicSelect(topic.prompt)}
-                  disabled={sending}
+                  disabled={sending || loading}
                 >
                   <strong>{topic.label}</strong>
                   <span>{topic.prompt}</span>
@@ -118,17 +164,47 @@ function CustomerCarePage() {
 
           <section className="customer-care-panel customer-care-panel--highlights">
             <header className="customer-care-panel__header">
-              <p className="customer-care-panel__eyebrow">Điểm nổi bật</p>
-              <h2>Kênh hỗ trợ được thiết kế cho hành trình</h2>
+              <p className="customer-care-panel__eyebrow">
+                {isCustomer ? 'Phiếu gần đây' : 'Điểm nổi bật'}
+              </p>
+              <h2>
+                {isCustomer
+                  ? 'Tiếp tục xử lý các yêu cầu gần nhất'
+                  : 'Kênh hỗ trợ được thiết kế cho hành trình'}
+              </h2>
             </header>
 
             <div className="customer-care-highlight-list">
-              {SUPPORT_HIGHLIGHTS.map((item) => (
-                <article className="customer-care-highlight" key={item.id}>
-                  <strong>{item.title}</strong>
-                  <p>{item.description}</p>
-                </article>
-              ))}
+              {isCustomer ? (
+                recentTickets.length > 0 ? (
+                  recentTickets.map((ticket) => (
+                    <button
+                      key={ticket.id}
+                      className="customer-care-topic customer-care-topic--compact"
+                      type="button"
+                      onClick={() => handleSelectTicket(ticket.id)}
+                      disabled={sending || loading}
+                    >
+                      <strong>{ticket.ticket_code}</strong>
+                      <span>
+                        {ticket.subject} • {formatTicketStatus(ticket.status)}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <article className="customer-care-highlight">
+                    <strong>Chưa có phiếu hỗ trợ</strong>
+                    <p>Gửi tin nhắn đầu tiên để hệ thống tạo phiếu mới cho tài khoản của bạn.</p>
+                  </article>
+                )
+              ) : (
+                SUPPORT_HIGHLIGHTS.map((item) => (
+                  <article className="customer-care-highlight" key={item.id}>
+                    <strong>{item.title}</strong>
+                    <p>{item.description}</p>
+                  </article>
+                ))
+              )}
             </div>
           </section>
         </aside>
@@ -140,7 +216,11 @@ function CustomerCarePage() {
               <h2>Hỗ trợ đơn hàng và lịch trình</h2>
             </div>
             <span className="customer-care-chat__presence">
-              {sending ? 'Hệ thống đang trả lời...' : 'Sẵn sàng hỗ trợ'}
+              {loading
+                ? 'Đang đồng bộ lịch sử hỗ trợ...'
+                : sending
+                  ? 'Yêu cầu đang được gửi...'
+                  : 'Sẵn sàng hỗ trợ'}
             </span>
           </header>
 
@@ -166,7 +246,7 @@ function CustomerCarePage() {
             {sending ? (
               <article className="customer-care-message customer-care-message--system customer-care-message--typing">
                 <span className="customer-care-message__sender">Hệ thống</span>
-                <p>Đang phân tích yêu cầu và chuẩn bị phản hồi...</p>
+                <p>Đang phân tích yêu cầu và cập nhật nội dung hỗ trợ...</p>
               </article>
             ) : null}
           </div>
@@ -190,16 +270,17 @@ function CustomerCarePage() {
               <button
                 className="customer-care-composer__submit"
                 type="submit"
-                disabled={sending || !draft.trim()}
+                disabled={sending || loading || !draft.trim()}
               >
                 {sending ? 'Đang gửi...' : 'Gửi tin nhắn'}
               </button>
             </div>
 
             <p className="customer-care-composer__hint" role="status">
-              {sending
-                ? 'Yêu cầu đang được hệ thống xử lý.'
-                : 'Mô hình hiện tại là mock chat để người dùng trải nghiệm luồng hỗ trợ.'}
+              {error || feedback ||
+                (isCustomer
+                  ? 'Tin nhắn sẽ được đồng bộ vào phiếu hỗ trợ hiện tại hoặc tạo phiếu mới khi cần.'
+                  : 'Khách vãng lai có thể dùng kênh này để nhận hướng dẫn bước đầu trước khi liên hệ thêm.')}
             </p>
           </form>
         </section>
@@ -209,6 +290,3 @@ function CustomerCarePage() {
 }
 
 export default CustomerCarePage
-
-
-

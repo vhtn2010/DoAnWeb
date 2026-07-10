@@ -363,6 +363,181 @@ test('getCurrentUserLogs rejects inactive current user before reading logs', asy
   assert.equal(logQueryAttempts, 0);
 });
 
+test('getCurrentUserVouchers returns voucher history and reusable codes for the current customer', async () => {
+  const fixedNow = new Date('2026-07-10T09:00:00.000Z');
+  const capturedQueries = [];
+  const service = createProfileService({
+    now: () => fixedNow,
+    queryImpl: async (sql, params = []) => {
+      capturedQueries.push({
+        params,
+        sql,
+      });
+
+      if (sql.includes('FROM users') && sql.includes('WHERE id = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              deleted_at: null,
+              id: 'user-1',
+              status: 'active',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('WITH user_voucher_usage AS')) {
+        return {
+          rowCount: 2,
+          rows: [
+            {
+              code: 'NETVIET500',
+              discount_type: 'fixed_amount',
+              discount_value: '500000.00',
+              id: 'voucher-1',
+              last_used_at: new Date('2026-07-08T10:00:00.000Z'),
+              max_discount_amount: null,
+              min_order_amount: '6000000.00',
+              promotion_description: 'Ưu đãi cho tour nội địa.',
+              promotion_id: 'promotion-1',
+              promotion_name: 'Hè du lịch',
+              promotion_status: 'active',
+              promotion_valid_from: new Date('2026-07-01T00:00:00.000Z'),
+              promotion_valid_to: new Date('2026-07-31T00:00:00.000Z'),
+              target_service_type: 'tour',
+              usage_limit_per_user: 3,
+              usage_limit_total: 100,
+              used_count: 4,
+              user_usage_count: 1,
+              voucher_status: 'active',
+              voucher_valid_from: new Date('2026-07-01T00:00:00.000Z'),
+              voucher_valid_to: new Date('2026-07-25T00:00:00.000Z'),
+            },
+            {
+              code: 'FAMILY350',
+              discount_type: 'fixed_amount',
+              discount_value: '350000.00',
+              id: 'voucher-2',
+              last_used_at: new Date('2026-07-02T10:00:00.000Z'),
+              max_discount_amount: null,
+              min_order_amount: '3000000.00',
+              promotion_description: 'Ưu đãi gia đình.',
+              promotion_id: 'promotion-2',
+              promotion_name: 'Gia đình hè 2026',
+              promotion_status: 'expired',
+              promotion_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+              promotion_valid_to: new Date('2026-07-05T00:00:00.000Z'),
+              target_service_type: 'combo',
+              usage_limit_per_user: 1,
+              usage_limit_total: 50,
+              used_count: 50,
+              user_usage_count: 1,
+              voucher_status: 'expired',
+              voucher_valid_from: new Date('2026-06-01T00:00:00.000Z'),
+              voucher_valid_to: new Date('2026-07-05T00:00:00.000Z'),
+            },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  });
+
+  const vouchers = await service.getCurrentUserVouchers({
+    userId: 'user-1',
+  });
+
+  assert.equal(capturedQueries.length, 2);
+  assert.deepEqual(vouchers, [
+    {
+      code: 'NETVIET500',
+      description: 'Ưu đãi cho tour nội địa.',
+      discount_type: 'fixed_amount',
+      discount_value: 500000,
+      id: 'voucher-1',
+      max_discount_amount: null,
+      min_order_amount: 6000000,
+      promotion: {
+        id: 'promotion-1',
+        name: 'Hè du lịch',
+        status: 'active',
+      },
+      status: 'active',
+      target_service_type: 'tour',
+      title: 'Hè du lịch',
+      usage_limit_per_user: 3,
+      usage_limit_total: 100,
+      used_at: '2026-07-08T10:00:00.000Z',
+      user_usage_count: 1,
+      valid_from: '2026-07-01T00:00:00.000Z',
+      valid_to: '2026-07-25T00:00:00.000Z',
+    },
+    {
+      code: 'FAMILY350',
+      description: 'Ưu đãi gia đình.',
+      discount_type: 'fixed_amount',
+      discount_value: 350000,
+      id: 'voucher-2',
+      max_discount_amount: null,
+      min_order_amount: 3000000,
+      promotion: {
+        id: 'promotion-2',
+        name: 'Gia đình hè 2026',
+        status: 'expired',
+      },
+      status: 'used',
+      target_service_type: 'combo',
+      title: 'Gia đình hè 2026',
+      usage_limit_per_user: 1,
+      usage_limit_total: 50,
+      used_at: '2026-07-02T10:00:00.000Z',
+      user_usage_count: 1,
+      valid_from: '2026-06-01T00:00:00.000Z',
+      valid_to: '2026-07-05T00:00:00.000Z',
+    },
+  ]);
+});
+
+test('getCurrentUserVouchers rejects inactive current user before loading vouchers', async () => {
+  let voucherQueryAttempts = 0;
+  const service = createProfileService({
+    queryImpl: async (sql) => {
+      if (sql.includes('FROM users') && sql.includes('WHERE id = $1')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              deleted_at: null,
+              id: 'user-1',
+              status: 'locked',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('WITH user_voucher_usage AS')) {
+        voucherQueryAttempts += 1;
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.getCurrentUserVouchers({
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.FORBIDDEN &&
+      error.statusCode === 403,
+  );
+
+  assert.equal(voucherQueryAttempts, 0);
+});
+
 test('normalizeAccountDeactivationPayload trims and validates reason', () => {
   assert.deepEqual(
     normalizeAccountDeactivationPayload({
@@ -554,6 +729,7 @@ test('updateCurrentProfile updates full_name and phone, sets updated_at, and ret
               deleted_at: null,
               full_name: 'Nguyen Van A',
               id: 'user-1',
+              password_hash: 'stored-password-hash',
               phone: '0909000000',
               status: 'active',
             },
@@ -603,6 +779,11 @@ test('updateCurrentProfile updates full_name and phone, sets updated_at, and ret
     },
   };
   const service = createProfileService({
+    bcryptCompareImpl: async (plainTextPassword, hashedPassword) => {
+      assert.equal(plainTextPassword, 'CurrentPassword123');
+      assert.equal(hashedPassword, 'stored-password-hash');
+      return true;
+    },
     now: () => fixedNow,
     withTransactionImpl: async (callback) => callback(client),
   });
@@ -610,6 +791,7 @@ test('updateCurrentProfile updates full_name and phone, sets updated_at, and ret
   const profile = await service.updateCurrentProfile({
     ipAddress: '127.0.0.1',
     payload: {
+      current_password: 'CurrentPassword123',
       full_name: '  Nguyen Van B  ',
       phone: '   ',
     },
@@ -647,6 +829,90 @@ test('updateCurrentProfile updates full_name and phone, sets updated_at, and ret
     status: 'active',
     updated_at: '2026-06-30T02:00:00.000Z',
   });
+});
+
+test('updateCurrentProfile rejects missing current_password when updating phone', async () => {
+  const service = createProfileService({
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-password-hash',
+                  phone: '0909000000',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentProfile({
+        payload: {
+          phone: '0909123456',
+        },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VALIDATION_ERROR &&
+      error.details?.some(
+        (detail) =>
+          detail.field === 'current_password' &&
+          detail.message === 'current_password is required when updating phone',
+      ),
+  );
+});
+
+test('updateCurrentProfile rejects incorrect current_password when updating phone', async () => {
+  const service = createProfileService({
+    bcryptCompareImpl: async () => false,
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('SELECT') && sql.includes('FROM users') && sql.includes('FOR UPDATE')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  deleted_at: null,
+                  id: 'user-1',
+                  password_hash: 'stored-password-hash',
+                  phone: '0909000000',
+                  status: 'active',
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.updateCurrentProfile({
+        payload: {
+          current_password: 'WrongPassword123',
+          phone: '0909123456',
+        },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.AUTH_INVALID_CREDENTIALS &&
+      error.statusCode === 401,
+  );
 });
 
 test('updateCurrentProfile rejects body without allowed fields', async () => {

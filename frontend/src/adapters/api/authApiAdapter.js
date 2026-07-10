@@ -80,3 +80,13 @@ export async function verifyEmail(payload = {}) {
 export async function resendVerification(payload = {}) {
   return apiPost('/auth/resend-verification', payload)
 }
+
+export async function requestChangeEmail(payload = {}) {
+  return apiPost('/auth/change-email/request', payload)
+}
+
+export async function confirmChangeEmail(payload = {}) {
+  return apiPost('/auth/change-email/confirm', {
+    token: String(payload.token ?? '').trim(),
+  })
+}

@@ -24,6 +24,10 @@ function SearchFieldIcon({ type }) {
 }
 
 function getSortLabel(selectedSort, variant = 'search') {
+  if (!selectedSort) {
+    return 'Chọn sắp xếp'
+  }
+
   if (selectedSort === 'price_asc') {
     return variant === 'search' ? 'Giá rẻ nhất' : 'Giá thấp nhất'
   }
@@ -102,32 +106,36 @@ function TrainSearchPanel({
         />
 
         <TrainPassengerSelector passengers={searchState.passengers} onChange={updatePassengers} />
+
+        <button className="train-search-card__submit" type="button" onClick={onSubmit}>
+          <SearchFieldIcon type="search" />
+          <span>Tìm kiếm vé tàu</span>
+        </button>
       </div>
 
       <div className="train-search-card__divider" aria-hidden="true" />
 
       <div className="train-search-card__footer">
-        <div className="train-search-card__trip-toggle" aria-label="Loại hành trình" role="group">
+        <div className="train-trip-toggle" aria-label="Loại hành trình" role="group">
           <button
-            className={searchState.trip_type === 'round_trip' ? 'active' : ''}
+            className={`train-trip-toggle-btn ${
+              searchState.trip_type === 'round_trip' ? 'active' : ''
+            }`}
             type="button"
             onClick={() => updateTripType('round_trip')}
           >
             Khứ hồi
           </button>
           <button
-            className={searchState.trip_type === 'one_way' ? 'active' : ''}
+            className={`train-trip-toggle-btn ${
+              searchState.trip_type === 'one_way' ? 'active' : ''
+            }`}
             type="button"
             onClick={() => updateTripType('one_way')}
           >
-            1 Chiều
+            1 chiều
           </button>
         </div>
-
-        <button className="train-search-card__submit" type="button" onClick={onSubmit}>
-          <SearchFieldIcon type="search" />
-          <span>Tìm kiếm</span>
-        </button>
 
         <label className="train-search-card__sort">
           <span className="train-search-card__sort-prefix">Sắp xếp:</span>
@@ -144,6 +152,7 @@ function TrainSearchPanel({
               value={selectedSort}
               onChange={onSortChange}
             >
+              <option value="">Chọn sắp xếp</option>
               {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}

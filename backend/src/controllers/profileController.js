@@ -1,5 +1,16 @@
 const profileService = require('../services/profileService');
 
+const getMyVouchers = async (req, res) => {
+  const vouchers = await profileService.getCurrentUserVouchers({
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: vouchers,
+    message: 'Profile vouchers retrieved successfully',
+  });
+};
+
 const getMe = async (req, res) => {
   const profile = await profileService.getCurrentProfile({
     userId: req.auth.userId,
@@ -84,6 +95,7 @@ const requestAccountDeactivation = async (req, res) => {
 module.exports = {
   getMe,
   getMyLogs,
+  getMyVouchers,
   requestAccountDeactivation,
   updateMe,
   updateMeAvatar,

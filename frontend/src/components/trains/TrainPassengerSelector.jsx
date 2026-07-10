@@ -27,9 +27,14 @@ function CounterControl({ description, label, min = 0, value, onChange }) {
 }
 
 function formatPassengerDisplay(passengers = {}) {
-  const adults = Math.max(Number(passengers.adults ?? 1) || 0, 1)
+  const adults = Math.max(Number(passengers.adults ?? 0) || 0, 0)
   const children = Math.max(Number(passengers.children ?? 0) || 0, 0)
   const infants = Math.max(Number(passengers.infants ?? 0) || 0, 0)
+  const totalPassengers = adults + children + infants
+
+  if (totalPassengers <= 0) {
+    return ''
+  }
   const parts = [`${adults} Người lớn`]
 
   if (children > 0) {
@@ -86,7 +91,7 @@ function TrainPassengerSelector({ passengers, onChange }) {
         </span>
 
         <span className="train-search-card__field-value">
-          {formatPassengerDisplay(passengers)}
+          {formatPassengerDisplay(passengers) || 'Chọn hành khách'}
         </span>
 
         <span className="train-passenger-selector__chevron" aria-hidden="true">
@@ -102,19 +107,19 @@ function TrainPassengerSelector({ passengers, onChange }) {
             description="Từ 12 tuổi trở lên"
             label="Người lớn"
             min={1}
-            value={passengers.adults}
+            value={Number(passengers.adults) || 0}
             onChange={(nextValue) => onChange('adults', nextValue)}
           />
           <CounterControl
             description="Từ 2 đến dưới 12 tuổi"
             label="Trẻ em"
-            value={passengers.children}
+            value={Number(passengers.children) || 0}
             onChange={(nextValue) => onChange('children', nextValue)}
           />
           <CounterControl
             description="Dưới 2 tuổi"
             label="Em bé"
-            value={passengers.infants}
+            value={Number(passengers.infants) || 0}
             onChange={(nextValue) => onChange('infants', nextValue)}
           />
         </div>

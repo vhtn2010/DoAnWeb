@@ -1,0 +1,105 @@
+.booking-self-service-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.booking-self-service-panel__group,
+.booking-self-service-panel__stack,
+.booking-self-service-panel__timeline,
+.booking-self-service-panel__refund-list {
+  display: grid;
+  gap: 14px;
+}
+
+.booking-self-service-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.booking-self-service-panel__ghost-button {
+  border: 1px solid rgba(223, 227, 230, 0.9);
+  border-radius: 14px;
+  background: #fff;
+  color: #39506a;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 46px;
+  padding: 10px 14px;
+}
+
+.booking-self-service-panel__status-item,
+.booking-self-service-panel__refund-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(223, 227, 230, 0.82);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.booking-self-service-panel__status-head,
+.booking-self-service-panel__refund-head,
+.booking-self-service-panel__summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.booking-self-service-panel__status-item strong,
+.booking-self-service-panel__refund-item strong,
+.booking-self-service-panel__summary-row strong {
+  color: #10243e;
+}
+
+.booking-self-service-panel__status-item p,
+.booking-self-service-panel__refund-item p,
+.booking-self-service-panel__summary-row span,
+.booking-self-service-panel__refund-meta span {
+  margin: 0;
+  color: var(--color-text-soft);
+  line-height: 1.65;
+}
+
+.booking-self-service-panel__refund-meta,
+.booking-self-service-panel__refund-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+
+.booking-self-service-panel__form {
+  display: grid;
+  gap: 12px;
+}
+
+.booking-self-service-panel__field {
+  display: grid;
+  gap: 8px;
+}
+
+.booking-self-service-panel__field span {
+  color: #10243e;
+  font-weight: 700;
+}
+
+.booking-self-service-panel__field input,
+.booking-self-service-panel__field select,
+.booking-self-service-panel__field textarea {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(223, 227, 230, 0.9);
+  border-radius: 14px;
+  background: #fff;
+  color: #10243e;
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.booking-self-service-panel__field textarea {
+  min-height: 92px;
+  resize: vertical;
+}

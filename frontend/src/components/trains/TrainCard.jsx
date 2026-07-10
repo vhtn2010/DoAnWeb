@@ -2,10 +2,10 @@ function TrainCard({
   formatCurrency,
   isSelected,
   onOpenDetail,
-  onSelect,
   train,
 }) {
   function handleBookingClick(event) {
+    event.preventDefault()
     event.stopPropagation()
     onOpenDetail(train)
   }
@@ -13,13 +13,13 @@ function TrainCard({
   return (
     <article
       className={`train-card ${isSelected ? 'train-card--selected' : ''}`}
-      role="button"
+      role="link"
       tabIndex={0}
-      onClick={() => onSelect(train)}
+      onClick={() => onOpenDetail(train)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
-          onSelect(train)
+          onOpenDetail(train)
         }
       }}
     >

@@ -12,6 +12,7 @@ import { syncCheckoutDraftTravellers } from '../mappers/checkoutMappers.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+import { createIdempotencyKey } from '../utils/idempotency.js'
 
 function clearFieldError(currentErrors, fieldName) {
   if (!currentErrors[fieldName]) {
@@ -89,7 +90,7 @@ export default function useCheckout() {
           return
         }
 
-        setCheckoutDraft(response.data)
+        setCheckoutDraft(syncCheckoutDraftTravellers(response.data))
         setBaseSummary(response.data.summary)
       } catch (loadError) {
         if (!isActive) {
@@ -191,7 +192,7 @@ export default function useCheckout() {
         },
       }
     })
-    setSubmitFeedback('Đã cập nhật lựa chọn hành lý mock cho bước checkout.')
+    setSubmitFeedback('Đã cập nhật yêu cầu chuẩn bị cho hành trình của bạn.')
   }
 
   function handleVoucherChange(event) {
@@ -230,10 +231,17 @@ export default function useCheckout() {
     }
 
     try {
-      const response = await applyVoucher(normalizedVoucher, baseSummary ?? checkoutDraft.summary)
+      const response = await applyVoucher(
+        normalizedVoucher,
+        baseSummary ?? checkoutDraft.summary,
+        {
+          authState,
+          cartId: checkoutDraft.cart_id,
+        },
+      )
 
       if (!response.success || !response.data) {
-        setVoucherFeedback(response.message ?? 'Mã ưu đãi không hợp lệ trong dữ liệu mock.')
+        setVoucherFeedback(response.message ?? 'Mã ưu đãi không hợp lệ hoặc chưa áp dụng được.')
         return
       }
 
@@ -269,11 +277,13 @@ export default function useCheckout() {
 
     setFormErrors({})
 
-    // TODO: replace mock checkout submit with POST /bookings/checkout in API integration phase.
     const checkoutPayload = buildCheckoutPayload(checkoutDraft)
 
     try {
-      const response = await submitCheckout(checkoutPayload)
+      const response = await submitCheckout(checkoutPayload, {
+        authState,
+        idempotencyKey: createIdempotencyKey(`checkout-${checkoutDraft.cart_id}`),
+      })
 
       if (!response.success || !response.data) {
         setSubmitFeedback(response.message ?? 'Khong the chuan bi buoc thanh toan luc nay.')
@@ -281,14 +291,19 @@ export default function useCheckout() {
       }
 
       setSubmitFeedback(response.message)
-      navigate(preserveAuthQuery(response.data.next_route ?? '/payment-confirmation'), {
+      navigate(
+        preserveAuthQuery(`/booking-confirmation/${response.data.booking_code}`),
+        {
         state: {
-          booking: response.data.booking_handoff,
+          booking: response.data,
+          bookingCode: response.data.booking_code,
+          bookingId: response.data.id,
+          bookingItems: response.data.items ?? [],
           checkoutPayload: response.data.checkout_payload ?? checkoutPayload,
-          paymentRedirectPayload: response.data.payment_redirect_payload,
           selectedCartItemIds,
         },
-      })
+        },
+      )
     } catch (submitError) {
       setSubmitFeedback(submitError?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.')
     }

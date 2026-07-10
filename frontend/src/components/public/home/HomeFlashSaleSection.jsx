@@ -1,8 +1,41 @@
 import { Link } from 'react-router-dom'
 
-function FlashSaleCard({ formatCurrency, service, serviceListPath }) {
+function buildHomeServiceDetailPath(service = {}) {
+  if (service.detail_path) {
+    return service.detail_path
+  }
+
+  if (service.service_type === 'hotel' || service.service_type === 'room') {
+    return `/hotels/${service.slug}`
+  }
+
+  if (service.service_type === 'flight') {
+    return `/flights/${service.slug}`
+  }
+
+  if (service.service_type === 'train') {
+    return `/trains/${service.slug}`
+  }
+
+  return `/services/${service.slug}`
+}
+
+function FlashSaleBoltIcon() {
   return (
-    <article className="home-offer-card">
+    <svg aria-hidden="true" className="home-flash-sale__eyebrow-mark" viewBox="0 0 16 20">
+      <path
+        d="M9.2 1.5 3.8 10h3.5L6.8 18.5 12.4 9.7H8.8L9.2 1.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function FlashSaleCard({ formatCurrency, service }) {
+  const detailPath = buildHomeServiceDetailPath(service)
+
+  return (
+    <Link className="home-offer-card" to={detailPath}>
       <div className="home-offer-card__image-frame">
         <div
           aria-hidden="true"
@@ -22,12 +55,12 @@ function FlashSaleCard({ formatCurrency, service, serviceListPath }) {
             </span>
           </div>
 
-          <Link className="home-offer-card__action" to={serviceListPath}>
+          <span className="home-offer-card__action">
             Đặt Ngay
-          </Link>
+          </span>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
 
@@ -35,7 +68,6 @@ export default function HomeFlashSaleSection({
   flashSaleMeta,
   flashSaleServices,
   formatCurrency,
-  serviceListPath,
 }) {
   return (
     <section className="home-flash-sale">
@@ -43,7 +75,7 @@ export default function HomeFlashSaleSection({
       <div className="home-flash-sale__header">
         <div className="home-flash-sale__intro">
           <div className="home-flash-sale__eyebrow">
-            <span className="home-flash-sale__eyebrow-mark" aria-hidden="true" />
+            <FlashSaleBoltIcon />
             <span>ƯU ĐÃI GIỚI HẠN</span>
           </div>
           <h2 className="home-flash-sale__title">
@@ -75,7 +107,6 @@ export default function HomeFlashSaleSection({
             formatCurrency={formatCurrency}
             key={service.slug}
             service={service}
-            serviceListPath={serviceListPath}
           />
         ))}
       </div>

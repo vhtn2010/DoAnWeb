@@ -1,4 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+
+function shouldSkipCardNavigation(target) {
+  return target instanceof Element && Boolean(target.closest('a, button'))
+}
 
 function formatCurrency(value) {
   return `${new Intl.NumberFormat('vi-VN').format(value)} đ`
@@ -34,12 +38,12 @@ function TransportIcon() {
   )
 }
 
-function HeartIcon() {
+function HeartIcon({ isActive = false }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20">
       <path
         d="m10 16.25-.96-.87C5.2 11.94 2.75 9.7 2.75 6.88A3.63 3.63 0 0 1 6.4 3.25c1.39 0 2.7.66 3.6 1.7.9-1.04 2.21-1.7 3.6-1.7a3.63 3.63 0 0 1 3.65 3.63c0 2.82-2.45 5.06-6.29 8.5l-.96.87Z"
-        fill="none"
+        fill={isActive ? 'currentColor' : 'none'}
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -60,29 +64,66 @@ function StarIcon() {
   )
 }
 
-function ServiceCard({ service }) {
+function ServiceCard({ isFavorite = false, onToggleFavorite, service }) {
+  const navigate = useNavigate()
   const detailPath = service.detail_path ?? `/services/${service.slug}`
+  const featuredPill =
+    service.badge_text === 'Bán chạy'
+      ? { tone: 'badge', value: service.badge_text }
+      : service.rating_text
+        ? { tone: 'rating', value: service.rating_text }
+        : service.badge_text
+          ? { tone: 'badge', value: service.badge_text }
+          : null
 
   return (
-    <article className="service-card">
+    <article
+      className="service-card service-card--interactive"
+      role="link"
+      tabIndex={0}
+      onClick={(event) => {
+        if (shouldSkipCardNavigation(event.target)) {
+          return
+        }
+
+        navigate(detailPath)
+      }}
+      onKeyDown={(event) => {
+        if (
+          shouldSkipCardNavigation(event.target) ||
+          (event.key !== 'Enter' && event.key !== ' ')
+        ) {
+          return
+        }
+
+        event.preventDefault()
+        navigate(detailPath)
+      }}
+    >
       <Link className="service-card__media-link" to={detailPath}>
         <img
           alt={service.title}
           className="service-card__image"
           src={service.image_url}
         />
-        {service.badge_text ? (
-          <span className="service-card__badge">{service.badge_text}</span>
-        ) : null}
-        <span aria-hidden="true" className="service-card__favorite">
-          <HeartIcon />
-        </span>
-        {service.rating_text ? (
-          <span className="service-card__rating">
-            <StarIcon />
-            {service.rating_text}
+        {featuredPill ? (
+          <span className={`service-card__pill service-card__pill--${featuredPill.tone}`}>
+            {featuredPill.tone === 'rating' ? <StarIcon /> : null}
+            {featuredPill.value}
           </span>
         ) : null}
+        <button
+          aria-label={isFavorite ? 'Bỏ tour khỏi yêu thích' : 'Thêm tour vào yêu thích'}
+          className={`service-card__favorite ${isFavorite ? 'service-card__favorite--active' : ''}`}
+          type="button"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onToggleFavorite?.(service)
+          }}
+        >
+          <HeartIcon isActive={isFavorite} />
+        </button>
       </Link>
 
       <div className="service-card__body">
@@ -96,14 +137,11 @@ function ServiceCard({ service }) {
             {service.transport_text}
           </span>
         </div>
-
-        <p className="service-card__location">{service.location_text}</p>
         <h2 className="service-card__title">
           <Link className="service-card__title-link" to={detailPath}>
             {service.title}
           </Link>
         </h2>
-        <p className="service-card__description">{service.short_description}</p>
 
         <div className="service-card__footer">
           <div className="service-card__price-group">

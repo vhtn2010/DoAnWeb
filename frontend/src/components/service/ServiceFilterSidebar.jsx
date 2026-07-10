@@ -1,5 +1,35 @@
 import { PublicButton } from '../public/ui/index.js'
 
+function FilterIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path
+        d="M3.75 5.25h12.5M6.5 10h7m-4.25 4.75h1.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path
+        d="M9 4.25a4.75 4.75 0 1 1 0 9.5 4.75 4.75 0 0 1 0-9.5Zm6.25 11 2 2"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
 export default function ServiceFilterSidebar({
   categoryOptions,
   draftFilters,
@@ -12,7 +42,9 @@ export default function ServiceFilterSidebar({
   return (
     <aside className="service-filter">
       <div className="service-filter__header">
-        <span className="service-filter__marker" aria-hidden="true" />
+        <span className="service-filter__marker" aria-hidden="true">
+          <FilterIcon />
+        </span>
         <h2 className="service-filter__title">Bộ lọc nâng cao</h2>
       </div>
 
@@ -20,14 +52,19 @@ export default function ServiceFilterSidebar({
         <label className="service-filter__label" htmlFor="service-filter-keyword">
           Địa điểm
         </label>
-        <input
-          className="service-filter__search"
-          id="service-filter-keyword"
-          placeholder="Tìm kiếm điểm đến..."
-          type="search"
-          value={draftFilters.keyword}
-          onChange={(event) => onKeywordChange(event.target.value)}
-        />
+        <div className="service-filter__search-shell">
+          <span className="service-filter__search-icon" aria-hidden="true">
+            <SearchIcon />
+          </span>
+          <input
+            className="service-filter__search"
+            id="service-filter-keyword"
+            placeholder="Tìm kiếm điểm đến..."
+            type="search"
+            value={draftFilters.keyword}
+            onChange={(event) => onKeywordChange(event.target.value)}
+          />
+        </div>
       </div>
 
       <div className="service-filter__section">
@@ -40,7 +77,8 @@ export default function ServiceFilterSidebar({
                 type="checkbox"
                 onChange={() => onToggleValue('prices', option.value)}
               />
-              <span>{option.label}</span>
+              <span aria-hidden="true" className="service-filter__check-box" />
+              <span className="service-filter__check-label">{option.label}</span>
             </label>
           ))}
         </div>
@@ -56,7 +94,8 @@ export default function ServiceFilterSidebar({
                 type="checkbox"
                 onChange={() => onToggleValue('durations', option.value)}
               />
-              <span>{option.label}</span>
+              <span aria-hidden="true" className="service-filter__check-box" />
+              <span className="service-filter__check-label">{option.label}</span>
             </label>
           ))}
         </div>
@@ -80,7 +119,13 @@ export default function ServiceFilterSidebar({
         </div>
       </div>
 
-      <PublicButton className="service-filter__apply" type="button" variant="primary" onClick={onApply}>
+      <PublicButton
+        className="service-filter__apply"
+        size="md"
+        type="button"
+        variant="primary"
+        onClick={onApply}
+      >
         Áp dụng bộ lọc
       </PublicButton>
     </aside>

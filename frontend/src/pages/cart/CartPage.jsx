@@ -7,19 +7,29 @@ import useCart from '../../hooks/useCart.js'
 
 function CartPage() {
   const {
+    appliedVoucher,
     canContinue,
     cartItems,
     error,
     feedback,
     formattedSummary,
+    handleApplyVoucher,
+    handleClearCart,
     handleContinueCheckout,
     handleEditItem,
     handleGoBack,
     handleRemoveItem,
+    handleRemoveVoucher,
+    handleToggleAll,
     handleToggleItem,
+    isAllSelected,
+    isCustomer,
+    isVoucherLoading,
     loading,
     reloadCart,
     selectedItemIds,
+    setVoucherCode,
+    voucherCode,
   } = useCart()
 
   return (
@@ -34,7 +44,9 @@ function CartPage() {
           error={error}
           handleEditItem={handleEditItem}
           handleRemoveItem={handleRemoveItem}
+          handleToggleAll={handleToggleAll}
           handleToggleItem={handleToggleItem}
+          isAllSelected={isAllSelected}
           loading={loading}
           reloadCart={reloadCart}
           selectedItemIds={selectedItemIds}
@@ -42,10 +54,21 @@ function CartPage() {
 
         <aside className="cart-page__sidebar">
           <CartSummaryCard
-            feedbackHint="Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo."
+            appliedVoucher={appliedVoucher}
+            feedbackHint={
+              isCustomer
+                ? 'Voucher và checkout hiện được backend xử lý theo toàn bộ giỏ hàng. Hãy chọn tất cả dịch vụ trước khi áp mã hoặc tiếp tục.'
+                : 'Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo.'
+            }
             isContinueDisabled={!canContinue}
+            isVoucherLoading={isVoucherLoading}
+            onApplyVoucher={handleApplyVoucher}
+            onChangeVoucherCode={setVoucherCode}
+            onClearCart={handleClearCart}
             onContinue={handleContinueCheckout}
+            onRemoveVoucher={handleRemoveVoucher}
             summary={formattedSummary}
+            voucherCode={voucherCode}
           />
 
           <CartBenefitsPanel />

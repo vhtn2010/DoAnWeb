@@ -1,19 +1,19 @@
 import {
-  buildTrainSearchParams as buildTrainSearchParamsWithMockAdapter,
-  buildTrainSelectionPayload as buildTrainSelectionPayloadWithMockAdapter,
-  checkTrainAvailability as checkTrainAvailabilityWithMockAdapter,
-  getTrainDetailBySlug as getTrainDetailBySlugWithMockAdapter,
-  getTrainSearchDefaults as getTrainSearchDefaultsWithMockAdapter,
-  listTrains as listTrainsWithMockAdapter,
-} from '../adapters/mock/trainMockAdapter.js'
+  buildTrainSearchParams as buildTrainSearchParamsWithApiAdapter,
+  buildTrainSelectionPayload as buildTrainSelectionPayloadWithApiAdapter,
+  checkTrainAvailability as checkTrainAvailabilityWithApiAdapter,
+  getTrainDetailBySlug as getTrainDetailBySlugWithApiAdapter,
+  getTrainSearchDefaults as getTrainSearchDefaultsWithApiAdapter,
+  listTrains as listTrainsWithApiAdapter,
+} from '../adapters/api/trainApiAdapter.js'
 
 const trainAdapter = {
-  listTrains: listTrainsWithMockAdapter,
-  getTrainSearchDefaults: getTrainSearchDefaultsWithMockAdapter,
-  buildTrainSearchParams: buildTrainSearchParamsWithMockAdapter,
-  getTrainDetailBySlug: getTrainDetailBySlugWithMockAdapter,
-  checkTrainAvailability: checkTrainAvailabilityWithMockAdapter,
-  buildTrainSelectionPayload: buildTrainSelectionPayloadWithMockAdapter,
+  listTrains: listTrainsWithApiAdapter,
+  getTrainSearchDefaults: getTrainSearchDefaultsWithApiAdapter,
+  buildTrainSearchParams: buildTrainSearchParamsWithApiAdapter,
+  getTrainDetailBySlug: getTrainDetailBySlugWithApiAdapter,
+  checkTrainAvailability: checkTrainAvailabilityWithApiAdapter,
+  buildTrainSelectionPayload: buildTrainSelectionPayloadWithApiAdapter,
 }
 
 export function listTrains(params) {

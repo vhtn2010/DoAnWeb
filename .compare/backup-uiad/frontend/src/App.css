@@ -1,0 +1,157 @@
+.app-shell {
+  min-height: 100svh;
+  background: #f7f8f5;
+  color: #1f2a24;
+}
+
+.hero {
+  min-height: 68svh;
+  display: grid;
+  align-items: end;
+  padding: 72px clamp(20px, 5vw, 72px);
+  background:
+    linear-gradient(90deg, rgba(12, 40, 31, 0.9), rgba(12, 40, 31, 0.38)),
+    url('./assets/hero.png') center / cover;
+}
+
+.hero-content {
+  width: min(720px, 100%);
+  color: #fff;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d7a84c;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 780px;
+  margin-bottom: 20px;
+  font-size: clamp(2.4rem, 7vw, 5.4rem);
+  line-height: 0.98;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+h3 {
+  margin-bottom: 28px;
+  font-size: 1.4rem;
+}
+
+.hero-copy {
+  max-width: 620px;
+  margin-bottom: 28px;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.primary-action,
+.status {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0 16px;
+  font-weight: 700;
+}
+
+.primary-action {
+  color: #12251d;
+  background: #f3c464;
+  text-decoration: none;
+}
+
+.status {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.status.online {
+  border-color: rgba(115, 224, 162, 0.65);
+  color: #d7ffe8;
+}
+
+.tour-section {
+  padding: 52px clamp(20px, 5vw, 72px) 72px;
+}
+
+.section-heading {
+  margin-bottom: 24px;
+}
+
+.tour-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.tour-card {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dfe4da;
+  border-radius: 8px;
+  padding: 22px;
+  background: #fff;
+}
+
+.tour-card p {
+  margin-bottom: 10px;
+  color: #657068;
+}
+
+.tour-meta {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.tour-meta span {
+  color: #657068;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  border: 1px dashed #bac4b8;
+  border-radius: 8px;
+  padding: 24px;
+  background: #fff;
+}
+
+@media (max-width: 760px) {
+  .hero {
+    min-height: 76svh;
+    padding-block: 48px;
+  }
+
+  .tour-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tour-meta {
+    flex-direction: column;
+    gap: 6px;
+  }
+}

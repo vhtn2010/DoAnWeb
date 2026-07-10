@@ -8,6 +8,7 @@ import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
 import VerifyEmailPage from '../pages/auth/VerifyEmailPage.jsx'
+import ChangeEmailConfirmPage from '../pages/auth/ChangeEmailConfirmPage.jsx'
 import BookingConfirmationPage from '../pages/booking/BookingConfirmationPage.jsx'
 import CartPage from '../pages/cart/CartPage.jsx'
 import CheckoutPage from '../pages/checkout/CheckoutPage.jsx'
@@ -18,7 +19,9 @@ import HotelListPage from '../pages/hotels/HotelListPageV2.jsx'
 import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.jsx'
 import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
+import FavoritesPage from '../pages/profile/FavoritesPage.jsx'
 import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
+import NotificationsPage from '../pages/profile/NotificationsPage.jsx'
 import ProfilePage from '../pages/profile/ProfilePageV2.jsx'
 import TravelHandbookPage from '../pages/profile/TravelHandbookPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPageV2.jsx'
@@ -48,6 +51,7 @@ import {
   AdminInventoryPage,
 } from '../pages/admin/AdminUtilityPages.jsx'
 import AdminRouteGate from '../pages/admin/AdminRouteGate.jsx'
+import CustomerOnlyRoute from './CustomerOnlyRoute.jsx'
 import ProtectedRoute from './ProtectedRoute.jsx'
 
 function AppRouter() {
@@ -56,21 +60,127 @@ function AppRouter() {
       <Routes>
         <Route element={<PublicLayout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
+          <Route
+            path="/booking-confirmation"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem chi tiết đơn đặt chỗ, kiểm tra dịch vụ đã chọn và tiếp tục sang bước thanh toán."
+                eyebrow="Đơn đặt chỗ"
+                title="Vui lòng đăng nhập để xem đơn đặt chỗ của bạn"
+              >
+                <BookingConfirmationPage />
+              </CustomerOnlyRoute>
+            }
+          />
           <Route
             path="/booking-confirmation/:bookingCode"
-            element={<BookingConfirmationPage />}
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem chi tiết đơn đặt chỗ, kiểm tra dịch vụ đã chọn và tiếp tục sang bước thanh toán."
+                eyebrow="Đơn đặt chỗ"
+                title="Vui lòng đăng nhập để xem đơn đặt chỗ của bạn"
+              >
+                <BookingConfirmationPage />
+              </CustomerOnlyRoute>
+            }
           />
-          <Route path="/payment-confirmation" element={<PaymentConfirmationPage />} />
+          <Route
+            path="/payment-confirmation"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để giữ lại thông tin đơn hàng, chọn phương thức phù hợp và hoàn tất thanh toán thuận tiện hơn."
+                eyebrow="Thanh toán"
+                title="Vui lòng đăng nhập để tiếp tục thanh toán"
+              >
+                <PaymentConfirmationPage />
+              </CustomerOnlyRoute>
+            }
+          />
           <Route
             path="/payment-confirmation/:paymentCode"
-            element={<PaymentConfirmationPage />}
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để giữ lại thông tin đơn hàng, chọn phương thức phù hợp và hoàn tất thanh toán thuận tiện hơn."
+                eyebrow="Thanh toán"
+                title="Vui lòng đăng nhập để tiếp tục thanh toán"
+              >
+                <PaymentConfirmationPage />
+              </CustomerOnlyRoute>
+            }
           />
-          <Route path="/payment-success" element={<PaymentSuccessPage />} />
-          <Route path="/payment-success/:paymentCode" element={<PaymentSuccessPage />} />
-          <Route path="/departure-reminders" element={<DepartureRemindersPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/my-vouchers" element={<MyVouchersPage />} />
+          <Route
+            path="/payment-success"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem kết quả thanh toán, tải chứng từ và theo dõi bước tiếp theo của đơn hàng."
+                eyebrow="Thanh toán"
+                title="Vui lòng đăng nhập để xem kết quả thanh toán"
+              >
+                <PaymentSuccessPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/payment-success/:paymentCode"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem kết quả thanh toán, tải chứng từ và theo dõi bước tiếp theo của đơn hàng."
+                eyebrow="Thanh toán"
+                title="Vui lòng đăng nhập để xem kết quả thanh toán"
+              >
+                <PaymentSuccessPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/departure-reminders"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để theo dõi các mốc check-in, giờ ra sân bay và nhắc việc gắn với từng đơn đặt chỗ của bạn."
+                eyebrow="Nhắc lịch khởi hành"
+                title="Vui lòng đăng nhập để mở nhắc lịch chuyến đi"
+              >
+                <DepartureRemindersPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route
+            path="/profile"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem hồ sơ, lịch sử đơn hàng và các tiện ích cá nhân dành riêng cho tài khoản của bạn."
+                eyebrow="Tài khoản"
+                title="Vui lòng đăng nhập để mở tài khoản cá nhân"
+              >
+                <ProfilePage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để theo dõi thông báo đơn hàng, thanh toán và các cập nhật hệ thống dành riêng cho bạn."
+                eyebrow="Hộp thư thông báo"
+                title="Vui lòng đăng nhập để xem thông báo của bạn"
+              >
+                <NotificationsPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/my-vouchers"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem lại mã đã lưu, nhập mã bạn đang có và kiểm tra khả năng áp dụng theo giỏ hàng hiện tại."
+                eyebrow="Mã ưu đãi"
+                title="Vui lòng đăng nhập để dùng mã ưu đãi của bạn"
+              >
+                <MyVouchersPage />
+              </CustomerOnlyRoute>
+            }
+          />
           <Route path="/travel-handbook" element={<TravelHandbookPage />} />
           <Route path="/blog" element={<NetVietBlogPage />} />
           <Route path="/customer-care" element={<CustomerCarePage />} />
@@ -83,9 +193,35 @@ function AppRouter() {
           <Route path="/hotels/:slug" element={<HotelDetailPage />} />
           <Route path="/services" element={<ServiceListPage />} />
           <Route path="/services/:slug" element={<ServiceDetailPage />} />
+          <Route
+            path="/cart"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để lưu dịch vụ bạn chọn và tiếp tục đặt chỗ thuận tiện hơn."
+                eyebrow="Giỏ hàng"
+                title="Vui lòng đăng nhập để có thể thêm vào giỏ hàng"
+              >
+                <CartPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/checkout"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để giữ lại giỏ hàng, nhập thông tin hành khách và hoàn tất đặt chỗ thuận tiện hơn."
+                eyebrow="Thanh toán"
+                title="Vui lòng đăng nhập để tiếp tục bước đặt chỗ"
+              >
+                <CheckoutPage />
+              </CustomerOnlyRoute>
+            }
+          />
           <Route element={<ProtectedRoute />}>
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route
+              path="/change-email/confirm"
+              element={<ChangeEmailConfirmPage />}
+            />
           </Route>
         </Route>
         <Route element={<AuthLayout />}>

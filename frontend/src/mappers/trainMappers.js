@@ -89,6 +89,20 @@ function getArrivalDayOffsetLabel(departureAt, arrivalAt) {
   return dayOffset > 0 ? `(+${dayOffset})` : ''
 }
 
+function buildTrainDetailPath(train, detailPathPrefix = '/trains') {
+  const basePath = `${detailPathPrefix}/${train.slug}`
+
+  if (!train.reference_id) {
+    return basePath
+  }
+
+  const searchParams = new URLSearchParams({
+    reference_id: train.reference_id,
+  })
+
+  return `${basePath}?${searchParams.toString()}`
+}
+
 function buildBaseTrainView(train) {
   const trainNumberLabel = String(train.train_number ?? '').toUpperCase()
   const departureStationLabel = formatStationLabel(train.departure_station, train.departure_city)
@@ -108,7 +122,7 @@ function buildBaseTrainView(train) {
     availability_label: `Chỉ còn ${train.available_seats} chỗ`,
     route_label: `${train.departure_city} - ${train.arrival_city}`,
     route_code_label: `${train.departure_station_code} → ${train.arrival_station_code}`,
-    detail_path: `/trains/${train.slug}`,
+    detail_path: buildTrainDetailPath(train),
     header_title:
       train.details?.header_title ?? `Tàu ${trainNumberLabel} ${train.train_name}`.trim(),
     route_note: train.details?.route_note ?? train.short_description,
@@ -309,7 +323,7 @@ function buildRelatedTrainCard(relatedTrain, detailPathPrefix) {
   return {
     ...mappedTrain,
     image_alt: mappedTrain.header_title,
-    detail_path: `${detailPathPrefix}/${relatedTrain.slug}`,
+    detail_path: buildTrainDetailPath(relatedTrain, detailPathPrefix),
     departure_station_code_label:
       departureStation?.label ?? relatedTrain.departure_station_code,
     arrival_station_code_label: arrivalStation?.label ?? relatedTrain.arrival_station_code,
@@ -338,7 +352,7 @@ export function mapTrainDetailResponseToView(
   const cars = normalizeCars(train, seatOptions)
   const mappedTrain = {
     ...buildBaseTrainView(train),
-    detail_path: `${detailPathPrefix}/${train.slug}`,
+    detail_path: buildTrainDetailPath(train, detailPathPrefix),
     seat_options: seatOptions,
     featured_seat_options: featuredSeatOptions.length ? featuredSeatOptions : seatOptions.slice(0, 2),
     cars,

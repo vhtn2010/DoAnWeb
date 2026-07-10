@@ -14,7 +14,15 @@ function CloseIcon() {
   )
 }
 
-function LoginRequiredModal({ isOpen, onClose, onLogin }) {
+function LoginRequiredModal({
+  isOpen,
+  onClose,
+  onLogin,
+  eyebrow = 'Giỏ hàng',
+  title = 'Vui lòng đăng nhập để có thể thêm vào giỏ hàng',
+  description = 'Đăng nhập để lưu dịch vụ bạn chọn và tiếp tục đặt chỗ thuận tiện hơn.',
+  loginLabel = 'Đăng nhập ngay',
+}) {
   const titleId = useId()
   const descriptionId = useId()
 
@@ -60,12 +68,12 @@ function LoginRequiredModal({ isOpen, onClose, onLogin }) {
         </button>
 
         <div className="login-required-modal__content">
-          <p className="login-required-modal__eyebrow">Giỏ hàng</p>
+          <p className="login-required-modal__eyebrow">{eyebrow}</p>
           <h2 className="login-required-modal__title" id={titleId}>
-            Vui lòng đăng nhập để có thể thêm vào giỏ hàng
+            {title}
           </h2>
           <p className="login-required-modal__description" id={descriptionId}>
-            Đăng nhập để lưu dịch vụ bạn chọn và tiếp tục đặt chỗ thuận tiện hơn.
+            {description}
           </p>
         </div>
 
@@ -75,7 +83,7 @@ function LoginRequiredModal({ isOpen, onClose, onLogin }) {
             type="button"
             onClick={onLogin}
           >
-            Đăng nhập ngay
+            {loginLabel}
           </button>
         </div>
       </div>

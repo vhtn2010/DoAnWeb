@@ -13,7 +13,6 @@ export default function FlightResultsSection({
   error,
   flights,
   formatCurrency,
-  hasMore,
   loading,
   openFlightDetail,
   resultSummary,
@@ -24,6 +23,7 @@ export default function FlightResultsSection({
   setPage,
   setSort,
   sortOptions,
+  totalPages,
 }) {
   return (
     <div className="flight-results">
@@ -69,9 +69,10 @@ export default function FlightResultsSection({
           </div>
 
           <FlightResultsFooter
-            canLoadMore={hasMore}
-            isLoading={loading}
-            onLoadMore={() => setPage(currentPage + 1)}
+            currentPage={currentPage}
+            disabled={loading}
+            onPageChange={setPage}
+            totalPages={totalPages}
           />
         </>
       ) : (

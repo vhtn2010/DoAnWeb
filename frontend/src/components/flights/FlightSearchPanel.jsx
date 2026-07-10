@@ -102,6 +102,11 @@ function FlightSearchPanel({
         />
 
         <FlightPassengerSelector passengers={searchState.passengers} onChange={updatePassengers} />
+
+        <button className="flight-search-panel__submit" type="button" onClick={onSubmit}>
+          <SearchFieldIcon type="search" />
+          <span>Tìm kiếm chuyến bay</span>
+        </button>
       </div>
 
       <div className="flight-search-panel__divider" aria-hidden="true" />
@@ -127,11 +132,6 @@ function FlightSearchPanel({
             1 Chiều
           </button>
         </div>
-
-        <button className="flight-search-panel__submit" type="button" onClick={onSubmit}>
-          <SearchFieldIcon type="search" />
-          <span>Tìm kiếm chuyến bay</span>
-        </button>
 
         <label className="flight-search-panel__sort">
           <span className="flight-search-panel__sort-prefix">Sắp xếp:</span>

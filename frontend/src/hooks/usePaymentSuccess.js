@@ -5,12 +5,30 @@ import {
   getPaymentSuccess,
   getPaymentSuccessByCode,
 } from '../repositories/paymentRepository.js'
+import { downloadMyBookingSummary } from '../repositories/bookingRepository.js'
 import {
+  buildPaymentSuccessData,
   buildPaymentSuccessViewModel,
   clonePaymentValue,
 } from '../mappers/paymentMappers.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+
+function downloadBlob(blob, filename) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return
+  }
+
+  const url = window.URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.URL.revokeObjectURL(url)
+}
 
 export default function usePaymentSuccess() {
   const location = useLocation()
@@ -71,22 +89,38 @@ export default function usePaymentSuccess() {
           return
         }
 
-        if (!response.success || !response.data?.payment_success) {
+        if (!response.success || !response.data) {
           setPaymentSuccess(null)
-          setError(response.message ?? 'Không thể tải thông tin thanh toán thành công lúc này.')
+          setError(response.message ?? 'Không thể tải thông tin thanh toán lúc này.')
           return
         }
 
-        setPaymentSuccess(response.data.payment_success)
+        if (response.data.payment_success) {
+          setPaymentSuccess(response.data.payment_success)
+          return
+        }
+
+        if (response.data.booking) {
+          setPaymentSuccess(
+            buildPaymentSuccessData({
+              booking: response.data.booking,
+              bookingItems: response.data.booking_items ?? bookingItemsState,
+              payment: response.data.payment ?? paymentState,
+              paymentResultPayload: paymentResultPayloadState,
+            }),
+          )
+          return
+        }
+
+        setPaymentSuccess(null)
+        setError('Không thể tải thông tin thanh toán lúc này.')
       } catch (loadError) {
         if (!isActive) {
           return
         }
 
         setPaymentSuccess(null)
-        setError(
-          loadError?.message ?? 'Không thể tải thông tin thanh toán thành công lúc này.',
-        )
+        setError(loadError?.message ?? 'Không thể tải thông tin thanh toán lúc này.')
       } finally {
         if (isActive) {
           setLoading(false)
@@ -124,6 +158,13 @@ export default function usePaymentSuccess() {
     }
 
     try {
+      if (isCustomer && paymentSuccess.booking_id) {
+        const result = await downloadMyBookingSummary(paymentSuccess.booking_id)
+        downloadBlob(result.blob, result.filename)
+        setFeedback('Tệp tóm tắt đơn hàng đang được tải xuống.')
+        return
+      }
+
       const response = await buildInvoiceDownloadPayload(paymentSuccess)
       setFeedback(
         response.success
@@ -132,7 +173,7 @@ export default function usePaymentSuccess() {
       )
     } catch (downloadError) {
       setFeedback(
-        downloadError?.message ?? 'Không thể chuẩn bị hóa đơn điện tử lúc này.',
+        downloadError?.message ?? 'Không thể chuẩn bị tệp tóm tắt đơn hàng lúc này.',
       )
     }
   }

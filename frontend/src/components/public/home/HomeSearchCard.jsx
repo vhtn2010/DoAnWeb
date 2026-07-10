@@ -1,17 +1,22 @@
+const FIELD_PLACEHOLDERS = {
+  from: 'Chọn điểm khởi hành',
+  to: 'Chọn điểm đến',
+}
+
 function ChevronIcon({ isOpen }) {
   return (
     <svg
       aria-hidden="true"
       className={`home-search-card__chevron ${isOpen ? 'home-search-card__chevron--open' : ''}`}
-      viewBox="0 0 12 12"
+      viewBox="0 0 16 16"
     >
       <path
-        d="M2.25 4.5 6 8.25 9.75 4.5"
+        d="m4 6 4 4 4-4"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.8"
+        strokeWidth="2"
       />
     </svg>
   )
@@ -19,81 +24,84 @@ function ChevronIcon({ isOpen }) {
 
 function SearchFieldIcon({ type }) {
   const icons = {
-    departure: (
-      <path
-        d="M4 11.25h12.25c.44 0 .8-.36.8-.8s-.36-.8-.8-.8H9.9l-1.32-2.27h3.1c.28 0 .55-.15.69-.4l1.02-1.8c.17-.31.08-.7-.2-.91L8.58.74a.82.82 0 0 0-1.31.68l.17 3.7-2.3 1.34L3 4.5l-.8.46 1.09 2.53L1.26 8.65a.8.8 0 0 0 .4 1.5h2.18l.16 1.1Z"
-        fill="currentColor"
-      />
-    ),
+    departure: {
+      viewBox: '0 0 24 24',
+      content: (
+        <>
+          <path
+            d="M4 18.25h11.5"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.7"
+          />
+          <path
+            d="M20.73 10.37a.78.78 0 0 0-.94-.56l-4.57 1.22-5.97-5.56-1.24.33 3.57 6.19-4.28 1.15-1.82-1.41-.95.25 2.02 3.5 15.62-4.19a.78.78 0 0 0 .56-.92Z"
+            fill="currentColor"
+          />
+        </>
+      ),
+    },
     destination: (
-      <path
-        d="M10.5 16.25S5 11.72 5 7.75A5.5 5.5 0 0 1 16 7.7c0 4.02-5.5 8.55-5.5 8.55Zm0-6.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z"
-        fill="currentColor"
-      />
+      <>
+        <path d="M12 21s6-4.7 6-9.2a6 6 0 1 0-12 0c0 4.5 6 9.2 6 9.2Z" />
+        <circle cx="12" cy="11" r="2.3" />
+      </>
     ),
     calendar: (
       <>
-        <path
-          d="M5.75 3.5A1.25 1.25 0 0 1 7 2.25h7A1.25 1.25 0 0 1 15.25 3.5v1H5.75v-1Z"
-          fill="currentColor"
-          opacity="0.34"
-        />
-        <path
-          d="M7 3v2.25M14 3v2.25M5 6h11m-9.25 3.25h1.5m2 0h1.5m2 0h1.5M6.75 12h1.5m2 0h1.5"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.6"
-        />
-        <rect
-          x="5"
-          y="3.5"
-          width="11"
-          height="10.5"
-          rx="2.2"
-          stroke="currentColor"
-          strokeWidth="1.6"
-        />
+        <rect x="4" y="5" width="16" height="15" rx="3" />
+        <path d="M8 3v4M16 3v4M4 10h16M8 13h2M14 13h2M8 17h2M14 17h2" />
       </>
     ),
     search: (
       <>
-        <circle cx="7.25" cy="7.25" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path
-          d="m10.2 10.2 3.05 3.05"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.8"
-        />
+        <circle cx="11" cy="11" r="5" />
+        <path d="m15 15 5 5" />
       </>
     ),
   }
 
+  const iconDefinition =
+    typeof icons[type] === 'object' && 'content' in icons[type]
+      ? icons[type]
+      : { viewBox: '0 0 24 24', content: icons[type] }
+
   return (
-    <svg aria-hidden="true" className="home-search-card__field-icon-svg" viewBox="0 0 20 20">
-      {icons[type]}
+    <svg
+      aria-hidden="true"
+      className={`home-search-card__field-icon-svg home-search-card__field-icon-svg--${type}`}
+      viewBox={iconDefinition.viewBox}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+    >
+      {iconDefinition.content}
     </svg>
   )
 }
 
 function MonthNavIcon({ direction }) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 12 12">
+    <svg aria-hidden="true" viewBox="0 0 16 16">
       <path
-        d={direction === 'left' ? 'M7.5 2.25 3.75 6l3.75 3.75' : 'M4.5 2.25 8.25 6 4.5 9.75'}
+        d={direction === 'left' ? 'm10 3-5 5 5 5' : 'm6 3 5 5-5 5'}
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.8"
+        strokeWidth="2"
       />
     </svg>
   )
 }
 
 function HomeSearchField({ field, handleFieldSelect, isOpen, searchState, toggleMenu }) {
+  const fieldValue = searchState[field.key] || FIELD_PLACEHOLDERS[field.key] || ''
+  const isPlaceholder = !searchState[field.key]
+
   return (
     <div className="home-search-card__field-wrap">
       <button
@@ -108,7 +116,13 @@ function HomeSearchField({ field, handleFieldSelect, isOpen, searchState, toggle
         </span>
         <span className="home-search-card__field-copy">
           <span className="home-search-card__label">{field.label}</span>
-          <span className="home-search-card__value">{searchState[field.key]}</span>
+          <span
+            className={`home-search-card__value ${
+              isPlaceholder ? 'home-search-card__value--placeholder' : ''
+            }`}
+          >
+            {fieldValue}
+          </span>
         </span>
         <ChevronIcon isOpen={isOpen} />
       </button>
@@ -344,6 +358,8 @@ export default function HomeSearchCard({
   visibleMonths,
   weekdayLabels,
 }) {
+  const sortLabel = searchState.sort || 'Chưa chọn'
+
   return (
     <div className="home-search-card" ref={searchCardRef}>
       <div className="home-search-card__top-row">
@@ -412,11 +428,11 @@ export default function HomeSearchCard({
               aria-haspopup="listbox"
               className={`home-search-card__sort-button ${
                 openMenu === 'sort' ? 'home-search-card__sort-button--open' : ''
-              }`}
+              } ${searchState.sort ? '' : 'home-search-card__sort-button--placeholder'}`}
               type="button"
               onClick={() => toggleMenu('sort')}
             >
-              <span>{searchState.sort}</span>
+              <span>{sortLabel}</span>
               <ChevronIcon isOpen={openMenu === 'sort'} />
             </button>
 

@@ -1,5 +1,6 @@
-function FlightCard({ flight, formatCurrency, isSelected, onOpenDetail, onSelect }) {
+function FlightCard({ flight, formatCurrency, isSelected, onOpenDetail }) {
   function handleBookingClick(event) {
+    event.preventDefault()
     event.stopPropagation()
     onOpenDetail(flight)
   }
@@ -7,13 +8,13 @@ function FlightCard({ flight, formatCurrency, isSelected, onOpenDetail, onSelect
   return (
     <article
       className={`flight-card ${isSelected ? 'flight-card--selected' : ''}`}
-      role="button"
+      role="link"
       tabIndex={0}
-      onClick={() => onSelect(flight)}
+      onClick={() => onOpenDetail(flight)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
-          onSelect(flight)
+          onOpenDetail(flight)
         }
       }}
     >

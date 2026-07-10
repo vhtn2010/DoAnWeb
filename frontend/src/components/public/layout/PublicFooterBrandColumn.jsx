@@ -1,5 +1,3 @@
-import { PUBLIC_FOOTER_SOCIAL_ITEMS } from './publicLayoutData.jsx'
-
 function PublicFooterSocialIcon({ children, label }) {
   return (
     <span aria-hidden="true" className="public-footer__social-icon" title={label}>
@@ -10,25 +8,35 @@ function PublicFooterSocialIcon({ children, label }) {
   )
 }
 
-function PublicFooterBrandColumn() {
+function PublicFooterBrandColumn({
+  siteName = 'Net Viet Travel',
+  socialItems = [],
+}) {
   return (
     <section className="public-footer__brand-column">
       <img
-        alt="Nét Việt"
+        alt={siteName}
         className="public-footer__wordmark"
         src="/assets/template/brand/footer-wordmark-white.png"
       />
       <p className="public-footer__description">
-        Hành trình từ tâm, nâng tầm trải nghiệm Việt. Khám phá vẻ đẹp bất tận của mảnh đất chữ S
-        cùng chúng tôi.
+        Hành trình tử tế, gọn rõ và thuận tiện hơn cho từng chuyến đi của bạn.
       </p>
-      <div aria-label="Mạng xã hội" className="public-footer__socials">
-        {PUBLIC_FOOTER_SOCIAL_ITEMS.map((item) => (
-          <span className="public-footer__social" key={item.label}>
-            <PublicFooterSocialIcon label={item.label}>{item.icon}</PublicFooterSocialIcon>
-          </span>
-        ))}
-      </div>
+      {socialItems.length ? (
+        <div aria-label="Mạng xã hội" className="public-footer__socials">
+          {socialItems.map((item) => (
+            <a
+              className="public-footer__social"
+              href={item.href}
+              key={item.id ?? item.label}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <PublicFooterSocialIcon label={item.label}>{item.icon}</PublicFooterSocialIcon>
+            </a>
+          ))}
+        </div>
+      ) : null}
     </section>
   )
 }

@@ -197,7 +197,7 @@ export function PublicLoadingBlock({
   )
 }
 
-const PUBLIC_PAGINATION_VISIBLE_PAGE_COUNT = 5
+const PUBLIC_PAGINATION_VISIBLE_PAGE_COUNT = 4
 
 function createPaginationItems(currentPage, totalPages, visiblePageCount = PUBLIC_PAGINATION_VISIBLE_PAGE_COUNT) {
   const safeCurrentPage = Math.max(1, Number(currentPage) || 1)
@@ -210,28 +210,26 @@ function createPaginationItems(currentPage, totalPages, visiblePageCount = PUBLI
     }))
   }
 
-  const items = [
-    { type: 'page', value: 1 },
+  const trailingWindowSize = Math.max(1, visiblePageCount - 1)
+  const lastWindowStart = Math.max(1, safeTotalPages - visiblePageCount + 1)
+
+  if (safeCurrentPage >= lastWindowStart) {
+    return Array.from({ length: visiblePageCount }, (_, index) => ({
+      type: 'page',
+      value: lastWindowStart + index,
+    }))
+  }
+
+  const windowStart = safeCurrentPage <= 2 ? 1 : safeCurrentPage - 1
+
+  return [
+    ...Array.from({ length: trailingWindowSize }, (_, index) => ({
+      type: 'page',
+      value: windowStart + index,
+    })),
+    { type: 'ellipsis', value: 'pagination-ellipsis' },
+    { type: 'page', value: safeTotalPages },
   ]
-
-  const windowStart = Math.max(2, safeCurrentPage - 1)
-  const windowEnd = Math.min(safeTotalPages - 1, safeCurrentPage + 1)
-
-  if (windowStart > 2) {
-    items.push({ type: 'ellipsis', value: 'pagination-ellipsis-start' })
-  }
-
-  for (let pageNumber = windowStart; pageNumber <= windowEnd; pageNumber += 1) {
-    items.push({ type: 'page', value: pageNumber })
-  }
-
-  if (windowEnd < safeTotalPages - 1) {
-    items.push({ type: 'ellipsis', value: 'pagination-ellipsis-end' })
-  }
-
-  items.push({ type: 'page', value: safeTotalPages })
-
-  return items
 }
 
 export function PublicPagination({
@@ -240,11 +238,13 @@ export function PublicPagination({
   currentPage = 1,
   disabled = false,
   onPageChange,
-  totalPages = 0,
+  pages = [],
+  totalPages = pages.length,
+  visiblePageCount = PUBLIC_PAGINATION_VISIBLE_PAGE_COUNT,
 }) {
   const safeTotalPages = Math.max(0, Number(totalPages) || 0)
   const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), Math.max(1, safeTotalPages))
-  const paginationItems = createPaginationItems(safeCurrentPage, safeTotalPages)
+  const paginationItems = createPaginationItems(safeCurrentPage, safeTotalPages, visiblePageCount)
 
   if (safeTotalPages <= 1) {
     return null
@@ -253,10 +253,20 @@ export function PublicPagination({
   return (
     <nav aria-label={ariaLabel} className={cx('public-ui-pagination', className)}>
       <PublicButton
-        aria-label="Trang trước"
+        aria-label="Đến trang đầu tiên"
         disabled={disabled || safeCurrentPage <= 1}
         size="sm"
-        variant="ghost"
+        variant="secondary"
+        onClick={() => onPageChange?.(1)}
+      >
+        {'<<'}
+      </PublicButton>
+
+      <PublicButton
+        aria-label="Về trang trước"
+        disabled={disabled || safeCurrentPage <= 1}
+        size="sm"
+        variant="secondary"
         onClick={() => onPageChange?.(Math.max(1, safeCurrentPage - 1))}
       >
         {'<'}
@@ -283,13 +293,23 @@ export function PublicPagination({
       })}
 
       <PublicButton
-        aria-label="Trang sau"
+        aria-label="Sang trang sau"
         disabled={disabled || safeCurrentPage >= safeTotalPages}
         size="sm"
-        variant="ghost"
+        variant="secondary"
         onClick={() => onPageChange?.(Math.min(safeTotalPages, safeCurrentPage + 1))}
       >
         {'>'}
+      </PublicButton>
+
+      <PublicButton
+        aria-label="Đến trang cuối cùng"
+        disabled={disabled || safeCurrentPage >= safeTotalPages}
+        size="sm"
+        variant="secondary"
+        onClick={() => onPageChange?.(safeTotalPages)}
+      >
+        {'>>'}
       </PublicButton>
     </nav>
   )

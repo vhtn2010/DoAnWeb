@@ -2,11 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
 import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
-import { addCartItemPreview } from '../repositories/cartRepository.js'
+import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
 import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
+import useFavorites from './useFavorites.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import usePublicAccessGate from './usePublicAccessGate.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+import {
+  buildFavoriteItem,
+  buildFavoriteKey,
+  buildFavoriteSourcePath,
+  getFavoriteSourceLabel,
+} from '../services/favoriteStorage.js'
 
 function convertDisplayDateToInput(value) {
   const [dayText, monthText, yearText] = String(value ?? '').split('-')
@@ -86,21 +94,13 @@ function createFeedbackState(tone = 'info', message = '') {
 function createAvailabilityState() {
   return {
     checked: false,
+    data: null,
     isAvailable: false,
     message: '',
-    data: null,
   }
 }
 
-function buildLoginPath(pathname, search = '') {
-  const nextPath = buildPublicAuthPath(pathname, true)
-  const nextSearchParams = new URLSearchParams(search)
-  nextSearchParams.set('redirect', nextPath)
-
-  return `/login?${nextSearchParams.toString()}`
-}
-
-function buildCartItemFromPayload({ hotel, room, payload }) {
+function buildCartItemFromPayload({ hotel, payload, room }) {
   return {
     id: `cart-item-room-${Date.now()}`,
     service_id: payload.service_id,
@@ -155,7 +155,9 @@ export default function useHotelDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { slug } = useParams()
-  const { authState, isCustomer } = usePublicSession()
+  const { openLoginRequiredModal } = usePublicAccessGate()
+  const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
   const [hotel, setHotel] = useState(null)
   const [rooms, setRooms] = useState([])
@@ -173,7 +175,6 @@ export default function useHotelDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
-  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
   const [availability, setAvailability] = useState(() => createAvailabilityState())
   const [reloadSeed, setReloadSeed] = useState(0)
 
@@ -270,6 +271,26 @@ export default function useHotelDetail() {
     () => rooms.find((room) => room.id === selectedRoomId) ?? null,
     [rooms, selectedRoomId],
   )
+  const favoriteItem = useMemo(() => {
+    if (!hotel) {
+      return null
+    }
+
+    return buildFavoriteItem({
+      favorite_key: buildFavoriteKey('hotel', hotel.service_id ?? hotel.id ?? hotel.slug),
+      service_type: 'hotel',
+      service_id: hotel.service_id ?? hotel.id ?? '',
+      slug: hotel.slug,
+      title: hotel.title,
+      image_url: hotel.image_url,
+      detail_path: hotel.detail_path ?? `/hotels/${hotel.slug}`,
+      source_path: buildFavoriteSourcePath(location),
+      source_label: getFavoriteSourceLabel('hotel'),
+      summary: hotel.address ?? hotel.location_text ?? '',
+      location_text: hotel.location_text ?? hotel.address ?? '',
+    })
+  }, [hotel, location])
+  const isFavorite = favoriteItem ? hasFavorite(favoriteItem.favorite_key) : false
   const stayNights = useMemo(
     () => calculateStayNights(checkinDate, checkoutDate),
     [checkinDate, checkoutDate],
@@ -319,13 +340,13 @@ export default function useHotelDetail() {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn phòng trước khi tiếp tục.'))
       setAvailability({
         checked: true,
+        data: null,
         isAvailable: false,
         message: 'Chưa có phòng nào được chọn để kiểm tra.',
-        data: null,
       })
       return {
-        success: false,
         data: null,
+        success: false,
       }
     }
 
@@ -352,13 +373,13 @@ export default function useHotelDetail() {
     }
     const nextMessage = isAvailable
       ? `Còn ${response.data?.available_quantity ?? 0} phòng khả dụng cho lựa chọn hiện tại.`
-      : 'Lựa chọn hiện tại chưa khả dụng trong dữ liệu mock. Vui lòng đổi ngày hoặc số khách.'
+      : 'Lựa chọn hiện tại chưa khả dụng. Vui lòng đổi ngày hoặc số khách.'
 
     setAvailability({
       checked: true,
+      data: response.data,
       isAvailable,
       message: nextMessage,
-      data: response.data,
     })
 
     if (!isAvailable) {
@@ -368,7 +389,7 @@ export default function useHotelDetail() {
     return response
   }
 
-  async function addSelectedRoomToCartMock({ roomIdOverride } = {}) {
+  async function addSelectedRoomToCart({ roomIdOverride } = {}) {
     const nextRoom = resolveRoom(roomIdOverride)
 
     if (!hotel || !nextRoom) {
@@ -393,67 +414,73 @@ export default function useHotelDetail() {
     const requestedGuests = Math.max(1, Number(guests) || 1)
     const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
     const nights = calculateStayNights(checkinDate, checkoutDate)
-    const payloadResponse = {
-      data: {
-        end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
-        options: buildHotelBookingOptions({
-          checkinDate,
-          checkoutDate,
-          guests: requestedGuests,
-          hotel,
-          nights,
-          room: nextRoom,
-          roomQuantity: requestedQuantity,
-        }),
-        quantity: requestedQuantity,
-        reference_id: nextRoom.hotel_service_id,
-        service_id: nextRoom.id,
-        service_type: nextRoom.service_type,
-        start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
-        unit_price_snapshot: resolveCurrentPrice(nextRoom) * nights,
-      },
-      success: true,
-    }
-
-    if (!payloadResponse.success || !payloadResponse.data) {
-      setFeedback(createFeedbackState('error', payloadResponse.message ?? 'Không thể chuẩn bị đặt phòng mock.'))
-      return {
-        success: false,
-      }
+    const payload = {
+      end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
+      options: buildHotelBookingOptions({
+        checkinDate,
+        checkoutDate,
+        guests: requestedGuests,
+        hotel,
+        nights,
+        room: nextRoom,
+        roomQuantity: requestedQuantity,
+      }),
+      quantity: requestedQuantity,
+      reference_id: nextRoom.id,
+      service_id: hotel.id,
+      service_type: hotel.service_type ?? 'hotel',
+      start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
+      unit_price_snapshot: resolveCurrentPrice(nextRoom) * Math.max(nights, 1),
     }
 
     const cartItem = buildCartItemFromPayload({
       hotel,
+      payload,
       room: nextRoom,
-      payload: payloadResponse.data,
     })
+
+    if (isAuthenticatedCustomer) {
+      await addCartItem(payload, {
+        authState,
+        previewItem: cartItem,
+      })
+      setFeedback(createFeedbackState('success', 'Phòng đã được thêm vào giỏ hàng của bạn.'))
+      return {
+        cartItem,
+        payload,
+        success: true,
+      }
+    }
 
     await addCartItemPreview({
       authState,
       item: cartItem,
     })
-
     setFeedback(
       createFeedbackState(
         'success',
-        'Đã tạo payload mock và thêm phòng vào giỏ hàng preview.',
+        'Phòng đã được thêm vào giỏ hàng xem trước. Đăng nhập để đồng bộ với tài khoản của bạn.',
       ),
     )
 
     return {
-      success: true,
       cartItem,
-      payload: payloadResponse.data,
+      payload,
+      success: true,
     }
   }
 
-  async function goToCartMock(roomIdOverride) {
+  async function goToCartAction(roomIdOverride) {
     if (!isAuthenticatedCustomer) {
-      setIsLoginPromptOpen(true)
+      openLoginRequiredModal({
+        description: 'Đăng nhập để lưu phòng bạn chọn và tiếp tục đặt chỗ thuận tiện hơn.',
+        eyebrow: 'Giỏ hàng',
+        title: 'Vui lòng đăng nhập để có thể thêm vào giỏ hàng',
+      })
       return
     }
 
-    const result = await addSelectedRoomToCartMock({ roomIdOverride })
+    const result = await addSelectedRoomToCart({ roomIdOverride })
 
     if (!result.success) {
       return
@@ -462,34 +489,53 @@ export default function useHotelDetail() {
     navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
-  async function goToCheckoutMock(roomIdOverride) {
-    const result = await addSelectedRoomToCartMock({ roomIdOverride })
+  async function goToCheckoutAction(roomIdOverride) {
+    if (!isAuthenticatedCustomer) {
+      openLoginRequiredModal({
+        description:
+          'Đăng nhập để giữ lại phòng đang chọn, nhập thông tin khách lưu trú và hoàn tất đặt chỗ thuận tiện hơn.',
+        eyebrow: 'Thanh toán',
+        title: 'Vui lòng đăng nhập để tiếp tục bước đặt chỗ',
+      })
+      return
+    }
+
+    const result = await addSelectedRoomToCart({ roomIdOverride })
 
     if (!result.success) {
       return
     }
 
-    navigate(buildPublicAuthPath('/checkout', isCustomer), {
-      state: {
-        selectedCartItemIds: [result.cartItem.id],
-      },
-    })
+    navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
   function retry() {
     setReloadSeed((currentValue) => currentValue + 1)
   }
 
-  function closeLoginPrompt() {
-    setIsLoginPromptOpen(false)
-  }
+  function handleToggleFavorite() {
+    if (!favoriteItem) {
+      return
+    }
 
-  function goToLoginFromPrompt() {
-    setIsLoginPromptOpen(false)
-    navigate(buildLoginPath(location.pathname, location.search))
+    const result = toggleFavorite(favoriteItem)
+
+    if (!result.updated) {
+      return
+    }
+
+    setFeedback(
+      createFeedbackState(
+        result.nextState ? 'success' : 'info',
+        result.nextState
+          ? 'Khách sạn đã được lưu vào danh sách yêu thích.'
+          : 'Khách sạn đã được bỏ khỏi danh sách yêu thích.',
+      ),
+    )
   }
 
   return {
+    addSelectedRoomToCart,
     availability,
     breadcrumbHomePath: buildPublicAuthPath('/', isCustomer),
     breadcrumbListPath: buildPublicAuthPath('/hotels', isCustomer),
@@ -504,15 +550,15 @@ export default function useHotelDetail() {
       selectedImage,
       setSelectedImage,
     },
-    goToCartMock,
-    goToCheckoutMock,
+    goToCartAction,
+    goToCartMock: goToCartAction,
+    goToCheckoutAction,
+    goToCheckoutMock: goToCheckoutAction,
     guests,
     hotel,
-    isLoginPromptOpen,
+    isFavorite,
     isCustomer,
     loading,
-    closeLoginPrompt,
-    goToLoginFromPrompt,
     relatedHotels,
     retry,
     roomQuantity,
@@ -521,9 +567,9 @@ export default function useHotelDetail() {
     selectedRoom,
     selectedRoomId,
     stayNights,
+    handleToggleFavorite,
     updateDateRange,
     updateGuests,
     updateRoomQuantity,
-    addSelectedRoomToCartMock,
   }
 }
