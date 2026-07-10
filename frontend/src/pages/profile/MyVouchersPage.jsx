@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import ProfileGuestGate from '../../components/profile/ProfileGuestGate.jsx'
+import { applyVoucher } from '../../repositories/checkoutRepository.js'
 import usePublicCollectionPage from '../../hooks/usePublicCollectionPage.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
@@ -16,7 +18,7 @@ const MY_VOUCHERS = Object.freeze([
     id: 'voucher-001',
     code: 'NETVIET500',
     title: 'Giảm 500.000đ cho tour nội địa',
-    description: 'Áp dụng cho các tour có thời gian khởi hành trong 45 ngày tới.',
+    description: 'Gợi ý phù hợp cho các tour khởi hành gần ngày và có tổng đơn từ 6.000.000đ.',
     status: 'active',
     status_label: 'Sẵn sàng dùng',
     discount_label: '500.000đ',
@@ -24,14 +26,14 @@ const MY_VOUCHERS = Object.freeze([
     min_spend_label: 'Đơn từ 6.000.000đ',
     validity_label: 'Hết hạn ngày 25/07/2026',
     expires_at: '2026-07-25',
-    service_tags: ['Tour', 'Du lịch hè', 'Nội địa'],
+    service_tags: ['Tour', 'Nội địa', 'Gia đình'],
     route: '/services',
   },
   {
     id: 'voucher-002',
     code: 'BAYHEM1200',
     title: 'Giảm 12% vé máy bay khứ hồi',
-    description: 'Tối đa 1.200.000đ cho các chặng nội địa thanh toán online.',
+    description: 'Phù hợp cho các chặng nội địa thanh toán online, tối đa 1.200.000đ.',
     status: 'active',
     status_label: 'Sẵn sàng dùng',
     discount_label: '12%',
@@ -46,7 +48,7 @@ const MY_VOUCHERS = Object.freeze([
     id: 'voucher-003',
     code: 'STAYGOLD15',
     title: 'Giảm 15% khách sạn hạng sang',
-    description: 'Ưu đãi riêng cho thành viên Di sản Vàng tại nhóm khách sạn 4-5 sao.',
+    description: 'Nhóm ưu đãi thường được dùng với khách sạn 4-5 sao và kỳ nghỉ cuối tuần.',
     status: 'active',
     status_label: 'Sẵn sàng dùng',
     discount_label: '15%',
@@ -61,7 +63,7 @@ const MY_VOUCHERS = Object.freeze([
     id: 'voucher-004',
     code: 'FAMILY350',
     title: 'Combo gia đình tiết kiệm 350.000đ',
-    description: 'Đã áp dụng thành công cho đơn tour Hạ Long Signature 2N1Đ.',
+    description: 'Ví dụ về mã đã áp dụng thành công trong các booking đi theo nhóm gia đình.',
     status: 'used',
     status_label: 'Đã dùng',
     discount_label: '350.000đ',
@@ -69,14 +71,14 @@ const MY_VOUCHERS = Object.freeze([
     min_spend_label: 'Đã dùng ngày 02/07/2026',
     validity_label: 'Lưu trong lịch sử ưu đãi',
     expires_at: '2026-07-02',
-    service_tags: ['Tour', 'Gia đình', 'Đã áp dụng'],
+    service_tags: ['Tour', 'Gia đình', 'Lịch sử'],
     route: '/profile',
   },
   {
     id: 'voucher-005',
     code: 'FLASHTRAIN',
     title: 'Giảm 250.000đ vé tàu cuối tuần',
-    description: 'Ưu đãi flash sale cho đặt vé tàu trước tối thiểu 5 ngày.',
+    description: 'Mã mẫu cho các đợt flash sale thường xuất hiện theo mùa trên tuyến tàu du lịch.',
     status: 'expired',
     status_label: 'Hết hạn',
     discount_label: '250.000đ',
@@ -92,33 +94,33 @@ const MY_VOUCHERS = Object.freeze([
 const USAGE_STEPS = Object.freeze([
   {
     id: 'step-001',
-    title: 'Chọn đúng dịch vụ',
-    description: 'Mỗi mã chỉ áp dụng cho nhóm tour, vé hoặc khách sạn phù hợp với điều kiện hiển thị trên thẻ.',
+    title: 'Thêm dịch vụ vào giỏ',
+    description: 'Backend hiện kiểm tra mã ưu đãi theo giỏ hàng đang có, nên bạn hãy chọn dịch vụ trước.',
   },
   {
     id: 'step-002',
-    title: 'Kiểm tra hạn dùng',
-    description: 'Ưu tiên dùng các mã sắp hết hạn để tránh bỏ lỡ khuyến mãi đang khả dụng cho tài khoản.',
+    title: 'Kiểm tra điều kiện',
+    description: 'Một số mã chỉ áp dụng cho đúng loại dịch vụ, hạn mức đơn hàng hoặc hạng thành viên cụ thể.',
   },
   {
     id: 'step-003',
-    title: 'Dán mã ở bước thanh toán',
-    description: 'Bạn có thể sao chép mã trực tiếp tại đây rồi dán vào luồng checkout hoặc payment confirmation.',
+    title: 'Dán mã ở checkout',
+    description: 'Sau khi mã hợp lệ, bạn có thể dùng lại ngay ở luồng giỏ hàng hoặc bước thanh toán.',
   },
 ])
 
 const SUPPORT_NOTES = Object.freeze([
-  'Một số mã được áp dụng tự động theo hạng thành viên, không cần nhập tay.',
-  'Mỗi đơn hàng chỉ dùng được một voucher chính, trừ khi chiến dịch cho phép cộng dồn.',
-  'Nếu mã hợp lệ nhưng chưa áp dụng được, bạn có thể chuyển sang chat hỗ trợ để kiểm tra điều kiện đơn hàng.',
+  'Danh sách bên trái hiện là các mã gợi ý và mã đã lưu thường dùng để bạn tra cứu nhanh.',
+  'Kiểm tra hợp lệ thực tế sẽ dựa trên giỏ hàng hiện tại của tài khoản và quy tắc voucher ở backend.',
+  'Nếu mã đúng nhưng chưa áp dụng được, hãy kiểm tra lại loại dịch vụ, thời hạn và giá trị đơn hàng.',
 ])
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
     currency: 'VND',
     maximumFractionDigits: 0,
-  }).format(amount)
+    style: 'currency',
+  }).format(Number(amount || 0))
 }
 
 function matchesVoucherFilter(voucher, selectedFilter) {
@@ -127,6 +129,58 @@ function matchesVoucherFilter(voucher, selectedFilter) {
 
 function getVoucherSearchText(voucher) {
   return `${voucher.code} ${voucher.title} ${voucher.description} ${voucher.service_tags.join(' ')}`
+}
+
+function mapVoucherMessage(message = '') {
+  if (message === 'Cart is empty') {
+    return 'Bạn cần thêm ít nhất một dịch vụ vào giỏ hàng trước khi kiểm tra mã ưu đãi.'
+  }
+
+  if (message === 'Voucher is invalid') {
+    return 'Mã ưu đãi không hợp lệ hoặc hiện chưa khả dụng với giỏ hàng của bạn.'
+  }
+
+  if (message === 'Voucher is expired') {
+    return 'Mã ưu đãi này đã hết hạn sử dụng.'
+  }
+
+  if (message === 'Voucher does not apply to the current cart items') {
+    return 'Mã ưu đãi không áp dụng cho các dịch vụ đang có trong giỏ hàng.'
+  }
+
+  if (message === 'Cart subtotal does not meet the voucher minimum order amount') {
+    return 'Giỏ hàng hiện chưa đạt giá trị tối thiểu để dùng mã ưu đãi này.'
+  }
+
+  if (message === 'User has reached the voucher usage limit') {
+    return 'Tài khoản của bạn đã dùng hết số lượt cho mã ưu đãi này.'
+  }
+
+  if (message === 'Voucher has reached the total usage limit') {
+    return 'Mã ưu đãi này đã hết lượt sử dụng trên hệ thống.'
+  }
+
+  return message || 'Không thể kiểm tra mã ưu đãi lúc này.'
+}
+
+function formatTargetServiceType(serviceType) {
+  if (serviceType === 'flight') {
+    return 'Vé máy bay'
+  }
+
+  if (serviceType === 'train') {
+    return 'Vé tàu'
+  }
+
+  if (serviceType === 'hotel' || serviceType === 'room') {
+    return 'Khách sạn'
+  }
+
+  if (serviceType === 'tour') {
+    return 'Tour'
+  }
+
+  return 'Nhiều loại dịch vụ'
 }
 
 function VoucherTicketIcon() {
@@ -148,8 +202,13 @@ function VoucherTicketIcon() {
 }
 
 function MyVouchersPage() {
-  const { isCustomer } = usePublicSession()
+  const navigate = useNavigate()
+  const { authState, isCustomer, isCustomerPreview } = usePublicSession()
   const [copiedVoucherId, setCopiedVoucherId] = useState(null)
+  const [voucherCode, setVoucherCode] = useState('')
+  const [voucherCheckFeedback, setVoucherCheckFeedback] = useState('')
+  const [voucherCheckLoading, setVoucherCheckLoading] = useState(false)
+  const [voucherCheckResult, setVoucherCheckResult] = useState(null)
   const {
     filteredItems: filteredVouchers,
     query,
@@ -174,14 +233,78 @@ function MyVouchersPage() {
 
   const profilePath = buildPublicAuthPath('/profile', isCustomer)
   const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
+  const cartPath = buildPublicAuthPath('/cart', isCustomer)
 
   async function handleCopyVoucher(code, voucherId) {
     if (!navigator?.clipboard?.writeText) {
       return
     }
 
-    await navigator.clipboard.writeText(code)
-    setCopiedVoucherId(voucherId)
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopiedVoucherId(voucherId)
+    } catch {
+      // Ignore clipboard issues in restricted browser contexts.
+    }
+  }
+
+  async function handleValidateVoucher() {
+    const normalizedCode = voucherCode.trim().toUpperCase()
+
+    if (!normalizedCode) {
+      setVoucherCheckResult(null)
+      setVoucherCheckFeedback('Vui lòng nhập mã ưu đãi để kiểm tra.')
+      return
+    }
+
+    setVoucherCheckLoading(true)
+    setVoucherCheckFeedback('')
+
+    try {
+      const response = await applyVoucher(
+        normalizedCode,
+        {
+          service_fee_amount: 0,
+          subtotal_amount: 0,
+        },
+        {
+          authState,
+        },
+      )
+
+      if (!response?.success || !response?.data?.valid) {
+        setVoucherCheckResult(null)
+        setVoucherCheckFeedback(mapVoucherMessage(response?.message))
+        return
+      }
+
+      setVoucherCheckResult({
+        code: response.data.voucher_code ?? normalizedCode,
+        discountAmount: response.data.discount_amount,
+        eligibleSubtotalAmount: response.data.eligible_subtotal_amount,
+        finalTotalAmount:
+          response.data.summary?.total_amount ?? response.data.final_total_amount ?? 0,
+        targetServiceType: response.data.target_service_type,
+      })
+      setVoucherCheckFeedback('Mã ưu đãi hợp lệ với giỏ hàng hiện tại của bạn.')
+    } catch (error) {
+      setVoucherCheckResult(null)
+      setVoucherCheckFeedback(mapVoucherMessage(error?.message))
+    } finally {
+      setVoucherCheckLoading(false)
+    }
+  }
+
+  if (!isCustomerPreview) {
+    return (
+      <div className="my-vouchers-page">
+        <ProfileGuestGate
+          message="Đăng nhập để kiểm tra mã ưu đãi theo giỏ hàng hiện tại và lưu lại lịch sử sử dụng."
+          onGoHome={() => navigate(buildPublicAuthPath('/', isCustomer))}
+          onGoLogin={() => navigate('/login')}
+        />
+      </div>
+    )
   }
 
   return (
@@ -191,8 +314,8 @@ function MyVouchersPage() {
           <p className="my-vouchers-hero__eyebrow">Tài khoản cá nhân</p>
           <h1>Mã ưu đãi của tôi</h1>
           <p>
-            Tổng hợp các voucher đang khả dụng, lịch sử đã dùng và những mã vừa hết hạn để bạn
-            không bỏ lỡ ưu đãi phù hợp cho tour, vé và khách sạn.
+            Tra cứu nhanh các mã thường dùng, lưu ý điều kiện áp dụng và kiểm tra ngay độ hợp lệ
+            của voucher trên giỏ hàng hiện tại của bạn.
           </p>
 
           <div className="my-vouchers-hero__actions">
@@ -209,7 +332,7 @@ function MyVouchersPage() {
         </div>
 
         <div className="my-vouchers-hero__spotlight">
-          <span className="my-vouchers-hero__badge">Ưu đãi sắp hết hạn</span>
+          <span className="my-vouchers-hero__badge">Gợi ý sắp hết hạn</span>
           <strong>{nextExpiringVoucher?.code}</strong>
           <p>{nextExpiringVoucher?.title}</p>
           <small>{nextExpiringVoucher?.validity_label}</small>
@@ -218,21 +341,21 @@ function MyVouchersPage() {
 
       <section className="my-vouchers-stats" aria-label="Tổng quan ưu đãi">
         <article className="my-vouchers-stat-card">
-          <span>Voucher sẵn sàng</span>
+          <span>Mã gợi ý khả dụng</span>
           <strong>{activeVouchers.length}</strong>
-          <p>Có thể dùng ngay trong các luồng đặt dịch vụ hiện tại.</p>
+          <p>Những mã nổi bật bạn có thể cân nhắc dùng trong các luồng đặt dịch vụ hiện tại.</p>
         </article>
 
         <article className="my-vouchers-stat-card">
           <span>Giá trị nổi bật</span>
           <strong>{formatCurrency(totalReadyValue)}</strong>
-          <p>Tổng giá trị quy đổi từ các mã còn hiệu lực trong dữ liệu mock.</p>
+          <p>Tổng mức giảm tham khảo từ nhóm mã đang được gợi ý trên màn hình này.</p>
         </article>
 
         <article className="my-vouchers-stat-card">
           <span>Đã dùng gần đây</span>
           <strong>{MY_VOUCHERS.filter((voucher) => voucher.status === 'used').length}</strong>
-          <p>Ưu đãi đã áp dụng thành công để bạn tiện tra cứu lại lịch sử.</p>
+          <p>Ví dụ về lịch sử mã đã áp dụng để bạn dễ hình dung cách tận dụng ưu đãi.</p>
         </article>
       </section>
 
@@ -241,7 +364,7 @@ function MyVouchersPage() {
           <header className="my-vouchers-toolbar">
             <div>
               <p className="my-vouchers-toolbar__eyebrow">Tra cứu nhanh</p>
-              <h2>Danh sách voucher của bạn</h2>
+              <h2>Mã đã lưu và gợi ý nhanh</h2>
             </div>
 
             <label className="my-vouchers-search">
@@ -325,14 +448,19 @@ function MyVouchersPage() {
                       className="my-voucher-card__button"
                       to={buildPublicAuthPath(voucher.route, isCustomer)}
                     >
-                      {voucher.status === 'active' ? 'Dùng ngay' : 'Mở liên quan'}
+                      {voucher.status === 'active' ? 'Xem dịch vụ' : 'Mở liên quan'}
                     </Link>
-                    <Link
+                    <button
                       className="my-voucher-card__button my-voucher-card__button--secondary"
-                      to={customerCarePath}
+                      type="button"
+                      onClick={() => {
+                        setVoucherCode(voucher.code)
+                        setVoucherCheckResult(null)
+                        setVoucherCheckFeedback('Đã điền sẵn mã. Bạn có thể kiểm tra ngay ở khối bên phải.')
+                      }}
                     >
-                      Cần hỗ trợ
-                    </Link>
+                      Điền vào kiểm tra
+                    </button>
                   </div>
                 </article>
               ))}
@@ -358,6 +486,66 @@ function MyVouchersPage() {
         </section>
 
         <aside className="my-vouchers-sidebar">
+          <section className="my-vouchers-panel">
+            <header className="my-vouchers-panel__header">
+              <p className="my-vouchers-panel__eyebrow">Kiểm tra mã thật</p>
+              <h2>Xác thực voucher theo giỏ hàng hiện tại</h2>
+            </header>
+
+            <label className="my-vouchers-search">
+              <span className="my-vouchers-search__label">Nhập mã ưu đãi</span>
+              <input
+                className="my-vouchers-search__input"
+                type="text"
+                value={voucherCode}
+                onChange={(event) => setVoucherCode(event.target.value.toUpperCase())}
+                placeholder="Ví dụ: NETVIET500"
+              />
+            </label>
+
+            <div className="my-vouchers-validator__actions">
+              <button
+                className="my-vouchers-hero__button"
+                type="button"
+                onClick={handleValidateVoucher}
+                disabled={voucherCheckLoading}
+              >
+                {voucherCheckLoading ? 'Đang kiểm tra...' : 'Kiểm tra mã'}
+              </button>
+              <Link className="my-vouchers-hero__button my-vouchers-hero__button--secondary" to={cartPath}>
+                Mở giỏ hàng
+              </Link>
+            </div>
+
+            {voucherCheckFeedback ? (
+              <p className="my-vouchers-validator__feedback" role="status">
+                {voucherCheckFeedback}
+              </p>
+            ) : null}
+
+            {voucherCheckResult ? (
+              <div className="my-vouchers-validator__result">
+                <strong>{voucherCheckResult.code}</strong>
+                <div className="my-vouchers-validator__result-row">
+                  <span>Mức giảm</span>
+                  <strong>{formatCurrency(voucherCheckResult.discountAmount)}</strong>
+                </div>
+                <div className="my-vouchers-validator__result-row">
+                  <span>Tạm tính đủ điều kiện</span>
+                  <strong>{formatCurrency(voucherCheckResult.eligibleSubtotalAmount)}</strong>
+                </div>
+                <div className="my-vouchers-validator__result-row">
+                  <span>Tổng sau giảm</span>
+                  <strong>{formatCurrency(voucherCheckResult.finalTotalAmount)}</strong>
+                </div>
+                <div className="my-vouchers-validator__result-row">
+                  <span>Nhóm dịch vụ</span>
+                  <strong>{formatTargetServiceType(voucherCheckResult.targetServiceType)}</strong>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
           <section className="my-vouchers-panel">
             <header className="my-vouchers-panel__header">
               <p className="my-vouchers-panel__eyebrow">Cách dùng nhanh</p>

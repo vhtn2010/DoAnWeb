@@ -18,7 +18,7 @@ export default function ProfileStateStack({
       {loading ? (
         <PublicLoadingBlock
           className="profile-page__loading"
-          description="Dữ liệu hồ sơ đang được chuẩn bị theo mock adapter và luồng API-ready hiện tại."
+          description="Dữ liệu hồ sơ đang được đồng bộ từ tài khoản và lịch sử đơn hàng của bạn."
           rows={3}
           title="Đang chuẩn bị hồ sơ khách hàng"
         />

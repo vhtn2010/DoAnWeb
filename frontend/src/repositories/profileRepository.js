@@ -6,12 +6,17 @@ import {
   getUpcomingTrip as getUpcomingTripWithMockAdapter,
 } from '../adapters/mock/profileMockAdapter.js'
 import {
+  getCustomerProfile as getCustomerProfileDashboardWithApiAdapter,
+} from '../adapters/api/profileDashboardApiAdapter.js'
+import {
   getCurrentProfileLogs as getCurrentProfileLogsWithApiAdapter,
   getCurrentProfile as getCurrentProfileWithApiAdapter,
   updateCurrentAvatar as updateCurrentAvatarWithApiAdapter,
   updateCurrentPassword as updateCurrentPasswordWithApiAdapter,
   updateCurrentProfile as updateCurrentProfileWithApiAdapter,
 } from '../adapters/api/profileApiAdapter.js'
+import { ROLES } from '../constants/roles.js'
+import { getAuthSession } from '../services/authSession.js'
 
 const profileAdapter = {
   buildProfileActionPayload: buildProfileActionPayloadWithMock,
@@ -26,7 +31,18 @@ const profileAdapter = {
   updateCurrentProfile: updateCurrentProfileWithApiAdapter,
 }
 
+function shouldUseApi(authState = ROLES.guest) {
+  const session = getAuthSession()
+  const role = session.user?.role ?? session.user?.role_code ?? ''
+
+  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
+}
+
 export function getCustomerProfile(params) {
+  if (shouldUseApi(params?.authState)) {
+    return getCustomerProfileDashboardWithApiAdapter(params)
+  }
+
   return profileAdapter.getCustomerProfile(params)
 }
 

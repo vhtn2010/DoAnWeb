@@ -1,4 +1,10 @@
-﻿import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import ProfileGuestGate from '../../components/profile/ProfileGuestGate.jsx'
+import {
+  PublicButton,
+  PublicErrorState,
+  PublicLoadingBlock,
+} from '../../components/public/ui/index.js'
 import useDepartureReminders from '../../hooks/useDepartureReminders.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
@@ -12,7 +18,7 @@ const REMINDER_FILTERS = Object.freeze([
 const DEFAULT_CHANNELS = Object.freeze({
   email: true,
   sms: true,
-  app: false,
+  app: true,
 })
 
 const REMINDER_CHANNEL_OPTIONS = Object.freeze([
@@ -36,116 +42,18 @@ const REMINDER_CHANNEL_OPTIONS = Object.freeze([
 const SMART_RULES = Object.freeze([
   {
     id: 'rule-001',
-    title: 'Check-in trước 24 giờ',
-    description: 'Tự động nhắc với vé máy bay để bạn không quên hoàn tất check-in online.',
+    title: 'Check-in sớm theo loại hành trình',
+    description: 'Vé máy bay ưu tiên mốc 24 giờ trước giờ cất cánh để bạn chủ động check-in online.',
   },
   {
     id: 'rule-002',
-    title: 'Ra điểm đón trước giờ khởi hành',
-    description: 'Tính theo loại dịch vụ để gợi ý thời gian rời khách sạn, ra ga hoặc sân bay.',
+    title: 'Nhắc giờ di chuyển',
+    description: 'Hệ thống ước lượng thời điểm nên ra sân bay, nhà ga hoặc điểm đón theo từng dịch vụ.',
   },
   {
     id: 'rule-003',
-    title: 'Nhắc kiểm tra giấy tờ',
-    description: 'Gửi checklist hành lý, CCCD hoặc hộ chiếu trước ngày đi để tránh thiếu sót.',
-  },
-])
-
-const REMINDER_JOURNEYS = Object.freeze([
-  {
-    id: 'journey-001',
-    status: 'enabled',
-    status_label: 'Đang bật',
-    type_label: 'Tour di sản',
-    title: 'Hành trình Di sản Hội An - Huế',
-    route_label: 'Huế - Hội An',
-    departure_label: 'Khởi hành lúc 08:00, 15/08/2026',
-    reminder_count_label: '3 mốc nhắc tự động',
-    primary_route: '/services',
-    reminders: [
-      {
-        id: 'reminder-001',
-        title: 'Kiểm tra giấy tờ và hành lý',
-        schedule_label: '19:00, 14/08/2026',
-        channel_label: 'Email + SMS',
-        enabled: true,
-      },
-      {
-        id: 'reminder-002',
-        title: 'Có mặt tại điểm đón',
-        schedule_label: '06:30, 15/08/2026',
-        channel_label: 'SMS',
-        enabled: true,
-      },
-      {
-        id: 'reminder-003',
-        title: 'Nhắc giờ khởi hành',
-        schedule_label: '07:30, 15/08/2026',
-        channel_label: 'Thông báo trên web',
-        enabled: false,
-      },
-    ],
-  },
-  {
-    id: 'journey-002',
-    status: 'enabled',
-    status_label: 'Đang bật',
-    type_label: 'Vé máy bay',
-    title: 'Vietnam Airlines: HAN - PQC',
-    route_label: 'Hà Nội - Phú Quốc',
-    departure_label: 'Cất cánh lúc 09:20, 11/10/2026',
-    reminder_count_label: '4 mốc nhắc tự động',
-    primary_route: '/flights',
-    reminders: [
-      {
-        id: 'reminder-004',
-        title: 'Check-in online',
-        schedule_label: '09:20, 10/10/2026',
-        channel_label: 'Email + SMS',
-        enabled: true,
-      },
-      {
-        id: 'reminder-005',
-        title: 'Ra sân bay',
-        schedule_label: '06:50, 11/10/2026',
-        channel_label: 'SMS',
-        enabled: true,
-      },
-      {
-        id: 'reminder-006',
-        title: 'Kiểm tra cổng khởi hành',
-        schedule_label: '08:20, 11/10/2026',
-        channel_label: 'Thông báo trên web',
-        enabled: true,
-      },
-    ],
-  },
-  {
-    id: 'journey-003',
-    status: 'paused',
-    status_label: 'Tạm tắt',
-    type_label: 'Du thuyền',
-    title: 'Du thuyền Hạ Long Signature 2N1Đ',
-    route_label: 'Hạ Long, Quảng Ninh',
-    departure_label: 'Nhận phòng lúc 11:30, 02/09/2026',
-    reminder_count_label: '2 mốc đang tạm dừng',
-    primary_route: '/services',
-    reminders: [
-      {
-        id: 'reminder-007',
-        title: 'Xác nhận giờ lên tàu',
-        schedule_label: '17:00, 01/09/2026',
-        channel_label: 'Email',
-        enabled: false,
-      },
-      {
-        id: 'reminder-008',
-        title: 'Ra bến tàu',
-        schedule_label: '10:15, 02/09/2026',
-        channel_label: 'SMS',
-        enabled: false,
-      },
-    ],
+    title: 'Ưu tiên thông báo gắn với booking',
+    description: 'Những cập nhật trạng thái đơn đặt chỗ sẽ được hiển thị như nhắc việc ngay trên tài khoản.',
   },
 ])
 
@@ -168,24 +76,44 @@ function BellIcon() {
 }
 
 function DepartureRemindersPage() {
-  const { isCustomer } = usePublicSession()
+  const navigate = useNavigate()
+  const { authState, isCustomer, isCustomerPreview } = usePublicSession()
   const {
     activeReminderCount,
     channels,
     enabledJourneys,
+    error,
     filteredJourneys,
     handleChannelToggle,
     handleJourneyStatusToggle,
     handleReminderToggle,
+    loading,
     nextReminder,
+    reload,
     selectedFilter,
     setSelectedFilter,
   } = useDepartureReminders({
+    authState,
     defaultChannels: DEFAULT_CHANNELS,
-    journeys: REMINDER_JOURNEYS,
+    enabled: isCustomerPreview,
   })
+
   const profilePath = buildPublicAuthPath('/profile', isCustomer)
   const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
+  const discoverServicesPath = buildPublicAuthPath('/services', isCustomer)
+
+  if (!isCustomerPreview && !loading) {
+    return (
+      <div className="departure-reminders-page">
+        <ProfileGuestGate
+          message="Đăng nhập để xem các hành trình sắp tới và nhận nhắc việc theo từng đơn đặt chỗ."
+          onGoHome={() => navigate(buildPublicAuthPath('/', isCustomer))}
+          onGoLogin={() => navigate('/login')}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="departure-reminders-page">
       <section className="departure-reminders-hero">
@@ -193,8 +121,8 @@ function DepartureRemindersPage() {
           <p className="departure-reminders-hero__eyebrow">Tài khoản cá nhân</p>
           <h1>Nhắc lịch khởi hành</h1>
           <p>
-            Bật nhắc việc theo từng chuyến đi để không quên check-in, ra sân bay, ra ga hoặc có
-            mặt tại điểm đón đúng giờ.
+            Theo dõi các mốc cần nhớ cho từng đơn đặt chỗ để bạn chủ động check-in, di chuyển và
+            chuẩn bị giấy tờ đúng lúc.
           </p>
 
           <div className="departure-reminders-hero__actions">
@@ -212,197 +140,223 @@ function DepartureRemindersPage() {
 
         <div className="departure-reminders-hero__spotlight">
           <span className="departure-reminders-hero__badge">Mốc tiếp theo</span>
-          <strong>{nextReminder?.title}</strong>
-          <p>{nextReminder?.journeyTitle}</p>
-          <small>{nextReminder?.schedule_label}</small>
+          <strong>{nextReminder?.title || 'Chưa có mốc nhắc gần nhất'}</strong>
+          <p>{nextReminder?.journeyTitle || 'Khi có hành trình sắp tới, mốc nhắc sẽ hiển thị tại đây.'}</p>
+          <small>{nextReminder?.schedule_label || 'Thêm hoặc hoàn tất đơn đặt chỗ để bắt đầu theo dõi.'}</small>
         </div>
       </section>
 
-      <section className="departure-reminders-stats" aria-label="Tổng quan nhắc lịch">
-        <article className="departure-reminders-stat-card">
-          <span>Chuyến đang bật</span>
-          <strong>{enabledJourneys.length}</strong>
-          <p>Những hành trình đang được theo dõi với ít nhất một mốc nhắc chủ động.</p>
-        </article>
+      {loading ? (
+        <PublicLoadingBlock
+          description="Đang đồng bộ đơn đặt chỗ và thông báo gần nhất để tạo các mốc nhắc cho hành trình của bạn."
+          rows={3}
+          title="Đang tải nhắc lịch khởi hành"
+        />
+      ) : null}
 
-        <article className="departure-reminders-stat-card">
-          <span>Mốc nhắc đang hoạt động</span>
-          <strong>{activeReminderCount}</strong>
-          <p>Tổng số nhắc việc còn hiệu lực trong dữ liệu mock hiện tại.</p>
-        </article>
+      {!loading && error ? (
+        <PublicErrorState
+          action={
+            <PublicButton type="button" variant="secondary" onClick={reload}>
+              Tải lại
+            </PublicButton>
+          }
+          description={error}
+          eyebrow="Cần đồng bộ lại"
+          title="Không thể tải nhắc lịch lúc này"
+        />
+      ) : null}
 
-        <article className="departure-reminders-stat-card">
-          <span>Kênh ưu tiên</span>
-          <strong>{Object.values(channels).filter(Boolean).length}/3</strong>
-          <p>Bạn có thể nhận nhắc qua email, SMS hoặc thông báo ngay trên web.</p>
-        </article>
-      </section>
+      {!loading && !error ? (
+        <>
+          <section className="departure-reminders-stats" aria-label="Tổng quan nhắc lịch">
+            <article className="departure-reminders-stat-card">
+              <span>Chuyến đang bật</span>
+              <strong>{enabledJourneys.length}</strong>
+              <p>Những hành trình có ít nhất một mốc nhắc còn hiệu lực trong tài khoản hiện tại.</p>
+            </article>
 
-      <div className="departure-reminders-layout">
-        <section className="departure-reminders-main">
-          <header className="departure-reminders-toolbar">
-            <div>
-              <p className="departure-reminders-toolbar__eyebrow">Thiết lập nhanh</p>
-              <h2>Lọc và quản lý nhắc lịch theo chuyến</h2>
-            </div>
+            <article className="departure-reminders-stat-card">
+              <span>Mốc nhắc đang hoạt động</span>
+              <strong>{activeReminderCount}</strong>
+              <p>Các mốc theo dõi được sinh từ booking hiện có và thông báo gắn với đơn hàng.</p>
+            </article>
 
-            <div className="departure-reminders-filter-list" role="tablist" aria-label="Lọc nhắc lịch">
-              {REMINDER_FILTERS.map((filter) => (
-                <button
-                  key={filter.id}
-                  className={
-                    selectedFilter === filter.id
-                      ? 'departure-reminders-filter departure-reminders-filter--active'
-                      : 'departure-reminders-filter'
-                  }
-                  type="button"
-                  onClick={() => setSelectedFilter(filter.id)}
+            <article className="departure-reminders-stat-card">
+              <span>Kênh ưu tiên</span>
+              <strong>{Object.values(channels).filter(Boolean).length}/3</strong>
+              <p>Bạn có thể bật hoặc tắt từng kênh để ưu tiên cách nhận nhắc phù hợp nhất.</p>
+            </article>
+          </section>
+
+          <div className="departure-reminders-layout">
+            <section className="departure-reminders-main">
+              <header className="departure-reminders-toolbar">
+                <div>
+                  <p className="departure-reminders-toolbar__eyebrow">Thiết lập nhanh</p>
+                  <h2>Lọc và quản lý nhắc lịch theo hành trình</h2>
+                </div>
+
+                <div
+                  className="departure-reminders-filter-list"
+                  role="tablist"
+                  aria-label="Lọc nhắc lịch"
                 >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-          </header>
-
-          {filteredJourneys.length ? (
-            <div className="departure-reminders-journey-list">
-              {filteredJourneys.map((journey) => (
-                <article
-                  className={`departure-journey-card departure-journey-card--${journey.status}`}
-                  key={journey.id}
-                >
-                  <div className="departure-journey-card__header">
-                    <span className="departure-journey-card__icon">
-                      <BellIcon />
-                    </span>
-
-                    <div className="departure-journey-card__heading">
-                      <span className="departure-journey-card__type">{journey.type_label}</span>
-                      <strong>{journey.title}</strong>
-                      <p>{journey.route_label}</p>
-                    </div>
-
-                    <div className="departure-journey-card__status-block">
-                      <span className="departure-journey-card__status">{journey.status_label}</span>
-                      <small>{journey.reminder_count_label}</small>
-                    </div>
-                  </div>
-
-                  <div className="departure-journey-card__summary">
-                    <span>{journey.departure_label}</span>
+                  {REMINDER_FILTERS.map((filter) => (
                     <button
-                      className="departure-journey-card__toggle"
+                      key={filter.id}
+                      className={
+                        selectedFilter === filter.id
+                          ? 'departure-reminders-filter departure-reminders-filter--active'
+                          : 'departure-reminders-filter'
+                      }
                       type="button"
-                      onClick={() => handleJourneyStatusToggle(journey.id)}
+                      onClick={() => setSelectedFilter(filter.id)}
                     >
-                      {journey.status === 'enabled' ? 'Tạm tắt toàn bộ' : 'Bật lại toàn bộ'}
+                      {filter.label}
                     </button>
-                  </div>
+                  ))}
+                </div>
+              </header>
 
-                  <div className="departure-journey-card__timeline">
-                    {journey.reminders.map((reminder) => (
-                      <div className="departure-reminder-item" key={reminder.id}>
-                        <div className="departure-reminder-item__copy">
-                          <strong>{reminder.title}</strong>
-                          <span>{reminder.schedule_label}</span>
-                          <small>{reminder.channel_label}</small>
+              {filteredJourneys.length ? (
+                <div className="departure-reminders-journey-list">
+                  {filteredJourneys.map((journey) => (
+                    <article
+                      className={`departure-journey-card departure-journey-card--${journey.status}`}
+                      key={journey.id}
+                    >
+                      <div className="departure-journey-card__header">
+                        <span className="departure-journey-card__icon">
+                          <BellIcon />
+                        </span>
+
+                        <div className="departure-journey-card__heading">
+                          <span className="departure-journey-card__type">{journey.type_label}</span>
+                          <strong>{journey.title}</strong>
+                          <p>{journey.route_label}</p>
                         </div>
 
+                        <div className="departure-journey-card__status-block">
+                          <span className="departure-journey-card__status">{journey.status_label}</span>
+                          <small>{journey.reminder_count_label}</small>
+                        </div>
+                      </div>
+
+                      <div className="departure-journey-card__summary">
+                        <span>{journey.departure_label}</span>
                         <button
-                          className={
-                            reminder.enabled
-                              ? 'departure-reminder-item__switch departure-reminder-item__switch--active'
-                              : 'departure-reminder-item__switch'
-                          }
+                          className="departure-journey-card__toggle"
                           type="button"
-                          onClick={() => handleReminderToggle(journey.id, reminder.id)}
-                          aria-pressed={reminder.enabled}
+                          onClick={() => handleJourneyStatusToggle(journey.id)}
                         >
-                          {reminder.enabled ? 'Đang bật' : 'Đã tắt'}
+                          {journey.status === 'enabled' ? 'Tạm tắt toàn bộ' : 'Bật lại toàn bộ'}
                         </button>
                       </div>
-                    ))}
-                  </div>
 
-                  <div className="departure-journey-card__actions">
-                    <Link
-                      className="departure-journey-card__button"
-                      to={buildPublicAuthPath(journey.primary_route, isCustomer)}
+                      <div className="departure-journey-card__timeline">
+                        {journey.reminders.map((reminder) => (
+                          <div className="departure-reminder-item" key={reminder.id}>
+                            <div className="departure-reminder-item__copy">
+                              <strong>{reminder.title}</strong>
+                              <span>{reminder.schedule_label}</span>
+                              <small>{reminder.channel_label}</small>
+                            </div>
+
+                            <button
+                              className={
+                                reminder.enabled
+                                  ? 'departure-reminder-item__switch departure-reminder-item__switch--active'
+                                  : 'departure-reminder-item__switch'
+                              }
+                              type="button"
+                              onClick={() => handleReminderToggle(journey.id, reminder.id)}
+                              aria-pressed={reminder.enabled}
+                            >
+                              {reminder.enabled ? 'Đang bật' : 'Đã tắt'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="departure-journey-card__actions">
+                        <Link
+                          className="departure-journey-card__button"
+                          to={buildPublicAuthPath(journey.primary_route, isCustomer)}
+                        >
+                          Mở đơn đặt chỗ
+                        </Link>
+                        <Link
+                          className="departure-journey-card__button departure-journey-card__button--secondary"
+                          to={buildPublicAuthPath(journey.secondary_route, isCustomer)}
+                        >
+                          Xem dịch vụ
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="departure-reminders-empty" role="status">
+                  <strong>Chưa có hành trình nào phù hợp với bộ lọc hiện tại</strong>
+                  <p>
+                    Khi bạn có booking sắp tới, hệ thống sẽ tự tạo các mốc nhắc ngay tại trang này.
+                  </p>
+                  <Link className="departure-reminders-empty__button" to={discoverServicesPath}>
+                    Khám phá dịch vụ
+                  </Link>
+                </div>
+              )}
+            </section>
+
+            <aside className="departure-reminders-sidebar">
+              <section className="departure-reminders-panel">
+                <header className="departure-reminders-panel__header">
+                  <p className="departure-reminders-panel__eyebrow">Kênh nhận nhắc</p>
+                  <h2>Bật cách bạn muốn hệ thống gửi thông báo</h2>
+                </header>
+
+                <div className="departure-reminders-channel-list">
+                  {REMINDER_CHANNEL_OPTIONS.map((channel) => (
+                    <button
+                      key={channel.id}
+                      className={
+                        channels[channel.id]
+                          ? 'departure-reminders-channel departure-reminders-channel--active'
+                          : 'departure-reminders-channel'
+                      }
+                      type="button"
+                      onClick={() => handleChannelToggle(channel.id)}
+                      aria-pressed={channels[channel.id]}
                     >
-                      Mở hành trình
-                    </Link>
-                    <Link
-                      className="departure-journey-card__button departure-journey-card__button--secondary"
-                      to={customerCarePath}
-                    >
-                      Điều chỉnh với hỗ trợ
-                    </Link>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="departure-reminders-empty" role="status">
-              <strong>Không có chuyến đi phù hợp với bộ lọc hiện tại</strong>
-              <p>Thử chuyển lại bộ lọc để xem các hành trình đang bật hoặc đã tạm dừng.</p>
-              <button
-                className="departure-reminders-empty__button"
-                type="button"
-                onClick={() => setSelectedFilter('all')}
-              >
-                Xem tất cả hành trình
-              </button>
-            </div>
-          )}
-        </section>
+                      <strong>{channel.title}</strong>
+                      <span>{channel.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
 
-        <aside className="departure-reminders-sidebar">
-          <section className="departure-reminders-panel">
-            <header className="departure-reminders-panel__header">
-              <p className="departure-reminders-panel__eyebrow">Kênh nhận nhắc</p>
-              <h2>Bật cách bạn muốn hệ thống gửi thông báo</h2>
-            </header>
+              <section className="departure-reminders-panel departure-reminders-panel--rules">
+                <header className="departure-reminders-panel__header">
+                  <p className="departure-reminders-panel__eyebrow">Luật tự động</p>
+                  <h2>Hệ thống đang ưu tiên nhắc theo các mốc này</h2>
+                </header>
 
-            <div className="departure-reminders-channel-list">
-              {REMINDER_CHANNEL_OPTIONS.map((channel) => (
-                <button
-                  key={channel.id}
-                  className={
-                    channels[channel.id]
-                      ? 'departure-reminders-channel departure-reminders-channel--active'
-                      : 'departure-reminders-channel'
-                  }
-                  type="button"
-                  onClick={() => handleChannelToggle(channel.id)}
-                  aria-pressed={channels[channel.id]}
-                >
-                  <strong>{channel.title}</strong>
-                  <span>{channel.description}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="departure-reminders-panel departure-reminders-panel--rules">
-            <header className="departure-reminders-panel__header">
-              <p className="departure-reminders-panel__eyebrow">Luật tự động</p>
-              <h2>Hệ thống đang ưu tiên nhắc theo các mốc này</h2>
-            </header>
-
-            <div className="departure-reminders-rule-list">
-              {SMART_RULES.map((rule) => (
-                <article className="departure-reminders-rule" key={rule.id}>
-                  <strong>{rule.title}</strong>
-                  <p>{rule.description}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        </aside>
-      </div>
+                <div className="departure-reminders-rule-list">
+                  {SMART_RULES.map((rule) => (
+                    <article className="departure-reminders-rule" key={rule.id}>
+                      <strong>{rule.title}</strong>
+                      <p>{rule.description}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </aside>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }
 
 export default DepartureRemindersPage
-
