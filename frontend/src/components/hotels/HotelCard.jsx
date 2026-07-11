@@ -76,7 +76,12 @@ function HotelCard({
         <Link className="hotel-card__media-link" to={detailPath}>
           <img alt={hotel.title} className="hotel-card__image" src={hotel.image_url} />
         </Link>
-        <span className="hotel-card__badge">{ratingValue.toFixed(1)} Đánh giá</span>
+
+        <span className="hotel-card__badge">
+          <span aria-hidden="true">★</span>
+          <span>{ratingValue.toFixed(1)} Đánh giá</span>
+        </span>
+
         <button
           aria-label={isFavorite ? 'Bỏ yêu thích khách sạn' : 'Thêm khách sạn vào yêu thích'}
           className={`hotel-card__favorite ${isFavorite ? 'hotel-card__favorite--active' : ''}`}
@@ -103,16 +108,18 @@ function HotelCard({
           </Link>
         </h3>
 
-        <div className="hotel-card__pricing">
-          {hasSalePrice ? (
-            <span className="hotel-card__price-old">{formatCurrency(hotel.base_price)}</span>
-          ) : null}
-          <strong className="hotel-card__price-sale">{formatCurrency(currentPrice)}</strong>
-        </div>
+        <div className="hotel-card__footer">
+          <div className="hotel-card__pricing">
+            {hasSalePrice ? (
+              <span className="hotel-card__price-old">{formatCurrency(hotel.base_price)}</span>
+            ) : null}
+            <strong className="hotel-card__price-sale">{formatCurrency(currentPrice)}</strong>
+          </div>
 
-        <Link className="hotel-card__button" to={detailPath}>
-          {actionLabel}
-        </Link>
+          <Link className="hotel-card__button" to={detailPath}>
+            {actionLabel}
+          </Link>
+        </div>
       </div>
     </article>
   )
