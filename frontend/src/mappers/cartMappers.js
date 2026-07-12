@@ -89,10 +89,27 @@ export function mapCartResponseToView(cartResponse = {}) {
   }
 }
 
+export function resolveCartItemLineAmount(item = {}) {
+  const explicitTotalAmount = Number(item.total_amount)
+
+  if (Number.isFinite(explicitTotalAmount) && explicitTotalAmount >= 0) {
+    return explicitTotalAmount
+  }
+
+  const unitPrice = Number(item.unit_price_snapshot)
+  const quantity = Number(item.quantity)
+
+  if (!Number.isFinite(unitPrice)) {
+    return 0
+  }
+
+  return unitPrice * (Number.isFinite(quantity) && quantity > 0 ? quantity : 1)
+}
+
 export function createCartSummaryFromItems(cartItems = [], selectedItemIds = []) {
   const selectedItems = cartItems.filter((item) => selectedItemIds.includes(item.id))
   const subtotalAmount = selectedItems.reduce(
-    (totalAmount, item) => totalAmount + item.unit_price_snapshot * item.quantity,
+    (totalAmount, item) => totalAmount + resolveCartItemLineAmount(item),
     0,
   )
 

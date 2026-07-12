@@ -18,6 +18,7 @@ function CartPage() {
     handleContinueCheckout,
     handleEditItem,
     handleGoBack,
+    handleQuantityChange,
     handleRemoveItem,
     handleRemoveVoucher,
     handleToggleAll,
@@ -29,6 +30,7 @@ function CartPage() {
     reloadCart,
     selectedItemIds,
     setVoucherCode,
+    updatingItemIds,
     voucherCode,
   } = useCart()
 
@@ -43,6 +45,7 @@ function CartPage() {
           cartItems={cartItems}
           error={error}
           handleEditItem={handleEditItem}
+          handleQuantityChange={handleQuantityChange}
           handleRemoveItem={handleRemoveItem}
           handleToggleAll={handleToggleAll}
           handleToggleItem={handleToggleItem}
@@ -50,6 +53,7 @@ function CartPage() {
           loading={loading}
           reloadCart={reloadCart}
           selectedItemIds={selectedItemIds}
+          updatingItemIds={updatingItemIds}
         />
 
         <aside className="cart-page__sidebar">
@@ -57,8 +61,8 @@ function CartPage() {
             appliedVoucher={appliedVoucher}
             feedbackHint={
               isCustomer
-                ? 'Chon dich vu muon dat, kiem tra lai o buoc xac nhan roi nhap thong tin dat don.'
-                : 'Ban co the tiep tuc dat dich vu va nhap thong tin lien he o buoc tiep theo.'
+                ? 'Chọn dịch vụ muốn đặt, kiểm tra lại ở bước xác nhận rồi nhập thông tin đặt đơn.'
+                : 'Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo.'
             }
             isContinueDisabled={!canContinue}
             isVoucherLoading={isVoucherLoading}

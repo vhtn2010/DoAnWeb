@@ -6,11 +6,13 @@ import {
   getActiveCart,
   removeCartItem,
   removeCartVoucher,
+  updateCartItem,
   validateCart,
 } from '../repositories/cartRepository.js'
 import {
   createCartSummaryFromItems,
   createCartSummaryPayload,
+  mapCartItemToView,
   mapCartResponseToView,
 } from '../mappers/cartMappers.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
@@ -81,6 +83,7 @@ export default function useCart() {
   const [voucherCode, setVoucherCode] = useState('')
   const [appliedVoucher, setAppliedVoucher] = useState(null)
   const [voucherLoading, setVoucherLoading] = useState(false)
+  const [updatingItemIds, setUpdatingItemIds] = useState([])
 
   function buildSummary(nextCartItems, nextSelectedItemIds = []) {
     return createCartSummaryFromItems(nextCartItems, nextSelectedItemIds)
@@ -230,6 +233,55 @@ export default function useCart() {
       const nextMessage = removeError?.message ?? 'Không thể xóa dịch vụ khỏi giỏ hàng.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
+    }
+  }
+
+  async function handleQuantityChange(item, nextQuantity) {
+    if (!cart?.id || !item?.id) {
+      return
+    }
+
+    const normalizedQuantity = Math.max(Number(nextQuantity) || 1, 1)
+
+    if (normalizedQuantity === Number(item.quantity)) {
+      return
+    }
+
+    setError('')
+    setUpdatingItemIds((currentIds) =>
+      currentIds.includes(item.id) ? currentIds : [...currentIds, item.id],
+    )
+
+    try {
+      const response = await updateCartItem(
+        item.id,
+        {
+          quantity: normalizedQuantity,
+        },
+        { authState },
+      )
+      const responseItem = response.data?.cart_item
+      const fallbackItem = {
+        ...item,
+        quantity: normalizedQuantity,
+        total_amount: Number(item.unit_price_snapshot) * normalizedQuantity,
+      }
+      const nextItem = mapCartItemToView(responseItem ?? fallbackItem)
+      const nextCartItems = cartItems.map((cartItem) =>
+        cartItem.id === item.id ? nextItem : cartItem,
+      )
+
+      setCartItems(nextCartItems)
+      setSummary(buildSummary(nextCartItems, selectedItemIds))
+      resetVoucherState()
+      setFeedback(createFeedbackState('success', 'Đã cập nhật số lượng trong giỏ hàng.'))
+    } catch (updateError) {
+      const nextMessage =
+        updateError?.message ?? 'Không thể cập nhật số lượng dịch vụ trong giỏ hàng.'
+      setError(nextMessage)
+      setFeedback(createFeedbackState('error', nextMessage))
+    } finally {
+      setUpdatingItemIds((currentIds) => currentIds.filter((itemId) => itemId !== item.id))
     }
   }
 
@@ -423,6 +475,7 @@ export default function useCart() {
     handleContinueCheckout,
     handleEditItem,
     handleGoBack,
+    handleQuantityChange,
     handleRemoveItem,
     handleRemoveVoucher,
     handleToggleAll,
@@ -434,6 +487,7 @@ export default function useCart() {
     reloadCart,
     selectedItemIds,
     setVoucherCode,
+    updatingItemIds,
     voucherCode,
   }
 }

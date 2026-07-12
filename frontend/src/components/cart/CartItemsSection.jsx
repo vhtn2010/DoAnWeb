@@ -31,6 +31,7 @@ export default function CartItemsSection({
   cartItems,
   error,
   handleEditItem,
+  handleQuantityChange,
   handleRemoveItem,
   handleToggleAll,
   handleToggleItem,
@@ -38,6 +39,7 @@ export default function CartItemsSection({
   loading,
   reloadCart,
   selectedItemIds,
+  updatingItemIds = [],
 }) {
   return (
     <section className="cart-list-card">
@@ -94,8 +96,10 @@ export default function CartItemsSection({
               key={item.id}
               formatCurrency={formatCurrencyVND}
               isSelected={selectedItemIds.includes(item.id)}
+              isUpdatingQuantity={updatingItemIds.includes(item.id)}
               item={item}
               onEdit={handleEditItem}
+              onQuantityChange={handleQuantityChange}
               onRemove={handleRemoveItem}
               onToggle={handleToggleItem}
             />
