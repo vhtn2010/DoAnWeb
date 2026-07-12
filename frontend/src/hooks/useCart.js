@@ -268,13 +268,6 @@ export default function useCart() {
     setError('')
 
     try {
-      if (authState === 'customer' && selectedItemIds.length !== cartItems.length) {
-        const nextMessage =
-          'Backend hiện xử lý checkout theo toàn bộ giỏ hàng. Bạn có thể dùng nút "Chọn tất cả" rồi tiếp tục để đảm bảo đơn hàng khớp dữ liệu hệ thống.'
-        setFeedback(createFeedbackState('error', nextMessage))
-        return
-      }
-
       const response = await validateCart(cart.id, selectedItemIds, {
         authState,
       })
@@ -293,13 +286,14 @@ export default function useCart() {
         return
       }
 
-      navigate(buildPublicAuthPath('/checkout', isCustomer), {
+      navigate(buildPublicAuthPath('/booking-confirmation', isCustomer), {
         state: {
           selectedCartItemIds: resolvedSelectedItemIds,
           cartSummaryPayload: createCartSummaryPayload(
             cart,
             summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds),
             resolvedSelectedItemIds,
+            appliedVoucher?.code ?? voucherCode,
           ),
         },
       })
@@ -328,20 +322,13 @@ export default function useCart() {
       return
     }
 
-    if (authState === 'customer' && selectedItemIds.length !== cartItems.length) {
-      setFeedback(
-        createFeedbackState(
-          'error',
-          'Backend hiện áp dụng voucher theo toàn bộ giỏ hàng. Vui lòng chọn tất cả dịch vụ trước khi dùng mã ưu đãi.',
-        ),
-      )
-      return
-    }
-
     setVoucherLoading(true)
 
     try {
-      const response = await applyCartVoucher({ code: normalizedCode }, { authState })
+      const response = await applyCartVoucher({
+        code: normalizedCode,
+        selected_cart_item_ids: selectedItemIds,
+      }, { authState })
       const nextSummary = response.data?.summary ?? null
 
       setSummaryOverride(

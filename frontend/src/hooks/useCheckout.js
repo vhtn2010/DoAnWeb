@@ -292,7 +292,7 @@ export default function useCheckout() {
 
       setSubmitFeedback(response.message)
       navigate(
-        preserveAuthQuery(`/booking-confirmation/${response.data.booking_code}`),
+        preserveAuthQuery('/payment-confirmation'),
         {
         state: {
           booking: response.data,

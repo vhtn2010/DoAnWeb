@@ -165,7 +165,10 @@ export function buildBookingConfirmationFromCheckoutHandoff({
       service_fee_amount: 0,
       total_amount: totalAmount,
       currency: checkoutPayload?.summary?.currency ?? fallbackBooking.currency ?? BOOKING_DEFAULT_CURRENCY,
-      voucher_code: normalizeText(checkoutPayload?.voucher_code) || fallbackBooking.voucher_code,
+      voucher_code:
+        normalizeText(checkoutPayload?.voucher_code) ||
+        normalizeText(cartSummaryPayload?.voucher_code) ||
+        fallbackBooking.voucher_code,
     },
     booking_items: bookingItems,
     travellers:

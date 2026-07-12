@@ -92,8 +92,10 @@ export async function updateCartItem(cartItemId, payload = {}) {
   }
 }
 
-export function validateCart() {
+export function validateCart(_cartId, selectedItemIds = []) {
   return apiPost('/cart/validate', {
-    body: {},
+    body: {
+      selected_cart_item_ids: selectedItemIds,
+    },
   })
 }

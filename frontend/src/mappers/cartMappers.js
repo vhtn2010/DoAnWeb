@@ -105,10 +105,11 @@ export function createCartSummaryFromItems(cartItems = [], selectedItemIds = [])
   }
 }
 
-export function createCartSummaryPayload(cart, summary, selectedItemIds = []) {
+export function createCartSummaryPayload(cart, summary, selectedItemIds = [], voucherCode = '') {
   return {
     cart_id: cart?.id ?? '',
     cart_item_ids: selectedItemIds,
     summary,
+    voucher_code: voucherCode,
   }
 }

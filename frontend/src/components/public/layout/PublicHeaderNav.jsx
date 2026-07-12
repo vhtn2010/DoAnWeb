@@ -33,12 +33,13 @@ function BookingSubmenuIcon({ type }) {
 function PublicHeaderNav({
   bookingLinkClassName,
   buildHeaderPath,
+  id,
   isFlightPreview,
   isTicketActive,
   isTrainPreview,
 }) {
   return (
-    <nav aria-label="Điều hướng công khai" className="public-header__nav">
+    <nav aria-label="Điều hướng công khai" className="public-header__nav" id={id}>
       {PUBLIC_PRIMARY_NAV_ITEMS.slice(0, 2).map((item) => (
         <NavLink
           className={getNavLinkClassName}

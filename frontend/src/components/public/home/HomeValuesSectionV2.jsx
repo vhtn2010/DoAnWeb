@@ -42,8 +42,25 @@ function CoreValueIcon({ type, tone }) {
 }
 
 export default function HomeValuesSectionV2({ valueProps }) {
+  const sectionRef = useRef(null)
+
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return undefined
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        section.classList.add('home-values--visible')
+        observer.disconnect()
+      }
+    }, { threshold: 0.18 })
+
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <section className="home-values">
+    <section className="home-values home-values--reveal" ref={sectionRef}>
       <div className="home-values__media">
         <div aria-hidden="true" className="home-values__media-ring" />
         <div className="home-values__image-wrap">
@@ -68,8 +85,12 @@ export default function HomeValuesSectionV2({ valueProps }) {
         </div>
 
         <div className="home-values__list">
-          {valueProps.map((item) => (
-            <article className="home-values__item" key={item.title}>
+          {valueProps.map((item, index) => (
+            <article
+              className="home-values__item"
+              key={item.title}
+              style={{ '--value-delay': `${240 + index * 120}ms` }}
+            >
               <CoreValueIcon type={item.icon} tone={item.tone} />
               <div className="home-values__copy">
                 <h3 className="home-values__item-title">{item.title}</h3>
@@ -82,3 +103,4 @@ export default function HomeValuesSectionV2({ valueProps }) {
     </section>
   )
 }
+import { useEffect, useRef } from 'react'

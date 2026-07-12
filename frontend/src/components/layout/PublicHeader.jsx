@@ -12,6 +12,7 @@ import {
 function PublicHeader({ publicSession }) {
   const location = useLocation()
   const isCustomer = Boolean(publicSession?.isCustomer)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const { favoriteCount } = useFavorites({
     currentUser: publicSession?.currentUser ?? null,
@@ -35,6 +36,10 @@ function PublicHeader({ publicSession }) {
   const bookingLinkClassName = `public-header__link${
     isTicketActive ? ' public-header__link--active' : ''
   }`
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     let isMounted = true
@@ -71,11 +76,24 @@ function PublicHeader({ publicSession }) {
 
   return (
     <header className="public-header">
-      <div className="public-header__shell">
+      <div className={`public-header__shell${isMobileMenuOpen ? ' public-header__shell--menu-open' : ''}`}>
         <PublicHeaderBrand to={buildHeaderPath('/')} />
+        <button
+          aria-controls="public-header-menu"
+          aria-expanded={isMobileMenuOpen}
+          aria-label={isMobileMenuOpen ? 'ÄÃ³ng menu' : 'Má»Ÿ menu'}
+          className="public-header__menu-toggle"
+          type="button"
+          onClick={() => setIsMobileMenuOpen((currentValue) => !currentValue)}
+        >
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+        </button>
         <PublicHeaderNav
           bookingLinkClassName={bookingLinkClassName}
           buildHeaderPath={buildHeaderPath}
+          id="public-header-menu"
           isFlightPreview={isFlightPreview}
           isTicketActive={isTicketActive}
           isTrainPreview={isTrainPreview}

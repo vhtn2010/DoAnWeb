@@ -131,6 +131,7 @@ function PublicLayout() {
     }),
     [basePublicSession, isProfileHydrating],
   )
+  const isHomePage = location.pathname === '/'
 
   const closeLoginRequiredModal = useCallback(() => {
     setLoginRequiredModal((currentState) => ({
@@ -306,7 +307,7 @@ function PublicLayout() {
   ])
 
   return (
-    <div className="public-layout">
+    <div className={`public-layout ${isHomePage ? 'public-layout--home' : ''}`}>
       <PublicHeader publicSession={publicSession} />
       <main className="public-layout__main">
         <div className="public-layout__content-shell">

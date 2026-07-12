@@ -199,6 +199,17 @@ function normalizeItinerary(itinerary = []) {
   }
 
   return itinerary.map((day, index) => {
+    if (typeof day === 'string') {
+      const summary = day.trim()
+
+      return {
+        day_number: index + 1,
+        highlights: summary ? [summary] : [],
+        summary,
+        title: `Ngay ${index + 1}`,
+      }
+    }
+
     const dayNumber = Number(day?.day_number ?? day?.day ?? index + 1)
     const highlights = Array.isArray(day?.highlights)
       ? splitTextList(day.highlights)
@@ -231,6 +242,10 @@ function toOptionalNumber(value) {
 function normalizeDetails(details = {}) {
   const durationDays = Number(details.duration_days)
   const durationNights = Number(details.duration_nights)
+  const departureSchedule = Array.isArray(details.departure_schedule)
+    ? details.departure_schedule
+    : []
+  const itinerary = normalizeItinerary(details.itinerary)
 
   return {
     duration_days: Number.isFinite(durationDays) ? durationDays : 0,
@@ -239,8 +254,14 @@ function normalizeDetails(details = {}) {
     departure_location: details.departure_location ?? '',
     destination_location: details.destination_location ?? '',
     departure_dates: normalizeDepartureDates(details),
-    departure_schedule: Array.isArray(details.departure_schedule) ? details.departure_schedule : [],
-    itinerary: normalizeItinerary(details.itinerary),
+    departure_schedule: departureSchedule,
+    itinerary: itinerary.length
+      ? itinerary
+      : normalizeItinerary(departureSchedule.map((item) => ({
+          title: item?.title ?? item?.label ?? item?.date ?? item?.departure_at,
+          summary: item?.description ?? item?.note ?? item?.route ?? '',
+          highlights: item?.highlights ?? item?.activities ?? [],
+        }))),
     included_services: splitTextList(details.included_services),
     excluded_services: splitTextList(details.excluded_services),
     terms: splitTextList(details.terms),
