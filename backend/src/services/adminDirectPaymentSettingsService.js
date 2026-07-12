@@ -1,3 +1,4 @@
+const { directPayment } = require('../config');
 const { API_ERROR_CODES, USER_STATUS } = require('../constants/domainConstraints');
 const {
   createSettingsRepository,
@@ -695,6 +696,7 @@ const normalizePermissionCodes = (value) =>
 const createAdminDirectPaymentSettingsService = ({
   invalidateDirectPaymentCache = () =>
     paymentService.invalidateDirectPaymentConfigCache(),
+  directPaymentConfig = directPayment,
   repository = createSettingsRepository(),
 } = {}) => {
   const getDirectPaymentSettings = async ({
@@ -728,7 +730,12 @@ const createAdminDirectPaymentSettingsService = ({
       }
 
       return {
-        methods: toAdminMethodArray(record.settings || {}),
+        methods: toAdminMethodArray(
+          paymentService.mergeDirectPaymentConfig(
+            directPaymentConfig,
+            record.settings || {},
+          ),
+        ),
         updated_at: record.metadata.updated_at || null,
         updated_by: record.metadata.updated_by || null,
       };

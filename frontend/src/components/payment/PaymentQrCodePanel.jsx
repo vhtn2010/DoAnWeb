@@ -1,3 +1,5 @@
+import { PAYMENT_METHOD_CODES } from '../../constants/payments.js'
+
 function createQrMatrix(payload = '') {
   const matrixSize = 17
   const payloadSeed = Array.from(payload).reduce(
@@ -30,11 +32,16 @@ function PaymentQrCodePanel({
   bookingCode,
   errors = {},
   method,
+  onSubmitProof,
+  proofActionLabel = 'Gửi bill cho admin',
+  isSubmittingProof = false,
   onProofFieldChange,
   onProofFileChange,
   payment,
   paymentProof,
   proofForm,
+  showProofForm = true,
+  showQrSurface = true,
   uploadingProof,
 }) {
   const methodCode = method?.code ?? ''
@@ -45,12 +52,12 @@ function PaymentQrCodePanel({
     amountLabel ?? '',
   ].join('|')
   const qrMatrix = createQrMatrix(qrPayload)
-  const isBankTransfer = methodCode === 'manual_bank_transfer'
+  const isBankTransfer = methodCode === PAYMENT_METHOD_CODES.manualBankTransfer
   const hasProof = Boolean(paymentProof?.proof_image_url)
 
   return (
     <section className="payment-qr-code-panel" aria-label="Hướng dẫn thanh toán trực tiếp">
-      {isBankTransfer ? (
+      {isBankTransfer && showQrSurface ? (
         <div className="payment-qr-code-panel__surface">
           <div className="payment-qr-code-panel__grid" aria-hidden="true">
             {qrMatrix.map((row, rowIndex) =>
@@ -68,9 +75,11 @@ function PaymentQrCodePanel({
       ) : null}
 
       <div className="payment-qr-code-panel__copy">
-        <strong>{isBankTransfer ? 'Chuyển khoản theo thông tin bên dưới' : method?.label}</strong>
-        <span>Số tiền: {amountLabel}</span>
-        {bookingCode ? <span>Mã đơn: {bookingCode}</span> : null}
+        <strong>
+          {isBankTransfer ? 'Chuyển khoản theo thông tin bên dưới' : method?.label}
+        </strong>
+        <span>Số tiền cần thanh toán: {amountLabel}</span>
+        {bookingCode ? <span>Mã đơn hàng: {bookingCode}</span> : null}
         {payment?.payment_code ? <span>Mã giao dịch: {payment.payment_code}</span> : null}
         {method?.description ? <span>{method.description}</span> : null}
       </div>
@@ -86,14 +95,19 @@ function PaymentQrCodePanel({
         </div>
       ) : null}
 
-      {isBankTransfer ? (
+      {isBankTransfer && showProofForm ? (
         <div className="payment-qr-code-panel__proof">
+          <p className="payment-qr-code-panel__hint">
+            Sau khi chuyển khoản, bạn có thể tải chứng từ ngay tại đây để bộ phận vận hành kiểm
+            tra và xác nhận thanh toán.
+          </p>
+
           <label className="payment-qr-code-panel__field">
             <span>Mã giao dịch ngân hàng</span>
             <input
               className="payment-contact-input"
               name="bank_transaction_code"
-              placeholder="VD: FT240710123456"
+              placeholder="Ví dụ: FT240710123456"
               type="text"
               value={proofForm.bank_transaction_code}
               onChange={onProofFieldChange}
@@ -121,23 +135,34 @@ function PaymentQrCodePanel({
               onChange={onProofFileChange}
             />
             {proofForm.file ? (
-              <small className="payment-qr-code-panel__hint">
-                Đã chọn: {proofForm.file.name}
-              </small>
+              <small className="payment-qr-code-panel__hint">Đã chọn: {proofForm.file.name}</small>
             ) : null}
             {hasProof ? (
               <small className="payment-qr-code-panel__hint">
-                Đã có chứng từ trên hệ thống.{' '}
+                Hệ thống đã có chứng từ trước đó.{' '}
                 <a href={paymentProof.proof_image_url} target="_blank" rel="noreferrer">
                   Xem ảnh hiện tại
                 </a>
               </small>
             ) : null}
             {uploadingProof ? (
-              <small className="payment-qr-code-panel__hint">Đang tải chứng từ lên hệ thống...</small>
+              <small className="payment-qr-code-panel__hint">
+                Đang tải chứng từ lên hệ thống...
+              </small>
             ) : null}
             {errors.proof_file ? <small>{errors.proof_file}</small> : null}
           </label>
+
+          {onSubmitProof ? (
+            <button
+              className="payment-qr-code-panel__action"
+              disabled={isSubmittingProof || uploadingProof}
+              type="button"
+              onClick={onSubmitProof}
+            >
+              {isSubmittingProof ? 'Đang gửi bill...' : proofActionLabel}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </section>

@@ -5,6 +5,7 @@ import { PAYMENT_METHOD_CODES } from '../constants/payments.js'
 import {
   buildPaymentConfirmationViewModel,
   buildPaymentSummary,
+  normalizePaymentMethod,
   normalizePhoneDisplay,
   validatePaymentConfirmationForm,
 } from '../mappers/paymentMappers.js'
@@ -13,10 +14,8 @@ import {
   createCustomerDirectPayment,
   getPaymentByBookingCode,
   getPaymentByCode,
-  uploadCustomerPaymentProof,
 } from '../repositories/paymentRepository.js'
 import { updateMyBookingContact } from '../repositories/bookingRepository.js'
-import { uploadPaymentProofAsset } from '../adapters/api/uploadApiAdapter.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
@@ -24,6 +23,63 @@ const SUCCESS_PAYMENT_STATUSES = new Set([
   PAYMENT_STATUSES.success,
   PAYMENT_STATUSES.reconciled,
 ])
+const OFFLINE_ASSISTED_METHOD_CODES = new Set([
+  PAYMENT_METHOD_CODES.cashAtOffice,
+  PAYMENT_METHOD_CODES.staffCollect,
+])
+
+function isBankTransferMethod(methodCode) {
+  return normalizePaymentMethod(methodCode) === PAYMENT_METHOD_CODES.manualBankTransfer
+}
+
+function arePaymentMethodsEquivalent(leftMethodCode, rightMethodCode) {
+  const normalizedLeft = normalizePaymentMethod(leftMethodCode)
+  const normalizedRight = normalizePaymentMethod(rightMethodCode)
+
+  if (!normalizedLeft || !normalizedRight) {
+    return false
+  }
+
+  if (normalizedLeft === normalizedRight) {
+    return true
+  }
+
+  return (
+    OFFLINE_ASSISTED_METHOD_CODES.has(normalizedLeft) &&
+    OFFLINE_ASSISTED_METHOD_CODES.has(normalizedRight)
+  )
+}
+
+function resolveSelectedMethodCode(methodCode, methods = []) {
+  const normalizedMethodCode = normalizePaymentMethod(methodCode)
+
+  if (!normalizedMethodCode) {
+    return methods[0]?.code ?? ''
+  }
+
+  const exactMatch =
+    methods.find((method) => method.code === methodCode || method.code === normalizedMethodCode) ?? null
+
+  if (exactMatch) {
+    return exactMatch.code
+  }
+
+  if (normalizedMethodCode === PAYMENT_METHOD_CODES.manualBankTransfer) {
+    return (
+      methods.find((method) => normalizePaymentMethod(method.code) === PAYMENT_METHOD_CODES.manualBankTransfer)
+        ?.code ?? normalizedMethodCode
+    )
+  }
+
+  if (OFFLINE_ASSISTED_METHOD_CODES.has(normalizedMethodCode)) {
+    return (
+      methods.find((method) => OFFLINE_ASSISTED_METHOD_CODES.has(normalizePaymentMethod(method.code)))?.code ??
+      normalizedMethodCode
+    )
+  }
+
+  return normalizedMethodCode
+}
 
 function buildMethodDescription(method = {}) {
   if (method.code === PAYMENT_METHOD_CODES.manualBankTransfer) {
@@ -63,7 +119,7 @@ function buildMethodDetails(method = {}) {
 
   if (method.transfer_content_template) {
     details.push({
-      label: 'Nội dung CK',
+      label: 'Nội dung chuyển khoản',
       value: method.transfer_content_template,
     })
   }
@@ -100,13 +156,39 @@ function buildMethodDetails(method = {}) {
 }
 
 function normalizePaymentMethods(methods = []) {
-  return methods.map((method) => ({
+  const normalized = methods.map((method) => ({
     code: method.code,
     description: buildMethodDescription(method),
     details: buildMethodDetails(method),
     id: `payment-method-${method.code}`,
     label: method.name ?? method.code,
+    rawMethod: method,
   }))
+  const bankTransferMethod =
+    normalized.find((method) => method.code === PAYMENT_METHOD_CODES.manualBankTransfer) ?? null
+  const otherMethod =
+    normalized.find((method) => method.code === PAYMENT_METHOD_CODES.staffCollect) ??
+    normalized.find((method) => method.code === PAYMENT_METHOD_CODES.cashAtOffice) ??
+    null
+  const nextMethods = []
+
+  if (bankTransferMethod) {
+    nextMethods.push({
+      ...bankTransferMethod,
+      description: 'Sau khi xác nhận, bạn sẽ sang màn hình chuyển khoản để xem QR và tải bill.',
+      label: 'Chuyển khoản ngân hàng',
+    })
+  }
+
+  if (otherMethod) {
+    nextMethods.push({
+      ...otherMethod,
+      description: 'Nhân viên sẽ liên hệ để hướng dẫn thanh toán và xác nhận thủ công.',
+      label: 'Phương thức khác',
+    })
+  }
+
+  return nextMethods
 }
 
 function normalizeBookingItems(items = []) {
@@ -148,16 +230,20 @@ function buildResultMessage(payment, proof) {
     return 'Thanh toán đã được xác nhận thành công.'
   }
 
-  if (payment.status === PAYMENT_STATUSES.pending && proof?.proof_image_url) {
-    return 'Chứng từ thanh toán đã được gửi. Hệ thống đang chờ xác nhận từ bộ phận vận hành.'
+  if (payment.status === PAYMENT_STATUSES.cancelled) {
+    return 'Yêu cầu thanh toán trước đó đã được hủy. Bạn có thể tạo lại khi sẵn sàng.'
+  }
+
+  if (payment.status === PAYMENT_STATUSES.pending && isBankTransferMethod(payment.payment_method)) {
+    if (proof?.proof_image_url) {
+      return 'Chứng từ thanh toán đã được gửi. Hệ thống đang chờ bộ phận vận hành xác nhận.'
+    }
+
+    return 'Yêu cầu chuyển khoản đã được tạo. Sau khi chuyển khoản, vui lòng tải ảnh chứng từ để hệ thống đối soát.'
   }
 
   if (payment.status === PAYMENT_STATUSES.pending) {
-    return 'Yêu cầu thanh toán đã được tạo. Bạn có thể bổ sung chứng từ ngay trên màn hình này hoặc quay lại sau.'
-  }
-
-  if (payment.status === PAYMENT_STATUSES.cancelled) {
-    return 'Yêu cầu thanh toán trước đó đã được hủy. Bạn có thể tạo lại khi sẵn sàng.'
+    return 'Yêu cầu thanh toán đã được tạo và đang chờ xác nhận từ bộ phận vận hành.'
   }
 
   return ''
@@ -166,29 +252,42 @@ function buildResultMessage(payment, proof) {
 function buildActionLabel({
   isPaid,
   payment,
-  paymentProof,
   selectedPaymentMethod,
 }) {
   if (isPaid) {
-    return 'Đã xác nhận thanh toán'
+    return 'Xem kết quả thanh toán'
   }
 
-  if (
-    payment?.status === PAYMENT_STATUSES.pending &&
-    selectedPaymentMethod === PAYMENT_METHOD_CODES.manualBankTransfer
-  ) {
-    return paymentProof?.proof_image_url ? 'Theo dõi thanh toán' : 'Gửi chứng từ / theo dõi'
+  if (!selectedPaymentMethod) {
+    return 'Chọn phương thức thanh toán'
   }
 
-  if (payment?.status === PAYMENT_STATUSES.pending) {
-    return 'Theo dõi thanh toán'
+  const hasPendingPayment = payment?.status === PAYMENT_STATUSES.pending
+  const isSamePendingMethod =
+    hasPendingPayment &&
+    arePaymentMethodsEquivalent(payment?.payment_method, selectedPaymentMethod)
+
+  if (hasPendingPayment && !isSamePendingMethod) {
+    return 'Hủy yêu cầu cũ để đổi phương thức'
+  }
+
+  if (isSamePendingMethod && isBankTransferMethod(selectedPaymentMethod)) {
+    return 'Thanh toán'
+  }
+
+  if (isSamePendingMethod) {
+    return 'Theo dõi yêu cầu'
   }
 
   if (payment?.status === PAYMENT_STATUSES.cancelled) {
-    return 'Tạo lại thanh toán'
+    return isBankTransferMethod(selectedPaymentMethod) ? 'Thanh toán' : 'Tạo lại yêu cầu'
   }
 
-  return 'Tạo thanh toán'
+  if (isBankTransferMethod(selectedPaymentMethod)) {
+    return 'Thanh toán'
+  }
+
+  return 'Gửi yêu cầu cho nhân viên'
 }
 
 export default function usePaymentConfirmation() {
@@ -203,14 +302,12 @@ export default function usePaymentConfirmation() {
   const [bookingItems, setBookingItems] = useState([])
   const [paymentMethods, setPaymentMethods] = useState([])
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('')
-  const [voucherCode, setVoucherCode] = useState('')
   const [paymentSummary, setPaymentSummary] = useState(null)
   const [contactForm, setContactForm] = useState({
     contact_email: '',
     contact_name: '',
     contact_phone: '',
   })
-  const [cardNumber, setCardNumber] = useState('')
   const [proofForm, setProofForm] = useState({
     bank_transaction_code: '',
     file: null,
@@ -218,7 +315,7 @@ export default function usePaymentConfirmation() {
   })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [uploadingProof, setUploadingProof] = useState(false)
+  const [uploadingProof] = useState(false)
   const [cancellingPayment, setCancellingPayment] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -278,9 +375,11 @@ export default function usePaymentConfirmation() {
         setPayment(nextPayment)
         setPaymentProof(nextProof)
         setSelectedPaymentMethod(
-          nextPayment?.payment_method ?? nextPaymentMethods[0]?.code ?? '',
+          resolveSelectedMethodCode(
+            nextPayment?.payment_method ?? nextPaymentMethods[0]?.code ?? '',
+            nextPaymentMethods,
+          ),
         )
-        setVoucherCode(nextBooking.voucher_code ?? '')
         setPaymentSummary(buildSummaryFromBooking(nextBooking))
         setContactForm({
           contact_email: nextBooking.contact_email ?? '',
@@ -336,20 +435,33 @@ export default function usePaymentConfirmation() {
   )
 
   const selectedMethodMeta = useMemo(
-    () => paymentMethods.find((method) => method.code === selectedPaymentMethod) ?? null,
+    () =>
+      paymentMethods.find((method) =>
+        arePaymentMethodsEquivalent(method.code, selectedPaymentMethod),
+      ) ?? null,
     [paymentMethods, selectedPaymentMethod],
   )
 
   const isPaid = SUCCESS_PAYMENT_STATUSES.has(payment?.status)
   const canCancelPendingPayment =
     Boolean(payment?.id) && payment?.status === PAYMENT_STATUSES.pending
-  const voucherEditingLocked = isCustomer
+  const hasPendingPaymentMethodConflict =
+    canCancelPendingPayment &&
+    Boolean(payment?.payment_method) &&
+    Boolean(selectedPaymentMethod) &&
+    !arePaymentMethodsEquivalent(payment.payment_method, selectedPaymentMethod)
   const payActionLabel = buildActionLabel({
     isPaid,
     payment,
     paymentProof,
     selectedPaymentMethod,
   })
+  const isPrimaryActionDisabled = isPaid
+    ? false
+    : viewModel.items.length === 0 ||
+      paymentMethods.length === 0 ||
+      !selectedPaymentMethod ||
+      hasPendingPaymentMethodConflict
 
   function retry() {
     setReloadToken((currentToken) => currentToken + 1)
@@ -359,16 +471,11 @@ export default function usePaymentConfirmation() {
     setSelectedPaymentMethod(methodCode)
     setFieldErrors((currentErrors) => {
       const nextErrors = { ...currentErrors }
-      delete nextErrors.card_number
-      delete nextErrors.proof_file
       delete nextErrors.selected_payment_method
+      delete nextErrors.proof_file
       return nextErrors
     })
     setFeedback('')
-  }
-
-  function updateVoucherCode(event) {
-    setVoucherCode(event.target.value)
   }
 
   function updateContactField(event) {
@@ -381,15 +488,6 @@ export default function usePaymentConfirmation() {
     setFieldErrors((currentErrors) => {
       const nextErrors = { ...currentErrors }
       delete nextErrors[name]
-      return nextErrors
-    })
-  }
-
-  function updateCardNumber(event) {
-    setCardNumber(event.target.value)
-    setFieldErrors((currentErrors) => {
-      const nextErrors = { ...currentErrors }
-      delete nextErrors.card_number
       return nextErrors
     })
   }
@@ -445,14 +543,15 @@ export default function usePaymentConfirmation() {
     })
   }
 
-  function removePaymentItem() {
-    setFeedback(
-      'Đơn hàng đã được tạo trên backend. Nếu cần thay đổi dịch vụ, vui lòng liên hệ chăm sóc khách hàng để được hỗ trợ.',
-    )
-  }
-
-  function applyVoucherLocked() {
-    setFeedback('Mã ưu đãi chỉ có thể áp dụng ở bước checkout trước khi tạo đơn hàng.')
+  function navigateToBankTransfer(nextBooking, nextPayment, nextProof) {
+    navigate(buildPublicAuthPath(`/payment-transfer/${nextPayment.payment_code}`, isCustomer), {
+      state: {
+        booking: nextBooking,
+        bookingItems,
+        payment: nextPayment,
+        paymentProof: nextProof ?? null,
+      },
+    })
   }
 
   async function cancelPendingPaymentAction() {
@@ -464,7 +563,9 @@ export default function usePaymentConfirmation() {
     setFieldErrors({})
 
     try {
-      const response = await cancelCustomerPayment(payment.id)
+      const response = await cancelCustomerPayment(payment.id, {
+        reason: 'Khách hàng hủy yêu cầu thanh toán để điều chỉnh phương thức hoặc thao tác lại.',
+      })
       const nextPayment = response?.data ?? null
 
       setPayment(nextPayment)
@@ -476,7 +577,7 @@ export default function usePaymentConfirmation() {
       })
       setFeedback(
         response?.message ||
-          'Yêu cầu thanh toán đã được hủy. Bạn có thể chọn lại phương thức và tạo yêu cầu mới khi sẵn sàng.',
+          'Yêu cầu thanh toán đã được hủy. Bạn có thể chọn lại phương thức và tạo yêu cầu mới.',
       )
     } catch (cancelError) {
       setFeedback(cancelError?.message ?? 'Không thể hủy yêu cầu thanh toán lúc này.')
@@ -511,42 +612,20 @@ export default function usePaymentConfirmation() {
     }
   }
 
-  async function uploadProofForPayment(paymentId) {
-    if (!proofForm.file || selectedPaymentMethod !== PAYMENT_METHOD_CODES.manualBankTransfer) {
-      return paymentProof
-    }
-
-    setUploadingProof(true)
-
-    try {
-      const uploadedAsset = await uploadPaymentProofAsset(proofForm.file)
-      const proofResponse = await uploadCustomerPaymentProof(paymentId, {
-        bank_transaction_code: proofForm.bank_transaction_code.trim() || undefined,
-        proof_image_url: uploadedAsset.data.asset_url,
-        transfer_note: proofForm.transfer_note.trim() || undefined,
-      })
-
-      return proofResponse.data.proof
-    } finally {
-      setUploadingProof(false)
-    }
-  }
-
   async function confirmPaymentAction() {
     const nextErrors = validatePaymentConfirmationForm({
       contactForm,
-      cardNumber,
       selectedPaymentMethod,
     })
 
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors)
-      setFeedback('Vui lòng hoàn thiện đầy đủ thông tin thanh toán trước khi tiếp tục.')
+      setFeedback('Vui lòng hoàn thiện đầy đủ thông tin trước khi tiếp tục.')
       return
     }
 
     if (!booking?.id) {
-      setFeedback('Không tìm thấy đơn hàng để tạo thanh toán.')
+      setFeedback('Không tìm thấy đơn hàng để tạo yêu cầu thanh toán.')
       return
     }
 
@@ -555,22 +634,31 @@ export default function usePaymentConfirmation() {
       return
     }
 
+    if (hasPendingPaymentMethodConflict) {
+      setFeedback(
+        'Bạn đang có một yêu cầu thanh toán chờ xử lý ở phương thức khác. Vui lòng hủy yêu cầu hiện tại trước khi đổi phương thức.',
+      )
+      return
+    }
+
     setSubmitting(true)
     setFieldErrors({})
 
     try {
       const nextBooking = await persistBookingContactChanges()
+      setBooking(nextBooking)
 
       if (
         payment?.id &&
         payment?.status === PAYMENT_STATUSES.pending &&
-        payment.payment_method === selectedPaymentMethod
+        arePaymentMethodsEquivalent(payment.payment_method, selectedPaymentMethod)
       ) {
-        const nextProof = await uploadProofForPayment(payment.id)
-        setBooking(nextBooking)
-        setPaymentProof(nextProof ?? paymentProof)
-        setFeedback(buildResultMessage(payment, nextProof ?? paymentProof))
-        navigateToSuccess(nextBooking, payment, nextProof ?? paymentProof)
+        if (isBankTransferMethod(selectedPaymentMethod)) {
+          navigateToBankTransfer(nextBooking, payment, paymentProof)
+          return
+        }
+
+        navigateToSuccess(nextBooking, payment, paymentProof)
         return
       }
 
@@ -581,16 +669,22 @@ export default function usePaymentConfirmation() {
         payment_method: selectedPaymentMethod,
       })
       const nextPayment = paymentResponse.data
-      const nextProof = await uploadProofForPayment(nextPayment.id)
 
-      setBooking(nextBooking)
       setPayment(nextPayment)
-      setPaymentProof(nextProof ?? paymentProof)
-      setFeedback(buildResultMessage(nextPayment, nextProof ?? paymentProof))
+      setPaymentProof(null)
+      setSelectedPaymentMethod(
+        resolveSelectedMethodCode(nextPayment.payment_method ?? selectedPaymentMethod, paymentMethods),
+      )
+      setFeedback(buildResultMessage(nextPayment, null) || paymentResponse.message || 'Yêu cầu thanh toán đã được tạo.')
 
-      navigateToSuccess(nextBooking, nextPayment, nextProof ?? paymentProof)
+      if (isBankTransferMethod(nextPayment.payment_method)) {
+        navigateToBankTransfer(nextBooking, nextPayment, null)
+        return
+      }
+
+      navigateToSuccess(nextBooking, nextPayment, null)
     } catch (confirmError) {
-      setFeedback(confirmError?.message ?? 'Không thể ghi nhận thanh toán lúc này.')
+      setFeedback(confirmError?.message ?? 'Không thể tạo yêu cầu thanh toán lúc này.')
     } finally {
       setSubmitting(false)
     }
@@ -602,12 +696,12 @@ export default function usePaymentConfirmation() {
     bookingItems,
     canCancelPendingPayment,
     cancellingPayment,
-    cardNumber,
     contactForm,
     error,
     feedback,
     fieldErrors,
     isPaid,
+    isPrimaryActionDisabled,
     loading,
     payActionLabel,
     payment,
@@ -621,25 +715,16 @@ export default function usePaymentConfirmation() {
     submitting,
     uploadingProof,
     viewModel,
-    voucherCode,
-    voucherEditingLocked,
     actions: {
-      applyVoucher: applyVoucherLocked,
-      applyVoucherMock: applyVoucherLocked,
       cancelPendingPayment: cancelPendingPaymentAction,
       confirmPayment: confirmPaymentAction,
-      confirmPaymentMock: confirmPaymentAction,
       goBackToBookingConfirmation,
       goHome,
-      removePaymentItem,
-      removePaymentItemMock: removePaymentItem,
       retry,
       selectPaymentMethod,
-      updateCardNumber,
       updateContactField,
       updateProofField,
       updateProofFile,
-      updateVoucherCode,
     },
   }
 }

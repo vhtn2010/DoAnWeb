@@ -12,12 +12,12 @@ function PaymentConfirmationPage() {
     booking,
     canCancelPendingPayment,
     cancellingPayment,
-    cardNumber,
     contactForm,
     error,
     feedback,
     fieldErrors,
     isPaid,
+    isPrimaryActionDisabled,
     loading,
     payActionLabel,
     payment,
@@ -29,8 +29,6 @@ function PaymentConfirmationPage() {
     submitting,
     uploadingProof,
     viewModel,
-    voucherCode,
-    voucherEditingLocked,
   } = usePaymentConfirmation()
 
   return (
@@ -92,10 +90,8 @@ function PaymentConfirmationPage() {
               <PaymentMethodPanel
                 amountLabel={viewModel.summary.total_amount}
                 bookingCode={booking?.booking_code}
-                cardNumber={cardNumber}
                 errors={fieldErrors}
                 methods={paymentMethods}
-                onCardNumberChange={actions.updateCardNumber}
                 onProofFieldChange={actions.updateProofField}
                 onProofFileChange={actions.updateProofFile}
                 onSelectMethod={actions.selectPaymentMethod}
@@ -111,19 +107,17 @@ function PaymentConfirmationPage() {
             <aside className="payment-confirmation-page__sidebar">
               <PaymentOrderSummary
                 canCancelPayment={canCancelPendingPayment}
-                disableVoucherEditing={voucherEditingLocked}
                 feedback={feedback}
                 isCancellingPayment={cancellingPayment}
-                isDisabled={viewModel.items.length === 0 || isPaid}
+                isDisabled={isPrimaryActionDisabled}
                 isPaid={isPaid}
                 isSubmitting={submitting || uploadingProof}
-                onApplyVoucher={actions.applyVoucher}
                 onCancelPayment={actions.cancelPendingPayment}
                 onPay={actions.confirmPayment}
-                onVoucherChange={actions.updateVoucherCode}
                 payLabel={payActionLabel}
+                payment={payment}
+                selectedMethodMeta={selectedMethodMeta}
                 summary={viewModel.summary}
-                voucherCode={voucherCode}
               />
               <PaymentTrustCards />
             </aside>

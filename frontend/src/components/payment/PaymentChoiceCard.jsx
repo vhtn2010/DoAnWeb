@@ -16,11 +16,7 @@ function ChoiceIcon() {
   )
 }
 
-function PaymentChoiceCard({
-  itemCountLabel,
-  items,
-  onReturn,
-}) {
+function PaymentChoiceCard({ itemCountLabel, items, onReturn }) {
   const hasItems = items.length > 0
 
   return (
@@ -32,7 +28,9 @@ function PaymentChoiceCard({
           </span>
           <div>
             <h2 className="payment-choice-card__title">Lựa chọn của bạn</h2>
-            <p className="payment-choice-card__subtitle">Kiểm tra lại mục đã chọn trước khi thanh toán.</p>
+            <p className="payment-choice-card__subtitle">
+              Kiểm tra lại dịch vụ đã chọn trước khi tạo yêu cầu thanh toán.
+            </p>
           </div>
         </div>
         <span className="payment-choice-card__badge">{itemCountLabel}</span>
@@ -62,7 +60,10 @@ function PaymentChoiceCard({
         </div>
       ) : (
         <div className="payment-choice-card__empty">
-          <p>Chưa còn dịch vụ nào trong bước thanh toán. Bạn có thể quay lại xác nhận đơn hàng để chọn lại.</p>
+          <p>
+            Hiện chưa còn dịch vụ nào trong bước thanh toán. Bạn có thể quay lại bước xác nhận để
+            chọn lại trước khi tiếp tục.
+          </p>
           <button type="button" onClick={onReturn}>
             Quay lại xác nhận đơn hàng
           </button>

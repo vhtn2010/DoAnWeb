@@ -17,6 +17,7 @@ import FlightListPage from '../pages/flights/FlightListPageV2.jsx'
 import HotelDetailPage from '../pages/hotels/HotelDetailPage.jsx'
 import HotelListPage from '../pages/hotels/HotelListPageV2.jsx'
 import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.jsx'
+import PaymentTransferPage from '../pages/payment/PaymentTransferPage.jsx'
 import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
 import FavoritesPage from '../pages/profile/FavoritesPage.jsx'
@@ -117,6 +118,18 @@ function AppRouter() {
                 title="Vui lòng đăng nhập để xem kết quả thanh toán"
               >
                 <PaymentSuccessPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/payment-transfer/:paymentCode"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem thông tin chuyển khoản, tải bill và chờ admin xác nhận thanh toán."
+                eyebrow="Thanh toán"
+                title="Vui lòng đăng nhập để tiếp tục chuyển khoản"
+              >
+                <PaymentTransferPage />
               </CustomerOnlyRoute>
             }
           />

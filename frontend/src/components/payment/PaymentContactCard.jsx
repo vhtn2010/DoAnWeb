@@ -22,14 +22,14 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
         <div>
           <h2 className="payment-contact-card__title">Thông tin liên hệ</h2>
           <p className="payment-contact-card__subtitle">
-            Xác nhận lại thông tin để gửi biên nhận thanh toán.
+            Xác nhận lại thông tin để hệ thống gửi biên nhận và bộ phận vận hành liên hệ khi cần.
           </p>
         </div>
       </header>
 
       <div className="payment-contact-grid">
         <label className="payment-contact-card__field">
-          <span className="payment-contact-label">Họ và Tên *</span>
+          <span className="payment-contact-label">Họ và tên *</span>
           <input
             className="payment-contact-input"
             name="contact_name"
@@ -42,7 +42,7 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
         </label>
 
         <label className="payment-contact-card__field">
-          <span className="payment-contact-label">Số Điện Thoại *</span>
+          <span className="payment-contact-label">Số điện thoại *</span>
           <input
             className="payment-contact-input"
             name="contact_phone"

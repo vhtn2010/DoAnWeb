@@ -2498,6 +2498,21 @@
   background: radial-gradient(circle, #d70018 0 45%, transparent 48%);
 }
 
+.payment-method-panel__helper {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 250, 246, 0.96);
+  border: 1px solid rgba(241, 225, 222, 0.98);
+}
+
+.payment-method-panel__helper p {
+  margin: 0;
+  color: #6e6060;
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
 .payment-method-panel__card-field {
   display: grid;
   gap: 10px;
@@ -2581,6 +2596,36 @@
 .payment-qr-code-panel__field {
   display: grid;
   gap: 10px;
+}
+
+.payment-qr-code-panel__action {
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #d70018, #ef4444);
+  color: #fff;
+  min-height: 52px;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 900;
+  box-shadow: 0 16px 28px rgba(215, 0, 24, 0.2);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.payment-qr-code-panel__action:hover,
+.payment-qr-code-panel__action:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 34px rgba(215, 0, 24, 0.24);
+}
+
+.payment-qr-code-panel__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
 }
 
 .payment-qr-code-panel__textarea,
@@ -2702,6 +2747,42 @@
   color: #7f6c6c;
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.payment-order-summary__payment-info {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 251, 248, 0.96);
+  border: 1px solid rgba(241, 225, 222, 0.98);
+}
+
+.payment-order-summary__info-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.payment-order-summary__info-label {
+  color: #7a6863;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.payment-order-summary__info-value {
+  color: #241716;
+  font-size: 0.92rem;
+  text-align: right;
+}
+
+.payment-order-summary__helper {
+  margin: 16px 0 0;
+  color: #6e6060;
+  font-size: 0.88rem;
+  line-height: 1.6;
 }
 
 .payment-order-summary__voucher {

@@ -15,8 +15,17 @@ function normalizeText(value = '') {
 }
 
 function resolveNumber(...values) {
-  const numericValue = values.find((value) => typeof value === 'number' && Number.isFinite(value))
-  return numericValue ?? 0
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+
+    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+      return Number(value)
+    }
+  }
+
+  return 0
 }
 
 function formatDurationLabel(item) {
@@ -59,13 +68,82 @@ function formatLongVietnameseDate(dateValue) {
   return `${parsedDate.getDate()} tháng ${parsedDate.getMonth() + 1}, ${parsedDate.getFullYear()}`
 }
 
-function resolvePaymentMethodLabel(methodCode, fallbackLabel = '') {
-  const normalizedMethod = normalizePaymentMethod(methodCode)
-  const matchedMethod = PAYMENT_METHOD_OPTIONS.find((method) => method.code === normalizedMethod)
+export function clonePaymentValue(value) {
+  return JSON.parse(JSON.stringify(value))
+}
 
+export function normalizePaymentMethod(methodCode) {
+  const normalizedMethod = String(methodCode ?? '').trim().toLowerCase()
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.card ||
+    normalizedMethod === 'credit_card'
+  ) {
+    return PAYMENT_METHOD_CODES.card
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.wallet ||
+    normalizedMethod === 'momo' ||
+    normalizedMethod === 'vnpay'
+  ) {
+    return PAYMENT_METHOD_CODES.wallet
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.manualBankTransfer ||
+    normalizedMethod === 'bank_transfer' ||
+    normalizedMethod === 'manual-bank-transfer' ||
+    normalizedMethod === 'manual transfer'
+  ) {
+    return PAYMENT_METHOD_CODES.manualBankTransfer
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.cashAtOffice ||
+    normalizedMethod === 'cash_at_branch' ||
+    normalizedMethod === 'cash'
+  ) {
+    return PAYMENT_METHOD_CODES.cashAtOffice
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.staffCollect ||
+    normalizedMethod === 'staff_collecting'
+  ) {
+    return PAYMENT_METHOD_CODES.staffCollect
+  }
+
+  return ''
+}
+
+export function isDirectPaymentMethod(methodCode) {
+  const normalizedMethod = normalizePaymentMethod(methodCode)
+
+  return [
+    PAYMENT_METHOD_CODES.manualBankTransfer,
+    PAYMENT_METHOD_CODES.cashAtOffice,
+    PAYMENT_METHOD_CODES.staffCollect,
+  ].includes(normalizedMethod)
+}
+
+export function normalizePhoneDisplay(phoneValue = '') {
+  const digitsOnly = String(phoneValue ?? '').replace(/\D/g, '')
+
+  if (digitsOnly.length === 10) {
+    return `${digitsOnly.slice(0, 3)} ${digitsOnly.slice(3, 6)} ${digitsOnly.slice(6)}`
+  }
+
+  return String(phoneValue ?? '').trim()
+}
+
+function resolvePaymentMethodLabel(methodCode, fallbackLabel = '') {
   if (fallbackLabel) {
     return fallbackLabel
   }
+
+  const normalizedMethod = normalizePaymentMethod(methodCode)
+  const matchedMethod = PAYMENT_METHOD_OPTIONS.find((method) => method.code === normalizedMethod)
 
   if (normalizedMethod === PAYMENT_METHOD_CODES.card) {
     return 'Thẻ tín dụng (Visa/Mastercard)'
@@ -97,8 +175,8 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
   ) {
     return {
       description:
-        'Cảm ơn quý khách đã tin tưởng lựa chọn Nét Việt Travel. Chúng tôi rất hân hạnh được đồng hành cùng bạn trong hành trình sắp tới.',
-      title: 'Thanh toán thành công!',
+        'Cảm ơn bạn đã thanh toán. Hệ thống đã ghi nhận đơn hàng và sẽ tiếp tục gửi thông tin liên quan trong các bước tiếp theo.',
+      title: 'Thanh toán thành công',
     }
   }
 
@@ -109,7 +187,7 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
   ) {
     return {
       description:
-        'Hệ thống đã ghi nhận yêu cầu thanh toán. Bộ phận vận hành sẽ xác nhận ngay khi kiểm tra xong chứng từ hoặc phương thức bạn đã chọn.',
+        'Yêu cầu thanh toán đã được tạo. Bộ phận vận hành sẽ xác nhận sau khi kiểm tra chứng từ hoặc hình thức thanh toán bạn đã chọn.',
       title: 'Đã ghi nhận yêu cầu thanh toán',
     }
   }
@@ -121,7 +199,7 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
   ) {
     return {
       description:
-        'Giao dịch này chưa hoàn tất. Bạn có thể quay lại bước thanh toán để thử lại hoặc liên hệ chăm sóc khách hàng nếu cần hỗ trợ.',
+        'Yêu cầu thanh toán này chưa hoàn tất. Bạn có thể quay lại bước thanh toán để tạo lại yêu cầu mới khi sẵn sàng.',
       title: 'Thanh toán chưa hoàn tất',
     }
   }
@@ -131,67 +209,6 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
       'Trạng thái thanh toán đã được cập nhật. Bạn có thể tiếp tục theo dõi trong tài khoản của mình.',
     title: 'Trạng thái thanh toán đã được cập nhật',
   }
-}
-
-export function clonePaymentValue(value) {
-  return JSON.parse(JSON.stringify(value))
-}
-
-export function normalizePaymentMethod(methodCode) {
-  const normalizedMethod = String(methodCode ?? '').trim().toLowerCase()
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.card ||
-    normalizedMethod === 'credit_card' ||
-    normalizedMethod === 'card'
-  ) {
-    return PAYMENT_METHOD_CODES.card
-  }
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.wallet ||
-    normalizedMethod === 'wallet' ||
-    normalizedMethod === 'bank_transfer' ||
-    normalizedMethod === 'momo' ||
-    normalizedMethod === 'vnpay'
-  ) {
-    return PAYMENT_METHOD_CODES.wallet
-  }
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.manualBankTransfer ||
-    normalizedMethod === 'manual-bank-transfer' ||
-    normalizedMethod === 'manual transfer'
-  ) {
-    return PAYMENT_METHOD_CODES.manualBankTransfer
-  }
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.cashAtOffice ||
-    normalizedMethod === 'cash_at_branch' ||
-    normalizedMethod === 'cash'
-  ) {
-    return PAYMENT_METHOD_CODES.cashAtOffice
-  }
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.staffCollect ||
-    normalizedMethod === 'staff_collecting'
-  ) {
-    return PAYMENT_METHOD_CODES.staffCollect
-  }
-
-  return PAYMENT_METHOD_CODES.card
-}
-
-export function normalizePhoneDisplay(phoneValue = '') {
-  const digitsOnly = String(phoneValue ?? '').replace(/\D/g, '')
-
-  if (digitsOnly.length === 10) {
-    return `${digitsOnly.slice(0, 3)} ${digitsOnly.slice(3, 6)} ${digitsOnly.slice(6)}`
-  }
-
-  return String(phoneValue ?? '').trim()
 }
 
 export function buildPaymentSummary(summary = {}) {
@@ -313,7 +330,7 @@ export function buildPaymentConfirmationViewModel({
   paymentSummary,
 } = {}) {
   return {
-    itemCountLabel: `${bookingItems.length} Mục`,
+    itemCountLabel: `${bookingItems.length} mục`,
     items: bookingItems.map((item) => ({
       ...item,
       duration_label: formatDurationLabel(item),
@@ -334,7 +351,6 @@ export function buildPaymentConfirmationViewModel({
 
 export function validatePaymentConfirmationForm({
   contactForm,
-  cardNumber,
   selectedPaymentMethod,
 } = {}) {
   const errors = {}
@@ -355,13 +371,6 @@ export function validatePaymentConfirmationForm({
 
   if (!normalizeText(selectedPaymentMethod)) {
     errors.selected_payment_method = 'Vui lòng chọn phương thức thanh toán.'
-  }
-
-  if (
-    normalizePaymentMethod(selectedPaymentMethod) === PAYMENT_METHOD_CODES.card &&
-    !normalizeText(cardNumber)
-  ) {
-    errors.card_number = 'Vui lòng nhập số thẻ thanh toán.'
   }
 
   return errors
@@ -507,7 +516,7 @@ export function buildPaymentSuccessViewModel(paymentSuccess = {}) {
     title: presentation.title,
     description: presentation.description,
     orderInfo: {
-      sectionTitle: 'Thông tin đơn đặt tour',
+      sectionTitle: 'Thông tin đơn đặt',
       leftColumn: [
         {
           label: 'Mã đơn hàng',
@@ -526,7 +535,7 @@ export function buildPaymentSuccessViewModel(paymentSuccess = {}) {
       ],
       rightColumn: [
         {
-          label: 'Tên tour',
+          label: 'Tên dịch vụ',
           value: paymentSuccess.booking?.service_title ?? '',
           tone: 'brand',
         },

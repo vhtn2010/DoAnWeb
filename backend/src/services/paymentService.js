@@ -9,7 +9,10 @@ const {
   PAYMENT_STATUS,
 } = require('../constants/domainConstraints');
 const { createPaymentRepository } = require('../database/paymentRepository');
-const { createSettingsRepository } = require('../database/settingsRepository');
+const {
+  createSettingsRepository,
+  isSettingsStorageUnavailableError,
+} = require('../database/settingsRepository');
 const AppError = require('../utils/AppError');
 
 const DEFAULT_CURRENCY = 'VND';
@@ -580,6 +583,26 @@ const normalizeDirectPaymentConfigShape = (inputConfig) => {
   };
 };
 
+const mergeDirectPaymentConfig = (baseConfig, overrideConfig) => {
+  const normalizedBaseConfig = normalizeDirectPaymentConfigShape(baseConfig);
+  const normalizedOverrideConfig = normalizeDirectPaymentConfigShape(overrideConfig);
+
+  return normalizeDirectPaymentConfig({
+    hotline: normalizedOverrideConfig.hotline || normalizedBaseConfig.hotline,
+    methods: DIRECT_PAYMENT_METHOD_VALUES.reduce((accumulator, code) => {
+      if (normalizedBaseConfig.methods[code] || normalizedOverrideConfig.methods[code]) {
+        accumulator[code] = {
+          ...(normalizedBaseConfig.methods[code] || {}),
+          ...(normalizedOverrideConfig.methods[code] || {}),
+          code,
+        };
+      }
+
+      return accumulator;
+    }, {}),
+  });
+};
+
 const normalizeDirectPaymentConfig = (config) => {
   const normalizedConfig = normalizeDirectPaymentConfigShape(config);
   const methods = DIRECT_PAYMENT_METHOD_VALUES.reduce((accumulator, code) => {
@@ -728,9 +751,19 @@ const createPaymentService = ({
       return directPaymentConfigCache;
     }
 
-    const settingsRecord = await settingsRepository.getDirectPaymentSettings();
-    const normalizedConfig = normalizeDirectPaymentConfig(
-      settingsRecord?.settings || directPayment,
+    let settingsRecord = null;
+
+    try {
+      settingsRecord = await settingsRepository.getDirectPaymentSettings();
+    } catch (error) {
+      if (!isSettingsStorageUnavailableError(error)) {
+        throw error;
+      }
+    }
+
+    const normalizedConfig = mergeDirectPaymentConfig(
+      directPayment,
+      settingsRecord?.settings || null,
     );
 
     directPaymentConfigCache = normalizedConfig;
@@ -1001,4 +1034,5 @@ module.exports = Object.assign(createPaymentService(), {
   SETTINGS_CACHE_SCOPE,
   createPaymentService,
   normalizeDirectPaymentConfig,
+  mergeDirectPaymentConfig,
 });

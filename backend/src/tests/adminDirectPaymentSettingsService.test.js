@@ -21,6 +21,7 @@ const createAuthContext = ({
 
 test('adminDirectPaymentSettingsService.getDirectPaymentSettings returns disabled defaults when store is empty', async () => {
   const service = createAdminDirectPaymentSettingsService({
+    directPaymentConfig: {},
     repository: {
       getDirectPaymentSettings: async () => ({
         metadata: {
@@ -98,6 +99,7 @@ test('adminDirectPaymentSettingsService.getDirectPaymentSettings returns disable
 
 test('adminDirectPaymentSettingsService.getDirectPaymentSettings falls back to defaults when storage is unavailable', async () => {
   const service = createAdminDirectPaymentSettingsService({
+    directPaymentConfig: {},
     repository: {
       getDirectPaymentSettings: async () => {
         throw new Error('settings_store is not available');
