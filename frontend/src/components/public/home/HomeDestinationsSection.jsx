@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 
 function buildHomeServiceDetailPath(service = {}) {
@@ -20,7 +21,7 @@ function buildHomeServiceDetailPath(service = {}) {
   return `/services/${service.slug}`
 }
 
-function DestinationCard({ service }) {
+function DestinationCard({ index, service }) {
   const modifierClass = {
     tall: 'home-destination-card--tall',
     small: 'home-destination-card--small',
@@ -32,8 +33,13 @@ function DestinationCard({ service }) {
     <Link
       className={`home-destination-card ${modifierClass ?? ''}`}
       to={detailPath}
-      style={{ backgroundImage: `url(${service.image_url})` }}
+      style={{ '--reveal-delay': `${index * 100}ms` }}
     >
+      <div
+        aria-hidden="true"
+        className="home-destination-card__media"
+        style={{ backgroundImage: `url(${service.image_url})` }}
+      />
       <div className="home-destination-card__overlay" />
       <div className="home-destination-card__content">
         {service.badge_text ? (
@@ -47,8 +53,25 @@ function DestinationCard({ service }) {
 }
 
 export default function HomeDestinationsSection({ destinations }) {
+  const sectionRef = useRef(null)
+
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return undefined
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        section.classList.add('home-section--visible')
+        observer.disconnect()
+      }
+    }, { threshold: 0.16 })
+
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <section className="home-section">
+    <section className="home-section home-section--reveal" ref={sectionRef}>
       <div className="home-section__heading">
         <span className="home-section__spark" aria-hidden="true" />
         <h2 className="home-section__title">Điểm Đến Tuyệt Diệu</h2>
@@ -59,8 +82,8 @@ export default function HomeDestinationsSection({ destinations }) {
       </div>
 
       <div className="home-destinations-grid">
-        {destinations.map((service) => (
-          <DestinationCard key={service.slug} service={service} />
+        {destinations.map((service, index) => (
+          <DestinationCard index={index} key={service.slug} service={service} />
         ))}
       </div>
     </section>

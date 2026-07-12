@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 function buildHomeServiceDetailPath(service = {}) {
@@ -31,11 +32,18 @@ function FlashSaleBoltIcon() {
   )
 }
 
-function FlashSaleCard({ formatCurrency, service }) {
+function FlashSaleCard({ formatCurrency, index, service }) {
   const detailPath = buildHomeServiceDetailPath(service)
 
   return (
-    <Link className="home-offer-card" to={detailPath}>
+    <Link
+      className="home-offer-card"
+      to={detailPath}
+      style={{ '--offer-delay': `${index * 120}ms` }}
+    >
+      <svg className="home-offer-card__outline" aria-hidden="true" preserveAspectRatio="none">
+        <rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="27" pathLength="1" />
+      </svg>
       <div className="home-offer-card__image-frame">
         <div
           aria-hidden="true"
@@ -69,8 +77,47 @@ export default function HomeFlashSaleSection({
   flashSaleServices,
   formatCurrency,
 }) {
+  const sectionRef = useRef(null)
+  const initialMinutes =
+    Number(flashSaleMeta.timer.days) * 24 * 60 +
+    Number(flashSaleMeta.timer.hours) * 60 +
+    Number(flashSaleMeta.timer.minutes)
+  const [remainingMinutes, setRemainingMinutes] = useState(initialMinutes)
+
+  useEffect(() => {
+    setRemainingMinutes(initialMinutes)
+  }, [initialMinutes])
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setRemainingMinutes((minutes) => Math.max(0, minutes - 1))
+    }, 60000)
+    return () => window.clearInterval(timerId)
+  }, [])
+
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return undefined
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        section.classList.add('home-flash-sale--visible')
+        observer.disconnect()
+      }
+    }, { threshold: 0.14 })
+
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
+  const timer = {
+    days: String(Math.floor(remainingMinutes / 1440)).padStart(2, '0'),
+    hours: String(Math.floor((remainingMinutes % 1440) / 60)).padStart(2, '0'),
+    minutes: String(remainingMinutes % 60).padStart(2, '0'),
+  }
+
   return (
-    <section className="home-flash-sale">
+    <section className="home-flash-sale home-flash-sale--reveal" ref={sectionRef}>
       <div className="home-flash-sale__glow" aria-hidden="true" />
       <div className="home-flash-sale__header">
         <div className="home-flash-sale__intro">
@@ -87,24 +134,25 @@ export default function HomeFlashSaleSection({
 
         <div className="home-flash-sale__timer">
           <div className="home-flash-sale__timer-unit">
-            <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.days}</span>
+            <span className="home-flash-sale__timer-value" key={`days-${timer.days}`}>{timer.days}</span>
             <span className="home-flash-sale__timer-label">{flashSaleMeta.day_label}</span>
           </div>
           <div className="home-flash-sale__timer-unit">
-            <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.hours}</span>
+            <span className="home-flash-sale__timer-value" key={`hours-${timer.hours}`}>{timer.hours}</span>
             <span className="home-flash-sale__timer-label">{flashSaleMeta.hour_label}</span>
           </div>
           <div className="home-flash-sale__timer-unit">
-            <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.minutes}</span>
+            <span className="home-flash-sale__timer-value" key={`minutes-${timer.minutes}`}>{timer.minutes}</span>
             <span className="home-flash-sale__timer-label">{flashSaleMeta.minute_label}</span>
           </div>
         </div>
       </div>
 
       <div className="home-flash-sale__offers">
-        {flashSaleServices.map((service) => (
+        {flashSaleServices.map((service, index) => (
           <FlashSaleCard
             formatCurrency={formatCurrency}
+            index={index}
             key={service.slug}
             service={service}
           />
