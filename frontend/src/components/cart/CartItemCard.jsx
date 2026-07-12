@@ -67,9 +67,7 @@ function CartItemCard({
             </div>
 
             <div className="cart-item-card__price-block">
-              <strong className="cart-item-card__price">
-                {formatCurrency(lineAmount)}
-              </strong>
+              <strong className="cart-item-card__price">{formatCurrency(lineAmount)}</strong>
               {shouldShowUnitPrice ? (
                 <span className="cart-item-card__price-note">
                   Đơn giá {formatCurrency(unitPrice)}
@@ -103,7 +101,11 @@ function CartItemCard({
                 +
               </button>
             </div>
-            <button className="cart-item-card__action" type="button" onClick={() => onEdit(item)}>
+            <button
+              className="cart-item-card__action cart-item-card__action--secondary"
+              type="button"
+              onClick={() => onEdit(item)}
+            >
               Chỉnh sửa
             </button>
             <button

@@ -110,6 +110,78 @@ const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
 
+const resolveCheckoutAvailabilityServiceType = (cartItem, service) => {
+  if (
+    service.service_type === SERVICE_TYPE.HOTEL &&
+    cartItem.service_type === SERVICE_TYPE.ROOM
+  ) {
+    return SERVICE_TYPE.HOTEL;
+  }
+
+  return service.service_type || cartItem.service_type;
+};
+
+const buildCheckoutAvailabilityOptions = (cartItem, service) => {
+  const options =
+    cartItem.options && typeof cartItem.options === 'object' && !Array.isArray(cartItem.options)
+      ? { ...cartItem.options }
+      : {};
+
+  if (service.service_type !== SERVICE_TYPE.HOTEL) {
+    return options;
+  }
+
+  if (options.adults == null) {
+    const adultCount =
+      options.adult_count ??
+      options.guest_count ??
+      options.guests;
+
+    if (adultCount != null && Number.isFinite(Number(adultCount))) {
+      options.adults = Number(adultCount);
+    }
+  }
+
+  if (options.children == null) {
+    const childCount = options.child_count ?? options.children_count;
+
+    if (childCount != null && Number.isFinite(Number(childCount))) {
+      options.children = Number(childCount);
+    }
+  }
+
+  return options;
+};
+
+const buildCheckoutAvailabilityBody = (
+  cartItem,
+  service,
+  {
+    includeSchedule = true,
+  } = {},
+) => ({
+  ...(includeSchedule ? {
+    end_at: cartItem.end_at,
+    start_at: cartItem.start_at,
+  } : {}),
+  options: buildCheckoutAvailabilityOptions(cartItem, service),
+  quantity: Number(cartItem.quantity),
+  reference_id: cartItem.reference_id,
+  service_type: resolveCheckoutAvailabilityServiceType(cartItem, service),
+});
+
+const isCheckoutAvailabilityScheduleValidationError = (error) => {
+  if (error?.code !== API_ERROR_CODES.VALIDATION_ERROR) {
+    return false;
+  }
+
+  const details = Array.isArray(error.details) ? error.details : [];
+
+  return details.some((detail) =>
+    detail?.field === 'start_at' || detail?.field === 'end_at',
+  );
+};
+
 const parseUuid = (field, value) => {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value.trim())) {
     throw buildValidationError(field, `${field} must be a valid UUID`);
@@ -1295,18 +1367,32 @@ const createBookingService = ({
 
       try {
         availabilityResult = await resolvedAvailabilityService.getServiceAvailability({
-          body: {
-            end_at: cartItem.end_at,
-            options: cartItem.options || {},
-            quantity: Number(cartItem.quantity),
-            reference_id: cartItem.reference_id,
-            service_type: cartItem.service_type,
-            start_at: cartItem.start_at,
-          },
+          body: buildCheckoutAvailabilityBody(cartItem, service),
           service_id: cartItem.service_id,
         });
       } catch (error) {
-        if (
+        if (isCheckoutAvailabilityScheduleValidationError(error)) {
+          try {
+            availabilityResult = await resolvedAvailabilityService.getServiceAvailability({
+              body: buildCheckoutAvailabilityBody(cartItem, service, {
+                includeSchedule: false,
+              }),
+              service_id: cartItem.service_id,
+            });
+          } catch (retryError) {
+            if (
+              retryError?.code === API_ERROR_CODES.VALIDATION_ERROR ||
+              retryError?.code === API_ERROR_CODES.RESOURCE_NOT_FOUND
+            ) {
+              throw buildCartItemUnavailableError(
+                cartItem.id,
+                'A cart item can no longer be checked for availability',
+              );
+            }
+
+            throw retryError;
+          }
+        } else if (
           error?.code === API_ERROR_CODES.VALIDATION_ERROR ||
           error?.code === API_ERROR_CODES.RESOURCE_NOT_FOUND
         ) {
@@ -1314,9 +1400,9 @@ const createBookingService = ({
             cartItem.id,
             'A cart item can no longer be checked for availability',
           );
+        } else {
+          throw error;
         }
-
-        throw error;
       }
 
       if (!availabilityResult.available) {

@@ -53,49 +53,49 @@ function PublicHeaderActions({
         {isCustomer ? (
           <>
             <PublicHeaderIconAction
-          badgeCount={notificationCount}
-          isActive={isNotificationPreview}
-          label={notificationCount ? `Thông báo (${notificationCount})` : 'Thông báo'}
-          to={notificationPath}
-        >
-          <path
-            d="M7 10a5 5 0 1 1 10 0v3.06c0 .69.22 1.37.62 1.93l.88 1.23a1 1 0 0 1-.81 1.58H6.31a1 1 0 0 1-.81-1.58l.88-1.23A3.33 3.33 0 0 0 7 13.06V10Z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          />
-          <path
-            d="M10 18.5a2 2 0 0 0 4 0"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeWidth="1.8"
-          />
-        </PublicHeaderIconAction>
+              badgeCount={notificationCount}
+              isActive={isNotificationPreview}
+              label={notificationCount ? `Thông báo (${notificationCount})` : 'Thông báo'}
+              to={notificationPath}
+            >
+              <path
+                d="M6.75 10.2a5.25 5.25 0 0 1 10.5 0v2.65c0 1.06.33 2.09.95 2.94l.48.66H5.32l.48-.66c.62-.85.95-1.88.95-2.94V10.2Z"
+                stroke="currentColor"
+                strokeLinejoin="round"
+                strokeWidth="2"
+              />
+              <path
+                d="M10 18.35a2.1 2.1 0 0 0 4 0"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth="2"
+              />
+            </PublicHeaderIconAction>
 
-        <PublicHeaderIconAction
-          badgeCount={favoriteCount}
-          isActive={isFavoritePreview}
-          label={favoriteCount ? `Yêu thích (${favoriteCount})` : 'Yêu thích'}
-          to={favoritePath}
-        >
-          <path
-            d="m12 19.2-.92-.84C6.18 13.9 3 11.02 3 7.5a4.2 4.2 0 0 1 4.28-4.2c1.69 0 3.31.8 4.32 2.07A5.5 5.5 0 0 1 15.92 3.3 4.2 4.2 0 0 1 20.2 7.5c0 3.52-3.18 6.4-8.08 10.86l-.12.12Z"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.8"
-          />
-        </PublicHeaderIconAction>
+            <PublicHeaderIconAction
+              badgeCount={favoriteCount}
+              isActive={isFavoritePreview}
+              label={favoriteCount ? `Yêu thích (${favoriteCount})` : 'Yêu thích'}
+              to={favoritePath}
+            >
+              <path
+                d="M12 19.25 5.48 12.7C3.86 11.08 3.45 8.58 4.5 6.7a4.02 4.02 0 0 1 6.36-.8L12 7.05l1.14-1.15a4.02 4.02 0 0 1 6.36.8c1.05 1.88.64 4.38-.98 6L12 19.25Z"
+                stroke="currentColor"
+                strokeLinejoin="round"
+                strokeWidth="2"
+              />
+            </PublicHeaderIconAction>
 
             <PublicHeaderIconAction label="Giỏ hàng" to={customerCartPath}>
               <path
-                d="M3.75 5.25h1.7l1.05 5.26a1 1 0 0 0 .98.8h8.76a1 1 0 0 0 .97-.76l1.3-5.3H7.06"
+                d="M3.75 5.4h2.1l1.34 8.1h9.04a1.2 1.2 0 0 0 1.15-.85l1.7-5.55H7.08"
                 stroke="currentColor"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth="1.8"
+                strokeWidth="2"
               />
-              <circle cx="9.2" cy="18.2" fill="currentColor" r="1.3" />
-              <circle cx="16.1" cy="18.2" fill="currentColor" r="1.3" />
+              <circle cx="9.2" cy="18.1" fill="currentColor" r="1.45" />
+              <circle cx="16.15" cy="18.1" fill="currentColor" r="1.45" />
             </PublicHeaderIconAction>
 
             <span className="public-header__profile">

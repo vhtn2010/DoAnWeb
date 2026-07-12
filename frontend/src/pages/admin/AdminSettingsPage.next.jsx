@@ -335,7 +335,7 @@ function AdminSettingsPage() {
         }
 
         if (!publicResponse?.success || !businessResponse?.success || !directPaymentResponse?.success) {
-          throw new Error('Khong the tai cau hinh he thong.')
+          throw new Error('Không thể tải cấu hình hệ thống.')
         }
 
         const publicSettings = publicResponse.data || {}
@@ -376,7 +376,7 @@ function AdminSettingsPage() {
           return
         }
 
-        setError(getErrorMessage(loadError, 'Khong the tai cau hinh he thong.'))
+        setError(getErrorMessage(loadError, 'Không thể tải cấu hình hệ thống.'))
       } finally {
         if (isActive) {
           setLoading(false)
@@ -471,7 +471,7 @@ function AdminSettingsPage() {
       }
     } catch (saveError) {
       setFieldErrors(mapValidationDetails(saveError?.details, activeTabId))
-      setError(getErrorMessage(saveError, 'Khong the luu cau hinh he thong.'))
+      setError(getErrorMessage(saveError, 'Không thể lưu cấu hình hệ thống.'))
     } finally {
       setSaving(false)
     }

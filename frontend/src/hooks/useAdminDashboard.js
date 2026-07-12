@@ -56,7 +56,7 @@ export default function useAdminDashboard() {
         }
 
         if (!response.success || !response.data) {
-          throw new Error(response.message || 'Khong the tai du lieu dashboard luc nay.')
+          throw new Error(response.message || 'Không thể tải dữ liệu dashboard lúc này.')
         }
 
         setDashboardState(mapAdminDashboardData(response.data, { range: selectedRange }))
@@ -66,7 +66,7 @@ export default function useAdminDashboard() {
           return
         }
 
-        const nextMessage = loadError?.message ?? 'Khong the tai du lieu dashboard luc nay.'
+        const nextMessage = loadError?.message ?? 'Không thể tải dữ liệu dashboard lúc này.'
         setError(nextMessage)
         setFeedback(createAdminDashboardFeedback('error', nextMessage))
       } finally {

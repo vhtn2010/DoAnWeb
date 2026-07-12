@@ -12,6 +12,21 @@ function TravelIcon() {
   )
 }
 
+function ArrowRightIcon() {
+  return (
+    <svg aria-hidden="true" className="checkout-special-card__baggage-arrow" viewBox="0 0 16 16">
+      <path
+        d="M2.5 8h10M9 4.5 12.5 8 9 11.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
 function CheckoutSpecialRequestCard({
   baggageSelection,
   errors,
@@ -22,7 +37,7 @@ function CheckoutSpecialRequestCard({
   termsAccepted,
 }) {
   return (
-    <section className="checkout-form-card">
+    <section className="checkout-form-card checkout-form-card--special">
       <div className="checkout-form-card__header">
         <span aria-hidden="true" className="checkout-form-card__icon">
           <TravelIcon />
@@ -44,7 +59,10 @@ function CheckoutSpecialRequestCard({
             onClick={() => onBaggageToggle('baggage_departure')}
           >
             <span>Chiều đi</span>
-            <span>{baggageSelection.baggage_departure ? 'Đã thêm hành lý' : 'Thêm hành lý ->'}</span>
+            <span className="checkout-special-card__baggage-action">
+              {baggageSelection.baggage_departure ? 'Đã thêm hành lý' : 'Thêm hành lý'}
+              <ArrowRightIcon />
+            </span>
           </button>
 
           <button
@@ -57,7 +75,10 @@ function CheckoutSpecialRequestCard({
             onClick={() => onBaggageToggle('baggage_return')}
           >
             <span>Chiều về</span>
-            <span>{baggageSelection.baggage_return ? 'Đã thêm hành lý' : 'Thêm hành lý ->'}</span>
+            <span className="checkout-special-card__baggage-action">
+              {baggageSelection.baggage_return ? 'Đã thêm hành lý' : 'Thêm hành lý'}
+              <ArrowRightIcon />
+            </span>
           </button>
         </div>
       </div>
@@ -67,7 +88,7 @@ function CheckoutSpecialRequestCard({
         <textarea
           className="checkout-form-card__textarea"
           name="note"
-          placeholder="Ghi chú về dị ứng thực phẩm, yêu cầu về chỗ ngồi,..."
+          placeholder="Ghi chú về dị ứng thực phẩm, yêu cầu chỗ ngồi hoặc nhu cầu đặc biệt khác..."
           rows="5"
           value={note}
           onChange={onTextareaChange}
@@ -77,9 +98,7 @@ function CheckoutSpecialRequestCard({
       <label className="checkout-special-card__terms">
         <input checked={termsAccepted} name="accepted_terms" type="checkbox" onChange={onCheckboxChange} />
         <span>
-          Tôi đồng ý với{' '}
-          <strong>Điều khoản & Chính sách bảo mật</strong>
-          {' '}của Nét Việt.
+          Tôi đồng ý với <strong>Điều khoản & Chính sách bảo mật</strong> của Nét Việt.
         </span>
       </label>
       {errors.accepted_terms ? (

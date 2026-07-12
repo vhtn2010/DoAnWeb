@@ -8,6 +8,8 @@ import useCart from '../../hooks/useCart.js'
 function CartPage() {
   const {
     appliedVoucher,
+    availableVouchers,
+    canApplyVoucherSelection,
     canContinue,
     cartItems,
     error,
@@ -15,9 +17,11 @@ function CartPage() {
     formattedSummary,
     handleApplyVoucher,
     handleClearCart,
+    handleCloseVoucherPicker,
     handleContinueCheckout,
     handleEditItem,
     handleGoBack,
+    handleOpenVoucherPicker,
     handleQuantityChange,
     handleRemoveItem,
     handleRemoveVoucher,
@@ -26,12 +30,15 @@ function CartPage() {
     isAllSelected,
     isCustomer,
     isVoucherLoading,
+    isVoucherPickerOpen,
+    isVoucherWalletLoading,
     loading,
+    loadVoucherWallet,
     reloadCart,
     selectedItemIds,
-    setVoucherCode,
     updatingItemIds,
-    voucherCode,
+    voucherWallet,
+    voucherWalletError,
   } = useCart()
 
   return (
@@ -44,12 +51,14 @@ function CartPage() {
         <CartItemsSection
           cartItems={cartItems}
           error={error}
+          handleClearCart={handleClearCart}
           handleEditItem={handleEditItem}
           handleQuantityChange={handleQuantityChange}
           handleRemoveItem={handleRemoveItem}
           handleToggleAll={handleToggleAll}
           handleToggleItem={handleToggleItem}
           isAllSelected={isAllSelected}
+          isBusy={isVoucherLoading}
           loading={loading}
           reloadCart={reloadCart}
           selectedItemIds={selectedItemIds}
@@ -59,20 +68,27 @@ function CartPage() {
         <aside className="cart-page__sidebar">
           <CartSummaryCard
             appliedVoucher={appliedVoucher}
+            availableVoucherCount={availableVouchers.length}
+            canApplyVoucherSelection={canApplyVoucherSelection}
             feedbackHint={
               isCustomer
                 ? 'Chọn dịch vụ muốn đặt, kiểm tra lại ở bước xác nhận rồi nhập thông tin đặt đơn.'
                 : 'Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo.'
             }
             isContinueDisabled={!canContinue}
+            isCustomer={isCustomer}
             isVoucherLoading={isVoucherLoading}
+            isVoucherPickerOpen={isVoucherPickerOpen}
+            isVoucherWalletLoading={isVoucherWalletLoading}
             onApplyVoucher={handleApplyVoucher}
-            onChangeVoucherCode={setVoucherCode}
-            onClearCart={handleClearCart}
+            onCloseVoucherPicker={handleCloseVoucherPicker}
             onContinue={handleContinueCheckout}
+            onOpenVoucherPicker={handleOpenVoucherPicker}
+            onReloadVoucherWallet={() => loadVoucherWallet({ force: true })}
             onRemoveVoucher={handleRemoveVoucher}
             summary={formattedSummary}
-            voucherCode={voucherCode}
+            voucherWallet={voucherWallet}
+            voucherWalletError={voucherWalletError}
           />
 
           <CartBenefitsPanel />

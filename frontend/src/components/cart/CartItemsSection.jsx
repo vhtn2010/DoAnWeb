@@ -30,12 +30,14 @@ function CartBasketIcon() {
 export default function CartItemsSection({
   cartItems,
   error,
+  handleClearCart,
   handleEditItem,
   handleQuantityChange,
   handleRemoveItem,
   handleToggleAll,
   handleToggleItem,
   isAllSelected,
+  isBusy = false,
   loading,
   reloadCart,
   selectedItemIds,
@@ -53,15 +55,26 @@ export default function CartItemsSection({
 
         <div className="cart-list-card__header-actions">
           {cartItems.length > 0 ? (
-            <button
-              className="cart-item-card__action"
-              type="button"
-              onClick={handleToggleAll}
-            >
-              {isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-            </button>
+            <>
+              <button
+                className="cart-item-card__action cart-item-card__action--ghost"
+                type="button"
+                onClick={handleToggleAll}
+              >
+                {isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+              </button>
+
+              <button
+                className="cart-item-card__action cart-item-card__action--ghost cart-item-card__action--subtle-danger"
+                disabled={isBusy}
+                type="button"
+                onClick={handleClearCart}
+              >
+                Xóa giỏ hàng
+              </button>
+            </>
           ) : null}
-          <span className="cart-list-card__pill">{cartItems.length} Mục</span>
+          <span className="cart-list-card__pill">{cartItems.length} mục</span>
         </div>
       </div>
 

@@ -288,6 +288,120 @@ test('bookingService.checkout creates a pending_payment booking from an active c
   assert.equal(result.items.length, 2);
 });
 
+test('bookingService.checkout checks legacy room cart items as hotel availability', async () => {
+  let availabilityBody = null;
+  let createCheckoutPayload = null;
+  const service = bookingService.createBookingService({
+    availabilityService: {
+      getServiceAvailability: async ({ body, service_id: serviceId }) => {
+        assert.equal(serviceId, HOTEL_SERVICE_ID);
+        availabilityBody = body;
+
+        return {
+          available: true,
+          available_quantity: 3,
+          currency: 'VND',
+          issues: [],
+          total_amount: 2400000,
+          unit_price: 1200000,
+        };
+      },
+    },
+    repository: {
+      createCheckout: async (payload) => {
+        createCheckoutPayload = payload;
+
+        return {
+          booking: {
+            booking_code: payload.booking.booking_code,
+            contact_email: payload.booking.contact_email,
+            contact_name: payload.booking.contact_name,
+            contact_phone: payload.booking.contact_phone,
+            currency: payload.booking.currency,
+            discount_amount: payload.booking.discount_amount,
+            expires_at: payload.booking.expires_at,
+            id: 'booking-room-legacy-1',
+            note: payload.booking.note,
+            status: payload.booking.status,
+            subtotal_amount: payload.booking.subtotal_amount,
+            total_amount: payload.booking.total_amount,
+            voucher_id: payload.booking.voucher_id,
+          },
+          items: payload.bookingItems.map((item, index) => ({
+            id: `booking-room-legacy-item-${index + 1}`,
+            service_type: item.service_type,
+          })),
+        };
+      },
+      getCartById: async () => ({
+        id: CART_ID,
+        status: 'active',
+        user_id: CUSTOMER_ID,
+      }),
+      getPublicServiceById: async () => ({
+        base_price: '1500000',
+        cancellation_policy: null,
+        currency: 'VND',
+        id: HOTEL_SERVICE_ID,
+        location_text: 'Hoi An',
+        provider_name: 'Net Viet Travel',
+        sale_price: null,
+        service_code: 'HOTEL001',
+        service_type: 'hotel',
+        short_description: 'Hotel short',
+        slug: 'hotel-hoi-an',
+        title: 'Hotel Hoi An',
+      }),
+      getRoomTypeById: async (roomTypeId) => ({
+        available_rooms: '3',
+        base_price: '1200000',
+        bed_type: 'queen',
+        id: roomTypeId,
+        max_adults: '2',
+        max_children: '1',
+        name: 'Deluxe Room',
+      }),
+      listCartItemsByCartId: async () => [
+        {
+          created_at: '2026-06-30T01:05:00.000Z',
+          end_at: '2026-08-03T10:00:00.000Z',
+          id: CART_ITEM_2_ID,
+          options: {
+            guest_count: 2,
+          },
+          quantity: 1,
+          reference_id: ROOM_TYPE_ID,
+          service_id: HOTEL_SERVICE_ID,
+          service_type: 'room',
+          start_at: '2026-08-01T14:00:00.000Z',
+          unit_price_snapshot: '1200000',
+        },
+      ],
+    },
+  });
+
+  const result = await service.checkout({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    body: {
+      cart_id: CART_ID,
+      contact_email: 'customer@example.com',
+      contact_name: 'Nguyen Van A',
+      contact_phone: '+84901234567',
+    },
+    headers: {
+      'idempotency-key': 'checkout-room-legacy-001',
+    },
+  });
+
+  assert.equal(availabilityBody.service_type, 'hotel');
+  assert.equal(availabilityBody.options.adults, 2);
+  assert.equal(createCheckoutPayload.bookingItems[0].service_type, 'hotel');
+  assert.equal(result.items[0].service_type, 'hotel');
+});
+
 test('bookingService.checkout only converts selected cart items when provided', async () => {
   let createCheckoutPayload = null;
   const service = bookingService.createBookingService({
@@ -566,6 +680,134 @@ test('bookingService.checkout returns CART_ITEM_NOT_AVAILABLE when availability 
       return true;
     },
   );
+});
+
+test('bookingService.checkout retries availability without stale schedule fields', async () => {
+  const availabilityBodies = [];
+  let createCheckoutPayload = null;
+  const service = bookingService.createBookingService({
+    availabilityService: {
+      getServiceAvailability: async ({ body }) => {
+        availabilityBodies.push(body);
+
+        if (availabilityBodies.length === 1) {
+          const error = new Error('Validation failed');
+          error.code = API_ERROR_CODES.VALIDATION_ERROR;
+          error.details = [
+            {
+              field: 'start_at',
+              message: 'start_at must be in the future',
+            },
+          ];
+          throw error;
+        }
+
+        return {
+          available: true,
+          available_quantity: 6,
+          currency: 'VND',
+          issues: [],
+          total_amount: 4500000,
+          unit_price: 4500000,
+        };
+      },
+    },
+    repository: {
+      createCheckout: async (payload) => {
+        createCheckoutPayload = payload;
+
+        return {
+          booking: {
+            booking_code: payload.booking.booking_code,
+            contact_email: payload.booking.contact_email,
+            contact_name: payload.booking.contact_name,
+            contact_phone: payload.booking.contact_phone,
+            currency: payload.booking.currency,
+            discount_amount: payload.booking.discount_amount,
+            expires_at: payload.booking.expires_at,
+            id: 'booking-stale-schedule',
+            note: payload.booking.note,
+            status: payload.booking.status,
+            subtotal_amount: payload.booking.subtotal_amount,
+            total_amount: payload.booking.total_amount,
+            voucher_id: payload.booking.voucher_id,
+          },
+          items: payload.bookingItems.map((item, index) => ({
+            end_at: item.end_at,
+            id: `booking-item-stale-${index + 1}`,
+            quantity: item.quantity,
+            reference_id: item.reference_id,
+            service_id: item.service_id,
+            service_type: item.service_type,
+            start_at: item.start_at,
+            status: item.status,
+            title_snapshot: item.title_snapshot,
+            total_amount: item.total_amount,
+            traveller_info: item.traveller_info,
+            unit_price: item.unit_price,
+          })),
+        };
+      },
+      getCartById: async () => ({
+        id: CART_ID,
+        status: 'active',
+        user_id: CUSTOMER_ID,
+      }),
+      getPublicServiceById: async () => ({
+        base_price: '4500000',
+        cancellation_policy: 'Free cancellation',
+        currency: 'VND',
+        description: 'Tour description',
+        id: TOUR_SERVICE_ID,
+        location_text: 'Ha Long',
+        provider_name: 'Net Viet Travel',
+        sale_price: null,
+        service_code: 'TOUR001',
+        service_type: 'tour',
+        short_description: 'Tour short',
+        slug: 'tour-ha-long',
+        title: 'Tour Ha Long',
+      }),
+      listCartItemsByCartId: async () => [
+        {
+          created_at: '2026-06-30T01:00:00.000Z',
+          end_at: '2026-07-11T00:00:00.000Z',
+          id: CART_ITEM_1_ID,
+          options: null,
+          quantity: 1,
+          reference_id: null,
+          service_id: TOUR_SERVICE_ID,
+          service_type: 'tour',
+          start_at: '2026-07-10T00:00:00.000Z',
+          unit_price_snapshot: '4500000',
+        },
+      ],
+    },
+  });
+
+  const result = await service.checkout({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    body: {
+      cart_id: CART_ID,
+      contact_email: 'customer@example.com',
+      contact_name: 'Nguyen Van A',
+      contact_phone: '+84901234567',
+    },
+    headers: {
+      'idempotency-key': 'checkout-stale-schedule-1',
+    },
+  });
+
+  assert.equal(availabilityBodies.length, 2);
+  assert.equal(availabilityBodies[0].start_at, '2026-07-10T00:00:00.000Z');
+  assert.equal(Object.hasOwn(availabilityBodies[1], 'start_at'), false);
+  assert.equal(Object.hasOwn(availabilityBodies[1], 'end_at'), false);
+  assert.equal(result.status, BOOKING_STATUS.PENDING_PAYMENT);
+  assert.equal(result.subtotal_amount, 4500000);
+  assert.equal(createCheckoutPayload.bookingItems[0].start_at, '2026-07-10T00:00:00.000Z');
 });
 
 test('bookingService.checkout rejects expired vouchers', async () => {

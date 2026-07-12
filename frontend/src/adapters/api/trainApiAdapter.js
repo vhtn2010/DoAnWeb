@@ -237,7 +237,7 @@ function mapSearchRecordToTrain(record = {}) {
     description: '',
     provider_name: '',
     train_number: record.train_number ?? '',
-    train_name: 'Chuyen tau',
+    train_name: 'Chuyến tàu',
     departure_station: departureStation?.station_name ?? record.departure_station ?? '',
     departure_station_code:
       departureStation?.code ?? String(record.departure_station ?? '').trim(),
@@ -283,13 +283,13 @@ function mapServiceDetailToTrain(service = {}) {
     service_id: service.id ?? '',
     service_code: service.service_code ?? '',
     service_type: SERVICE_TYPES.train,
-    title: service.title ?? 'Chuyen tau dang cap nhat',
+    title: service.title ?? 'Chuyến tàu dang cap nhat',
     slug: service.slug ?? '',
     short_description: service.short_description ?? '',
     description: service.description ?? '',
     provider_name: service.provider_name ?? '',
     train_number: detail.train_number ?? '',
-    train_name: service.title ?? 'Chuyen tau',
+    train_name: service.title ?? 'Chuyến tàu',
     departure_station: departureStation?.station_name ?? detail.departure_station ?? '',
     departure_station_code:
       departureStation?.code ?? String(detail.departure_station ?? '').trim(),
@@ -540,7 +540,7 @@ export async function getTrainDetailBySlug(slug, { reference_id = '' } = {}) {
   if (!service || service.service_type !== SERVICE_TYPES.train) {
     return {
       success: false,
-      message: 'Khong tim thay chuyen tau.',
+      message: 'Không tìm thấy chuyến tàu.',
       data: null,
     }
   }
@@ -591,7 +591,7 @@ export async function checkTrainAvailability({
   if (!selected_train_id || !reference_id) {
     return {
       success: false,
-      message: 'Khong the kiem tra cho cho chuyen tau nay.',
+      message: 'Không thể kiểm tra chỗ cho chuyến tàu này.',
       data: null,
     }
   }
@@ -633,7 +633,7 @@ export async function buildTrainSelectionPayload(
   if (!train || train.service_type !== SERVICE_TYPES.train) {
     return {
       success: false,
-      message: 'Khong the chuan bi du lieu chuyen tau.',
+      message: 'Không thể chuẩn bị dữ liệu chuyến tàu.',
       data: null,
     }
   }
@@ -641,7 +641,7 @@ export async function buildTrainSelectionPayload(
   if (!train.reference_id) {
     return {
       success: false,
-      message: 'Chuyen tau hien chua co ma cho de dat ve.',
+      message: 'Chuyến tàu hien chua co ma cho de dat ve.',
       data: null,
     }
   }
@@ -670,7 +670,7 @@ export async function buildTrainSelectionPayload(
   if (!selectedSeats.length) {
     return {
       success: false,
-      message: 'Vui long chon cho truoc khi tiep tuc.',
+      message: 'Vui lòng chọn chỗ trước khi tiếp tục.',
       data: null,
     }
   }
@@ -689,7 +689,7 @@ export async function buildTrainSelectionPayload(
 
   return {
     success: true,
-    message: 'Da chuan bi du lieu chuyen tau.',
+    message: 'Đã chuẩn bị dữ liệu chuyến tàu.',
     data: {
       end_at: train.arrival_at,
       options: {

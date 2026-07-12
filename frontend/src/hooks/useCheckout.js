@@ -24,6 +24,36 @@ function clearFieldError(currentErrors, fieldName) {
   return nextErrors
 }
 
+function resolveCheckoutSubmitError(error) {
+  if (error?.code === 'CART_ITEM_NOT_AVAILABLE') {
+    return 'Dịch vụ trong giỏ hàng vừa được cập nhật trạng thái. Vui lòng quay lại giỏ hàng kiểm tra lại số lượng hoặc ngày đi rồi thanh toán lại.'
+  }
+
+  if (error?.code === 'CART_EMPTY') {
+    return 'Giỏ hàng hiện không còn dịch vụ nào để thanh toán.'
+  }
+
+  return error?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.'
+}
+
+function resolveReadableCheckoutSubmitError(error) {
+  const fallbackMessage = resolveCheckoutSubmitError(error)
+
+  if (!error?.code && !error?.message) {
+    return fallbackMessage
+  }
+
+  if (error?.code === 'CART_ITEM_NOT_AVAILABLE') {
+    return 'Dịch vụ trong giỏ hàng hiện không còn đủ điều kiện thanh toán. Vui lòng kiểm tra lại số lượng hoặc ngày đi trong giỏ hàng rồi thử lại.'
+  }
+
+  if (error?.code === 'CART_EMPTY') {
+    return 'Giỏ hàng hiện không còn dịch vụ nào để thanh toán.'
+  }
+
+  return error?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.'
+}
+
 export default function useCheckout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -286,7 +316,7 @@ export default function useCheckout() {
       })
 
       if (!response.success || !response.data) {
-        setSubmitFeedback(response.message ?? 'Khong the chuan bi buoc thanh toan luc nay.')
+        setSubmitFeedback(response.message ?? 'Không thể chuẩn bị bước thanh toán lúc này.')
         return
       }
 
@@ -294,18 +324,18 @@ export default function useCheckout() {
       navigate(
         preserveAuthQuery('/payment-confirmation'),
         {
-        state: {
-          booking: response.data,
-          bookingCode: response.data.booking_code,
-          bookingId: response.data.id,
-          bookingItems: response.data.items ?? [],
-          checkoutPayload: response.data.checkout_payload ?? checkoutPayload,
-          selectedCartItemIds,
-        },
+          state: {
+            booking: response.data,
+            bookingCode: response.data.booking_code,
+            bookingId: response.data.id,
+            bookingItems: response.data.items ?? [],
+            checkoutPayload: response.data.checkout_payload ?? checkoutPayload,
+            selectedCartItemIds,
+          },
         },
       )
     } catch (submitError) {
-      setSubmitFeedback(submitError?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.')
+      setSubmitFeedback(resolveReadableCheckoutSubmitError(submitError))
     }
   }
 

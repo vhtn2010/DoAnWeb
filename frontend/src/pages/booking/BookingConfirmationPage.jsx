@@ -1,19 +1,15 @@
 import BookingChoiceCard from '../../components/booking/BookingChoiceCard.jsx'
 import BookingDetailSummary from '../../components/booking/BookingDetailSummary.jsx'
-import BookingSelfServicePanel from '../../components/booking/BookingSelfServicePanel.jsx'
 import BookingStepper from '../../components/booking/BookingStepper.jsx'
-import BookingTrustCards from '../../components/booking/BookingTrustCards.jsx'
 import useBookingConfirmation from '../../hooks/useBookingConfirmation.js'
 
 function BookingConfirmationPage() {
   const {
     actions,
-    authState,
     booking,
     error,
     feedback,
     loading,
-    selfService,
     viewModel,
   } = useBookingConfirmation()
 
@@ -78,13 +74,6 @@ function BookingConfirmationPage() {
                 onCopyBookingCode={actions.copyBookingCode}
                 summary={viewModel.summary}
               />
-              <BookingSelfServicePanel
-                actions={actions}
-                authState={authState}
-                booking={booking}
-                selfService={selfService}
-              />
-              <BookingTrustCards />
             </aside>
           </div>
         ) : null}

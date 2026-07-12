@@ -297,12 +297,12 @@ export default function useBookingConfirmation() {
 
   function removeBookingItem(itemId) {
     if (isCheckoutDraftConfirmation) {
-      setFeedback('Vui long quay lai gio hang de bo chon hoac xoa dich vu nay.')
+      setFeedback('Vui lòng quay lại giỏ hàng để bỏ chọn hoặc xóa dịch vụ này.')
       return
     }
 
     setFeedback(
-      `Backend customer hiện chưa hỗ trợ xóa trực tiếp mục ${itemId} sau khi checkout. Bạn có thể mở hỗ trợ để được xử lý tiếp.`,
+      `Hiện hệ thống chưa hỗ trợ xóa trực tiếp mục ${itemId} sau khi checkout. Bạn có thể mở hỗ trợ để được xử lý tiếp.`,
     )
   }
 

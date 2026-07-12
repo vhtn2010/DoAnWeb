@@ -97,20 +97,23 @@ function CheckoutSummaryCard({
 
       <div className="checkout-summary-card__body">
         <div className="checkout-summary-card__meta-list">
-          <div className="checkout-summary-card__meta-item">
-            <SummaryMetaIcon type="calendar" />
-            <span>{dateRange}</span>
+          <div className="checkout-summary-card__meta-row">
+            <div className="checkout-summary-card__meta-item">
+              <SummaryMetaIcon type="calendar" />
+              <span>{dateRange}</span>
+            </div>
+            <strong className="checkout-summary-card__meta-value">
+              {summaryService.options.duration_text}
+            </strong>
           </div>
-          <div className="checkout-summary-card__meta-item">
-            <SummaryMetaIcon type="duration" />
-            <span>{summaryService.options.duration_text}</span>
-          </div>
-          <div className="checkout-summary-card__meta-item">
-            <SummaryMetaIcon type="travellers" />
-            <span>Hành khách</span>
-          </div>
-          <div className="checkout-summary-card__meta-value">
-            {String(travellerCount).padStart(2, '0')} Người lớn
+          <div className="checkout-summary-card__meta-row">
+            <div className="checkout-summary-card__meta-item">
+              <SummaryMetaIcon type="travellers" />
+              <span>Hành khách</span>
+            </div>
+            <strong className="checkout-summary-card__meta-value">
+              {String(travellerCount).padStart(2, '0')} Người lớn
+            </strong>
           </div>
         </div>
 

@@ -9,6 +9,7 @@ import {
   updateCartItem,
   validateCart,
 } from '../repositories/cartRepository.js'
+import { getCurrentUserVouchers } from '../repositories/profileRepository.js'
 import {
   createCartSummaryFromItems,
   createCartSummaryPayload,
@@ -26,6 +27,12 @@ const EMPTY_SUMMARY = Object.freeze({
   total_amount: 0,
   currency: 'VND',
   selected_item_count: 0,
+})
+
+const voucherDateFormatter = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
 })
 
 function createFeedbackState(tone = 'info', message = '') {
@@ -68,6 +75,89 @@ function normalizeServerSummary(summary = {}, fallbackItemCount = 0) {
   }
 }
 
+function formatVoucherDate(value) {
+  const parsedDate = value ? new Date(value) : null
+
+  if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+    return ''
+  }
+
+  return voucherDateFormatter.format(parsedDate)
+}
+
+function formatVoucherDiscountLabel(voucher = {}) {
+  if (voucher.discount_type === 'percent') {
+    const percentValue = Number(voucher.discount_value || 0)
+    const maxDiscountLabel = voucher.max_discount_amount
+      ? `, tối đa ${formatCurrencyVND(voucher.max_discount_amount)}`
+      : ''
+
+    return `${percentValue}%${maxDiscountLabel}`
+  }
+
+  return formatCurrencyVND(voucher.discount_value)
+}
+
+function formatVoucherMinOrderLabel(voucher = {}) {
+  const minOrderAmount = Number(voucher.min_order_amount || 0)
+
+  if (minOrderAmount <= 0) {
+    return 'Không yêu cầu đơn tối thiểu'
+  }
+
+  return `Đơn từ ${formatCurrencyVND(minOrderAmount)}`
+}
+
+function formatVoucherTargetLabel(serviceType) {
+  if (serviceType === SERVICE_TYPES.flight) {
+    return 'Áp dụng cho vé máy bay'
+  }
+
+  if (serviceType === SERVICE_TYPES.train) {
+    return 'Áp dụng cho vé tàu'
+  }
+
+  if (serviceType === SERVICE_TYPES.hotel || serviceType === SERVICE_TYPES.room) {
+    return 'Áp dụng cho khách sạn'
+  }
+
+  if (serviceType === SERVICE_TYPES.tour) {
+    return 'Áp dụng cho tour'
+  }
+
+  if (serviceType === SERVICE_TYPES.combo) {
+    return 'Áp dụng cho combo'
+  }
+
+  return 'Áp dụng cho nhiều dịch vụ'
+}
+
+function formatVoucherValidityLabel(voucher = {}) {
+  if (voucher.valid_to) {
+    return `Hạn dùng đến ${formatVoucherDate(voucher.valid_to)}`
+  }
+
+  return 'Đang cập nhật thời hạn'
+}
+
+function mapVoucherWalletItem(voucher = {}) {
+  return {
+    code: String(voucher.code || '').toUpperCase(),
+    description:
+      voucher.description ||
+      voucher.title ||
+      'Ưu đãi này đang sẵn sàng để áp dụng cho giỏ hàng phù hợp của bạn.',
+    discount_label: formatVoucherDiscountLabel(voucher),
+    id: voucher.id || '',
+    min_order_label: formatVoucherMinOrderLabel(voucher),
+    promotion_name: voucher.promotion?.name || '',
+    status: voucher.status || 'expired',
+    target_label: formatVoucherTargetLabel(voucher.target_service_type),
+    title: voucher.title || voucher.promotion?.name || voucher.code || 'Voucher',
+    validity_label: formatVoucherValidityLabel(voucher),
+  }
+}
+
 export default function useCart() {
   const navigate = useNavigate()
   const { authState, isCustomer } = usePublicSession()
@@ -84,6 +174,11 @@ export default function useCart() {
   const [appliedVoucher, setAppliedVoucher] = useState(null)
   const [voucherLoading, setVoucherLoading] = useState(false)
   const [updatingItemIds, setUpdatingItemIds] = useState([])
+  const [isVoucherPickerOpen, setIsVoucherPickerOpen] = useState(false)
+  const [voucherWallet, setVoucherWallet] = useState([])
+  const [voucherWalletLoading, setVoucherWalletLoading] = useState(false)
+  const [voucherWalletError, setVoucherWalletError] = useState('')
+  const [hasLoadedVoucherWallet, setHasLoadedVoucherWallet] = useState(false)
 
   function buildSummary(nextCartItems, nextSelectedItemIds = []) {
     return createCartSummaryFromItems(nextCartItems, nextSelectedItemIds)
@@ -102,6 +197,36 @@ export default function useCart() {
     return {
       cart: nextCartState.cart,
       cartItems: nextCartState.cart_items,
+    }
+  }
+
+  async function loadVoucherWallet({ force = false } = {}) {
+    if (!isCustomer) {
+      return
+    }
+
+    if (voucherWalletLoading || (hasLoadedVoucherWallet && !force)) {
+      return
+    }
+
+    setVoucherWalletLoading(true)
+    setVoucherWalletError('')
+
+    try {
+      const response = await getCurrentUserVouchers()
+      const nextVoucherWallet = Array.isArray(response?.data)
+        ? response.data.map((voucher) => mapVoucherWalletItem(voucher))
+        : []
+
+      setVoucherWallet(nextVoucherWallet)
+      setHasLoadedVoucherWallet(true)
+    } catch (loadError) {
+      setVoucherWallet([])
+      setVoucherWalletError(
+        loadError?.message || 'Không thể tải kho voucher của bạn lúc này.',
+      )
+    } finally {
+      setVoucherWalletLoading(false)
     }
   }
 
@@ -125,6 +250,10 @@ export default function useCart() {
         setSelectedItemIds([])
         setSummary(buildSummary(nextCartState.cartItems, []))
         resetVoucherState()
+        setIsVoucherPickerOpen(false)
+        setVoucherWallet([])
+        setVoucherWalletError('')
+        setHasLoadedVoucherWallet(false)
       } catch (loadError) {
         if (!isActive) {
           return
@@ -135,6 +264,10 @@ export default function useCart() {
         setSelectedItemIds([])
         setSummary(EMPTY_SUMMARY)
         resetVoucherState()
+        setIsVoucherPickerOpen(false)
+        setVoucherWallet([])
+        setVoucherWalletError('')
+        setHasLoadedVoucherWallet(false)
         setError(loadError?.message ?? 'Không thể tải giỏ hàng lúc này.')
       } finally {
         if (isActive) {
@@ -301,7 +434,7 @@ export default function useCart() {
     setFeedback(
       createFeedbackState(
         'info',
-        'Đang mở lại trang dịch vụ để bạn điều chỉnh ngày đi, hạng vé hoặc tùy chọn liên quan.',
+        'Đang mở lại trang dịch vụ để bạn điều chỉnh ngày đi, hạng vé hoặc các tùy chọn liên quan.',
       ),
     )
     navigate(buildPublicAuthPath(nextRoute, isCustomer))
@@ -366,11 +499,30 @@ export default function useCart() {
     navigate(buildPublicAuthPath('/services', isCustomer))
   }
 
-  async function handleApplyVoucher() {
-    const normalizedCode = voucherCode.trim().toUpperCase()
+  async function handleOpenVoucherPicker() {
+    if (!isCustomer) {
+      setFeedback(
+        createFeedbackState(
+          'error',
+          'Vui lòng đăng nhập tài khoản khách hàng để xem kho voucher của bạn.',
+        ),
+      )
+      return
+    }
+
+    setIsVoucherPickerOpen(true)
+    await loadVoucherWallet()
+  }
+
+  function handleCloseVoucherPicker() {
+    setIsVoucherPickerOpen(false)
+  }
+
+  async function handleApplyVoucher(nextVoucherCode = voucherCode) {
+    const normalizedCode = String(nextVoucherCode || '').trim().toUpperCase()
 
     if (!normalizedCode) {
-      setFeedback(createFeedbackState('error', 'Vui lòng nhập mã voucher để áp dụng.'))
+      setFeedback(createFeedbackState('error', 'Vui lòng chọn voucher để áp dụng.'))
       return
     }
 
@@ -388,6 +540,7 @@ export default function useCart() {
       )
       setAppliedVoucher(response.data?.voucher ?? nextSummary?.voucher ?? null)
       setVoucherCode(normalizedCode)
+      setIsVoucherPickerOpen(false)
       setFeedback(createFeedbackState('success', response.message || 'Đã áp dụng voucher.'))
     } catch (applyError) {
       setFeedback(
@@ -458,12 +611,20 @@ export default function useCart() {
     [effectiveSummary],
   )
 
+  const availableVouchers = useMemo(
+    () => voucherWallet.filter((voucher) => voucher.status === 'active'),
+    [voucherWallet],
+  )
+
   const canContinue = selectedItemIds.length > 0
+  const canApplyVoucherSelection = selectedItemIds.length > 0
   const isAllSelected = cartItems.length > 0 && selectedItemIds.length === cartItems.length
 
   return {
     appliedVoucher,
     authState,
+    availableVouchers,
+    canApplyVoucherSelection,
     canContinue,
     cart,
     cartItems,
@@ -472,9 +633,11 @@ export default function useCart() {
     formattedSummary,
     handleApplyVoucher,
     handleClearCart,
+    handleCloseVoucherPicker,
     handleContinueCheckout,
     handleEditItem,
     handleGoBack,
+    handleOpenVoucherPicker,
     handleQuantityChange,
     handleRemoveItem,
     handleRemoveVoucher,
@@ -483,11 +646,15 @@ export default function useCart() {
     isAllSelected,
     isCustomer,
     isVoucherLoading: voucherLoading,
+    isVoucherPickerOpen,
+    isVoucherWalletLoading: voucherWalletLoading,
     loading,
+    loadVoucherWallet,
     reloadCart,
     selectedItemIds,
-    setVoucherCode,
     updatingItemIds,
     voucherCode,
+    voucherWallet,
+    voucherWalletError,
   }
 }
