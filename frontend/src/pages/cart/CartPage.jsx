@@ -57,8 +57,8 @@ function CartPage() {
             appliedVoucher={appliedVoucher}
             feedbackHint={
               isCustomer
-                ? 'Voucher và checkout hiện được backend xử lý theo toàn bộ giỏ hàng. Hãy chọn tất cả dịch vụ trước khi áp mã hoặc tiếp tục.'
-                : 'Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo.'
+                ? 'Chon dich vu muon dat, kiem tra lai o buoc xac nhan roi nhap thong tin dat don.'
+                : 'Ban co the tiep tuc dat dich vu va nhap thong tin lien he o buoc tiep theo.'
             }
             isContinueDisabled={!canContinue}
             isVoucherLoading={isVoucherLoading}

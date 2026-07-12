@@ -1041,9 +1041,9 @@ test('lookupService.getServiceDetail uses train reference_id when provided', asy
           description: 'Train detail',
           provider_name: 'Đường sắt Việt Nam',
           location_text: 'Hà Nội',
-          base_price: '990000',
-          sale_price: '990000',
-          public_price: '990000',
+          base_price: '1200000',
+          sale_price: null,
+          public_price: '1200000',
           currency: 'VND',
           cancellation_policy: null,
           primary_image: null,
@@ -1078,6 +1078,9 @@ test('lookupService.getServiceDetail uses train reference_id when provided', asy
   assert.equal(result.slug, 'train-sgn-han');
   assert.equal(result.details.train_number, 'SE3');
   assert.equal(result.details.seat_class, 'sleeper');
+  assert.equal(result.base_price, 990000);
+  assert.equal(result.sale_price, 990000);
+  assert.equal(result.public_price, 990000);
 });
 
 test('lookupService.searchTrains rejects invalid seat class and duplicate route aliases', async () => {
@@ -1341,8 +1344,8 @@ test('lookupService.getServiceDetail resolves flight detail by reference_id when
         metadata: null,
         primary_image: null,
         provider_name: 'Vietnam Airlines',
-        public_price: '2100000',
-        sale_price: '2100000',
+        public_price: '2300000',
+        sale_price: null,
         service_type: 'flight',
         short_description: 'Morning flight',
         slug,
@@ -1359,6 +1362,9 @@ test('lookupService.getServiceDetail resolves flight detail by reference_id when
   assert.equal(result.details.id, '11111111-1111-4111-8111-111111111111');
   assert.equal(result.details.flight_number, 'VN456');
   assert.equal(result.details.departure_airport, 'DAD');
+  assert.equal(result.base_price, 2100000);
+  assert.equal(result.sale_price, 2100000);
+  assert.equal(result.public_price, 2100000);
 });
 
 test('lookupService.getServiceDetail rejects invalid slug and missing public detail', async () => {

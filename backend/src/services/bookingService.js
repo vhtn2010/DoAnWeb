@@ -350,6 +350,23 @@ const parseTravellers = (value) => {
   return travellerMap;
 };
 
+const parseSelectedCartItemIds = (value) => {
+  if (value == null) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    throw buildValidationError(
+      'selected_cart_item_ids',
+      'selected_cart_item_ids must be an array',
+    );
+  }
+
+  return [...new Set(value.map((itemId) =>
+    parseUuid('selected_cart_item_ids', itemId),
+  ))];
+};
+
 const parseBody = (body = {}) => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw buildValidationError('body', 'body must be an object');
@@ -369,6 +386,7 @@ const parseBody = (body = {}) => {
       maxLength: 2000,
       value: body.note,
     }),
+    selectedCartItemIds: parseSelectedCartItemIds(body.selected_cart_item_ids),
     travellers: parseTravellers(body.travellers),
     voucherCode: parseOptionalString({
       field: 'voucher_code',
@@ -1223,10 +1241,21 @@ const createBookingService = ({
       throw buildForbiddenError('Cart is not active');
     }
 
-    const cartItems = await repository.listCartItemsByCartId(parsedBody.cartId);
+    const allCartItems = await repository.listCartItemsByCartId(parsedBody.cartId);
+    const selectedCartItemIdSet = new Set(parsedBody.selectedCartItemIds);
+    const cartItems = selectedCartItemIdSet.size > 0
+      ? allCartItems.filter((item) => selectedCartItemIdSet.has(item.id))
+      : allCartItems;
 
     if (cartItems.length === 0) {
       throw buildCartEmptyError();
+    }
+
+    if (selectedCartItemIdSet.size > 0 && cartItems.length !== selectedCartItemIdSet.size) {
+      throw buildValidationError(
+        'selected_cart_item_ids',
+        'selected_cart_item_ids must belong to the target cart',
+      );
     }
 
     const validCartItemIds = new Set(cartItems.map((item) => item.id));
@@ -1271,7 +1300,7 @@ const createBookingService = ({
             options: cartItem.options || {},
             quantity: Number(cartItem.quantity),
             reference_id: cartItem.reference_id,
-            service_type: service.service_type,
+            service_type: cartItem.service_type,
             start_at: cartItem.start_at,
           },
           service_id: cartItem.service_id,
@@ -1368,6 +1397,7 @@ const createBookingService = ({
       },
       bookingItems,
       cartId: parsedBody.cartId,
+      checkedOutCartItemIds: cartItems.map((item) => item.id),
       idempotencyKey,
       voucherCode: parsedBody.voucherCode,
     });

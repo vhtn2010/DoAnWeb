@@ -50,7 +50,9 @@ function PublicHeaderActions({
   return (
     <div className="public-header__actions">
       <div className="public-header__customer-actions">
-        <PublicHeaderIconAction
+        {isCustomer ? (
+          <>
+            <PublicHeaderIconAction
           badgeCount={notificationCount}
           isActive={isNotificationPreview}
           label={notificationCount ? `Thông báo (${notificationCount})` : 'Thông báo'}
@@ -84,8 +86,6 @@ function PublicHeaderActions({
           />
         </PublicHeaderIconAction>
 
-        {isCustomer ? (
-          <>
             <PublicHeaderIconAction label="Giỏ hàng" to={customerCartPath}>
               <path
                 d="M3.75 5.25h1.7l1.05 5.26a1 1 0 0 0 .98.8h8.76a1 1 0 0 0 .97-.76l1.3-5.3H7.06"

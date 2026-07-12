@@ -237,9 +237,10 @@ function mapFlightDetailRecord(service = {}) {
   const detail = service.details ?? {}
   const departureAirport = resolveAirportRecord(detail.departure_airport)
   const arrivalAirport = resolveAirportRecord(detail.arrival_airport)
-  const fallbackPrice = toNumber(detail.fare_price ?? service.public_price)
-  const salePrice = toOptionalNumber(service.sale_price) ?? fallbackPrice
-  const basePrice = toOptionalNumber(service.base_price) ?? salePrice
+  const farePrice = toOptionalNumber(detail.fare_price)
+  const fallbackPrice = farePrice ?? toOptionalNumber(service.public_price) ?? 0
+  const salePrice = farePrice ?? toOptionalNumber(service.sale_price) ?? fallbackPrice
+  const basePrice = farePrice ?? toOptionalNumber(service.base_price) ?? salePrice
 
   const flight = {
     id: service.id ?? '',

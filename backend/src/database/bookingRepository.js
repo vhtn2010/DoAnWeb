@@ -519,6 +519,7 @@ const createBookingRepository = ({
     booking,
     bookingItems,
     cartId,
+    checkedOutCartItemIds,
     idempotencyKey,
     voucherCode,
   }) => {
@@ -683,6 +684,33 @@ const createBookingRepository = ({
         createdItems.push(itemResult.rows[0]);
       }
 
+      const checkedOutIds = Array.isArray(checkedOutCartItemIds) && checkedOutCartItemIds.length > 0
+        ? checkedOutCartItemIds
+        : bookingItems.map((item) => item.cart_item_id).filter(Boolean);
+
+      if (checkedOutIds.length > 0) {
+        await client.query(
+          `
+            DELETE FROM cart_items
+            WHERE cart_id = $1
+              AND id = ANY($2::uuid[])
+          `,
+          [cartId, checkedOutIds],
+        );
+      }
+
+      const remainingCartItems = await client.query(
+        `
+          SELECT COUNT(*)::int AS total
+          FROM cart_items
+          WHERE cart_id = $1
+        `,
+        [cartId],
+      );
+      const nextCartStatus =
+        Number(remainingCartItems.rows[0]?.total || 0) === 0
+          ? CART_STATUS.CONVERTED
+          : CART_STATUS.ACTIVE;
       const cartUpdate = await client.query(
         `
           UPDATE carts
@@ -693,7 +721,7 @@ const createBookingRepository = ({
             AND status = $3
           RETURNING id
         `,
-        [cartId, CART_STATUS.CONVERTED, CART_STATUS.ACTIVE],
+        [cartId, nextCartStatus, CART_STATUS.ACTIVE],
       );
 
       if (cartUpdate.rowCount !== 1) {

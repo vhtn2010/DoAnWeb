@@ -31,10 +31,10 @@ const UPDATE_ALLOWED_FIELDS = new Set([
   'quantity',
   'start_at',
 ]);
-const APPLY_VOUCHER_ALLOWED_FIELDS = new Set(['code']);
+const APPLY_VOUCHER_ALLOWED_FIELDS = new Set(['code', 'selected_cart_item_ids']);
 const MERGE_ALLOWED_FIELDS = new Set(['guest_items']);
 const SUMMARY_ALLOWED_QUERY_FIELDS = new Set(['voucher_code']);
-const VALIDATE_ALLOWED_FIELDS = new Set(['voucher_code']);
+const VALIDATE_ALLOWED_FIELDS = new Set(['selected_cart_item_ids', 'voucher_code']);
 const ADD_SCOPE_LABEL = 'POST /cart/items';
 const UPDATE_SCOPE_LABEL = 'PATCH /cart/items/{cart_item_id}';
 const APPLY_VOUCHER_SCOPE_LABEL = 'POST /cart/apply-voucher';
@@ -603,12 +603,28 @@ const normalizeValidatePayload = (payload = {}) => {
     );
   }
 
+  let selectedCartItemIds = [];
+
+  if (Object.prototype.hasOwnProperty.call(body, 'selected_cart_item_ids')) {
+    if (!Array.isArray(body.selected_cart_item_ids)) {
+      details.push({
+        field: 'selected_cart_item_ids',
+        message: 'selected_cart_item_ids must be an array',
+      });
+    } else {
+      selectedCartItemIds = [...new Set(body.selected_cart_item_ids.map((itemId) =>
+        parseUuid('selected_cart_item_ids', itemId),
+      ))];
+    }
+  }
+
   if (!Object.prototype.hasOwnProperty.call(body, 'voucher_code')) {
     if (details.length > 0) {
       throw createValidationError(details);
     }
 
     return {
+      selectedCartItemIds,
       voucherCode: null,
     };
   }
@@ -621,6 +637,7 @@ const normalizeValidatePayload = (payload = {}) => {
     }
 
     return {
+      selectedCartItemIds,
       voucherCode: null,
     };
   }
@@ -645,6 +662,7 @@ const normalizeValidatePayload = (payload = {}) => {
     }
 
     return {
+      selectedCartItemIds,
       voucherCode: normalizedVoucherCode || null,
     };
   }
@@ -673,6 +691,21 @@ const normalizeApplyVoucherPayload = (payload = {}) => {
       field: 'code',
       message: 'code is required',
     });
+  }
+
+  let selectedCartItemIds = [];
+
+  if (Object.prototype.hasOwnProperty.call(body, 'selected_cart_item_ids')) {
+    if (!Array.isArray(body.selected_cart_item_ids)) {
+      details.push({
+        field: 'selected_cart_item_ids',
+        message: 'selected_cart_item_ids must be an array',
+      });
+    } else {
+      selectedCartItemIds = [...new Set(body.selected_cart_item_ids.map((itemId) =>
+        parseUuid('selected_cart_item_ids', itemId),
+      ))];
+    }
   }
 
   if (details.length > 0) {
@@ -710,6 +743,7 @@ const normalizeApplyVoucherPayload = (payload = {}) => {
 
   return {
     code,
+    selectedCartItemIds,
   };
 };
 
@@ -1780,6 +1814,7 @@ const createCartService = ({
     withTransactionImpl(async (client) => {
       const queryExecutor = client.query.bind(client);
       const {
+        selectedCartItemIds,
         voucherCode,
       } = normalizeValidatePayload(payload);
       const activeCart = await resolveActiveCart(queryExecutor, userId);
@@ -1788,13 +1823,26 @@ const createCartService = ({
         throw createCartEmptyError();
       }
 
-      const itemRecords = await repository.listCartItemRecords(
+      const allItemRecords = await repository.listCartItemRecords(
         queryExecutor,
         activeCart.id,
       );
+      const selectedCartItemIdSet = new Set(selectedCartItemIds);
+      const itemRecords = selectedCartItemIdSet.size > 0
+        ? allItemRecords.filter((itemRecord) => selectedCartItemIdSet.has(itemRecord.id))
+        : allItemRecords;
 
       if (itemRecords.length === 0) {
         throw createCartEmptyError();
+      }
+
+      if (selectedCartItemIdSet.size > 0 && itemRecords.length !== selectedCartItemIdSet.size) {
+        throw createValidationError([
+          {
+            field: 'selected_cart_item_ids',
+            message: 'selected_cart_item_ids must belong to the active cart',
+          },
+        ]);
       }
 
       const itemRows = await repository.listCartItems(queryExecutor, activeCart.id);
@@ -1932,6 +1980,7 @@ const createCartService = ({
         cart_id: activeCart.id,
         issues,
         items,
+        selected_item_ids: itemRecords.map((itemRecord) => itemRecord.id),
         summary: buildValidationSummary(items, {
           cartId: activeCart.id,
           discountAmount: voucherResult.discountAmount,
@@ -1949,6 +1998,7 @@ const createCartService = ({
       const queryExecutor = client.query.bind(client);
       const {
         code,
+        selectedCartItemIds,
       } = normalizeApplyVoucherPayload(payload);
       const activeCart = await resolveActiveCart(queryExecutor, userId);
 
@@ -1956,11 +2006,24 @@ const createCartService = ({
         throw createCartEmptyError();
       }
 
-      const itemRows = await repository.listCartItems(queryExecutor, activeCart.id);
+      const allItemRows = await repository.listCartItems(queryExecutor, activeCart.id);
+      const selectedCartItemIdSet = new Set(selectedCartItemIds);
+      const itemRows = selectedCartItemIdSet.size > 0
+        ? allItemRows.filter((itemRow) => selectedCartItemIdSet.has(itemRow.id))
+        : allItemRows;
       const items = itemRows.map(mapCartItem);
 
       if (items.length === 0) {
         throw createCartEmptyError();
+      }
+
+      if (selectedCartItemIdSet.size > 0 && itemRows.length !== selectedCartItemIdSet.size) {
+        throw createValidationError([
+          {
+            field: 'selected_cart_item_ids',
+            message: 'selected_cart_item_ids must belong to the active cart',
+          },
+        ]);
       }
 
       const voucherResult = await evaluateVoucherForCartValidation(

@@ -288,6 +288,129 @@ test('bookingService.checkout creates a pending_payment booking from an active c
   assert.equal(result.items.length, 2);
 });
 
+test('bookingService.checkout only converts selected cart items when provided', async () => {
+  let createCheckoutPayload = null;
+  const service = bookingService.createBookingService({
+    availabilityService: {
+      getServiceAvailability: async ({ body }) => {
+        assert.equal(body.service_type, 'tour');
+
+        return {
+          available: true,
+          available_quantity: 6,
+          currency: 'VND',
+          issues: [],
+          total_amount: 3600000,
+          unit_price: 1800000,
+        };
+      },
+    },
+    repository: {
+      createCheckout: async (payload) => {
+        createCheckoutPayload = payload;
+
+        return {
+          booking: {
+            booking_code: payload.booking.booking_code,
+            contact_email: payload.booking.contact_email,
+            contact_name: payload.booking.contact_name,
+            contact_phone: payload.booking.contact_phone,
+            currency: payload.booking.currency,
+            discount_amount: payload.booking.discount_amount,
+            expires_at: payload.booking.expires_at,
+            id: 'booking-selected-1',
+            note: payload.booking.note,
+            status: payload.booking.status,
+            subtotal_amount: payload.booking.subtotal_amount,
+            total_amount: payload.booking.total_amount,
+            voucher_id: payload.booking.voucher_id,
+          },
+          items: payload.bookingItems.map((item, index) => ({
+            end_at: item.end_at,
+            id: `booking-selected-item-${index + 1}`,
+            quantity: item.quantity,
+            reference_id: item.reference_id,
+            service_id: item.service_id,
+            service_type: item.service_type,
+            start_at: item.start_at,
+            status: item.status,
+            title_snapshot: item.title_snapshot,
+            total_amount: item.total_amount,
+            traveller_info: item.traveller_info,
+            unit_price: item.unit_price,
+          })),
+        };
+      },
+      getCartById: async () => ({
+        id: CART_ID,
+        status: 'active',
+        user_id: CUSTOMER_ID,
+      }),
+      getPublicServiceById: async (serviceId) => ({
+        base_price: serviceId === TOUR_SERVICE_ID ? '2000000' : '1500000',
+        cancellation_policy: null,
+        currency: 'VND',
+        id: serviceId,
+        provider_name: 'Net Viet Travel',
+        sale_price: serviceId === TOUR_SERVICE_ID ? '1800000' : null,
+        service_code: serviceId === TOUR_SERVICE_ID ? 'TOUR001' : 'HOTEL001',
+        service_type: serviceId === TOUR_SERVICE_ID ? 'tour' : 'hotel',
+        slug: serviceId === TOUR_SERVICE_ID ? 'tour-da-nang' : 'hotel-hoi-an',
+        title: serviceId === TOUR_SERVICE_ID ? 'Tour Da Nang' : 'Hotel Hoi An',
+      }),
+      listCartItemsByCartId: async () => [
+        {
+          created_at: '2026-06-30T01:00:00.000Z',
+          end_at: '2026-07-11T00:00:00.000Z',
+          id: CART_ITEM_1_ID,
+          options: null,
+          quantity: 2,
+          reference_id: null,
+          service_id: TOUR_SERVICE_ID,
+          service_type: 'tour',
+          start_at: '2026-07-10T00:00:00.000Z',
+          unit_price_snapshot: '1800000',
+        },
+        {
+          created_at: '2026-06-30T01:05:00.000Z',
+          end_at: '2026-08-03T10:00:00.000Z',
+          id: CART_ITEM_2_ID,
+          options: { adults: 2 },
+          quantity: 1,
+          reference_id: ROOM_TYPE_ID,
+          service_id: HOTEL_SERVICE_ID,
+          service_type: 'hotel',
+          start_at: '2026-08-01T14:00:00.000Z',
+          unit_price_snapshot: '1200000',
+        },
+      ],
+    },
+  });
+
+  const result = await service.checkout({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    body: {
+      cart_id: CART_ID,
+      contact_email: 'customer@example.com',
+      contact_name: 'Nguyen Van A',
+      selected_cart_item_ids: [CART_ITEM_1_ID],
+    },
+    headers: {
+      'idempotency-key': 'checkout-selected-001',
+    },
+  });
+
+  assert.deepEqual(createCheckoutPayload.checkedOutCartItemIds, [CART_ITEM_1_ID]);
+  assert.equal(createCheckoutPayload.booking.subtotal_amount, 3600000);
+  assert.equal(createCheckoutPayload.booking.total_amount, 3600000);
+  assert.equal(createCheckoutPayload.bookingItems.length, 1);
+  assert.equal(createCheckoutPayload.bookingItems[0].cart_item_id, CART_ITEM_1_ID);
+  assert.equal(result.items.length, 1);
+});
+
 test('bookingService.checkout rejects a non-active or foreign cart', async () => {
   const service = bookingService.createBookingService({
     availabilityService: {

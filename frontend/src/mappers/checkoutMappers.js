@@ -244,7 +244,7 @@ export function buildCheckoutDraftFromCartSnapshot(
     contact_name: emptyContactValues.contact_name,
     contact_email: emptyContactValues.contact_email,
     contact_phone: emptyContactValues.contact_phone,
-    voucher_code: '',
+    voucher_code: cartSummaryPayload?.voucher_code ?? '',
     note: '',
     accepted_terms: false,
     travellers: normalizedSelectedIds.map((cartItemId) =>

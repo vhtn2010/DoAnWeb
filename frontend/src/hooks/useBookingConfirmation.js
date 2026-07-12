@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { buildBookingConfirmationViewModel } from '../mappers/bookingMappers.js'
+import {
+  buildBookingConfirmationFromCheckoutHandoff,
+  buildBookingConfirmationViewModel,
+} from '../mappers/bookingMappers.js'
+import { getActiveCart } from '../repositories/cartRepository.js'
 import {
   downloadMyBookingSummary,
   getBookingByCode,
@@ -89,6 +93,7 @@ export default function useBookingConfirmation() {
   const [cancellationReason, setCancellationReason] = useState('')
   const [refundDraft, setRefundDraft] = useState(createRefundDraftState)
   const [serviceFeedback, setServiceFeedback] = useState(createServiceFeedbackState)
+  const isCheckoutDraftConfirmation = !bookingCode && !location.state?.bookingId
 
   useEffect(() => {
     let isActive = true
@@ -99,6 +104,30 @@ export default function useBookingConfirmation() {
       setFeedback('')
 
       try {
+        if (isCheckoutDraftConfirmation) {
+          const cartResponse = await getActiveCart({ authState })
+          const handoff = buildBookingConfirmationFromCheckoutHandoff({
+            authState,
+            cartSnapshot: cartResponse.data,
+            selectedCartItemIds: location.state?.selectedCartItemIds,
+            cartSummaryPayload: location.state?.cartSummaryPayload,
+          })
+
+          if (!isActive) {
+            return
+          }
+
+          setBooking(normalizeBooking({
+            ...handoff.booking,
+            booking_code: 'CHO-XAC-NHAN',
+            booking_status: 'draft',
+            status: 'draft',
+          }))
+          setBookingItems(normalizeBookingItems(handoff.booking_items))
+          setRefunds([])
+          return
+        }
+
         const response = bookingCode
           ? await getBookingByCode(bookingCode, {
               authState,
@@ -156,10 +185,18 @@ export default function useBookingConfirmation() {
     return () => {
       isActive = false
     }
-  }, [authState, bookingCode, location.state?.bookingId, reloadToken])
+  }, [
+    authState,
+    bookingCode,
+    isCheckoutDraftConfirmation,
+    location.state?.bookingId,
+    location.state?.cartSummaryPayload,
+    location.state?.selectedCartItemIds,
+    reloadToken,
+  ])
 
   useEffect(() => {
-    if (authState !== 'customer' || !booking?.id) {
+    if (isCheckoutDraftConfirmation || authState !== 'customer' || !booking?.id) {
       setStatusHistory([])
       setInvoice(null)
       setSelectedRefund(null)
@@ -220,7 +257,7 @@ export default function useBookingConfirmation() {
     return () => {
       isActive = false
     }
-  }, [authState, booking?.id, booking?.refunds, reloadToken])
+  }, [authState, booking?.id, booking?.refunds, isCheckoutDraftConfirmation, reloadToken])
 
   const viewModel = useMemo(
     () =>
@@ -232,7 +269,8 @@ export default function useBookingConfirmation() {
     [booking, bookingItems],
   )
 
-  const canContinueToPayment = booking?.booking_status === 'pending_payment'
+  const canContinueToPayment =
+    isCheckoutDraftConfirmation || booking?.booking_status === 'pending_payment'
 
   function retry() {
     setReloadToken((currentToken) => currentToken + 1)
@@ -243,12 +281,26 @@ export default function useBookingConfirmation() {
   }
 
   function editBookingItem(itemId) {
+    if (isCheckoutDraftConfirmation) {
+      navigate(buildPublicAuthPath('/cart', isCustomer), {
+        state: {
+          selectedCartItemIds: location.state?.selectedCartItemIds,
+        },
+      })
+      return
+    }
+
     setFeedback(
       `Đơn hàng ${booking?.booking_code ?? ''} đã được tạo trên hệ thống. Để thay đổi mục ${itemId}, vui lòng quay lại giỏ trước khi checkout hoặc liên hệ chăm sóc khách hàng.`,
     )
   }
 
   function removeBookingItem(itemId) {
+    if (isCheckoutDraftConfirmation) {
+      setFeedback('Vui long quay lai gio hang de bo chon hoac xoa dich vu nay.')
+      return
+    }
+
     setFeedback(
       `Backend customer hiện chưa hỗ trợ xóa trực tiếp mục ${itemId} sau khi checkout. Bạn có thể mở hỗ trợ để được xử lý tiếp.`,
     )
@@ -256,6 +308,16 @@ export default function useBookingConfirmation() {
 
   function confirmBooking() {
     if (!booking) {
+      return
+    }
+
+    if (isCheckoutDraftConfirmation) {
+      navigate(buildPublicAuthPath('/checkout', isCustomer), {
+        state: {
+          cartSummaryPayload: location.state?.cartSummaryPayload,
+          selectedCartItemIds: location.state?.selectedCartItemIds,
+        },
+      })
       return
     }
 

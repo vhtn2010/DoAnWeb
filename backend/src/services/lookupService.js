@@ -799,6 +799,25 @@ const mapBaseServiceDetail = (service) => ({
   primary_image: service.primary_image || null,
 });
 
+const applyFarePriceToServiceDetail = (baseDetail, detail) => {
+  if (detail.fare_price == null) {
+    return baseDetail;
+  }
+
+  const farePrice = Number(detail.fare_price);
+
+  if (!Number.isFinite(farePrice)) {
+    return baseDetail;
+  }
+
+  return {
+    ...baseDetail,
+    base_price: farePrice,
+    sale_price: farePrice,
+    public_price: farePrice,
+  };
+};
+
 const mapImages = (images) =>
   images.map((image) => ({
     image_url: image.image_url,
@@ -1681,8 +1700,10 @@ const createLookupService = ({
         throw buildResourceNotFoundError();
       }
 
+      const pricedDetail = applyFarePriceToServiceDetail(baseDetail, detail);
+
       return {
-        ...baseDetail,
+        ...pricedDetail,
         details: mapFlightDetail(detail),
       };
     }
@@ -1706,8 +1727,10 @@ const createLookupService = ({
         throw buildResourceNotFoundError();
       }
 
+      const pricedDetail = applyFarePriceToServiceDetail(baseDetail, detail);
+
       return {
-        ...baseDetail,
+        ...pricedDetail,
         details: mapTrainDetail(detail),
       };
     }

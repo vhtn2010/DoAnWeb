@@ -269,8 +269,9 @@ function mapServiceDetailToTrain(service = {}) {
   const departureStation = resolveStationRecord(detail.departure_station)
   const arrivalStation = resolveStationRecord(detail.arrival_station)
   const durationMinutes = calculateDurationMinutes(detail.departure_at, detail.arrival_at)
-  const basePrice = toOptionalNumber(service.base_price) ?? toNumber(detail.fare_price)
-  const salePrice = toOptionalNumber(service.sale_price) ?? toNumber(detail.fare_price)
+  const farePrice = toOptionalNumber(detail.fare_price)
+  const basePrice = farePrice ?? toOptionalNumber(service.base_price) ?? 0
+  const salePrice = farePrice ?? toOptionalNumber(service.sale_price) ?? basePrice
   const trainType = inferTrainType({
     durationMinutes,
     seatClass: detail.seat_class,
