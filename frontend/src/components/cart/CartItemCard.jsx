@@ -33,11 +33,12 @@ function CartItemCard({
 }) {
   const unitPrice = Number(item.unit_price_snapshot)
   const quantity = Number(item.quantity) > 0 ? Number(item.quantity) : 1
-  const lineAmount = Number.isFinite(Number(item.total_amount))
-    ? Number(item.total_amount)
-    : unitPrice * quantity
-  const shouldShowUnitPrice = Number.isFinite(unitPrice) && quantity > 1 && lineAmount !== unitPrice
   const canDecreaseQuantity = quantity > 1 && !isUpdatingQuantity
+  const displayAmount = Number.isFinite(unitPrice)
+    ? unitPrice
+    : Number.isFinite(Number(item.total_amount))
+      ? Number(item.total_amount)
+      : 0
 
   return (
     <article className={isSelected ? 'cart-item-card cart-item-card--selected' : 'cart-item-card'}>
@@ -67,12 +68,7 @@ function CartItemCard({
             </div>
 
             <div className="cart-item-card__price-block">
-              <strong className="cart-item-card__price">{formatCurrency(lineAmount)}</strong>
-              {shouldShowUnitPrice ? (
-                <span className="cart-item-card__price-note">
-                  Đơn giá {formatCurrency(unitPrice)}
-                </span>
-              ) : null}
+              <strong className="cart-item-card__price">{formatCurrency(displayAmount)}</strong>
             </div>
           </div>
 
