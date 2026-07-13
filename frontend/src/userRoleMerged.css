@@ -10057,6 +10057,8 @@
 }
 
 .profile-hero__history-copy {
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   display: grid;
   gap: 6px;
@@ -10086,6 +10088,7 @@
 
 .profile-hero__history-metrics {
   grid-column: 1 / -1;
+  grid-row: 2;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
@@ -10118,6 +10121,10 @@
 }
 
 .profile-hero__history-action {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  align-self: start;
   width: 42px;
   height: 42px;
   border-radius: 50%;

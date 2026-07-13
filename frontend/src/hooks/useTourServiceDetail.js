@@ -75,8 +75,12 @@ function formatDateTimeStamp(date, time = '08:00:00') {
 
 function buildTourCartItem({
   adultCount,
+  adultPrice,
   childCount,
+  childPrice,
   departureDate,
+  infantCount = 0,
+  infantPrice = 0,
   service,
   totalPrice,
 }) {
@@ -93,10 +97,15 @@ function buildTourCartItem({
     start_at: formatDateTimeStamp(startDate, '08:00:00'),
     end_at: formatDateTimeStamp(endDate, '18:00:00'),
     quantity: travellerCount,
-    unit_price_snapshot: totalPrice,
+    unit_price_snapshot: adultPrice,
     options: {
       adult_count: adultCount,
+      adult_price: adultPrice,
       child_count: childCount,
+      child_price: childPrice,
+      infant_count: infantCount,
+      infant_price: infantPrice,
+      selected_total_price: totalPrice,
       departure_date: departureDate,
       duration_text: service.duration_text,
       package_name: service.tour_type ?? service.title,
@@ -281,7 +290,9 @@ export default function useTourServiceDetail() {
 
     const cartItem = buildTourCartItem({
       adultCount,
+      adultPrice: service?.sale_price ?? 0,
       childCount,
+      childPrice: childUnitPrice,
       departureDate,
       service,
       totalPrice,

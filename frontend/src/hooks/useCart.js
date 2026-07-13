@@ -24,8 +24,16 @@ import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 const EMPTY_SUMMARY = Object.freeze({
   subtotal_amount: 0,
   discount_amount: 0,
+  vat_amount: 0,
+  service_fee_amount: 0,
+  surcharge_amount: 0,
+  tax_and_fee_amount: 0,
   total_amount: 0,
   currency: 'VND',
+  pricing_breakdown: {
+    items: [],
+    vat_rate: 0.08,
+  },
   selected_item_count: 0,
 })
 
@@ -66,12 +74,24 @@ function buildItemRoute(item) {
 }
 
 function normalizeServerSummary(summary = {}, fallbackItemCount = 0) {
+  const vatAmount = Number(summary.vat_amount ?? summary.tax_amount ?? 0)
+  const serviceFeeAmount = Number(summary.service_fee_amount ?? 0)
+  const surchargeAmount = Number(summary.surcharge_amount ?? 0)
+
   return {
     currency: summary.currency ?? 'VND',
     discount_amount: Number(summary.discount_amount ?? 0),
+    pricing_breakdown: summary.pricing_breakdown ?? EMPTY_SUMMARY.pricing_breakdown,
     selected_item_count: Number(summary.item_count ?? fallbackItemCount),
+    service_fee_amount: serviceFeeAmount,
     subtotal_amount: Number(summary.subtotal_amount ?? 0),
+    surcharge_amount: surchargeAmount,
+    tax_and_fee_amount: Number(
+      summary.tax_and_fee_amount ??
+        vatAmount + serviceFeeAmount + surchargeAmount,
+    ),
     total_amount: Number(summary.total_amount ?? 0),
+    vat_amount: vatAmount,
   }
 }
 
@@ -605,8 +625,12 @@ export default function useCart() {
     () => ({
       ...effectiveSummary,
       discount_amount: formatCurrencyVND(effectiveSummary.discount_amount),
+      service_fee_amount: formatCurrencyVND(effectiveSummary.service_fee_amount),
       subtotal_amount: formatCurrencyVND(effectiveSummary.subtotal_amount),
+      surcharge_amount: formatCurrencyVND(effectiveSummary.surcharge_amount),
+      tax_and_fee_amount: formatCurrencyVND(effectiveSummary.tax_and_fee_amount),
       total_amount: formatCurrencyVND(effectiveSummary.total_amount),
+      vat_amount: formatCurrencyVND(effectiveSummary.vat_amount),
     }),
     [effectiveSummary],
   )

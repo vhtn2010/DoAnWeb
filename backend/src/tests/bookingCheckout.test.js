@@ -123,9 +123,12 @@ test('bookingService.checkout creates a pending_payment booking from an active c
             expires_at: payload.booking.expires_at,
             id: 'booking-1',
             note: payload.booking.note,
+            service_fee_amount: payload.booking.service_fee_amount,
             status: payload.booking.status,
             subtotal_amount: payload.booking.subtotal_amount,
+            surcharge_amount: payload.booking.surcharge_amount,
             total_amount: payload.booking.total_amount,
+            vat_amount: payload.booking.vat_amount,
             voucher_id: payload.booking.voucher_id,
           },
           items: payload.bookingItems.map((item, index) => ({
@@ -278,13 +281,20 @@ test('bookingService.checkout creates a pending_payment booking from an active c
   assert.equal(createCheckoutPayload.booking.status, BOOKING_STATUS.PENDING_PAYMENT);
   assert.equal(createCheckoutPayload.booking.subtotal_amount, 4800000);
   assert.equal(createCheckoutPayload.booking.discount_amount, 480000);
-  assert.equal(createCheckoutPayload.booking.total_amount, 4320000);
+  assert.equal(createCheckoutPayload.booking.vat_amount, 345600);
+  assert.equal(createCheckoutPayload.booking.service_fee_amount, 160000);
+  assert.equal(createCheckoutPayload.booking.surcharge_amount, 0);
+  assert.equal(createCheckoutPayload.booking.total_amount, 4825600);
   assert.equal(createCheckoutPayload.bookingItems.length, 2);
   assert.equal(createCheckoutPayload.bookingItems[0].traveller_info.length, 2);
   assert.equal(result.status, 'pending_payment');
   assert.equal(result.subtotal_amount, 4800000);
   assert.equal(result.discount_amount, 480000);
-  assert.equal(result.total_amount, 4320000);
+  assert.equal(result.vat_amount, 345600);
+  assert.equal(result.service_fee_amount, 160000);
+  assert.equal(result.surcharge_amount, 0);
+  assert.equal(result.tax_and_fee_amount, 505600);
+  assert.equal(result.total_amount, 4825600);
   assert.equal(result.items.length, 2);
 });
 
@@ -322,9 +332,12 @@ test('bookingService.checkout checks legacy room cart items as hotel availabilit
             expires_at: payload.booking.expires_at,
             id: 'booking-room-legacy-1',
             note: payload.booking.note,
+            service_fee_amount: payload.booking.service_fee_amount,
             status: payload.booking.status,
             subtotal_amount: payload.booking.subtotal_amount,
+            surcharge_amount: payload.booking.surcharge_amount,
             total_amount: payload.booking.total_amount,
+            vat_amount: payload.booking.vat_amount,
             voucher_id: payload.booking.voucher_id,
           },
           items: payload.bookingItems.map((item, index) => ({
@@ -519,7 +532,10 @@ test('bookingService.checkout only converts selected cart items when provided', 
 
   assert.deepEqual(createCheckoutPayload.checkedOutCartItemIds, [CART_ITEM_1_ID]);
   assert.equal(createCheckoutPayload.booking.subtotal_amount, 3600000);
-  assert.equal(createCheckoutPayload.booking.total_amount, 3600000);
+  assert.equal(createCheckoutPayload.booking.vat_amount, 288000);
+  assert.equal(createCheckoutPayload.booking.service_fee_amount, 100000);
+  assert.equal(createCheckoutPayload.booking.surcharge_amount, 0);
+  assert.equal(createCheckoutPayload.booking.total_amount, 3988000);
   assert.equal(createCheckoutPayload.bookingItems.length, 1);
   assert.equal(createCheckoutPayload.bookingItems[0].cart_item_id, CART_ITEM_1_ID);
   assert.equal(result.items.length, 1);

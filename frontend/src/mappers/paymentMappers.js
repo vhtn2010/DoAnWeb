@@ -28,6 +28,28 @@ function resolveNumber(...values) {
   return 0
 }
 
+function sumPricingAmounts(source = {}) {
+  const hasAnyPricingAmount = [
+    source.vat_amount,
+    source.tax_amount,
+    source.service_fee_amount,
+    source.surcharge_amount,
+  ].some((value) => (
+    typeof value === 'number' ||
+    (typeof value === 'string' && value.trim() !== '')
+  ))
+
+  if (!hasAnyPricingAmount) {
+    return undefined
+  }
+
+  return (
+    resolveNumber(source.vat_amount, source.tax_amount) +
+    resolveNumber(source.service_fee_amount) +
+    resolveNumber(source.surcharge_amount)
+  )
+}
+
 function formatDurationLabel(item) {
   if (item?.options?.duration_label) {
     return item.options.duration_label
@@ -213,7 +235,11 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
 
 export function buildPaymentSummary(summary = {}) {
   const subtotalAmount = resolveNumber(summary.subtotal_amount, summary.subtotalAmount)
-  const taxAndFeeAmount = resolveNumber(summary.tax_and_fee_amount, summary.taxAndFeeAmount)
+  const taxAndFeeAmount = resolveNumber(
+    summary.tax_and_fee_amount,
+    summary.taxAndFeeAmount,
+    sumPricingAmounts(summary),
+  )
   const discountAmount = resolveNumber(summary.discount_amount, summary.discountAmount)
 
   return {
@@ -277,8 +303,10 @@ export function buildPaymentConfirmationFromBookingHandoff({
     fallbackSummary.subtotal_amount,
   )
   const taxAndFeeAmount = resolveNumber(
-    resolveNumber(normalizedBooking.tax_amount) + resolveNumber(normalizedBooking.service_fee_amount),
+    normalizedBooking.tax_and_fee_amount,
+    sumPricingAmounts(normalizedBooking),
     fallbackSummary.tax_and_fee_amount,
+    sumPricingAmounts(fallbackSummary),
   )
   const discountAmount = resolveNumber(
     normalizedBooking.discount_amount,

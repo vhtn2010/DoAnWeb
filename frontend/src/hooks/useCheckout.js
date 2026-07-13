@@ -152,7 +152,10 @@ export default function useCheckout() {
     return {
       ...checkoutDraft.summary,
       subtotal_amount: formatCurrencyVND(checkoutDraft.summary.subtotal_amount),
+      vat_amount: formatCurrencyVND(checkoutDraft.summary.vat_amount),
       service_fee_amount: formatCurrencyVND(checkoutDraft.summary.service_fee_amount),
+      surcharge_amount: formatCurrencyVND(checkoutDraft.summary.surcharge_amount),
+      tax_and_fee_amount: formatCurrencyVND(checkoutDraft.summary.tax_and_fee_amount),
       discount_amount: formatCurrencyVND(checkoutDraft.summary.discount_amount),
       total_amount: formatCurrencyVND(checkoutDraft.summary.total_amount),
     }

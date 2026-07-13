@@ -13,6 +13,10 @@ const {
 const { createBookingRepository } = require('../database/bookingRepository');
 const { createLookupService } = require('./lookupService');
 const AppError = require('../utils/AppError');
+const {
+  calculateItemPricing,
+  calculatePricingSummary,
+} = require('../utils/pricing');
 
 const DANGEROUS_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -109,6 +113,13 @@ const buildVoucherError = (code, field, message) =>
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
+
+const getTaxAndFeeAmount = (booking = {}) =>
+  roundMoney(
+    Number(booking.vat_amount || 0) +
+      Number(booking.service_fee_amount || 0) +
+      Number(booking.surcharge_amount || 0),
+  );
 
 const resolveCheckoutAvailabilityServiceType = (cartItem, service) => {
   if (
@@ -601,9 +612,13 @@ const sanitizeCheckoutResponse = ({ booking, items }) => ({
   id: booking.id,
   items: items.map(sanitizeResponseItem),
   note: booking.note,
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
+  vat_amount: roundMoney(booking.vat_amount),
   voucher_id: booking.voucher_id || null,
 });
 
@@ -616,9 +631,13 @@ const sanitizeBookingSummary = (booking) => ({
   expires_at: booking.expires_at,
   id: booking.id,
   item_count: Number(booking.item_count || 0),
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
+  vat_amount: roundMoney(booking.vat_amount),
 });
 
 const sanitizeBookingDetailItem = (item) => ({
@@ -895,9 +914,13 @@ const sanitizeInvoiceResponse = ({
     items: items.map(sanitizeInvoiceItem),
     payments: sanitizedPayments,
     refunds: refunds.map(sanitizeRefundSummary),
+    service_fee_amount: roundMoney(booking.service_fee_amount),
     status: booking.status,
     subtotal_amount: roundMoney(booking.subtotal_amount),
+    surcharge_amount: roundMoney(booking.surcharge_amount),
+    tax_and_fee_amount: getTaxAndFeeAmount(booking),
     total_amount: roundMoney(booking.total_amount),
+    vat_amount: roundMoney(booking.vat_amount),
     updated_at: booking.updated_at,
   };
 };
@@ -1047,10 +1070,14 @@ const sanitizeBookingDetail = ({
   note: booking.note,
   payments: payments.map(sanitizePaymentSummary),
   refunds: refunds.map(sanitizeRefundSummary),
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
   updated_at: booking.updated_at,
+  vat_amount: roundMoney(booking.vat_amount),
   voucher_id: booking.voucher_id || null,
 });
 
@@ -1424,33 +1451,47 @@ const createBookingService = ({
       }
 
       const unitPrice = roundMoney(availabilityResult.unit_price);
-      const totalAmount = roundMoney(unitPrice * Number(cartItem.quantity));
+      const quantity = Number(cartItem.quantity);
+      const pricingInput = {
+        ...cartItem,
+        options: cartItem.options,
+        quantity,
+        service_type: service.service_type,
+        unit_price: unitPrice,
+        unit_price_snapshot: unitPrice,
+      };
+      const itemPricing = calculateItemPricing(pricingInput);
+      const totalAmount = roundMoney(itemPricing.subtotal_amount);
+      const bookingItemUnitPrice = quantity > 0
+        ? roundMoney(totalAmount / quantity)
+        : unitPrice;
+      const serviceSnapshot = buildServiceSnapshot({
+        cartItem,
+        detail,
+        service,
+        unitPrice,
+      });
+      serviceSnapshot.pricing = itemPricing;
 
       bookingItems.push({
         cart_item_id: cartItem.id,
         end_at: cartItem.end_at,
-        quantity: Number(cartItem.quantity),
+        quantity,
         reference_id: cartItem.reference_id,
         service_id: service.id,
-        service_snapshot: buildServiceSnapshot({
-          cartItem,
-          detail,
-          service,
-          unitPrice,
-        }),
+        service_snapshot: serviceSnapshot,
         service_type: service.service_type,
         start_at: cartItem.start_at,
         status: BOOKING_ITEM_STATUS.PENDING,
         title_snapshot: service.title,
         total_amount: totalAmount,
         traveller_info: parsedBody.travellers.get(cartItem.id) ?? null,
-        unit_price: unitPrice,
+        unit_price: bookingItemUnitPrice,
       });
     }
 
-    const subtotalAmount = roundMoney(
-      bookingItems.reduce((sum, item) => sum + item.total_amount, 0),
-    );
+    const basePricingSummary = calculatePricingSummary(bookingItems);
+    const subtotalAmount = basePricingSummary.subtotal_amount;
     const {
       discountAmount,
       voucher,
@@ -1460,9 +1501,10 @@ const createBookingService = ({
       userId: auth.userId,
       voucherCode: parsedBody.voucherCode,
     });
-    const totalAmount = roundMoney(
-      Math.max(0, subtotalAmount - discountAmount),
-    );
+    const pricingSummary = calculatePricingSummary(bookingItems, {
+      discountAmount,
+      voucher,
+    });
 
     const result = await repository.createCheckout({
       actorUserId: auth.userId,
@@ -1475,10 +1517,13 @@ const createBookingService = ({
         discount_amount: discountAmount,
         expires_at: buildExpiresAt(),
         note: parsedBody.note,
+        service_fee_amount: pricingSummary.service_fee_amount,
         status: BOOKING_STATUS.PENDING_PAYMENT,
         subtotal_amount: subtotalAmount,
-        total_amount: totalAmount,
+        surcharge_amount: pricingSummary.surcharge_amount,
+        total_amount: pricingSummary.total_amount,
         user_id: auth.userId,
+        vat_amount: pricingSummary.vat_amount,
         voucher_id: voucher?.id || null,
       },
       bookingItems,

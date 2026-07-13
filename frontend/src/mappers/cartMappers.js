@@ -1,4 +1,5 @@
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
+import { calculateItemPricing, calculatePricingSummary } from '../utils/pricing.js'
 
 function padNumber(value) {
   return String(value).padStart(2, '0')
@@ -90,34 +91,15 @@ export function mapCartResponseToView(cartResponse = {}) {
 }
 
 export function resolveCartItemLineAmount(item = {}) {
-  const explicitTotalAmount = Number(item.total_amount)
-
-  if (Number.isFinite(explicitTotalAmount) && explicitTotalAmount >= 0) {
-    return explicitTotalAmount
-  }
-
-  const unitPrice = Number(item.unit_price_snapshot)
-  const quantity = Number(item.quantity)
-
-  if (!Number.isFinite(unitPrice)) {
-    return 0
-  }
-
-  return unitPrice * (Number.isFinite(quantity) && quantity > 0 ? quantity : 1)
+  return calculateItemPricing(item).subtotal_amount
 }
 
 export function createCartSummaryFromItems(cartItems = [], selectedItemIds = []) {
   const selectedItems = cartItems.filter((item) => selectedItemIds.includes(item.id))
-  const subtotalAmount = selectedItems.reduce(
-    (totalAmount, item) => totalAmount + resolveCartItemLineAmount(item),
-    0,
-  )
+  const summary = calculatePricingSummary(selectedItems)
 
   return {
-    subtotal_amount: subtotalAmount,
-    discount_amount: 0,
-    total_amount: subtotalAmount,
-    currency: 'VND',
+    ...summary,
     selected_item_count: selectedItems.length,
   }
 }

@@ -59,6 +59,9 @@ const createBookingRepository = ({
           b.contact_phone,
           b.subtotal_amount,
           b.discount_amount,
+          b.vat_amount,
+          b.service_fee_amount,
+          b.surcharge_amount,
           b.total_amount,
           b.currency,
           b.voucher_id,
@@ -213,6 +216,9 @@ const createBookingRepository = ({
             b.contact_name,
             b.subtotal_amount,
             b.discount_amount,
+            b.vat_amount,
+            b.service_fee_amount,
+            b.surcharge_amount,
             b.total_amount,
             b.currency,
             b.expires_at,
@@ -230,6 +236,9 @@ const createBookingRepository = ({
             b.contact_name,
             b.subtotal_amount,
             b.discount_amount,
+            b.vat_amount,
+            b.service_fee_amount,
+            b.surcharge_amount,
             b.total_amount,
             b.currency,
             b.expires_at,
@@ -483,6 +492,9 @@ const createBookingRepository = ({
           b.contact_phone,
           b.subtotal_amount,
           b.discount_amount,
+          b.vat_amount,
+          b.service_fee_amount,
+          b.surcharge_amount,
           b.total_amount,
           b.currency,
           b.voucher_id,
@@ -580,6 +592,9 @@ const createBookingRepository = ({
             contact_phone,
             subtotal_amount,
             discount_amount,
+            vat_amount,
+            service_fee_amount,
+            surcharge_amount,
             total_amount,
             currency,
             voucher_id,
@@ -589,7 +604,7 @@ const createBookingRepository = ({
             updated_at
           )
           VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW()
           )
           RETURNING
             id,
@@ -601,6 +616,9 @@ const createBookingRepository = ({
             contact_phone,
             subtotal_amount,
             discount_amount,
+            vat_amount,
+            service_fee_amount,
+            surcharge_amount,
             total_amount,
             currency,
             voucher_id,
@@ -618,6 +636,9 @@ const createBookingRepository = ({
           booking.contact_phone,
           booking.subtotal_amount,
           booking.discount_amount,
+          booking.vat_amount,
+          booking.service_fee_amount,
+          booking.surcharge_amount,
           booking.total_amount,
           booking.currency,
           booking.voucher_id,

@@ -143,9 +143,13 @@ test('bookingService.listMyBookings returns paginated summaries for the current 
     expires_at: '2026-07-02T01:00:00.000Z',
     id: BOOKING_ID,
     item_count: 2,
+    service_fee_amount: 0,
     status: BOOKING_STATUS.PENDING_PAYMENT,
     subtotal_amount: 1500000,
+    surcharge_amount: 0,
+    tax_and_fee_amount: 0,
     total_amount: 1400000,
+    vat_amount: 0,
   });
 });
 

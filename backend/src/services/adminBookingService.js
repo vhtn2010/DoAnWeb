@@ -429,6 +429,13 @@ const sanitizeCustomerSummary = (booking) => ({
   phone: booking.customer_phone || null,
 });
 
+const getTaxAndFeeAmount = (booking = {}) =>
+  roundMoney(
+    Number(booking.vat_amount || 0) +
+      Number(booking.service_fee_amount || 0) +
+      Number(booking.surcharge_amount || 0),
+  );
+
 const sanitizeBookingSummary = (booking) => ({
   booking_code: booking.booking_code,
   contact_email: booking.contact_email,
@@ -441,11 +448,15 @@ const sanitizeBookingSummary = (booking) => ({
   expires_at: booking.expires_at,
   id: booking.id,
   item_count: Number(booking.item_count || 0),
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   service_title: booking.service_title || null,
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
   updated_at: booking.updated_at,
+  vat_amount: roundMoney(booking.vat_amount),
 });
 
 const sanitizePaymentProofSummary = (rawResponse) => {
@@ -655,11 +666,15 @@ const sanitizeBookingDetail = ({
   note: booking.note,
   payments: payments.map(sanitizePaymentSummary),
   refunds: refunds.map(sanitizeRefundSummary),
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
   updated_at: booking.updated_at,
   user_id: booking.user_id,
+  vat_amount: roundMoney(booking.vat_amount),
   voucher_id: booking.voucher_id || null,
 });
 

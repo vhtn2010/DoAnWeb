@@ -73,8 +73,10 @@ function buildSummaryFromBooking(booking = {}) {
     currency: booking.currency,
     discount_amount: booking.discount_amount,
     subtotal_amount: booking.subtotal_amount,
-    tax_and_fee_amount:
-      Number(booking.tax_amount ?? 0) + Number(booking.service_fee_amount ?? 0),
+    tax_and_fee_amount: booking.tax_and_fee_amount,
+    vat_amount: booking.vat_amount ?? booking.tax_amount,
+    service_fee_amount: booking.service_fee_amount,
+    surcharge_amount: booking.surcharge_amount,
     total_amount: booking.total_amount,
     voucher_code: booking.voucher_code,
   })

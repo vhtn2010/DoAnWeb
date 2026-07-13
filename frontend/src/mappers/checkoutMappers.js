@@ -118,6 +118,13 @@ export function calculateCheckoutSummary(payload = {}) {
   const serviceFeeAmount = resolveNumber(
     payload.service_fee_amount,
     payload.serviceFeeAmount,
+  )
+  const vatAmount = resolveNumber(payload.vat_amount, payload.vatAmount)
+  const surchargeAmount = resolveNumber(payload.surcharge_amount, payload.surchargeAmount)
+  const taxAndFeeAmount = resolveNumber(
+    payload.tax_and_fee_amount,
+    payload.taxAndFeeAmount,
+    vatAmount + serviceFeeAmount + surchargeAmount,
     CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
   )
   const discountAmount = resolveNumber(
@@ -127,9 +134,12 @@ export function calculateCheckoutSummary(payload = {}) {
 
   return {
     subtotal_amount: subtotalAmount,
+    vat_amount: vatAmount,
     service_fee_amount: serviceFeeAmount,
+    surcharge_amount: surchargeAmount,
+    tax_and_fee_amount: taxAndFeeAmount,
     discount_amount: discountAmount,
-    total_amount: Math.max(subtotalAmount + serviceFeeAmount - discountAmount, 0),
+    total_amount: Math.max(subtotalAmount + taxAndFeeAmount - discountAmount, 0),
     currency: CHECKOUT_DEFAULT_CURRENCY,
   }
 }
@@ -227,6 +237,12 @@ export function buildCheckoutDraftFromCartSnapshot(
   )
   const serviceFeeAmount = resolveNumber(
     cartSummaryPayload?.summary?.service_fee_amount,
+  )
+  const vatAmount = resolveNumber(cartSummaryPayload?.summary?.vat_amount)
+  const surchargeAmount = resolveNumber(cartSummaryPayload?.summary?.surcharge_amount)
+  const taxAndFeeAmount = resolveNumber(
+    cartSummaryPayload?.summary?.tax_and_fee_amount,
+    vatAmount + serviceFeeAmount + surchargeAmount,
     CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
   )
   const discountAmount = resolveNumber(cartSummaryPayload?.summary?.discount_amount, 0)
@@ -253,7 +269,10 @@ export function buildCheckoutDraftFromCartSnapshot(
     special_requests: cloneCheckoutValue(CHECKOUT_SPECIAL_REQUEST_TEMPLATE),
     summary: calculateCheckoutSummary({
       subtotal_amount: subtotalAmount,
+      vat_amount: vatAmount,
       service_fee_amount: serviceFeeAmount,
+      surcharge_amount: surchargeAmount,
+      tax_and_fee_amount: taxAndFeeAmount,
       discount_amount: discountAmount,
     }),
     summary_service: buildSummaryServiceSnapshot(primaryCartItem),
@@ -338,8 +357,10 @@ export function buildPaymentConfirmationHandoff(checkoutPayload = {}) {
       payment_status: PAYMENT_STATUSES.initiated,
       subtotal_amount: resolveNumber(summary.subtotal_amount),
       discount_amount: resolveNumber(summary.discount_amount),
-      tax_amount: 0,
+      tax_amount: resolveNumber(summary.vat_amount),
       service_fee_amount: resolveNumber(summary.service_fee_amount),
+      surcharge_amount: resolveNumber(summary.surcharge_amount),
+      tax_and_fee_amount: resolveNumber(summary.tax_and_fee_amount),
       total_amount: totalAmount,
       currency: summary.currency ?? BOOKING_DEFAULT_CURRENCY,
       voucher_code: normalizeText(checkoutPayload.voucher_code).toUpperCase(),
