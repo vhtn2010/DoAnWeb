@@ -16,7 +16,7 @@ export const PROFILE_HISTORY_FILTERS = Object.freeze({
 
 export const PROFILE_HISTORY_FILTER_LABELS = Object.freeze({
   [PROFILE_HISTORY_FILTERS.all]: 'Tất cả',
-  [PROFILE_HISTORY_FILTERS.pending_confirmation]: 'Chờ xác nhận',
+  [PROFILE_HISTORY_FILTERS.pending_confirmation]: 'Chờ duyệt',
   [PROFILE_HISTORY_FILTERS.upcoming]: 'Chuyến đi sắp tới',
   [PROFILE_HISTORY_FILTERS.booking_history]: 'Lịch sử đặt chỗ',
   [PROFILE_HISTORY_FILTERS.cancelled]: 'Đã hủy',

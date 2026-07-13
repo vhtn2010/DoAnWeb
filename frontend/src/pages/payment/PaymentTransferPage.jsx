@@ -76,7 +76,7 @@ function PaymentTransferPage() {
                 className="payment-confirmation-page__status payment-confirmation-page__status--success"
                 role="status"
               >
-                <p>Thanh toán này đã được admin xác nhận. Bạn có thể xem kết quả chi tiết.</p>
+                <p>Thanh toán này đã được xác nhận. Bạn có thể xem kết quả chi tiết.</p>
                 <button type="button" onClick={actions.goToSuccess}>
                   Xem kết quả
                 </button>
@@ -95,7 +95,7 @@ function PaymentTransferPage() {
               payment={payment}
               paymentProof={paymentProof}
               proofActionLabel={
-                paymentProof?.proof_image_url ? 'Cập nhật bill và gửi admin' : 'Gửi bill cho admin duyệt'
+                paymentProof?.proof_image_url ? 'Cập nhật bill và gửi duyệt' : 'Gửi bill duyệt'
               }
               proofForm={proofForm}
               showProofForm

@@ -1,5 +1,6 @@
 function BookingDetailSummary({
   bookingCode,
+  confirmLabel = 'Xác nhận',
   feedback,
   isDisabled,
   onConfirm,
@@ -50,7 +51,7 @@ function BookingDetailSummary({
         type="button"
         onClick={onConfirm}
       >
-        Xác nhận
+        {confirmLabel}
       </button>
 
       {feedback ? (

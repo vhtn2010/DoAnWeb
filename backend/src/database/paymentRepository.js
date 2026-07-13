@@ -612,9 +612,9 @@ const createPaymentRepository = ({
               COALESCE(raw_response, '{}'::jsonb),
               '{proof}',
               jsonb_build_object(
-                'proof_image_url', $2,
-                'transfer_note', $3,
-                'bank_transaction_code', $4,
+                'proof_image_url', $2::text,
+                'transfer_note', $3::text,
+                'bank_transaction_code', $4::text,
                 'submitted_at', NOW()
               ),
               true

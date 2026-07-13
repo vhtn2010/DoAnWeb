@@ -297,12 +297,49 @@ const createAdminBookingRepository = ({
         u.full_name AS customer_full_name,
         u.email AS customer_email,
         u.phone AS customer_phone,
+        lp.id AS latest_payment_id,
+        lp.payment_code AS latest_payment_code,
+        lp.provider AS latest_payment_provider,
+        lp.payment_method AS latest_payment_method,
+        lp.status AS latest_payment_status,
+        lp.amount AS latest_payment_amount,
+        lp.currency AS latest_payment_currency,
+        lp.raw_response AS latest_payment_raw_response,
+        lp.paid_at AS latest_payment_paid_at,
+        lp.expired_at AS latest_payment_expired_at,
+        lp.created_at AS latest_payment_created_at,
         COUNT(bi.id)::int AS item_count,
         (ARRAY_AGG(bi.title_snapshot ORDER BY bi.start_at ASC NULLS LAST, bi.id ASC)
           FILTER (WHERE bi.id IS NOT NULL))[1] AS service_title
       FROM bookings b
       LEFT JOIN users u
         ON u.id = b.user_id
+      LEFT JOIN LATERAL (
+        SELECT
+          p.id,
+          p.payment_code,
+          p.provider,
+          p.payment_method,
+          p.status,
+          p.amount,
+          p.currency,
+          p.raw_response,
+          p.paid_at,
+          p.expired_at,
+          p.created_at
+        FROM payments p
+        WHERE p.booking_id = b.id
+        ORDER BY
+          CASE
+            WHEN p.status = 'pending' AND p.raw_response ? 'proof' THEN 0
+            WHEN p.status = 'pending' THEN 1
+            WHEN p.status IN ('success', 'reconciled') THEN 2
+            ELSE 3
+          END,
+          p.created_at DESC,
+          p.id DESC
+        LIMIT 1
+      ) lp ON TRUE
       LEFT JOIN booking_items bi
         ON bi.booking_id = b.id
       ${whereSql}
@@ -323,7 +360,18 @@ const createAdminBookingRepository = ({
         b.updated_at,
         u.full_name,
         u.email,
-        u.phone
+        u.phone,
+        lp.id,
+        lp.payment_code,
+        lp.provider,
+        lp.payment_method,
+        lp.status,
+        lp.amount,
+        lp.currency,
+        lp.raw_response,
+        lp.paid_at,
+        lp.expired_at,
+        lp.created_at
     `;
     const countParams = [...params];
     const dataParams = [...params, limit, offset];
@@ -493,6 +541,7 @@ const createAdminBookingRepository = ({
           status,
           amount,
           currency,
+          raw_response,
           paid_at,
           expired_at,
           created_at

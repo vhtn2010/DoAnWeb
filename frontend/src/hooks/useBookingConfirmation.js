@@ -16,11 +16,19 @@ import {
 import {
   cancelCustomerRefundRequest,
   createCustomerRefundRequest,
+  getCustomerPaymentProof,
   getCustomerRefundDetail,
+  listCustomerBookingPayments,
   listCustomerBookingRefunds,
 } from '../repositories/paymentRepository.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+import {
+  getSubmittedPaymentProof,
+  hasSubmittedPaymentProof,
+  isBookingAwaitingAdminReview,
+  pickLatestPayment,
+} from '../utils/paymentReviewStatus.js'
 
 const FALLBACK_SERVICE_IMAGE_URL = '/assets/template/service/detail/ha-long-gallery-main.png'
 
@@ -70,6 +78,70 @@ function createServiceFeedbackState() {
   }
 }
 
+function extractPayments(response = {}) {
+  if (Array.isArray(response.data)) {
+    return response.data
+  }
+
+  if (Array.isArray(response.data?.payments)) {
+    return response.data.payments
+  }
+
+  return []
+}
+
+function createPaymentReviewState() {
+  return {
+    isAwaitingAdminReview: false,
+    latestPayment: null,
+    proof: null,
+  }
+}
+
+async function loadPaymentReviewState(booking = {}) {
+  if (!booking.id || booking.booking_status !== 'pending_payment') {
+    return createPaymentReviewState()
+  }
+
+  try {
+    const paymentsResponse = await listCustomerBookingPayments(booking.id)
+    const latestPayment = pickLatestPayment(extractPayments(paymentsResponse))
+
+    if (!latestPayment?.id || hasSubmittedPaymentProof(latestPayment)) {
+      const proof = getSubmittedPaymentProof(latestPayment)
+
+      return {
+        isAwaitingAdminReview: isBookingAwaitingAdminReview({
+          ...booking,
+          latest_payment: latestPayment,
+          payment_proof: proof,
+        }),
+        latestPayment,
+        proof,
+      }
+    }
+
+    const proofResponse = await getCustomerPaymentProof(latestPayment.id).catch(() => ({
+      data: {
+        proof: null,
+      },
+    }))
+    const proof = proofResponse.data?.proof ?? null
+
+    return {
+      isAwaitingAdminReview: isBookingAwaitingAdminReview({
+        ...booking,
+        latest_payment: latestPayment,
+        payment_proof: proof,
+      }),
+      latestPayment,
+      proof,
+    }
+  } catch {
+    return createPaymentReviewState()
+  }
+}
+
 export default function useBookingConfirmation() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -93,6 +165,7 @@ export default function useBookingConfirmation() {
   const [cancellationReason, setCancellationReason] = useState('')
   const [refundDraft, setRefundDraft] = useState(createRefundDraftState)
   const [serviceFeedback, setServiceFeedback] = useState(createServiceFeedbackState)
+  const [paymentReview, setPaymentReview] = useState(createPaymentReviewState)
   const isCheckoutDraftConfirmation = !bookingCode && !location.state?.bookingId
 
   useEffect(() => {
@@ -125,6 +198,7 @@ export default function useBookingConfirmation() {
           }))
           setBookingItems(normalizeBookingItems(handoff.booking_items))
           setRefunds([])
+          setPaymentReview(createPaymentReviewState())
           return
         }
 
@@ -148,6 +222,7 @@ export default function useBookingConfirmation() {
           setInvoice(null)
           setRefunds([])
           setSelectedRefund(null)
+          setPaymentReview(createPaymentReviewState())
           setError(
             response.message ?? 'Không thể tải thông tin xác nhận đơn hàng lúc này.',
           )
@@ -155,10 +230,20 @@ export default function useBookingConfirmation() {
         }
 
         const nextBooking = normalizeBooking(response.data.booking)
+        const nextPaymentReview = await loadPaymentReviewState(nextBooking)
+
+        if (!isActive) {
+          return
+        }
 
         setBooking(nextBooking)
         setBookingItems(normalizeBookingItems(response.data.booking_items))
         setRefunds(Array.isArray(nextBooking.refunds) ? nextBooking.refunds : [])
+        setPaymentReview(nextPaymentReview)
+
+        if (nextPaymentReview.isAwaitingAdminReview) {
+          setFeedback('Bill thanh toán đã được gửi. Đơn hàng đang chờ admin kiểm tra và duyệt.')
+        }
       } catch (loadError) {
         if (!isActive) {
           return
@@ -170,6 +255,7 @@ export default function useBookingConfirmation() {
         setInvoice(null)
         setRefunds([])
         setSelectedRefund(null)
+        setPaymentReview(createPaymentReviewState())
         setError(
           loadError?.message ?? 'Không thể tải thông tin xác nhận đơn hàng lúc này.',
         )
@@ -270,7 +356,8 @@ export default function useBookingConfirmation() {
   )
 
   const canContinueToPayment =
-    isCheckoutDraftConfirmation || booking?.booking_status === 'pending_payment'
+    (isCheckoutDraftConfirmation || booking?.booking_status === 'pending_payment') &&
+    !paymentReview.isAwaitingAdminReview
 
   function retry() {
     setReloadToken((currentToken) => currentToken + 1)
@@ -318,6 +405,11 @@ export default function useBookingConfirmation() {
           selectedCartItemIds: location.state?.selectedCartItemIds,
         },
       })
+      return
+    }
+
+    if (paymentReview.isAwaitingAdminReview) {
+      setFeedback('Bill thanh toán đã được gửi. Đơn hàng đang chờ admin kiểm tra và duyệt.')
       return
     }
 
@@ -564,6 +656,7 @@ export default function useBookingConfirmation() {
       retry,
       submitCancellationRequest,
       submitRefundRequest,
+      isAwaitingAdminReview: paymentReview.isAwaitingAdminReview,
     },
   }
 }

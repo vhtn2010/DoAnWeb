@@ -202,3 +202,78 @@ test('createPaymentRepository.createDirectPayment falls back to legacy bank_tran
   assert.equal(loggedMetadata.payment_provider, 'direct');
   assert.equal(loggedMetadata.stored_provider, 'bank_transfer');
 });
+
+test('createPaymentRepository.uploadPaymentProof casts proof fields for jsonb_build_object', async () => {
+  let updateSql = '';
+
+  const client = {
+    async query(text, params = []) {
+      const sql = String(text);
+
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rows: [] };
+      }
+
+      if (sql.includes('UPDATE payments')) {
+        updateSql = sql;
+
+        return {
+          rows: [
+            {
+              amount: '4000000',
+              booking_id: BOOKING_ID,
+              created_at: '2026-07-13T08:00:00.000Z',
+              currency: 'VND',
+              expired_at: null,
+              id: PAYMENT_ID,
+              paid_at: null,
+              payment_code: 'PAY20260713ABCD1234',
+              payment_method: 'bank_transfer',
+              provider: 'bank_transfer',
+              raw_response: {
+                proof: {
+                  bank_transaction_code: params[3],
+                  proof_image_url: params[1],
+                  transfer_note: params[2],
+                },
+              },
+              status: 'pending',
+              updated_at: '2026-07-13T08:00:00.000Z',
+            },
+          ],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return { rows: [] };
+      }
+
+      throw new Error(`Unexpected query in test: ${sql}`);
+    },
+    release() {
+      return undefined;
+    },
+  };
+
+  const repository = createPaymentRepository({
+    getPoolImpl: () => ({
+      connect: async () => client,
+    }),
+    queryImpl: async () => {
+      throw new Error('queryImpl should not be used inside uploadPaymentProof transaction');
+    },
+  });
+
+  const result = await repository.uploadPaymentProof({
+    actorUserId: USER_ID,
+    bankTransactionCode: 'FT240710123456',
+    paymentId: PAYMENT_ID,
+    proofImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/payment-proof.jpg',
+    transferNote: 'NVT BK20260713E4853B65',
+  });
+
+  assert.match(updateSql, /'proof_image_url', \$2::text/);
+  assert.match(updateSql, /'transfer_note', \$3::text/);
+  assert.match(updateSql, /'bank_transaction_code', \$4::text/);
+  assert.equal(result.raw_response.proof.bank_transaction_code, 'FT240710123456');
+});

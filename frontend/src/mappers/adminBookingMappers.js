@@ -160,6 +160,49 @@ function mapStatusTone(status) {
   return ADMIN_BOOKING_STATUS_META[status]?.tone ?? 'neutral'
 }
 
+function getPaymentProof(payment = {}) {
+  return payment.proof_summary ?? payment.proof ?? null
+}
+
+function isPendingPaymentProof(payment = {}) {
+  const proof = getPaymentProof(payment)
+
+  return (
+    payment.status === 'pending' &&
+    (Boolean(payment.has_proof) || Boolean(proof?.proof_image_url))
+  )
+}
+
+function normalizeReviewPayment(payment = null) {
+  if (!payment) {
+    return null
+  }
+
+  return {
+    amount: Number(payment.amount || 0),
+    currency: payment.currency || 'VND',
+    id: payment.id,
+    paidAt: payment.paid_at || null,
+    paymentCode: payment.payment_code || payment.id,
+    paymentMethod: payment.payment_method || '',
+    proof: getPaymentProof(payment),
+    provider: payment.provider || '',
+    status: payment.status || '',
+    submittedAt: getPaymentProof(payment)?.submitted_at || null,
+  }
+}
+
+function getReviewPayment(summary = {}, detail = null) {
+  if (isPendingPaymentProof(summary.latest_payment)) {
+    return normalizeReviewPayment(summary.latest_payment)
+  }
+
+  const payments = Array.isArray(detail?.payments) ? detail.payments : []
+  const pendingPaymentWithProof = payments.find((payment) => isPendingPaymentProof(payment))
+
+  return normalizeReviewPayment(pendingPaymentWithProof)
+}
+
 function getSummaryServiceTitle(summary, primaryItem, itemCount) {
   return (
     summary.service_title ||
@@ -190,6 +233,9 @@ export function mapAdminBookingSummary(summary = {}, detail = null) {
   const totalQuantity = getTotalQuantity(items, itemCount)
   const { startDate, endDate } = getItemDateBounds(items)
   const serviceTitle = getSummaryServiceTitle(summary, primaryItem, itemCount)
+  const reviewPayment = getReviewPayment(summary, detail)
+  const statusLabel = reviewPayment ? 'Chờ duyệt' : mapStatusLabel(summary.status)
+  const statusTone = reviewPayment ? 'review' : mapStatusTone(summary.status)
 
   return {
     bookingCode: summary.booking_code,
@@ -217,10 +263,11 @@ export function mapAdminBookingSummary(summary = {}, detail = null) {
     itemCount,
     note: getBookingNote(summary, detail),
     returnLabel: formatDate(endDate ?? primaryItem?.end_at),
+    reviewPayment,
     serviceTitle,
     status: summary.status,
-    statusLabel: mapStatusLabel(summary.status),
-    statusTone: mapStatusTone(summary.status),
+    statusLabel,
+    statusTone,
     totalAmount: Number(summary.total_amount || 0),
     transport: transportItem?.title || 'Theo từng dịch vụ',
     travelers: `${totalQuantity} lượt dịch vụ`,

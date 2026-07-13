@@ -94,7 +94,7 @@ function normalizeBankTransferMethod(methods = []) {
     bankName: bankMethod.bank_name,
     code: bankMethod.code,
     description:
-      'Hoàn tất chuyển khoản theo thông tin bên dưới rồi tải bill để gửi admin duyệt.',
+      'Hoàn tất chuyển khoản theo thông tin bên dưới rồi tải bill để gửi duyệt.',
     details: buildMethodDetails(bankMethod),
     id: `payment-method-${bankMethod.code}`,
     label: 'Chuyển khoản ngân hàng',
@@ -113,7 +113,7 @@ function buildFeedback(payment, paymentProof) {
   }
 
   if (payment.status === PAYMENT_STATUSES.pending && paymentProof?.proof_image_url) {
-    return 'Bill chuyển khoản đã được gửi đến admin. Vui lòng chờ kiểm tra và duyệt thủ công.'
+    return 'Bill chuyển khoản đã được gửi. Vui lòng chờ kiểm tra và duyệt thủ công.'
   }
 
   if (payment.status === PAYMENT_STATUSES.pending) {
@@ -301,7 +301,9 @@ export default function usePaymentTransfer() {
 
   async function submitProof() {
     if (!payment?.id) {
-      setFeedback('Không tìm thấy giao dịch để gửi bill.')
+      setFieldErrors({
+        proof_file: 'Không tìm thấy giao dịch để gửi bill. Vui lòng tải lại trang và thử lại.',
+      })
       return
     }
 
@@ -312,7 +314,7 @@ export default function usePaymentTransfer() {
 
     if (!proofForm.file) {
       setFieldErrors({
-        proof_file: 'Vui lòng tải bill chuyển khoản trước khi gửi admin.',
+        proof_file: 'Vui lòng tải bill chuyển khoản trước khi gửi duyệt.',
       })
       setFeedback('Bạn cần tải bill chuyển khoản lên trước khi gửi.')
       return
@@ -330,29 +332,48 @@ export default function usePaymentTransfer() {
         transfer_note: proofForm.transfer_note.trim() || undefined,
       })
       const nextProof = proofResponse.data.proof ?? null
-
-      setPayment((currentPayment) =>
-        currentPayment
+      const nextPayment = {
+        ...payment,
+        payment_status: proofResponse.data.status ?? payment.payment_status ?? payment.status,
+        status: proofResponse.data.status ?? payment.status,
+        proof_summary: nextProof
           ? {
-              ...currentPayment,
-              proof_summary: nextProof
-                ? {
-                    bank_transaction_code: nextProof.bank_transaction_code ?? null,
-                    proof_image_url: nextProof.proof_image_url ?? null,
-                    transfer_note: nextProof.transfer_note ?? null,
-                    uploaded_at: nextProof.submitted_at ?? null,
-                  }
-                : currentPayment.proof_summary,
+              bank_transaction_code: nextProof.bank_transaction_code ?? null,
+              proof_image_url: nextProof.proof_image_url ?? null,
+              transfer_note: nextProof.transfer_note ?? null,
+              uploaded_at: nextProof.submitted_at ?? null,
             }
-          : currentPayment,
-      )
+          : payment.proof_summary,
+      }
+
+      setPayment(nextPayment)
       setPaymentProof(nextProof)
       setProofForm((currentForm) => ({
         ...currentForm,
         file: null,
       }))
-      setFeedback('Bill chuyển khoản đã được gửi đến admin. Vui lòng chờ kiểm tra và duyệt thủ công.')
+      setFeedback('Bill chuyển khoản đã được gửi. Vui lòng chờ kiểm tra và duyệt thủ công.')
+      const nextPaymentCode = nextPayment.payment_code || paymentCode
+
+      if (!nextPaymentCode) {
+        setFieldErrors({
+          proof_file: 'Đã gửi bill nhưng chưa lấy được mã giao dịch để mở trang kết quả.',
+        })
+        return
+      }
+
+      navigate(buildPublicAuthPath(`/payment-success/${nextPaymentCode}`, isCustomer), {
+        state: {
+          booking,
+          bookingItems,
+          payment: nextPayment,
+          paymentProof: nextProof,
+        },
+      })
     } catch (submitError) {
+      setFieldErrors({
+        proof_file: submitError?.message ?? 'Không thể gửi bill chuyển khoản lúc này.',
+      })
       setFeedback(submitError?.message ?? 'Không thể gửi bill chuyển khoản lúc này.')
     } finally {
       setUploadingProof(false)

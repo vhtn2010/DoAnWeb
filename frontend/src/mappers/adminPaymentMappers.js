@@ -117,7 +117,14 @@ export function createAdminPaymentPageNumbers(totalPages = 1) {
   return Array.from({ length: Math.max(Number(totalPages) || 1, 1) }, (_, index) => index + 1)
 }
 
-export function getAdminPaymentStatusMeta(status) {
+export function getAdminPaymentStatusMeta(status, payment = {}) {
+  if (status === ADMIN_PAYMENT_STATUSES.pending && payment.hasProof) {
+    return {
+      label: 'Chờ duyệt',
+      tone: 'info',
+    }
+  }
+
   return ADMIN_PAYMENT_STATUS_META[status] ?? {
     label: status || ADMIN_PAYMENT_STATUSES.pending,
     tone: 'neutral',

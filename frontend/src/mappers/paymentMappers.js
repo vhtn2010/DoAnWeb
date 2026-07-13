@@ -417,6 +417,29 @@ export function buildPaymentContactForm(booking = {}) {
   }
 }
 
+function resolveBookingItemServiceTitle(item = {}, fallbackTitle = '') {
+  const snapshot = item.service_snapshot ?? {}
+
+  return (
+    normalizeText(snapshot.title) ||
+    normalizeText(item.service_title) ||
+    normalizeText(item.title_snapshot) ||
+    normalizeText(item.title) ||
+    normalizeText(fallbackTitle)
+  )
+}
+
+function resolvePaymentSuccessServiceTitle(paymentSuccess = {}) {
+  const primaryBookingItem = Array.isArray(paymentSuccess.booking_items)
+    ? paymentSuccess.booking_items[0]
+    : null
+
+  return (
+    normalizeText(paymentSuccess.booking?.service_title) ||
+    resolveBookingItemServiceTitle(primaryBookingItem, 'Dịch vụ đang được cập nhật')
+  )
+}
+
 export function buildPaymentSuccessData({
   basePaymentSuccessData,
   payment,
@@ -482,7 +505,10 @@ export function buildPaymentSuccessData({
     },
     booking: {
       booking_code: resolvedBookingCode ?? '',
-      service_title: primaryBookingItem.service_title ?? fallbackBooking.service_title ?? '',
+      service_title: resolveBookingItemServiceTitle(
+        primaryBookingItem,
+        fallbackBooking.service_title,
+      ),
       departure_date: primaryBookingItem.start_at ?? fallbackBooking.departure_date ?? '',
       departure_date_label:
         fallbackBooking.departure_date_label ??
@@ -499,6 +525,7 @@ export function buildPaymentSuccessData({
     },
     booking_items: normalizedBookingItems.map((item) => ({
       ...item,
+      service_title: resolveBookingItemServiceTitle(item),
       total_amount: resolveNumber(
         item.total_amount,
         resolveNumber(item.unit_price_snapshot) * resolveNumber(item.quantity, 1),
@@ -536,7 +563,7 @@ export function buildPaymentSuccessViewModel(paymentSuccess = {}) {
       rightColumn: [
         {
           label: 'Tên dịch vụ',
-          value: paymentSuccess.booking?.service_title ?? '',
+          value: resolvePaymentSuccessServiceTitle(paymentSuccess),
           tone: 'brand',
         },
         {

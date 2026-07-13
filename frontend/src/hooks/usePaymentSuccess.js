@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   buildInvoiceDownloadPayload,
@@ -65,6 +65,20 @@ export default function usePaymentSuccess() {
   const [feedback, setFeedback] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
 
+  const buildLocalPaymentSuccess = useCallback(() => {
+    if (!bookingState && !paymentState && !paymentResultPayloadState && !paymentCode) {
+      return null
+    }
+
+    return buildPaymentSuccessData({
+      booking: bookingState,
+      bookingItems: bookingItemsState,
+      payment: paymentState ?? (paymentCode ? { payment_code: paymentCode } : undefined),
+      paymentResultPayload:
+        paymentResultPayloadState ?? (paymentCode ? { payment_code: paymentCode } : undefined),
+    })
+  }, [bookingItemsState, bookingState, paymentCode, paymentResultPayloadState, paymentState])
+
   useEffect(() => {
     let isActive = true
 
@@ -81,6 +95,7 @@ export default function usePaymentSuccess() {
           payment: paymentState,
           paymentResultPayload: paymentResultPayloadState,
         }
+        const localPaymentSuccess = buildLocalPaymentSuccess()
         const response = paymentCode
           ? await getPaymentSuccessByCode(paymentCode, sharedParams)
           : await getPaymentSuccess(sharedParams)
@@ -90,6 +105,11 @@ export default function usePaymentSuccess() {
         }
 
         if (!response.success || !response.data) {
+          if (localPaymentSuccess) {
+            setPaymentSuccess(localPaymentSuccess)
+            return
+          }
+
           setPaymentSuccess(null)
           setError(response.message ?? 'Không thể tải thông tin thanh toán lúc này.')
           return
@@ -119,6 +139,13 @@ export default function usePaymentSuccess() {
           return
         }
 
+        const localPaymentSuccess = buildLocalPaymentSuccess()
+
+        if (localPaymentSuccess) {
+          setPaymentSuccess(localPaymentSuccess)
+          return
+        }
+
         setPaymentSuccess(null)
         setError(loadError?.message ?? 'Không thể tải thông tin thanh toán lúc này.')
       } finally {
@@ -135,6 +162,7 @@ export default function usePaymentSuccess() {
     }
   }, [
     authState,
+    buildLocalPaymentSuccess,
     bookingItemsState,
     bookingState,
     paymentCode,

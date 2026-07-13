@@ -63,7 +63,7 @@ const CUSTOMER_ONLY_ROUTE_MODAL_MAP = Object.freeze([
     matcher: (pathname) => pathname.startsWith('/payment-transfer/'),
     modal: {
       description:
-        'Đăng nhập để xem thông tin chuyển khoản, tải bill và theo dõi trạng thái admin xác nhận.',
+        'Đăng nhập để xem thông tin chuyển khoản, tải bill và theo dõi trạng thái xác nhận.',
       eyebrow: 'Thanh toán',
       title: 'Vui lòng đăng nhập để tiếp tục chuyển khoản',
     },

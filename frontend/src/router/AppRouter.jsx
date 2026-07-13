@@ -23,6 +23,7 @@ import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
 import FavoritesPage from '../pages/profile/FavoritesPage.jsx'
 import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
 import NotificationsPage from '../pages/profile/NotificationsPage.jsx'
+import ProfileOrdersPage from '../pages/profile/ProfileOrdersPage.jsx'
 import ProfilePage from '../pages/profile/ProfilePageV2.jsx'
 import TravelHandbookPage from '../pages/profile/TravelHandbookPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPageV2.jsx'
@@ -54,10 +55,12 @@ import {
 import AdminRouteGate from '../pages/admin/AdminRouteGate.jsx'
 import CustomerOnlyRoute from './CustomerOnlyRoute.jsx'
 import ProtectedRoute from './ProtectedRoute.jsx'
+import ScrollToTop from './ScrollToTop.jsx'
 
 function AppRouter() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route element={<PublicLayout />}>
           <Route path="/" element={<HomePage />} />
@@ -167,6 +170,18 @@ function AppRouter() {
                 title="Vui lòng đăng nhập để mở tài khoản cá nhân"
               >
                 <ProfilePage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/profile/orders"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem lịch sử đơn hàng, trạng thái thanh toán và các yêu cầu đang chờ duyệt."
+                eyebrow="Lịch sử đơn hàng"
+                title="Vui lòng đăng nhập để xem lịch sử đơn hàng"
+              >
+                <ProfileOrdersPage />
               </CustomerOnlyRoute>
             }
           />

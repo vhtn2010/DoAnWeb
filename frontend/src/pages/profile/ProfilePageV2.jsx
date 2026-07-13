@@ -21,7 +21,6 @@ function ProfilePageV2() {
 
   const totalOrders = bookingCounts[PROFILE_HISTORY_FILTERS.all] ?? 0
   const upcomingOrders = bookingCounts[PROFILE_HISTORY_FILTERS.upcoming] ?? 0
-  const pendingOrders = bookingCounts[PROFILE_HISTORY_FILTERS.pending_confirmation] ?? 0
   const latestFavorite = viewModel.favoriteDestinations?.[0]
   const loyaltyTierLabel =
     profile?.loyalty_tier === 'Di sản Vàng' ? 'Hạng Vàng' : profile?.loyalty_tier
@@ -36,11 +35,6 @@ function ProfilePageV2() {
       id: 'upcoming',
       value: upcomingOrders,
       label: 'chuyến sắp tới',
-    },
-    {
-      id: 'pending',
-      value: pendingOrders,
-      label: 'yêu cầu cần xử lý',
     },
   ]
 

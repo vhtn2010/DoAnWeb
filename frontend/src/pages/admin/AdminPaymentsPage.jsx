@@ -235,7 +235,7 @@ function AdminPaymentsPage() {
           rows={payments}
         >
           {payments.map((transaction) => {
-            const status = getAdminPaymentStatusMeta(transaction.status)
+            const status = getAdminPaymentStatusMeta(transaction.status, transaction)
 
             return (
               <tr

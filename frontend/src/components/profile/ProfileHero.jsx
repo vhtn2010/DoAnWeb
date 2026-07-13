@@ -13,6 +13,20 @@ function SparkIcon() {
   )
 }
 
+function ChevronRightIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M7.25 5.5 11.75 10l-4.5 4.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
 function MailIcon() {
   return (
     <svg fill="none" viewBox="0 0 20 20">
@@ -296,9 +310,33 @@ function EditableContactField({
   )
 }
 
+function MiniFavoriteDestinations({ destinations = [], onOpenDestination }) {
+  return (
+    <button
+      className="profile-hero__favorites-stat"
+      type="button"
+      onClick={() => onOpenDestination?.(destinations[0])}
+    >
+      <span className="profile-hero__favorites-stat-head">
+        <span>
+          <strong>{destinations.length}</strong>
+          <small>{destinations.length ? 'điểm đến yêu thích' : 'chưa có điểm đến yêu thích'}</small>
+        </span>
+        <ChevronRightIcon />
+      </span>
+    </button>
+  )
+}
+
 function ProfileHero({
+  favoriteDestinations = [],
   greeting,
   highlights = [],
+  historyEntry = null,
+  onOpenFavoriteDestination,
+  onOpenHistory,
+  onOpenUpcomingTripPrimary,
+  onOpenUpcomingTripSecondary,
   profile,
   stats = [],
   upcomingTrip,
@@ -580,10 +618,39 @@ function ProfileHero({
                   <span>{stat.label}</span>
                 </article>
               ))}
+              <MiniFavoriteDestinations
+                destinations={favoriteDestinations}
+                onOpenDestination={onOpenFavoriteDestination}
+              />
             </div>
           ) : null}
 
-          {highlights.length ? (
+          {historyEntry ? (
+            <button
+              className="profile-hero__history-entry"
+              type="button"
+              onClick={onOpenHistory}
+            >
+              <span className="profile-hero__history-copy">
+                <span className="profile-hero__history-eyebrow">Theo dõi đơn hàng</span>
+                <strong>Lịch sử đơn hàng</strong>
+                <small>{historyEntry.description}</small>
+              </span>
+
+              <span className="profile-hero__history-metrics" aria-label="Tóm tắt đơn hàng">
+                {historyEntry.metrics.map((metric) => (
+                  <span className="profile-hero__history-metric" key={metric.id}>
+                    <strong>{metric.value}</strong>
+                    <small>{metric.label}</small>
+                  </span>
+                ))}
+              </span>
+
+              <span className="profile-hero__history-action" aria-hidden="true">
+                <ChevronRightIcon />
+              </span>
+            </button>
+          ) : highlights.length ? (
             <div className="profile-hero__highlights" aria-label="Điểm nhấn cá nhân hóa">
               {highlights.map((highlight) => (
                 <span className="profile-hero__highlight" key={highlight}>
@@ -670,17 +737,41 @@ function ProfileHero({
               </p>
             ) : null}
 
-            <div className="profile-hero__member-note">
-              <p>{upcomingTrip ? 'Chuyến đi nổi bật' : 'Sẵn sàng cho hành trình mới'}</p>
-              <strong>
-                {upcomingTrip?.title ?? 'Mọi lịch trình, ưu đãi và hỗ trợ ở cùng một nơi.'}
-              </strong>
-              <span>
-                {upcomingTrip
-                  ? `${upcomingTrip.date_label} • ${upcomingTrip.location_label}`
-                  : 'Theo dõi đơn hàng, lịch khởi hành và hỗ trợ cá nhân trong một màn hình.'}
-              </span>
-            </div>
+            {upcomingTrip ? (
+              <article
+                className="profile-hero__member-trip"
+                style={
+                  upcomingTrip.image_url
+                    ? { backgroundImage: `url(${upcomingTrip.image_url})` }
+                    : undefined
+                }
+              >
+                <div className="profile-hero__member-trip-overlay" />
+                <div className="profile-hero__member-trip-content">
+                  <p>Chuyến đi sắp tới</p>
+                  <span className="profile-hero__member-trip-badge">{upcomingTrip.badge}</span>
+                  <small>Mã: {upcomingTrip.code}</small>
+                  <strong>{upcomingTrip.title}</strong>
+                  <span>{upcomingTrip.date_label} • {upcomingTrip.location_label}</span>
+                  <div className="profile-hero__member-trip-actions">
+                    <button type="button" onClick={onOpenUpcomingTripPrimary}>
+                      {upcomingTrip.primary_action_label || 'Xem chi tiết'}
+                    </button>
+                    <button type="button" onClick={onOpenUpcomingTripSecondary}>
+                      {upcomingTrip.secondary_action_label || 'Hỗ trợ'}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ) : (
+              <div className="profile-hero__member-note">
+                <p>Sẵn sàng cho hành trình mới</p>
+                <strong>Mọi lịch trình, ưu đãi và hỗ trợ ở cùng một nơi.</strong>
+                <span>
+                  Theo dõi đơn hàng, lịch khởi hành và hỗ trợ cá nhân trong một màn hình.
+                </span>
+              </div>
+            )}
           </div>
         </aside>
       </div>

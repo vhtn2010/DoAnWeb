@@ -77,7 +77,7 @@ function PaymentQrCodePanel({
   errors = {},
   method,
   onSubmitProof,
-  proofActionLabel = 'Gửi bill cho admin',
+  proofActionLabel = 'Gửi bill duyệt',
   isSubmittingProof = false,
   onProofFieldChange,
   onProofFileChange,
@@ -158,7 +158,7 @@ function PaymentQrCodePanel({
                 <span className="payment-qr-code-panel__eyebrow">Thông tin chuyển khoản</span>
                 <h3>Quét QR hoặc chuyển khoản thủ công</h3>
                 <p>
-                  Vui lòng kiểm tra kỹ số tiền và nội dung chuyển khoản trước khi gửi bill để admin
+                  Vui lòng kiểm tra kỹ số tiền và nội dung chuyển khoản trước khi gửi bill để hệ thống
                   đối soát.
                 </p>
               </div>
@@ -184,7 +184,7 @@ function PaymentQrCodePanel({
                 <div className="payment-qr-code-panel__floating-card payment-qr-code-panel__floating-card--note">
                   <span>Nội dung chuyển khoản bắt buộc</span>
                   <strong>{bankDetails.transferContent || bookingCode || payment?.payment_code}</strong>
-                  <small>Ghi đúng nội dung này để admin đối soát giao dịch.</small>
+                  <small>Ghi đúng nội dung này để đối soát giao dịch.</small>
                 </div>
               </div>
             </>
@@ -200,11 +200,17 @@ function PaymentQrCodePanel({
             </span>
             <div>
               <h3>Minh chứng thanh toán</h3>
-              <p>Tải ảnh bill sau khi chuyển khoản và gửi admin duyệt.</p>
+              <p>Tải ảnh bill sau khi chuyển khoản và gửi duyệt.</p>
             </div>
           </div>
 
-          <label className="payment-qr-code-panel__upload">
+          <label
+            className={
+              previewUrl || hasProof
+                ? 'payment-qr-code-panel__upload payment-qr-code-panel__upload--ready'
+                : 'payment-qr-code-panel__upload'
+            }
+          >
             <input
               accept="image/*"
               className="payment-qr-code-panel__file-input"
@@ -237,7 +243,10 @@ function PaymentQrCodePanel({
           </label>
 
           {proofForm.file ? (
-            <p className="payment-qr-code-panel__hint">Đã chọn: {proofForm.file.name}</p>
+            <div className="payment-qr-code-panel__upload-status" role="status">
+              <strong>Ảnh đã được chọn</strong>
+              <span>{proofForm.file.name}</span>
+            </div>
           ) : null}
 
           {hasProof ? (

@@ -1,31 +1,45 @@
 import { apiPost } from '../../services/apiClient.js'
 
+const CLOUDINARY_UPLOAD_TIMEOUT_MS = 30000
+
 async function uploadSignedAsset({
   file,
   signature,
 }) {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), CLOUDINARY_UPLOAD_TIMEOUT_MS)
   const formData = new FormData()
 
   formData.set('api_key', signature.api_key)
   formData.set('file', file)
   formData.set('folder', signature.folder)
-  formData.set('resource_type', signature.resource_type)
   formData.set('signature', signature.signature)
   formData.set('timestamp', String(signature.timestamp))
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${encodeURIComponent(signature.cloud_name)}/${encodeURIComponent(signature.resource_type)}/upload`,
-    {
-      body: formData,
-      method: 'POST',
-    },
-  )
+  try {
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(signature.cloud_name)}/${encodeURIComponent(signature.resource_type)}/upload`,
+      {
+        body: formData,
+        method: 'POST',
+        signal: controller.signal,
+      },
+    )
 
-  if (!response.ok) {
-    throw new Error('Không thể tải ảnh chứng từ lên Cloudinary.')
+    if (!response.ok) {
+      throw new Error('Không thể tải ảnh lên Cloudinary. Vui lòng thử lại với ảnh nhỏ hơn hoặc kiểm tra kết nối mạng.')
+    }
+
+    return response.json()
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('Tải ảnh lên quá lâu. Vui lòng thử lại với ảnh nhỏ hơn hoặc kiểm tra kết nối mạng.')
+    }
+
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
   }
-
-  return response.json()
 }
 
 export function createUploadSignature(payload = {}) {

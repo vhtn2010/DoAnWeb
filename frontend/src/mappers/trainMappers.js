@@ -159,17 +159,24 @@ function normalizeSeatOptions(train) {
 }
 
 function createFallbackSeats({
+  availableSeats,
   carId,
   seatType,
   totalSeats,
   price,
   codePrefix,
 }) {
-  return Array.from({ length: totalSeats }, (_, index) => ({
+  const safeTotalSeats = Math.max(Number(totalSeats) || 0, 1)
+  const safeAvailableSeats = Math.min(
+    Math.max(Number(availableSeats) || 0, 0),
+    safeTotalSeats,
+  )
+
+  return Array.from({ length: safeTotalSeats }, (_, index) => ({
     id: `${carId}-seat-${padNumber(index + 1)}`,
     code: `${codePrefix}${padNumber(index + 1)}`,
     number: padNumber(index + 1),
-    status: (index + 1) % 5 === 0 ? 'booked' : 'available',
+    status: index < safeAvailableSeats ? 'available' : 'booked',
     price,
     car_id: carId,
     seat_type: seatType,
@@ -178,11 +185,21 @@ function createFallbackSeats({
 
 function normalizeCars(train, seatOptions) {
   const cars = Array.isArray(train.details?.cars) ? train.details.cars : []
+  const fallbackTotalSeats = Math.max(
+    Number(train.total_seats ?? train.details?.seats_total ?? 0),
+    Number(train.available_seats ?? train.details?.seats_available ?? 0),
+    1,
+  )
+  const fallbackAvailableSeats = Math.min(
+    Math.max(Number(train.available_seats ?? train.details?.seats_available ?? 0), 0),
+    fallbackTotalSeats,
+  )
 
   if (!cars.length) {
     return seatOptions.map((seatOption, index) => {
       const carId = `${train.id}-fallback-car-${index + 1}`
-      const totalSeats = seatOption.seat_type === 'soft_sleeper' ? 24 : 20
+      const totalSeats = fallbackTotalSeats
+      const availableSeats = index === 0 ? fallbackAvailableSeats : 0
 
       return {
         id: carId,
@@ -198,6 +215,7 @@ function normalizeCars(train, seatOptions) {
           group_columns: 2,
         },
         seats: createFallbackSeats({
+          availableSeats,
           carId,
           seatType: seatOption.seat_type ?? 'soft_seat',
           totalSeats,
@@ -211,6 +229,10 @@ function normalizeCars(train, seatOptions) {
   return cars.map((car, index) => {
     const seats = Array.isArray(car.seats) ? car.seats : []
     const totalSeats = Math.max(Number(car.total_seats ?? seats.length ?? 0), seats.length, 1)
+    const availableSeats = Math.min(
+      Math.max(Number(car.seats_available ?? totalSeats), 0),
+      totalSeats,
+    )
     const matchingSeatOption =
       seatOptions.find((seatOption) => seatOption.seat_type === car.seat_type) ?? seatOptions[0]
 
@@ -229,15 +251,24 @@ function normalizeCars(train, seatOptions) {
         group_size: Math.max(Number(car.layout?.group_size ?? 4), 1),
         group_columns: Math.max(Number(car.layout?.group_columns ?? 2), 1),
       },
-      seats: seats.map((seat, seatIndex) => ({
-        id: seat.id ?? `${car.id ?? train.id}-seat-${seatIndex + 1}`,
-        code: seat.code ?? `${car.name ?? `T${index + 1}`}-${padNumber(seatIndex + 1)}`,
-        number: seat.number ?? padNumber(seatIndex + 1),
-        status: seat.status === 'booked' ? 'booked' : 'available',
-        price: Math.max(Number(seat.price ?? matchingSeatOption?.price ?? train.sale_price ?? 0), 0),
-        car_id: seat.car_id ?? car.id ?? `${train.id}-car-${index + 1}`,
-        seat_type: car.seat_type ?? matchingSeatOption?.seat_type ?? 'soft_seat',
-      })),
+      seats: seats.length
+        ? seats.map((seat, seatIndex) => ({
+            id: seat.id ?? `${car.id ?? train.id}-seat-${seatIndex + 1}`,
+            code: seat.code ?? `${car.name ?? `T${index + 1}`}-${padNumber(seatIndex + 1)}`,
+            number: seat.number ?? padNumber(seatIndex + 1),
+            status: seat.status === 'booked' ? 'booked' : 'available',
+            price: Math.max(Number(seat.price ?? matchingSeatOption?.price ?? train.sale_price ?? 0), 0),
+            car_id: seat.car_id ?? car.id ?? `${train.id}-car-${index + 1}`,
+            seat_type: car.seat_type ?? matchingSeatOption?.seat_type ?? 'soft_seat',
+          }))
+        : createFallbackSeats({
+            availableSeats,
+            carId: car.id ?? `${train.id}-car-${index + 1}`,
+            seatType: car.seat_type ?? matchingSeatOption?.seat_type ?? 'soft_seat',
+            totalSeats,
+            price: Math.max(Number(matchingSeatOption?.price ?? train.sale_price ?? 0), 0),
+            codePrefix: `${car.name ?? `T${index + 1}`}-`,
+          }),
     }
   })
 }

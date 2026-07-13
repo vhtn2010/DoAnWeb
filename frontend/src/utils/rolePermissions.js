@@ -28,6 +28,7 @@ export const ADMIN_PERMISSIONS = Object.freeze({
   servicesRestore: 'admin.services.restore',
   servicesDelete: 'admin.services.delete',
   paymentsRead: 'admin.payments.read',
+  paymentsProcess: 'admin.payments.process',
   refundsRead: 'admin.refunds.read',
   refundsReview: 'admin.refunds.review',
   promotionsRead: 'admin.promotions.read',
@@ -70,6 +71,7 @@ const BACKEND_PERMISSION_ALIASES = Object.freeze({
   [ADMIN_PERMISSIONS.notificationsRead]: ['notification.manage'],
   [ADMIN_PERMISSIONS.notificationsSend]: ['notification.broadcast'],
   [ADMIN_PERMISSIONS.paymentsRead]: ['payment.read_all'],
+  [ADMIN_PERMISSIONS.paymentsProcess]: ['payment.confirm'],
   [ADMIN_PERMISSIONS.permissionsRead]: ['permission.read'],
   [ADMIN_PERMISSIONS.promotionsRead]: ['promotion.read'],
   [ADMIN_PERMISSIONS.promotionsWrite]: [
@@ -127,6 +129,7 @@ const STAFF_PERMISSIONS = Object.freeze([
   ADMIN_PERMISSIONS.servicesUpdate,
   ADMIN_PERMISSIONS.servicesSubmitReview,
   ADMIN_PERMISSIONS.paymentsRead,
+  ADMIN_PERMISSIONS.paymentsProcess,
   ADMIN_PERMISSIONS.refundsRead,
   ADMIN_PERMISSIONS.promotionsRead,
   ADMIN_PERMISSIONS.promotionsWrite,

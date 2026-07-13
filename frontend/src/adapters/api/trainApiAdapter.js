@@ -250,6 +250,7 @@ function mapSearchRecordToTrain(record = {}) {
     duration_minutes: durationMinutes,
     seat_class: record.seat_class ?? '',
     carriage_type: '',
+    total_seats: toNumber(record.seats_total, toNumber(record.seats_available)),
     available_seats: toNumber(record.seats_available),
     base_price: farePrice,
     sale_price: farePrice,
@@ -260,6 +261,8 @@ function mapSearchRecordToTrain(record = {}) {
     train_detail_id: record.train_detail_id ?? '',
     details: {
       train_type: trainType,
+      seats_total: toNumber(record.seats_total, toNumber(record.seats_available)),
+      seats_available: toNumber(record.seats_available),
     },
   }
 }
@@ -303,6 +306,7 @@ function mapServiceDetailToTrain(service = {}) {
     duration_minutes: durationMinutes,
     seat_class: detail.seat_class ?? '',
     carriage_type: service.metadata?.carriage_type ?? '',
+    total_seats: toNumber(detail.seats_total, toNumber(detail.seats_available)),
     available_seats: toNumber(detail.seats_available),
     base_price: basePrice,
     sale_price: salePrice,
@@ -328,6 +332,8 @@ function mapServiceDetailToTrain(service = {}) {
       seat_options: Array.isArray(service.metadata?.seat_options)
         ? service.metadata.seat_options
         : [],
+      seats_total: toNumber(detail.seats_total, toNumber(detail.seats_available)),
+      seats_available: toNumber(detail.seats_available),
       train_type: trainType,
     },
   }

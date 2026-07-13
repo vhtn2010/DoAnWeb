@@ -154,6 +154,7 @@ export function buildProfileActionPayload(action, target = {}) {
 
   return {
     action,
+    route_state: target?.route_state ?? null,
     target_id: target?.id ?? null,
     target_slug: target?.slug ?? null,
     route,

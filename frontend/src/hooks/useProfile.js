@@ -123,12 +123,32 @@ export default function useProfile() {
     setReloadToken((currentToken) => currentToken + 1)
   }
 
+  function applyProfileUpdate(nextProfile) {
+    if (!nextProfile || typeof nextProfile !== 'object') {
+      retry()
+      return
+    }
+
+    setProfile((currentProfile) => ({
+      ...(currentProfile ?? {}),
+      ...nextProfile,
+    }))
+  }
+
   function goLogin() {
     navigate('/login')
   }
 
   function goHome() {
     navigate(buildPublicAuthPath('/', isCustomer))
+  }
+
+  function goProfile() {
+    navigate(buildPublicAuthPath('/profile', isCustomer))
+  }
+
+  function openBookingHistoryPage() {
+    navigate(buildPublicAuthPath('/profile/orders', isCustomer))
   }
 
   async function logoutAction() {
@@ -146,7 +166,9 @@ export default function useProfile() {
     const nextRoute = response.data?.route
 
     if (nextRoute) {
-      navigate(buildPublicAuthPath(nextRoute, isCustomer))
+      navigate(buildPublicAuthPath(nextRoute, isCustomer), {
+        state: response.data?.route_state ?? undefined,
+      })
       return
     }
 
@@ -170,9 +192,7 @@ export default function useProfile() {
       ? filterId
       : null
 
-    setSelectedBookingHistoryFilter((currentFilter) =>
-      currentFilter === nextFilter ? null : nextFilter,
-    )
+    setSelectedBookingHistoryFilter(nextFilter)
   }
 
   async function openProfileShortcut(item) {
@@ -228,7 +248,10 @@ export default function useProfile() {
     actions: {
       goHome,
       goLogin,
+      goProfile,
       logout: logoutAction,
+      applyProfileUpdate,
+      openBookingHistoryPage,
       openBookingHistoryItem,
       openFavoriteDestination,
       openProfileShortcut,

@@ -17,6 +17,59 @@ import {
 import { uploadAvatarAsset } from '../../adapters/api/uploadApiAdapter.js'
 import './profileAccountCenter.css'
 
+function UploadIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path
+        d="M12 15.5V4.75m0 0-4.25 4.25M12 4.75 16.25 9"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+      <path
+        d="M5.25 14.25v2.5A2.75 2.75 0 0 0 8 19.5h8a2.75 2.75 0 0 0 2.75-2.75v-2.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  )
+}
+
+function SwapIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path
+        d="M7.25 7.75h9.5l-2.3-2.3M16.75 16.25h-9.5l2.3 2.3"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+      <path
+        d="M16.75 7.75c1.65 0 3 1.35 3 3v.75M7.25 16.25c-1.65 0-3-1.35-3-3v-.75"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  )
+}
+
+function XIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path
+        d="M7.25 7.25 16.75 16.75M16.75 7.25 7.25 16.75"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  )
+}
+
 const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -34,6 +87,37 @@ function formatDateTime(value) {
 
 function normalizeLogAction(action = '') {
   return String(action).trim().toLowerCase()
+}
+
+const DISPLAYABLE_LOG_ACTIONS = new Set([
+  'account.deactivation_requested',
+  'admin.booking.complete',
+  'admin.booking.confirm',
+  'admin.booking.status_override',
+  'auth.change_email_confirmed',
+  'auth.change_email_requested',
+  'auth.reset_password',
+  'auth.verify_email',
+  'customer.booking.checkout',
+  'customer.booking.contact_update',
+  'payment.direct.confirm',
+  'profile.avatar_update',
+  'profile.change_password',
+  'profile.update',
+])
+
+const DISPLAYABLE_BOOKING_STATUSES = new Set([
+  'completed',
+  'confirmed',
+  'paid',
+  'pending_payment',
+])
+
+const BOOKING_STATUS_LABELS = {
+  completed: 'đã hoàn thành',
+  confirmed: 'đã được xác nhận',
+  paid: 'đã thanh toán',
+  pending_payment: 'đã được đặt và đang chờ thanh toán',
 }
 
 function tokenizeLogAction(action = '') {
@@ -65,6 +149,58 @@ function getFriendlyFieldLabel(field = '') {
   return ''
 }
 
+function getLogMetadata(logItem) {
+  return logItem?.metadata && typeof logItem.metadata === 'object' ? logItem.metadata : {}
+}
+
+function getBookingCodeLabel(metadata = {}) {
+  const bookingCode = String(metadata.booking_code ?? '').trim()
+
+  return bookingCode ? ` ${bookingCode}` : ''
+}
+
+function getBookingStatusLabel(status = '') {
+  const normalizedStatus = String(status).trim().toLowerCase()
+
+  return BOOKING_STATUS_LABELS[normalizedStatus] || ''
+}
+
+function getBookingLogDescription(logItem) {
+  const normalizedAction = normalizeLogAction(logItem?.action)
+  const metadata = getLogMetadata(logItem)
+  const bookingCodeLabel = getBookingCodeLabel(metadata)
+
+  if (normalizedAction === 'customer.booking.checkout') {
+    return `Đơn hàng${bookingCodeLabel} đã được tạo và đang chờ thanh toán.`
+  }
+
+  if (normalizedAction === 'customer.booking.contact_update') {
+    return `Bạn đã cập nhật thông tin liên hệ cho đơn hàng${bookingCodeLabel}.`
+  }
+
+  if (normalizedAction === 'payment.direct.confirm') {
+    return `Đơn hàng${bookingCodeLabel} đã thanh toán thành công.`
+  }
+
+  if (normalizedAction === 'admin.booking.confirm') {
+    return `Đơn hàng${bookingCodeLabel} đã được xác nhận.`
+  }
+
+  if (normalizedAction === 'admin.booking.complete') {
+    return `Đơn hàng${bookingCodeLabel} đã hoàn thành.`
+  }
+
+  if (normalizedAction === 'admin.booking.status_override') {
+    const nextStatusLabel = getBookingStatusLabel(metadata.to_status)
+
+    if (nextStatusLabel) {
+      return `Đơn hàng${bookingCodeLabel} ${nextStatusLabel}.`
+    }
+  }
+
+  return ''
+}
+
 function getFallbackLogDescription(action = '') {
   const tokens = tokenizeLogAction(action)
 
@@ -85,10 +221,15 @@ function getFallbackLogDescription(action = '') {
 
 function getLogDescription(logItem) {
   const normalizedAction = normalizeLogAction(logItem?.action)
-  const metadata = logItem?.metadata
+  const metadata = getLogMetadata(logItem)
   const changedFields = Array.isArray(metadata?.changed_fields)
     ? metadata.changed_fields.map(getFriendlyFieldLabel).filter(Boolean)
     : []
+  const bookingDescription = getBookingLogDescription(logItem)
+
+  if (bookingDescription) {
+    return bookingDescription
+  }
 
   if (normalizedAction === 'profile.change_password') {
     return 'Bạn đã đổi mật khẩu tài khoản.'
@@ -167,7 +308,16 @@ function getLogDescription(logItem) {
 function shouldDisplayLog(logItem) {
   const normalizedAction = normalizeLogAction(logItem?.action)
 
-  return normalizedAction !== 'auth.refresh_token' && normalizedAction !== 'auth refresh token'
+  if (!DISPLAYABLE_LOG_ACTIONS.has(normalizedAction)) {
+    return false
+  }
+
+  if (normalizedAction === 'admin.booking.status_override') {
+    const metadata = getLogMetadata(logItem)
+    return DISPLAYABLE_BOOKING_STATUSES.has(String(metadata.to_status ?? '').trim().toLowerCase())
+  }
+
+  return Boolean(getLogDescription(logItem))
 }
 
 function createPasswordState() {
@@ -178,7 +328,7 @@ function createPasswordState() {
   }
 }
 
-export default function ProfileAccountCenter() {
+export default function ProfileAccountCenter({ onProfileUpdated } = {}) {
   const [passwordForm, setPasswordForm] = useState(createPasswordState)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordFeedback, setPasswordFeedback] = useState({
@@ -199,8 +349,30 @@ export default function ProfileAccountCenter() {
     total: 0,
     total_pages: 0,
   })
+  const [avatarFeedback, setAvatarFeedback] = useState({
+    message: '',
+    tone: 'info',
+  })
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarFileName, setAvatarFileName] = useState('')
   const [avatarLoading, setAvatarLoading] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState({
+    isObjectUrl: false,
+    url: '',
+  })
   const [reloadToken, setReloadToken] = useState(0)
+
+  useEffect(() => {
+    if (!avatarPreview.isObjectUrl || !avatarPreview.url) {
+      return undefined
+    }
+
+    const previewUrl = avatarPreview.url
+
+    return () => {
+      URL.revokeObjectURL(previewUrl)
+    }
+  }, [avatarPreview])
 
   useEffect(() => {
     let isActive = true
@@ -362,18 +534,61 @@ export default function ProfileAccountCenter() {
     }
   }
 
-  async function handleAvatarChange(event) {
+  function resetAvatarSelection() {
+    setAvatarFile(null)
+    setAvatarFileName('')
+    setAvatarPreview({
+      isObjectUrl: false,
+      url: '',
+    })
+  }
+
+  function handleAvatarChange(event) {
     const nextFile = event.target.files?.[0]
 
     if (!nextFile) {
       return
     }
 
+    if (!nextFile.type.startsWith('image/')) {
+      setAvatarFeedback({
+        message: 'Vui lòng chọn đúng tệp ảnh để cập nhật avatar.',
+        tone: 'error',
+      })
+      event.target.value = ''
+      return
+    }
+
+    setAvatarFile(nextFile)
+    setAvatarFileName(nextFile.name)
+    setAvatarPreview({
+      isObjectUrl: true,
+      url: URL.createObjectURL(nextFile),
+    })
+    setAvatarFeedback({
+      message: '',
+      tone: 'info',
+    })
+    event.target.value = ''
+  }
+
+  async function handleAvatarConfirm() {
+    if (!avatarFile) {
+      setAvatarFeedback({
+        message: 'Vui lòng chọn ảnh đại diện trước khi xác nhận.',
+        tone: 'error',
+      })
+      return
+    }
+
     setAvatarLoading(true)
-    setPasswordFeedback(createServiceFeedbackState())
+    setAvatarFeedback({
+      message: 'Đang tải ảnh lên và cập nhật avatar...',
+      tone: 'info',
+    })
 
     try {
-      const uploadResponse = await uploadAvatarAsset(nextFile)
+      const uploadResponse = await uploadAvatarAsset(avatarFile)
       const avatarUrl = uploadResponse.data?.asset_url ?? uploadResponse.data?.secure_url
 
       if (!avatarUrl) {
@@ -384,18 +599,19 @@ export default function ProfileAccountCenter() {
         avatar_url: avatarUrl,
       })
 
-      setPasswordFeedback({
-        message: response?.message || 'Ảnh đại diện đã được cập nhật thành công.',
+      resetAvatarSelection()
+      setAvatarFeedback({
+        message: 'Ảnh đại diện đã được cập nhật thành công.',
         tone: 'success',
       })
+      onProfileUpdated?.(response?.data)
       setReloadToken((value) => value + 1)
     } catch (error) {
-      setPasswordFeedback({
+      setAvatarFeedback({
         message: error?.message || 'Không thể cập nhật ảnh đại diện lúc này.',
         tone: 'error',
       })
     } finally {
-      event.target.value = ''
       setAvatarLoading(false)
     }
   }
@@ -413,22 +629,100 @@ export default function ProfileAccountCenter() {
           <PublicCard className="profile-account-center__card" padding="lg">
             <PublicSectionHeader
               actions={
-                <label className="public-ui-button public-ui-button--ghost public-ui-button--md">
-                  <input
-                    accept="image/*"
-                    hidden
-                    type="file"
-                    onChange={handleAvatarChange}
-                  />
-                  {avatarLoading ? 'Đang tải avatar...' : 'Đổi ảnh đại diện'}
-                </label>
+                avatarPreview.url ? null : (
+                  <label className="public-ui-button public-ui-button--ghost public-ui-button--md">
+                    <input
+                      accept="image/*"
+                      disabled={avatarLoading}
+                      hidden
+                      type="file"
+                      onChange={handleAvatarChange}
+                    />
+                    <span className="profile-account-center__avatar-action-icon" aria-hidden="true">
+                      <UploadIcon />
+                    </span>
+                    {avatarLoading ? 'Đang tải avatar...' : 'Đổi ảnh đại diện'}
+                  </label>
+                )
               }
-              subtitle="Tải ảnh lên Cloudinary rồi đồng bộ ngay vào hồ sơ tài khoản cá nhân của bạn."
+              subtitle="Chọn ảnh mới, kiểm tra bản xem trước rồi bấm xác nhận để cập nhật vào hồ sơ."
               title="Ảnh đại diện"
             />
 
+            {avatarPreview.url ? (
+              <div className="profile-account-center__avatar-upload-shell">
+                <div className="profile-account-center__avatar-upload profile-account-center__avatar-upload--ready">
+                  <span className="profile-account-center__avatar-upload-media">
+                    <img alt="Ảnh đại diện đã chọn" src={avatarPreview.url} />
+                  </span>
+                </div>
+
+                <div className="profile-account-center__avatar-upload-status" role="status">
+                  <span>
+                    <strong>{avatarLoading ? 'Đang cập nhật ảnh đại diện' : 'Ảnh đã được chọn'}</strong>
+                    {avatarFileName ? <small>{avatarFileName}</small> : null}
+                  </span>
+
+                  <div className="profile-account-center__avatar-icon-actions" aria-label="Tùy chọn ảnh đại diện">
+                    <label
+                      aria-label="Chọn ảnh khác"
+                      className="profile-account-center__avatar-icon-button"
+                      title="Chọn ảnh khác"
+                    >
+                      <input
+                        accept="image/*"
+                        disabled={avatarLoading}
+                        hidden
+                        type="file"
+                        onChange={handleAvatarChange}
+                      />
+                      <SwapIcon />
+                    </label>
+                    <button
+                      aria-label="Hủy ảnh đã chọn"
+                      className="profile-account-center__avatar-icon-button"
+                      disabled={avatarLoading}
+                      title="Hủy"
+                      type="button"
+                      onClick={() => {
+                        resetAvatarSelection()
+                        setAvatarFeedback({
+                          message: '',
+                          tone: 'info',
+                        })
+                      }}
+                    >
+                      <XIcon />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="profile-account-center__avatar-confirm">
+                  <PublicButton
+                    disabled={!avatarFile}
+                    loading={avatarLoading}
+                    type="button"
+                    variant="primary"
+                    onClick={handleAvatarConfirm}
+                  >
+                    Xác nhận cập nhật avatar
+                  </PublicButton>
+                </div>
+              </div>
+            ) : null}
+
+            {avatarFeedback.message ? (
+              <PublicNotice
+                className="profile-account-center__feedback"
+                role="status"
+                tone={avatarFeedback.tone === 'error' ? 'info' : avatarFeedback.tone}
+              >
+                {avatarFeedback.message}
+              </PublicNotice>
+            ) : null}
+
             <PublicNotice tone="info">
-              Ảnh sau khi tải lên sẽ được gắn trực tiếp vào tài khoản qua API cập nhật avatar.
+              Ảnh chỉ được cập nhật vào tài khoản sau khi bạn bấm xác nhận.
             </PublicNotice>
           </PublicCard>
 
@@ -545,7 +839,7 @@ export default function ProfileAccountCenter() {
 
         <PublicCard className="profile-account-center__logs" padding="lg">
           <PublicSectionHeader
-            subtitle="Đây là những thay đổi gần đây trên tài khoản của bạn."
+            subtitle="Chỉ hiển thị các cập nhật quan trọng về đơn hàng và tài khoản của bạn."
             title="Hoạt động gần đây"
           />
 
@@ -557,7 +851,7 @@ export default function ProfileAccountCenter() {
 
           {!logsLoading && !logsError && visibleLogs.length === 0 ? (
             <PublicEmptyState
-              description="Khi có cập nhật hồ sơ, đổi mật khẩu hoặc gửi yêu cầu tài khoản, lịch sử sẽ hiện tại đây."
+              description="Khi có cập nhật trạng thái đơn hàng, đổi mật khẩu hoặc thay đổi hồ sơ, lịch sử sẽ hiện tại đây."
               eyebrow="Chưa có dữ liệu"
               title="Chưa có hoạt động gần đây"
             />

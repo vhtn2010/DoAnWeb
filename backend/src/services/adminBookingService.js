@@ -448,6 +448,53 @@ const sanitizeBookingSummary = (booking) => ({
   updated_at: booking.updated_at,
 });
 
+const sanitizePaymentProofSummary = (rawResponse) => {
+  const proof = rawResponse?.proof;
+
+  if (!proof || typeof proof !== 'object' || Array.isArray(proof)) {
+    return null;
+  }
+
+  return {
+    bank_transaction_code: proof.bank_transaction_code || null,
+    proof_image_url: proof.proof_image_url || null,
+    submitted_at:
+      proof.submitted_at ||
+      proof.uploaded_at ||
+      proof.created_at ||
+      null,
+    transfer_note: proof.transfer_note || null,
+  };
+};
+
+const sanitizeLatestPaymentSummary = (booking) => {
+  if (!booking.latest_payment_id) {
+    return null;
+  }
+
+  const proofSummary = sanitizePaymentProofSummary(booking.latest_payment_raw_response);
+
+  return {
+    amount: roundMoney(booking.latest_payment_amount),
+    created_at: booking.latest_payment_created_at,
+    currency: booking.latest_payment_currency || DEFAULT_CURRENCY,
+    expired_at: booking.latest_payment_expired_at,
+    has_proof: Boolean(proofSummary),
+    id: booking.latest_payment_id,
+    paid_at: booking.latest_payment_paid_at,
+    payment_code: booking.latest_payment_code,
+    payment_method: booking.latest_payment_method,
+    proof_summary: proofSummary,
+    provider: booking.latest_payment_provider,
+    status: booking.latest_payment_status,
+  };
+};
+
+const sanitizeBookingSummaryWithPayment = (booking) => ({
+  ...sanitizeBookingSummary(booking),
+  latest_payment: sanitizeLatestPaymentSummary(booking),
+});
+
 const sanitizeBookingItemSummary = (item) => ({
   end_at: item.end_at,
   id: item.id,
@@ -468,10 +515,12 @@ const sanitizePaymentSummary = (payment) => ({
   created_at: payment.created_at,
   currency: payment.currency || DEFAULT_CURRENCY,
   expired_at: payment.expired_at,
+  has_proof: Boolean(sanitizePaymentProofSummary(payment.raw_response)),
   id: payment.id,
   paid_at: payment.paid_at,
   payment_code: payment.payment_code,
   payment_method: payment.payment_method,
+  proof_summary: sanitizePaymentProofSummary(payment.raw_response),
   provider: payment.provider,
   status: payment.status,
 });
@@ -993,7 +1042,7 @@ const createAdminBookingService = ({
     });
 
     return {
-      items: result.rows.map(sanitizeBookingSummary),
+      items: result.rows.map(sanitizeBookingSummaryWithPayment),
       meta: buildPaginationMeta({
         limit,
         page,

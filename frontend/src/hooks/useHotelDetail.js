@@ -180,7 +180,11 @@ export default function useHotelDetail() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({
+        behavior: 'smooth',
+        left: 0,
+        top: 0,
+      })
     }
   }, [slug])
 

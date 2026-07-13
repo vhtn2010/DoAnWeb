@@ -41,8 +41,6 @@ const BLOCKED_UPDATE_FIELDS = new Set([
 const BLOCKED_INVENTORY_FIELDS = new Set([
   'available_quantity',
   'available_rooms',
-  'seats_available',
-  'seats_total',
   'total_rooms',
 ]);
 
@@ -277,6 +275,23 @@ const parseRequiredInteger = (options) => {
   }
 
   return parsed;
+};
+
+const parseMutableRequiredInteger = ({
+  currentValue,
+  field,
+  isCreate,
+  value,
+}) => {
+  if (value != null || isCreate) {
+    return parseRequiredInteger({
+      field,
+      min: 0,
+      value,
+    });
+  }
+
+  return Number(currentValue);
 };
 
 const parseOptionalDateTime = ({
@@ -780,15 +795,6 @@ const parseFlightDetails = ({
   const details = value || {};
   const current = existingDetails || {};
 
-  for (const field of ['seats_available', 'seats_total']) {
-    if (!isCreate && Object.prototype.hasOwnProperty.call(details, field)) {
-      throw buildValidationError(
-        `details.${field}`,
-        `${field} cannot be updated through this endpoint`,
-      );
-    }
-  }
-
   const departureAt = details.departure_at != null
     ? parseRequiredDateTime({ field: 'details.departure_at', value: details.departure_at })
     : current.departure_at;
@@ -824,12 +830,18 @@ const parseFlightDetails = ({
     flight_number: details.flight_number != null
       ? parseRequiredString({ field: 'details.flight_number', maxLength: 30, value: details.flight_number })
       : current.flight_number,
-    seats_available: isCreate
-      ? parseRequiredInteger({ field: 'details.seats_available', min: 0, value: details.seats_available })
-      : Number(current.seats_available),
-    seats_total: isCreate
-      ? parseRequiredInteger({ field: 'details.seats_total', min: 0, value: details.seats_total })
-      : Number(current.seats_total),
+    seats_available: parseMutableRequiredInteger({
+      currentValue: current.seats_available,
+      field: 'details.seats_available',
+      isCreate,
+      value: details.seats_available,
+    }),
+    seats_total: parseMutableRequiredInteger({
+      currentValue: current.seats_total,
+      field: 'details.seats_total',
+      isCreate,
+      value: details.seats_total,
+    }),
     status: details.status != null
       ? parseRequiredEnum({ allowedValues: TRANSPORT_SCHEDULE_STATUS_VALUES, field: 'details.status', value: details.status })
       : (current.status || 'open'),
@@ -868,15 +880,6 @@ const parseTrainDetails = ({
   const details = value || {};
   const current = existingDetails || {};
 
-  for (const field of ['seats_available', 'seats_total']) {
-    if (!isCreate && Object.prototype.hasOwnProperty.call(details, field)) {
-      throw buildValidationError(
-        `details.${field}`,
-        `${field} cannot be updated through this endpoint`,
-      );
-    }
-  }
-
   const departureAt = details.departure_at != null
     ? parseRequiredDateTime({ field: 'details.departure_at', value: details.departure_at })
     : current.departure_at;
@@ -906,12 +909,18 @@ const parseTrainDetails = ({
     seat_class: details.seat_class != null
       ? parseRequiredEnum({ allowedValues: SEAT_CLASS_VALUES, field: 'details.seat_class', value: details.seat_class })
       : current.seat_class,
-    seats_available: isCreate
-      ? parseRequiredInteger({ field: 'details.seats_available', min: 0, value: details.seats_available })
-      : Number(current.seats_available),
-    seats_total: isCreate
-      ? parseRequiredInteger({ field: 'details.seats_total', min: 0, value: details.seats_total })
-      : Number(current.seats_total),
+    seats_available: parseMutableRequiredInteger({
+      currentValue: current.seats_available,
+      field: 'details.seats_available',
+      isCreate,
+      value: details.seats_available,
+    }),
+    seats_total: parseMutableRequiredInteger({
+      currentValue: current.seats_total,
+      field: 'details.seats_total',
+      isCreate,
+      value: details.seats_total,
+    }),
     status: details.status != null
       ? parseRequiredEnum({ allowedValues: TRANSPORT_SCHEDULE_STATUS_VALUES, field: 'details.status', value: details.status })
       : (current.status || 'open'),

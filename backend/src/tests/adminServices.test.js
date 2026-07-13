@@ -678,6 +678,147 @@ test('adminServiceCrudService.updateService keeps service_type immutable and pas
   });
 });
 
+test('adminServiceCrudService.updateService updates train fares and seats from service form', async () => {
+  let updateCall = null;
+  const service = adminServiceCrudService.createAdminServiceCrudService({
+    catalogRepository: {
+      listTrainDetailsByService: async () => [
+        {
+          arrival_at: '2099-07-20T13:00:00.000Z',
+          arrival_station: 'Ga Hà Nội',
+          departure_at: '2099-07-20T03:00:00.000Z',
+          departure_station: 'Ga Sài Gòn',
+          fare_price: '1200000',
+          seat_class: 'soft_seat',
+          seats_available: '22',
+          seats_total: '96',
+          status: 'open',
+          train_number: 'SE3',
+        },
+      ],
+    },
+    catalogService: {
+      getServiceDetail: async ({ service_id: serviceId }) => ({
+        id: serviceId,
+        title: 'Vé tàu đã cập nhật',
+      }),
+    },
+    repository: {
+      getServiceByCode: async () => null,
+      getServiceById: async () => ({
+        base_price: '1200000',
+        currency: 'VND',
+        id: '11111111-1111-4111-8111-111111111111',
+        metadata: null,
+        sale_price: null,
+        service_type: 'train',
+        title: 'Vé tàu cũ',
+      }),
+      getServiceBySlug: async () => null,
+      updateService: async (payload) => {
+        updateCall = payload;
+        return { id: payload.serviceId };
+      },
+    },
+  });
+
+  const result = await service.updateService({
+    auth: {
+      role: 'admin',
+      userId: 'admin-1',
+    },
+    body: {
+      base_price: 1500000,
+      details: {
+        fare_price: 1500000,
+        seats_available: 18,
+        seats_total: 88,
+      },
+      title: 'Vé tàu đã cập nhật',
+    },
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.deepEqual(result, {
+    id: '11111111-1111-4111-8111-111111111111',
+    title: 'Vé tàu đã cập nhật',
+  });
+  assert.equal(updateCall.serviceType, 'train');
+  assert.deepEqual(updateCall.servicePayload, {
+    base_price: 1500000,
+    title: 'Vé tàu đã cập nhật',
+  });
+  assert.deepEqual(updateCall.detailPayload, {
+    arrival_at: '2099-07-20T13:00:00.000Z',
+    arrival_station: 'Ga Hà Nội',
+    departure_at: '2099-07-20T03:00:00.000Z',
+    departure_station: 'Ga Sài Gòn',
+    fare_price: 1500000,
+    seat_class: 'soft_seat',
+    seats_available: 18,
+    seats_total: 88,
+    status: 'open',
+    train_number: 'SE3',
+  });
+});
+
+test('adminServiceCrudService.updateService rejects train available seats above total seats', async () => {
+  const service = adminServiceCrudService.createAdminServiceCrudService({
+    catalogRepository: {
+      listTrainDetailsByService: async () => [
+        {
+          arrival_at: '2099-07-20T13:00:00.000Z',
+          arrival_station: 'Ga Hà Nội',
+          departure_at: '2099-07-20T03:00:00.000Z',
+          departure_station: 'Ga Sài Gòn',
+          fare_price: '1200000',
+          seat_class: 'soft_seat',
+          seats_available: '22',
+          seats_total: '96',
+          status: 'open',
+          train_number: 'SE3',
+        },
+      ],
+    },
+    repository: {
+      getServiceById: async () => ({
+        base_price: '1200000',
+        currency: 'VND',
+        id: '11111111-1111-4111-8111-111111111111',
+        metadata: null,
+        sale_price: null,
+        service_type: 'train',
+        title: 'Vé tàu cũ',
+      }),
+    },
+  });
+
+  await assert.rejects(
+    () => service.updateService({
+      auth: {
+        role: 'admin',
+        userId: 'admin-1',
+      },
+      body: {
+        details: {
+          seats_available: 97,
+          seats_total: 96,
+        },
+      },
+      service_id: '11111111-1111-4111-8111-111111111111',
+    }),
+    {
+      code: API_ERROR_CODES.VALIDATION_ERROR,
+      details: [
+        {
+          field: 'details.seats_available',
+          message: 'details.seats_available must be less than or equal to details.seats_total',
+        },
+      ],
+    },
+  );
+});
+
 test('adminServiceCrudService.deleteService blocks unfinished bookings', async () => {
   const service = adminServiceCrudService.createAdminServiceCrudService({
     repository: {

@@ -1,9 +1,7 @@
-import BookingHistoryList from './BookingHistoryList.jsx'
-import FavoriteDestinationsCard from './FavoriteDestinationsCard.jsx'
 import ProfileAccountCenter from './ProfileAccountCenter.jsx'
 import ProfileHero from './ProfileHero.jsx'
 import ProfileShortcutPanel from './ProfileShortcutPanel.jsx'
-import UpcomingTripCard from './UpcomingTripCard.jsx'
+import { PROFILE_HISTORY_FILTERS } from '../../constants/profile.js'
 import { PublicNotice } from '../public/ui/index.js'
 import './profileDashboardLayout.css'
 
@@ -36,20 +34,41 @@ export default function ProfileDashboardContent({
   profile,
   viewModel,
 }) {
-  const hasUpcomingTrip = Boolean(viewModel.upcomingTrip)
-  const hasFavoriteDestinations = Array.isArray(viewModel.favoriteDestinations)
-    ? viewModel.favoriteDestinations.length > 0
-    : false
-  const spotlightGridClassName =
-    hasUpcomingTrip && hasFavoriteDestinations
-      ? 'profile-dashboard__spotlight-grid'
-      : 'profile-dashboard__spotlight-grid profile-dashboard__spotlight-grid--single'
+  const bookingHistoryFilterCounts = (viewModel.bookingHistoryFilters ?? []).reduce(
+    (result, filter) => ({
+      ...result,
+      [filter.id]: filter.count,
+    }),
+    {},
+  )
+  const historyEntry = {
+    description: 'Xem nhanh các đơn chờ duyệt, chờ thanh toán và lịch sử đặt chỗ của bạn.',
+    metrics: [
+      [PROFILE_HISTORY_FILTERS.all, 'tất cả'],
+      [PROFILE_HISTORY_FILTERS.pending_confirmation, 'chờ duyệt'],
+      [PROFILE_HISTORY_FILTERS.upcoming, 'sắp tới'],
+      [PROFILE_HISTORY_FILTERS.booking_history, 'đã đặt'],
+      [PROFILE_HISTORY_FILTERS.cancelled, 'đã hủy'],
+    ].map(([id, label]) => ({
+      id,
+      label,
+      value: bookingHistoryFilterCounts[id] ?? 0,
+    })),
+  }
 
   return (
     <>
       <ProfileHero
+        favoriteDestinations={viewModel.favoriteDestinations}
         greeting={viewModel.greeting}
         highlights={heroHighlights}
+        historyEntry={historyEntry}
+        onOpenFavoriteDestination={actions.openFavoriteDestination}
+        onOpenHistory={actions.openBookingHistoryPage}
+        onOpenUpcomingTripPrimary={() => actions.openUpcomingTripPrimary(viewModel.upcomingTrip)}
+        onOpenUpcomingTripSecondary={() =>
+          actions.openUpcomingTripSecondary(viewModel.upcomingTrip)
+        }
         profile={profile}
         stats={heroStats}
         upcomingTrip={viewModel.upcomingTrip}
@@ -62,44 +81,8 @@ export default function ProfileDashboardContent({
       ) : null}
 
       <div className="profile-dashboard">
-        {hasUpcomingTrip || hasFavoriteDestinations ? (
-          <div className={spotlightGridClassName}>
-            {hasUpcomingTrip ? (
-              <div className="profile-dashboard__spotlight-card">
-                <UpcomingTripCard
-                  onOpenPrimary={() => actions.openUpcomingTripPrimary(viewModel.upcomingTrip)}
-                  onOpenSecondary={() =>
-                    actions.openUpcomingTripSecondary(viewModel.upcomingTrip)
-                  }
-                  trip={viewModel.upcomingTrip}
-                />
-              </div>
-            ) : null}
-
-            {hasFavoriteDestinations ? (
-              <div className="profile-dashboard__spotlight-card">
-                <FavoriteDestinationsCard
-                  destinations={viewModel.favoriteDestinations}
-                  onOpenDestination={actions.openFavoriteDestination}
-                />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
         <section className="profile-dashboard__section">
-          <BookingHistoryList
-            filters={viewModel.bookingHistoryFilters}
-            items={viewModel.filteredBookingHistory}
-            onOpenItem={actions.openBookingHistoryItem}
-            onSelectFilter={actions.selectBookingHistoryFilter}
-            resultsLabel={viewModel.bookingHistoryResultsLabel}
-            selectedFilter={viewModel.bookingHistoryFilter}
-          />
-        </section>
-
-        <section className="profile-dashboard__section">
-          <ProfileAccountCenter />
+          <ProfileAccountCenter onProfileUpdated={actions.applyProfileUpdate} />
         </section>
 
         <div className="profile-dashboard__utility-grid">

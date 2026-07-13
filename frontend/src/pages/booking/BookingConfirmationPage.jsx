@@ -68,6 +68,9 @@ function BookingConfirmationPage() {
             <aside className="booking-confirmation-page__sidebar">
               <BookingDetailSummary
                 bookingCode={viewModel.bookingCode}
+                confirmLabel={
+                  actions.isAwaitingAdminReview ? 'Đang chờ admin duyệt' : 'Xác nhận'
+                }
                 feedback={feedback}
                 isDisabled={viewModel.items.length === 0 || !actions.canContinueToPayment}
                 onConfirm={actions.confirmBooking}
