@@ -89,11 +89,17 @@ function normalizeBankTransferMethod(methods = []) {
   }
 
   return {
+    accountHolder: bankMethod.account_holder,
+    accountNumber: bankMethod.account_number,
+    bankName: bankMethod.bank_name,
     code: bankMethod.code,
-    description: 'Hoàn tất chuyển khoản theo thông tin dưới đây rồi tải bill để gửi admin duyệt.',
+    description:
+      'Hoàn tất chuyển khoản theo thông tin bên dưới rồi tải bill để gửi admin duyệt.',
     details: buildMethodDetails(bankMethod),
     id: `payment-method-${bankMethod.code}`,
     label: 'Chuyển khoản ngân hàng',
+    qrCodeUrl: bankMethod.qr_code_url,
+    transferContentTemplate: bankMethod.transfer_content_template,
   }
 }
 
@@ -111,7 +117,7 @@ function buildFeedback(payment, paymentProof) {
   }
 
   if (payment.status === PAYMENT_STATUSES.pending) {
-    return 'Yêu cầu chuyển khoản đã được tạo. Vui lòng chuyển đúng số tiền và nội dung rồi tải bill lên.'
+    return ''
   }
 
   if (payment.status === PAYMENT_STATUSES.cancelled) {

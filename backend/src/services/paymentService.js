@@ -690,6 +690,24 @@ const sanitizeProof = (rawResponse) => {
   };
 };
 
+const isDirectPaymentRecord = (payment) => {
+  if (!payment || typeof payment !== 'object') {
+    return false;
+  }
+
+  if (payment.provider === PAYMENT_PROVIDER.DIRECT) {
+    return true;
+  }
+
+  const methodCode = normalizeOptionalString(payment.payment_method);
+
+  if (methodCode && DIRECT_PAYMENT_METHOD_VALUES.includes(methodCode)) {
+    return true;
+  }
+
+  return Boolean(payment.raw_response?.direct_payment);
+};
+
 const sanitizePaymentSummary = (payment) => {
   const summary = {
     amount: roundMoney(payment.amount),
@@ -963,7 +981,7 @@ const createPaymentService = ({
       throw buildForbiddenError('You do not have permission to access this payment');
     }
 
-    if (payment.provider !== PAYMENT_PROVIDER.DIRECT) {
+    if (!isDirectPaymentRecord(payment)) {
       throw buildInvalidStateTransitionError(
         'Only direct payments support proof upload',
       );

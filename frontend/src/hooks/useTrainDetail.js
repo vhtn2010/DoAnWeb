@@ -473,8 +473,6 @@ export default function useTrainDetail() {
     if (!result.success) {
       return
     }
-
-    navigate(preserveAuthQuery('/cart'))
   }
 
   async function bookNowAction() {

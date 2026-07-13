@@ -323,7 +323,6 @@ export default function useTourServiceDetail() {
           ? 'Tour đã được thêm vào giỏ hàng của bạn.'
           : 'Tour đã được thêm vào giỏ hàng xem trước.',
       )
-      navigate(buildPublicAuthPath('/cart', isCustomer))
     } catch (error) {
       setBookingMessage(error?.message ?? 'Không thể thêm tour vào giỏ hàng lúc này.')
     } finally {

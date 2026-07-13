@@ -1,7 +1,4 @@
-import PaymentChoiceCard from '../../components/payment/PaymentChoiceCard.jsx'
-import PaymentOrderSummary from '../../components/payment/PaymentOrderSummary.jsx'
 import PaymentQrCodePanel from '../../components/payment/PaymentQrCodePanel.jsx'
-import PaymentStepper from '../../components/payment/PaymentStepper.jsx'
 import usePaymentTransfer from '../../hooks/usePaymentTransfer.js'
 
 function TransferIcon() {
@@ -29,7 +26,6 @@ function PaymentTransferPage() {
     actions,
     booking,
     error,
-    feedback,
     fieldErrors,
     isPaid,
     loading,
@@ -43,16 +39,8 @@ function PaymentTransferPage() {
   } = usePaymentTransfer()
 
   return (
-    <div className="payment-confirmation-page">
-      <div className="payment-confirmation-shell">
-        <PaymentStepper activeStep={3} />
-
-        <header className="payment-confirmation-page__hero">
-          <div>
-            <h1 className="payment-confirmation-page__title">Thanh toán chuyển khoản</h1>
-          </div>
-        </header>
-
+    <div className="payment-transfer-page">
+      <div className="payment-transfer-shell">
         {loading ? (
           <p className="payment-confirmation-page__status" role="status">
             Đang tải thông tin chuyển khoản cho đơn hàng của bạn...
@@ -72,75 +60,50 @@ function PaymentTransferPage() {
         ) : null}
 
         {!loading && !error ? (
-          <div className="payment-confirmation-page__layout">
-            <div className="payment-confirmation-page__main">
-              {isPaid ? (
-                <div
-                  className="payment-confirmation-page__status payment-confirmation-page__status--success"
-                  role="status"
-                >
-                  <p>Thanh toán này đã được admin xác nhận. Bạn có thể xem kết quả chi tiết.</p>
-                  <button type="button" onClick={actions.goToSuccess}>
-                    Xem kết quả
-                  </button>
-                </div>
-              ) : null}
+          <section className="payment-transfer-card">
+            <header className="payment-transfer-card__header">
+              <span className="payment-transfer-card__icon" aria-hidden="true">
+                <TransferIcon />
+              </span>
+              <div>
+                <span className="payment-transfer-card__eyebrow">Thanh toán chuyển khoản</span>
+                <h1>Hoàn tất thanh toán bằng QR ngân hàng</h1>
+              </div>
+            </header>
 
-              <PaymentChoiceCard
-                itemCountLabel={viewModel.itemCountLabel}
-                items={viewModel.items}
-                onReturn={actions.goBackToConfirmation}
-              />
+            {isPaid ? (
+              <div
+                className="payment-confirmation-page__status payment-confirmation-page__status--success"
+                role="status"
+              >
+                <p>Thanh toán này đã được admin xác nhận. Bạn có thể xem kết quả chi tiết.</p>
+                <button type="button" onClick={actions.goToSuccess}>
+                  Xem kết quả
+                </button>
+              </div>
+            ) : null}
 
-              <section className="payment-method-panel">
-                <header className="payment-method-panel__header">
-                  <span className="payment-method-panel__icon" aria-hidden="true">
-                    <TransferIcon />
-                  </span>
-                  <div>
-                    <h2 className="payment-method-panel__title">Thông tin thanh toán</h2>
-                    <p className="payment-method-panel__subtitle">
-                      Vui lòng chuyển đúng số tiền, đúng nội dung rồi tải bill lên để gửi cho
-                      admin kiểm tra và duyệt thủ công.
-                    </p>
-                  </div>
-                </header>
+            <PaymentQrCodePanel
+              amountLabel={viewModel.summary.total_amount}
+              bookingCode={booking?.booking_code}
+              errors={fieldErrors}
+              isSubmittingProof={submitting}
+              method={paymentMethod}
+              onProofFieldChange={actions.updateProofField}
+              onProofFileChange={actions.updateProofFile}
+              onSubmitProof={actions.submitProof}
+              payment={payment}
+              paymentProof={paymentProof}
+              proofActionLabel={
+                paymentProof?.proof_image_url ? 'Cập nhật bill và gửi admin' : 'Gửi bill cho admin duyệt'
+              }
+              proofForm={proofForm}
+              showProofForm
+              showQrSurface
+              uploadingProof={uploadingProof}
+            />
 
-                <PaymentQrCodePanel
-                  amountLabel={viewModel.summary.total_amount}
-                  bookingCode={booking?.booking_code}
-                  errors={fieldErrors}
-                  isSubmittingProof={submitting}
-                  method={paymentMethod}
-                  onProofFieldChange={actions.updateProofField}
-                  onProofFileChange={actions.updateProofFile}
-                  onSubmitProof={actions.submitProof}
-                  payment={payment}
-                  paymentProof={paymentProof}
-                  proofActionLabel={
-                    paymentProof?.proof_image_url ? 'Cập nhật bill cho admin' : 'Gửi bill cho admin'
-                  }
-                  proofForm={proofForm}
-                  showProofForm
-                  showQrSurface
-                  uploadingProof={uploadingProof}
-                />
-              </section>
-            </div>
-
-            <aside className="payment-confirmation-page__sidebar">
-              <PaymentOrderSummary
-                feedback={feedback}
-                isDisabled={false}
-                isPaid={isPaid}
-                isSubmitting={false}
-                payment={payment}
-                selectedMethodMeta={paymentMethod}
-                showPrimaryAction={false}
-                summary={viewModel.summary}
-              />
-            </aside>
-          </div>
+          </section>
         ) : null}
       </div>
     </div>

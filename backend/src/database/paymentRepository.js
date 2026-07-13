@@ -1,12 +1,28 @@
 const { getPool, query } = require('./queryClient');
 const AppError = require('../utils/AppError');
-const { API_ERROR_CODES } = require('../constants/domainConstraints');
+const {
+  API_ERROR_CODES,
+  DIRECT_PAYMENT_METHOD_VALUES,
+} = require('../constants/domainConstraints');
 
 const isUniqueViolation = (error) => error?.code === '23505';
 const LEGACY_PAYMENT_METHOD_FALLBACKS = Object.freeze({
   manual_bank_transfer: 'bank_transfer',
   staff_collect: 'cash_at_office',
 });
+const LEGACY_PAYMENT_PROVIDER_FALLBACKS = Object.freeze({
+  direct: 'bank_transfer',
+});
+const DIRECT_PAYMENT_METHOD_SQL_LIST = DIRECT_PAYMENT_METHOD_VALUES
+  .map((method) => `'${method}'`)
+  .join(', ');
+const DIRECT_PAYMENT_RECORD_SQL = `
+  (
+    provider = 'direct'
+    OR payment_method IN (${DIRECT_PAYMENT_METHOD_SQL_LIST})
+    OR raw_response ? 'direct_payment'
+  )
+`;
 const isCheckConstraintViolation = (error, constraintName) =>
   error?.code === '23514' && (
     !constraintName ||
@@ -199,7 +215,7 @@ const createPaymentRepository = ({
           updated_at
         FROM payments
         WHERE booking_id = $1
-          AND provider = 'direct'
+          AND ${DIRECT_PAYMENT_RECORD_SQL}
           AND status = 'pending'
         ORDER BY created_at DESC, id DESC
         LIMIT 1
@@ -248,7 +264,7 @@ const createPaymentRepository = ({
         updated_at
       )
       VALUES (
-        $1, $2, 'direct', $3, 'pending', $4, $5, NULL, NULL, FALSE, $6, NULL, $7, NOW(), NOW()
+        $1, $2, $3, $4, 'pending', $5, $6, NULL, NULL, FALSE, $7, NULL, $8, NOW(), NOW()
       )
       RETURNING
         id,
@@ -353,46 +369,89 @@ const createPaymentRepository = ({
         };
       }
 
-      const buildRawResponse = (storedPaymentMethod) => ({
+      const buildRawResponse = (storedProvider, storedPaymentMethod) => ({
         customer_input: {
           note,
           payer_name: payerName,
           payer_phone: payerPhone,
         },
         direct_payment: {
+          channel: 'direct',
+          requested_provider: 'direct',
+          stored_provider: storedProvider,
           requested_method: paymentMethod,
           stored_method: storedPaymentMethod,
         },
       });
-      const insertPaymentRecord = (storedPaymentMethod) =>
+      const insertPaymentRecord = ({
+        provider: nextProvider,
+        paymentMethod: nextPaymentMethod,
+      }) =>
         client.query(insertPaymentSql, [
           bookingId,
           paymentCode,
-          storedPaymentMethod,
+          nextProvider,
+          nextPaymentMethod,
           amount,
           currency,
-          buildRawResponse(storedPaymentMethod),
+          buildRawResponse(nextProvider, nextPaymentMethod),
           expiredAt,
         ]);
 
-      let storedPaymentMethod = paymentMethod;
-      let paymentResult;
+      const attemptKeys = new Set();
+      const insertAttempts = [];
+      const pushInsertAttempt = (provider, method) => {
+        const key = `${provider}:${method}`;
 
-      try {
-        paymentResult = await insertPaymentRecord(storedPaymentMethod);
-      } catch (error) {
-        const fallbackMethod = LEGACY_PAYMENT_METHOD_FALLBACKS[paymentMethod];
-
-        if (
-          !fallbackMethod ||
-          fallbackMethod === paymentMethod ||
-          !isCheckConstraintViolation(error, 'chk_payments_method')
-        ) {
-          throw error;
+        if (!attemptKeys.has(key)) {
+          attemptKeys.add(key);
+          insertAttempts.push({
+            paymentMethod: method,
+            provider,
+          });
         }
+      };
+      const fallbackMethod = LEGACY_PAYMENT_METHOD_FALLBACKS[paymentMethod] || paymentMethod;
+      const fallbackProvider = LEGACY_PAYMENT_PROVIDER_FALLBACKS.direct || 'direct';
+      let storedPaymentMethod = paymentMethod;
+      let storedPaymentProvider = 'direct';
+      let paymentResult;
+      const paymentInsertSavepoint = 'direct_payment_insert_attempt';
 
-        storedPaymentMethod = fallbackMethod;
-        paymentResult = await insertPaymentRecord(storedPaymentMethod);
+      pushInsertAttempt('direct', paymentMethod);
+      pushInsertAttempt('direct', fallbackMethod);
+      pushInsertAttempt(fallbackProvider, paymentMethod);
+      pushInsertAttempt(fallbackProvider, fallbackMethod);
+
+      let lastInsertError = null;
+
+      for (const attempt of insertAttempts) {
+        await client.query(`SAVEPOINT ${paymentInsertSavepoint}`);
+
+        try {
+          paymentResult = await insertPaymentRecord(attempt);
+          storedPaymentMethod = attempt.paymentMethod;
+          storedPaymentProvider = attempt.provider;
+          await client.query(`RELEASE SAVEPOINT ${paymentInsertSavepoint}`);
+          lastInsertError = null;
+          break;
+        } catch (error) {
+          lastInsertError = error;
+          await client.query(`ROLLBACK TO SAVEPOINT ${paymentInsertSavepoint}`);
+          await client.query(`RELEASE SAVEPOINT ${paymentInsertSavepoint}`);
+
+          const isLegacyConstraintError =
+            isCheckConstraintViolation(error, 'chk_payments_method') ||
+            isCheckConstraintViolation(error, 'chk_payments_provider');
+
+          if (!isLegacyConstraintError) {
+            throw error;
+          }
+        }
+      }
+
+      if (!paymentResult) {
+        throw lastInsertError;
       }
 
       const createdPayment = paymentResult.rows[0];
@@ -421,8 +480,10 @@ const createPaymentRepository = ({
             idempotency_key: idempotencyKey,
             payment_code: createdPayment.payment_code,
             payment_method: paymentMethod,
+            payment_provider: 'direct',
             stored_payment_method: createdPayment.payment_method,
-            provider: 'direct',
+            stored_provider: createdPayment.provider,
+            provider: createdPayment.provider,
           },
         ],
       );

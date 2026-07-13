@@ -295,8 +295,7 @@ export default function useFlightDetail() {
       authState,
       previewItem: result.cartItem,
     })
-
-    navigate(preserveAuthQuery('/cart'))
+    setFeedback(createFeedbackState('success', 'Vé máy bay đã được thêm vào giỏ hàng của bạn.'))
   }
 
   async function bookNowAction() {

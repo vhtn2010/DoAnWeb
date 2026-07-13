@@ -1,6 +1,20 @@
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const AppError = require('../utils/AppError');
 const { query, withTransaction } = require('./client');
+const DIRECT_PAYMENT_RECORD_SQL = `
+  (
+    p.provider = 'direct'
+    OR p.payment_method IN ('cash_at_office', 'manual_bank_transfer', 'staff_collect')
+    OR p.raw_response ? 'direct_payment'
+  )
+`;
+const DIRECT_PAYMENT_RECORD_SQL_NO_ALIAS = `
+  (
+    provider = 'direct'
+    OR payment_method IN ('cash_at_office', 'manual_bank_transfer', 'staff_collect')
+    OR raw_response ? 'direct_payment'
+  )
+`;
 
 const PAYMENT_DETAIL_SELECT = `
   SELECT
@@ -64,8 +78,12 @@ const createAdminPaymentRepository = ({
     const params = [];
 
     if (provider) {
-      params.push(provider);
-      conditions.push(`p.provider = $${params.length}`);
+      if (provider === 'direct') {
+        conditions.push(DIRECT_PAYMENT_RECORD_SQL);
+      } else {
+        params.push(provider);
+        conditions.push(`p.provider = $${params.length}`);
+      }
     }
 
     if (method) {
@@ -411,7 +429,7 @@ const createAdminPaymentRepository = ({
             )
           WHERE id = $1
             AND status = 'pending'
-            AND provider = 'direct'
+            AND ${DIRECT_PAYMENT_RECORD_SQL_NO_ALIAS}
           RETURNING id
         `,
         [
@@ -522,7 +540,7 @@ const createAdminPaymentRepository = ({
             )
           WHERE id = $1
             AND status = 'pending'
-            AND provider = 'direct'
+            AND ${DIRECT_PAYMENT_RECORD_SQL_NO_ALIAS}
           RETURNING id
         `,
         [paymentId, reason, actorUserId],
@@ -581,7 +599,7 @@ const createAdminPaymentRepository = ({
             )
           WHERE id = $1
             AND status = 'pending'
-            AND provider = 'direct'
+            AND ${DIRECT_PAYMENT_RECORD_SQL_NO_ALIAS}
           RETURNING id
         `,
         [paymentId, reason, actorUserId],
@@ -658,7 +676,7 @@ const createAdminPaymentRepository = ({
             )
           WHERE id = $1
             AND status = 'success'
-            AND provider = 'direct'
+            AND ${DIRECT_PAYMENT_RECORD_SQL_NO_ALIAS}
           RETURNING id
         `,
         [paymentId, note, actorUserId],
@@ -705,7 +723,7 @@ const createAdminPaymentRepository = ({
               true
             )
           WHERE id = $1
-            AND provider = 'direct'
+            AND ${DIRECT_PAYMENT_RECORD_SQL_NO_ALIAS}
           RETURNING id
         `,
         [paymentId, note, actorUserId],

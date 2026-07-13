@@ -1849,6 +1849,94 @@
   align-content: start;
 }
 
+.payment-transfer-page {
+  min-height: calc(100vh - 160px);
+  margin: -24px;
+  padding: clamp(18px, 3.5vw, 40px) 24px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 12% 16%, rgba(215, 0, 24, 0.08), transparent 28%),
+    radial-gradient(circle at 86% 12%, rgba(245, 158, 11, 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), #fff7f2 100%);
+}
+
+.payment-transfer-shell {
+  width: min(100%, 1040px);
+}
+
+.payment-transfer-card {
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 2.3vw, 26px);
+  border: 1px solid rgba(230, 196, 190, 0.92);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 20px 54px rgba(60, 24, 24, 0.09),
+    0 4px 12px rgba(60, 24, 24, 0.04);
+}
+
+.payment-transfer-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(236, 224, 221, 0.96);
+}
+
+.payment-transfer-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 234, 236, 0.98), rgba(255, 245, 240, 0.98));
+  color: #d70018;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(215, 0, 24, 0.08);
+  flex-shrink: 0;
+}
+
+.payment-transfer-card__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.payment-transfer-card__eyebrow {
+  color: #d70018;
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.payment-transfer-card h1 {
+  margin: 6px 0 0;
+  color: #241716;
+  font-size: clamp(1.5rem, 2.5vw, 2.05rem);
+  line-height: 1.16;
+}
+
+.payment-transfer-card__header p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: #756868;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.payment-transfer-card__feedback {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 247, 237, 0.95);
+  color: #92400e;
+  font-size: 0.94rem;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
 .payment-confirmation-page__status,
 .payment-order-summary__feedback {
   margin: 0;
@@ -2521,52 +2609,204 @@
 
 .payment-qr-code-panel {
   display: grid;
-  gap: 14px;
-  padding-top: 22px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  gap: 20px;
+  align-items: stretch;
 }
 
-.payment-qr-code-panel__surface {
-  width: min(240px, 100%);
-  padding: 14px;
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 249, 246, 0.98));
-  border: 1px solid rgba(241, 225, 222, 0.98);
-  box-shadow: 0 16px 28px rgba(60, 24, 24, 0.08);
-}
-
-.payment-qr-code-panel__grid {
+.payment-qr-code-panel__bank,
+.payment-qr-code-panel__proof {
   display: grid;
-  grid-template-columns: repeat(17, 1fr);
-  gap: 3px;
-  aspect-ratio: 1;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.payment-qr-code-panel__bank {
+  padding: 15px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 251, 248, 0.98), rgba(255, 247, 242, 0.96));
+  border: 1px solid rgba(241, 225, 222, 0.98);
+}
+
+.payment-qr-code-panel__proof {
+  padding: 20px;
+  border-radius: 20px;
   background: #fff;
-  padding: 10px;
-  border-radius: 18px;
+  border: 1px solid rgba(235, 221, 216, 0.98);
+  box-shadow: 0 18px 36px rgba(60, 24, 24, 0.06);
 }
 
-.payment-qr-code-panel__cell {
-  border-radius: 2px;
-  background: rgba(255, 245, 240, 0.92);
+.payment-qr-code-panel__hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  min-height: 650px;
+  background: #fff4ef;
+  box-shadow: 0 18px 32px rgba(60, 24, 24, 0.08);
 }
 
-.payment-qr-code-panel__cell--filled {
-  background: #241716;
+.payment-qr-code-panel__hero-image {
+  width: 100%;
+  height: 100%;
+  min-height: 650px;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+.payment-qr-code-panel__hero-intro {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 1;
+  width: min(calc(100% - 40px), 470px);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 14px 26px rgba(5, 28, 64, 0.16);
+  backdrop-filter: blur(8px);
+  transform: translateX(-50%);
+}
+
+.payment-qr-code-panel__hero-intro h3 {
+  margin: 5px 0 0;
+  color: #241716;
+  font-size: 1.02rem;
+  line-height: 1.28;
+}
+
+.payment-qr-code-panel__hero-intro p {
+  margin: 6px 0 0;
+  color: #6e6060;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.payment-qr-code-panel__hero-floating {
+  position: absolute;
+  bottom: 78px;
+  left: 50%;
+  display: grid;
+  gap: 8px;
+  width: min(calc(100% - 40px), 470px);
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.payment-qr-code-panel__floating-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.payment-qr-code-panel__floating-card {
+  width: 100%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 22px rgba(24, 24, 27, 0.13);
+  backdrop-filter: blur(8px);
+}
+
+.payment-qr-code-panel__floating-card span {
+  display: block;
+  color: #7a6863;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.payment-qr-code-panel__floating-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #241716;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.payment-qr-code-panel__floating-grid .payment-qr-code-panel__floating-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 46px;
+  padding: 9px 13px;
+  border-radius: 12px;
+}
+
+.payment-qr-code-panel__floating-grid .payment-qr-code-panel__floating-card span {
+  flex: 0 0 160px;
+  white-space: nowrap;
+}
+
+.payment-qr-code-panel__floating-grid .payment-qr-code-panel__floating-card strong {
+  margin-top: 0;
+  text-align: right;
+}
+
+.payment-qr-code-panel__floating-card--accent {
+  background: rgba(255, 252, 249, 0.94);
+}
+
+.payment-qr-code-panel__floating-card--accent strong {
+  color: #d70018;
+}
+
+.payment-qr-code-panel__floating-card--note {
+  background: rgba(255, 245, 245, 0.94);
+  border-color: rgba(215, 0, 24, 0.16);
+}
+
+.payment-qr-code-panel__floating-card--note strong {
+  color: #b91c1c;
+  font-size: clamp(0.98rem, 1.6vw, 1.16rem);
+}
+
+.payment-qr-code-panel__floating-card--note small {
+  display: block;
+  margin-top: 8px;
+  color: #6e6060;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .payment-qr-code-panel__copy {
   display: grid;
-  gap: 6px;
-  color: #6e6060;
-  font-size: 0.92rem;
+  gap: 7px;
 }
 
-.payment-qr-code-panel__copy strong {
+.payment-qr-code-panel__eyebrow {
+  color: #d70018;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.payment-qr-code-panel__copy h3,
+.payment-qr-code-panel__proof-header h3 {
+  margin: 0;
   color: #241716;
-  font-size: 1rem;
+  font-size: 1.08rem;
+  line-height: 1.25;
 }
 
-.payment-qr-code-panel__details,
-.payment-qr-code-panel__proof {
+.payment-qr-code-panel__copy p,
+.payment-qr-code-panel__proof-header p,
+.payment-qr-code-panel__transfer-note p {
+  margin: 0;
+  color: #6e6060;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.payment-qr-code-panel__details {
   display: grid;
   gap: 12px;
 }
@@ -2577,9 +2817,9 @@
   gap: 16px;
   align-items: flex-start;
   padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255, 248, 245, 0.92);
-  border: 1px solid rgba(241, 225, 222, 0.98);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(235, 221, 216, 0.96);
 }
 
 .payment-qr-code-panel__detail span {
@@ -2591,11 +2831,151 @@
 .payment-qr-code-panel__detail strong {
   color: #241716;
   text-align: right;
+  word-break: break-word;
+}
+
+.payment-qr-code-panel__detail--amount {
+  background: linear-gradient(135deg, rgba(255, 239, 239, 0.98), rgba(255, 246, 241, 0.98));
+  border-color: rgba(215, 0, 24, 0.16);
+}
+
+.payment-qr-code-panel__detail--amount strong {
+  color: #d70018;
+  font-size: 1.12rem;
+}
+
+.payment-qr-code-panel__transfer-note {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(215, 0, 24, 0.07);
+  border: 1px dashed rgba(215, 0, 24, 0.28);
+}
+
+.payment-qr-code-panel__transfer-note span {
+  color: #7f1d1d;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.payment-qr-code-panel__transfer-note strong {
+  color: #b91c1c;
+  font-size: clamp(1.05rem, 2vw, 1.32rem);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.payment-qr-code-panel__proof-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.payment-qr-code-panel__proof-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(215, 0, 24, 0.08);
+  color: #d70018;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.payment-qr-code-panel__proof-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.payment-qr-code-panel__upload {
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  min-height: 240px;
+  padding: 18px;
+  border: 2px dashed rgba(215, 0, 24, 0.24);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 246, 0.92)),
+    #fff;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+  overflow: hidden;
+}
+
+.payment-qr-code-panel__upload:hover,
+.payment-qr-code-panel__upload:focus-within {
+  border-color: rgba(215, 0, 24, 0.42);
+  box-shadow: 0 16px 30px rgba(215, 0, 24, 0.08);
+  transform: translateY(-1px);
+}
+
+.payment-qr-code-panel__upload-media {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.payment-qr-code-panel__upload-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  color: #6b4b47;
+  text-align: center;
+}
+
+.payment-qr-code-panel__upload-placeholder svg {
+  width: 42px;
+  height: 42px;
+  color: #6d4a45;
+}
+
+.payment-qr-code-panel__upload-placeholder strong {
+  color: #5c403b;
+  font-size: 1rem;
+}
+
+.payment-qr-code-panel__upload-placeholder small {
+  max-width: 280px;
+  color: #806f6a;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.payment-qr-code-panel__upload-preview {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #fff;
+  display: block;
 }
 
 .payment-qr-code-panel__field {
   display: grid;
   gap: 10px;
+}
+
+.payment-qr-code-panel__field span {
+  color: #453635;
+  font-size: 0.94rem;
+  font-weight: 800;
 }
 
 .payment-qr-code-panel__action {
@@ -2628,40 +3008,33 @@
   box-shadow: none;
 }
 
-.payment-qr-code-panel__textarea,
 .payment-qr-code-panel__file-input {
-  width: 100%;
-  border: 1px solid rgba(182, 190, 204, 0.72);
-  border-radius: 22px;
-  background: #f3f4f6;
-  color: #241716;
-  font: inherit;
-}
-
-.payment-qr-code-panel__textarea {
-  min-height: 112px;
-  padding: 14px 18px;
-  line-height: 1.6;
-  resize: vertical;
-}
-
-.payment-qr-code-panel__file-input {
-  min-height: 58px;
-  padding: 14px 18px;
-}
-
-.payment-qr-code-panel__textarea:focus-visible,
-.payment-qr-code-panel__file-input:focus-visible {
-  outline: 2px solid rgba(215, 0, 24, 0.18);
-  outline-offset: 2px;
-  border-color: rgba(215, 0, 24, 0.28);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .payment-qr-code-panel__hint,
+.payment-qr-code-panel__error,
 .payment-order-summary__voucher-hint {
+  margin: 0;
   color: #7a6863;
   font-size: 0.84rem;
   line-height: 1.6;
+}
+
+.payment-qr-code-panel__hint a {
+  color: #d70018;
+  font-weight: 800;
+}
+
+.payment-qr-code-panel__error {
+  color: #b91c1c;
+  font-weight: 800;
 }
 
 .payment-method-panel__card-lock {
@@ -2956,6 +3329,14 @@
     grid-template-columns: 1fr;
   }
 
+  .payment-transfer-shell {
+    width: min(100%, 760px);
+  }
+
+  .payment-qr-code-panel {
+    grid-template-columns: 1fr;
+  }
+
   .payment-confirmation-page__hero {
     align-items: flex-start;
     flex-direction: column;
@@ -2979,6 +3360,106 @@
   .payment-confirmation-page {
     margin: -18px -16px;
     padding: 34px 16px 22px;
+  }
+
+  .payment-transfer-page {
+    margin: -18px -16px;
+    padding: 18px 14px;
+    place-items: start center;
+  }
+
+  .payment-transfer-card {
+    gap: 16px;
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .payment-transfer-card__header,
+  .payment-qr-code-panel__proof-header {
+    flex-direction: column;
+  }
+
+  .payment-qr-code-panel {
+    gap: 18px;
+  }
+
+  .payment-qr-code-panel__bank,
+  .payment-qr-code-panel__proof {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .payment-qr-code-panel__hero-card,
+  .payment-qr-code-panel__hero-image {
+    min-height: 650px;
+  }
+
+  .payment-qr-code-panel__hero-floating {
+    bottom: 58px;
+    left: 50%;
+    gap: 8px;
+    width: min(calc(100% - 28px), 360px);
+    transform: translateX(-50%);
+  }
+
+  .payment-qr-code-panel__hero-intro {
+    top: 14px;
+    width: min(calc(100% - 28px), 360px);
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+
+  .payment-qr-code-panel__hero-intro h3 {
+    font-size: 0.94rem;
+  }
+
+  .payment-qr-code-panel__hero-intro p {
+    font-size: 0.78rem;
+    line-height: 1.38;
+  }
+
+  .payment-qr-code-panel__floating-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .payment-qr-code-panel__floating-card {
+    padding: 9px 11px;
+  }
+
+  .payment-qr-code-panel__floating-card span {
+    font-size: 0.66rem;
+  }
+
+  .payment-qr-code-panel__floating-card strong {
+    margin-top: 4px;
+    font-size: 0.9rem;
+  }
+
+  .payment-qr-code-panel__floating-card--note strong {
+    font-size: 1rem;
+  }
+
+  .payment-qr-code-panel__floating-grid .payment-qr-code-panel__floating-card {
+    gap: 10px;
+    min-height: 46px;
+  }
+
+  .payment-qr-code-panel__floating-grid .payment-qr-code-panel__floating-card span {
+    flex-basis: 142px;
+  }
+
+  .payment-qr-code-panel__detail {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .payment-qr-code-panel__detail strong {
+    text-align: left;
+  }
+
+  .payment-qr-code-panel__upload {
+    min-height: 200px;
   }
 
   .payment-confirmation-shell {

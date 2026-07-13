@@ -549,8 +549,23 @@ const sanitizePaymentProofDetail = (row) => ({
   status: row.status,
 });
 
+const isDirectPaymentRecord = (payment) => {
+  if (!payment || typeof payment !== 'object') {
+    return false;
+  }
+
+  if (payment.provider === PAYMENT_PROVIDER.DIRECT) {
+    return true;
+  }
+
+  return Boolean(
+    ['cash_at_office', 'manual_bank_transfer', 'staff_collect'].includes(payment.payment_method) ||
+      payment.raw_response?.direct_payment,
+  );
+};
+
 const ensureDirectPayment = (payment) => {
-  if (payment.provider !== PAYMENT_PROVIDER.DIRECT) {
+  if (!isDirectPaymentRecord(payment)) {
     throw buildInvalidStateTransitionError(
       'Only direct payments can be processed with this endpoint',
     );

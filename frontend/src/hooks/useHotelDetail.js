@@ -485,8 +485,6 @@ export default function useHotelDetail() {
     if (!result.success) {
       return
     }
-
-    navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
   async function goToCheckoutAction(roomIdOverride) {
