@@ -7,7 +7,7 @@
   display: grid;
   gap: 22px;
   grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-  align-items: start;
+  align-items: stretch;
 }
 
 .profile-account-center__stack,
@@ -25,6 +25,10 @@
 
 .profile-account-center__card {
   height: 100%;
+}
+
+.profile-account-center__logs {
+  min-height: 100%;
 }
 
 .profile-account-center__card:first-child {

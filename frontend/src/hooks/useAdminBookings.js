@@ -17,6 +17,9 @@ import {
   updateAdminBookingStatus,
 } from '../repositories/adminBookingRepository.js'
 
+const LEGACY_PAID_CONFIRM_REASON =
+  'Tự động xác nhận đơn đã được phê duyệt thanh toán theo luồng duyệt bill mới.'
+
 function getActionReason(action) {
   if (action === 'confirm') {
     return 'Admin xác nhận đơn hàng từ trang Quản lý Đơn hàng.'
@@ -35,11 +38,31 @@ function getActionReason(action) {
 
 function prioritizePendingConfirmationBookings(bookings) {
   return [...bookings].sort((left, right) => {
-    const leftPriority = left.status === ADMIN_BOOKING_STATUSES.paid ? 0 : 1
-    const rightPriority = right.status === ADMIN_BOOKING_STATUSES.paid ? 0 : 1
+    const leftPriority = left.status === ADMIN_BOOKING_STATUSES.pendingPayment ? 0 : 1
+    const rightPriority = right.status === ADMIN_BOOKING_STATUSES.pendingPayment ? 0 : 1
 
     return leftPriority - rightPriority
   })
+}
+
+async function confirmLegacyPaidBookings(rawBookings = []) {
+  const legacyPaidBookings = rawBookings.filter(
+    (booking) => booking?.status === ADMIN_BOOKING_STATUSES.paid,
+  )
+
+  if (legacyPaidBookings.length === 0) {
+    return false
+  }
+
+  const results = await Promise.allSettled(
+    legacyPaidBookings.map((booking) =>
+      confirmAdminBooking(booking.id, {
+        reason: LEGACY_PAID_CONFIRM_REASON,
+      }),
+    ),
+  )
+
+  return results.some((result) => result.status === 'fulfilled' && result.value?.success !== false)
 }
 
 export default function useAdminBookings() {
@@ -87,12 +110,36 @@ export default function useAdminBookings() {
           throw new Error(response.message || 'Không thể tải danh sách đơn hàng lúc này.')
         }
 
+        let listResponse = response
+        const didConfirmLegacyBookings = await confirmLegacyPaidBookings(response.data)
+
+        if (!isActive) {
+          return
+        }
+
+        if (didConfirmLegacyBookings) {
+          listResponse = await listAdminBookings(
+            getAdminBookingListParams({
+              currentPage,
+              statusFilter,
+            }),
+          )
+
+          if (!isActive) {
+            return
+          }
+
+          if (!listResponse.success || !Array.isArray(listResponse.data)) {
+            throw new Error(listResponse.message || 'Không thể tải danh sách đơn hàng lúc này.')
+          }
+        }
+
         setBookings(
           prioritizePendingConfirmationBookings(
-            response.data.map((booking) => mapAdminBookingSummary(booking)),
+            listResponse.data.map((booking) => mapAdminBookingSummary(booking)),
           ),
         )
-        setPaginationMeta(mapAdminBookingPaginationMeta(response.meta))
+        setPaginationMeta(mapAdminBookingPaginationMeta(listResponse.meta))
       } catch (loadError) {
         if (!isActive) {
           return
@@ -156,8 +203,10 @@ export default function useAdminBookings() {
 
       setFeedback(response.message || 'Đã cập nhật trạng thái đơn hàng.')
       setReloadKey((currentValue) => currentValue + 1)
+      return true
     } catch (actionError) {
       setFeedback(actionError?.message ?? 'Không thể cập nhật trạng thái đơn hàng lúc này.')
+      return false
     } finally {
       setActionState(null)
     }

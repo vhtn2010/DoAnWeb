@@ -415,16 +415,16 @@ const createAdminPaymentRepository = ({
           UPDATE payments
           SET
             status = 'success',
-            paid_at = $2,
+            paid_at = $2::timestamptz,
             raw_response = COALESCE(raw_response, '{}'::jsonb) || jsonb_build_object(
               'confirmation',
               jsonb_build_object(
                 'confirmed_at', NOW(),
-                'confirmed_by_user_id', $3,
-                'collector_note', $4,
-                'idempotency_key', $5,
-                'received_amount', $6,
-                'received_at', $2
+                'confirmed_by_user_id', $3::uuid,
+                'collector_note', $4::text,
+                'idempotency_key', $5::text,
+                'received_amount', $6::numeric,
+                'received_at', $2::timestamptz
               )
             )
           WHERE id = $1

@@ -20,6 +20,7 @@ import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.js
 import PaymentTransferPage from '../pages/payment/PaymentTransferPage.jsx'
 import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
+import CustomerTripDetailPage from '../pages/profile/CustomerTripDetailPage.jsx'
 import FavoritesPage from '../pages/profile/FavoritesPage.jsx'
 import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
 import NotificationsPage from '../pages/profile/NotificationsPage.jsx'
@@ -182,6 +183,18 @@ function AppRouter() {
                 title="Vui lòng đăng nhập để xem lịch sử đơn hàng"
               >
                 <ProfileOrdersPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/profile/trips/:bookingCode"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem chi tiết lịch trình, dịch vụ đã đặt và các nhắc nhở trước chuyến đi."
+                eyebrow="Chuyến đi"
+                title="Vui lòng đăng nhập để xem chuyến đi của bạn"
+              >
+                <CustomerTripDetailPage />
               </CustomerOnlyRoute>
             }
           />

@@ -178,7 +178,7 @@ function buildStatusLabel(status) {
     expired: 'HẾT HẠN',
     failed: 'THẤT BẠI',
     in_progress: 'ĐANG DIỄN RA',
-    paid: 'ĐÃ THANH TOÁN',
+    paid: 'ĐÃ XÁC NHẬN',
     partially_refunded: 'HOÀN TIỀN MỘT PHẦN',
     payment_processing: 'ĐANG XỬ LÝ THANH TOÁN',
     pending_confirmation: 'CHỜ DUYỆT',
@@ -266,6 +266,18 @@ function buildPaymentSuccessPath(paymentCode = '') {
     : '/payment-success'
 }
 
+function buildCustomerTripPath(bookingCode = '') {
+  const normalizedBookingCode = String(bookingCode ?? '').trim()
+
+  return normalizedBookingCode
+    ? `/profile/trips/${encodeURIComponent(normalizedBookingCode)}`
+    : '/profile/orders'
+}
+
+function shouldOpenCustomerTrip(status) {
+  return ['paid', 'confirmed', 'in_progress', 'completed'].includes(status)
+}
+
 function buildDurationSummary(items = []) {
   const itemCount = items.length
   const quantity = items.reduce((total, item) => total + Number(item.quantity ?? 0), 0)
@@ -310,7 +322,10 @@ function buildUpcomingTrip(bookings = []) {
     detail_path:
       displayStatus === 'pending_confirmation'
         ? buildPaymentSuccessPath(paymentCode)
-        : `/booking-confirmation/${upcomingBooking.booking_code}`,
+        : shouldOpenCustomerTrip(displayStatus)
+          ? buildCustomerTripPath(upcomingBooking.booking_code)
+          : `/booking-confirmation/${upcomingBooking.booking_code}`,
+    primary_action_label: 'Xem lịch trình',
     route_state:
       displayStatus === 'pending_confirmation'
         ? {
@@ -335,6 +350,7 @@ function buildUpcomingTrip(bookings = []) {
     image_url: resolveProfileServiceImage(firstItem, serviceSnapshot),
     location_label: serviceSnapshot.location_text ?? 'Hành trình đang được cập nhật',
     secondary_path: buildServiceRoute(serviceSnapshot, firstItem.service_type),
+    secondary_action_label: 'Xem dịch vụ',
     service_id: firstItem.service_id ?? null,
     service_type: firstItem.service_type ?? SERVICE_TYPES.tour,
     ...(displayStatus === 'pending_confirmation'
@@ -407,7 +423,9 @@ function buildBookingHistory(bookings = []) {
         booking.status === 'pending_payment'
           ? 'Đơn hàng đang chờ bạn hoàn tất bước thanh toán trực tiếp.'
           : `Đơn hàng hiện ở trạng thái ${String(booking.status ?? '').replace(/_/g, ' ')}.`,
-      detail_path: `/booking-confirmation/${booking.booking_code}`,
+      detail_path: shouldOpenCustomerTrip(displayStatus)
+        ? buildCustomerTripPath(booking.booking_code)
+        : `/booking-confirmation/${booking.booking_code}`,
       detail_summary: buildDurationSummary(booking.items),
       history_group: buildHistoryGroup(booking.status),
       id: booking.id,

@@ -20535,7 +20535,6 @@ select {
 
 .admin-bookings-page--figma .admin-booking-card__code,
 .admin-bookings-page--figma .admin-booking-card__status,
-.admin-bookings-page--figma .admin-booking-card__time,
 .admin-bookings-page--figma .admin-booking-card__detail-link {
   min-height: 38px;
   display: inline-flex;
@@ -20573,14 +20572,20 @@ select {
 
 .admin-bookings-page--figma .admin-booking-card__status--review {
   border-color: #2563eb;
-  color: #1d4ed8;
-  background: #eaf1ff;
+  color: #ffffff;
+  background: #2563eb;
 }
 
 .admin-bookings-page--figma .admin-booking-card__status--brand {
-  border-color: #6c5ce7;
-  color: #352c91;
-  background: #f0edff;
+  border-color: #1f73d1;
+  color: #ffffff;
+  background: #1f73d1;
+}
+
+.admin-bookings-page--figma .admin-booking-card__status--confirmed {
+  border-color: #128064;
+  color: #ffffff;
+  background: #128064;
 }
 
 .admin-bookings-page--figma .admin-booking-card__status--success {
@@ -20601,10 +20606,14 @@ select {
   background: #f4f6f8;
 }
 
-.admin-bookings-page--figma .admin-booking-card__time {
-  border: 1.5px solid #d8dee4;
-  color: #5e6670;
-  background: #ffffff;
+.admin-bookings-page--figma .admin-booking-card__time-detail {
+  display: inline-flex;
+  align-items: center;
+  color: #7b8088;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
 }
 
 .admin-bookings-page--figma .admin-booking-card__detail-link {
@@ -20862,9 +20871,9 @@ select {
 
 .admin-bookings-page--figma .admin-booking-card__state-action--review {
   border: 2px solid #2563eb;
-  color: #1d4ed8;
-  background: #eaf1ff;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12);
+  color: #ffffff;
+  background: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
 }
 
 .admin-bookings-page--figma .admin-booking-card__state-action--warning {
@@ -20877,6 +20886,13 @@ select {
   border: 2px solid #1f73d1;
   color: #ffffff;
   background: #1f73d1;
+}
+
+.admin-bookings-page--figma .admin-booking-card__state-action--confirmed {
+  border: 2px solid #128064;
+  color: #ffffff;
+  background: #128064;
+  box-shadow: 0 8px 18px rgba(18, 128, 100, 0.18);
 }
 
 .admin-bookings-page--figma .admin-booking-card__state-action--success {
@@ -21245,6 +21261,119 @@ select {
   overflow-wrap: anywhere;
 }
 
+.admin-booking-detail-modal__status-guidance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, auto);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid rgba(112, 93, 93, 0.14);
+  border-left-width: 5px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #ffffff;
+}
+
+.admin-booking-detail-modal__status-guidance div {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.admin-booking-detail-modal__status-guidance span,
+.admin-booking-detail-modal__status-guidance dt {
+  color: #7b6262;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.admin-booking-detail-modal__status-guidance h4,
+.admin-booking-detail-modal__status-guidance p,
+.admin-booking-detail-modal__status-guidance dl,
+.admin-booking-detail-modal__status-guidance dd {
+  margin: 0;
+}
+
+.admin-booking-detail-modal__status-guidance h4 {
+  color: #202224;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.admin-booking-detail-modal__status-guidance p {
+  color: #705d5d;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.admin-booking-detail-modal__status-guidance dl {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-booking-detail-modal__status-guidance dd {
+  color: #202224;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.admin-booking-detail-modal__status-guidance--info {
+  border-color: #d20d2d;
+  border-left-color: #d20d2d;
+  background: #fff8f8;
+}
+
+.admin-booking-detail-modal__status-guidance--review {
+  border-color: rgba(37, 99, 235, 0.24);
+  border-left-color: #2563eb;
+  background: #f7fbff;
+}
+
+.admin-booking-detail-modal__status-guidance--confirmed {
+  border-color: rgba(18, 128, 100, 0.24);
+  border-left-color: #128064;
+  background: #f3fbf8;
+}
+
+.admin-booking-detail-modal__status-guidance--brand {
+  border-color: rgba(31, 115, 209, 0.24);
+  border-left-color: #1f73d1;
+  background: #f7fbff;
+}
+
+.admin-booking-detail-modal__status-guidance--success {
+  border-color: rgba(21, 148, 91, 0.24);
+  border-left-color: #15945b;
+  background: #f3fbf7;
+}
+
+.admin-booking-detail-modal__status-guidance--warning {
+  border-color: rgba(245, 164, 0, 0.28);
+  border-left-color: #f5a400;
+  background: #fffaf0;
+}
+
+.admin-booking-detail-modal__status-guidance--danger {
+  border-color: rgba(210, 13, 45, 0.22);
+  border-left-color: #d20d2d;
+  background: #fff6f7;
+}
+
+.admin-booking-detail-modal__status-guidance--neutral {
+  border-color: rgba(112, 93, 93, 0.14);
+  border-left-color: #98a2ad;
+  background: #fafafa;
+}
+
 .admin-booking-detail-modal__line-items {
   display: grid;
   gap: 12px;
@@ -21374,15 +21503,88 @@ select {
   line-height: 1.45;
 }
 
+.admin-booking-detail-modal__payment-reject {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-booking-detail-modal__payment-reject-label {
+  color: #5f4a4a;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.admin-booking-detail-modal__payment-reject-input.admin-ui-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.admin-booking-detail-modal__payment-reject-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .admin-booking-detail-modal__payment-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 14px;
   flex-wrap: wrap;
 }
 
+.admin-booking-detail-modal__payment-actions-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.admin-booking-detail-modal__payment-actions-group .admin-booking-card__action {
+  width: auto;
+  min-width: 144px;
+  min-height: 44px;
+  height: 44px;
+  gap: 16px;
+  border-radius: 8px;
+  padding: 0 24px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  box-shadow: none;
+}
+
+.admin-booking-detail-modal__payment-actions-group .admin-booking-card__action .admin-booking-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.admin-booking-detail-modal__payment-actions-group .admin-booking-card__action--reject {
+  width: 144px;
+  border: 1px solid #c8102e;
+  color: #c8102e;
+  background: #ffffff;
+}
+
+.admin-booking-detail-modal__payment-actions-group .admin-booking-card__action--confirm {
+  width: 169px;
+  border: 1px solid #c8102e;
+  color: #ffffff;
+  background: #c8102e;
+}
+
+.admin-booking-detail-modal__payment-actions-group .admin-booking-card__action--confirm .admin-booking-icon {
+  color: #ffd700;
+}
+
 .admin-booking-detail-modal__payment-actions span {
+  width: 100%;
+  text-align: right;
   color: #a90922;
   font-size: 14px;
   font-weight: 800;
@@ -21398,6 +21600,13 @@ select {
 
 .admin-booking-detail-modal__note strong {
   color: #202224;
+}
+
+.admin-booking-detail-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .admin-booking-detail-modal__discount-summary {
@@ -21509,6 +21718,7 @@ select {
 
   .admin-booking-detail-modal__hero,
   .admin-booking-detail-modal__field-grid,
+  .admin-booking-detail-modal__status-guidance,
   .admin-booking-detail-modal__payment-proof,
   .admin-booking-detail-modal__payment-grid {
     grid-template-columns: 1fr;
@@ -21552,7 +21762,6 @@ select {
 
   .admin-bookings-page--figma .admin-booking-card__code,
   .admin-bookings-page--figma .admin-booking-card__status,
-  .admin-bookings-page--figma .admin-booking-card__time,
   .admin-bookings-page--figma .admin-booking-card__detail-link {
     min-height: 36px;
     padding: 0 14px;

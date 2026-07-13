@@ -30,6 +30,11 @@ function downloadBlob(blob, filename) {
   window.URL.revokeObjectURL(url)
 }
 
+function formatLoadErrorMessage(message, fallbackMessage) {
+  const normalizedMessage = String(message ?? '').trim()
+  return normalizedMessage || fallbackMessage
+}
+
 export default function usePaymentSuccess() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -111,7 +116,12 @@ export default function usePaymentSuccess() {
           }
 
           setPaymentSuccess(null)
-          setError(response.message ?? 'Không thể tải thông tin thanh toán lúc này.')
+          setError(
+            formatLoadErrorMessage(
+              response.message,
+              'Không thể tải thông tin trạng thái thanh toán lúc này.',
+            ),
+          )
           return
         }
 
@@ -133,7 +143,7 @@ export default function usePaymentSuccess() {
         }
 
         setPaymentSuccess(null)
-        setError('Không thể tải thông tin thanh toán lúc này.')
+        setError('Không thể tải thông tin trạng thái thanh toán lúc này.')
       } catch (loadError) {
         if (!isActive) {
           return
@@ -147,7 +157,12 @@ export default function usePaymentSuccess() {
         }
 
         setPaymentSuccess(null)
-        setError(loadError?.message ?? 'Không thể tải thông tin thanh toán lúc này.')
+        setError(
+          formatLoadErrorMessage(
+            loadError?.message,
+            'Không thể tải thông tin trạng thái thanh toán lúc này.',
+          ),
+        )
       } finally {
         if (isActive) {
           setLoading(false)
@@ -171,10 +186,22 @@ export default function usePaymentSuccess() {
     reloadToken,
   ])
 
-  const viewModel = useMemo(
-    () => buildPaymentSuccessViewModel(paymentSuccess ?? {}),
-    [paymentSuccess],
-  )
+  const { viewModel, viewModelError } = useMemo(() => {
+    try {
+      return {
+        viewModel: buildPaymentSuccessViewModel(paymentSuccess ?? {}),
+        viewModelError: '',
+      }
+    } catch (viewError) {
+      return {
+        viewModel: buildPaymentSuccessViewModel({}),
+        viewModelError: formatLoadErrorMessage(
+          viewError?.message,
+          'Không thể dựng giao diện trạng thái thanh toán.',
+        ),
+      }
+    }
+  }, [paymentSuccess])
 
   function retry() {
     setReloadToken((currentToken) => currentToken + 1)
@@ -200,9 +227,7 @@ export default function usePaymentSuccess() {
           : (response.message ?? 'Không thể chuẩn bị hóa đơn điện tử lúc này.'),
       )
     } catch (downloadError) {
-      setFeedback(
-        downloadError?.message ?? 'Không thể chuẩn bị tệp tóm tắt đơn hàng lúc này.',
-      )
+      setFeedback(downloadError?.message ?? 'Không thể chuẩn bị tệp tóm tắt đơn hàng lúc này.')
     }
   }
 
@@ -214,11 +239,16 @@ export default function usePaymentSuccess() {
     navigate(buildPublicAuthPath('/', isCustomer))
   }
 
+  function goToOrderHistory() {
+    navigate(buildPublicAuthPath('/profile/orders', isCustomer))
+  }
+
   return {
     authState,
-    error,
+    error: error || viewModelError,
     feedback,
     loading,
+    paymentCode,
     paymentSuccess,
     preserveAuthQuery: (pathname) => buildPublicAuthPath(pathname, isCustomer),
     viewModel,
@@ -226,6 +256,7 @@ export default function usePaymentSuccess() {
       continueExploreTours,
       downloadInvoiceMock,
       goHome,
+      goToOrderHistory,
       retry,
     },
   }

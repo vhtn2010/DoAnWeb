@@ -32,7 +32,7 @@ export const PROFILE_HISTORY_ICON_TYPES = Object.freeze({
 export const PROFILE_BOOKING_STATUS_LABELS = Object.freeze({
   completed: 'HOÀN THÀNH',
   confirmed: 'ĐÃ XÁC NHẬN',
-  paid: 'ĐÃ THANH TOÁN',
+  paid: 'ĐÃ XÁC NHẬN',
   cancelled: 'ĐÃ HỦY',
   refunded: 'ĐÃ HOÀN TIỀN',
   pending_payment: 'CHỜ THANH TOÁN',

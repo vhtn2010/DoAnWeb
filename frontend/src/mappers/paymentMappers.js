@@ -14,6 +14,10 @@ function normalizeText(value = '') {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function normalizeObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+}
+
 function resolveNumber(...values) {
   for (const value of values) {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -446,13 +450,14 @@ export function buildPaymentContactForm(booking = {}) {
 }
 
 function resolveBookingItemServiceTitle(item = {}, fallbackTitle = '') {
-  const snapshot = item.service_snapshot ?? {}
+  const safeItem = normalizeObject(item)
+  const snapshot = normalizeObject(safeItem.service_snapshot)
 
   return (
     normalizeText(snapshot.title) ||
-    normalizeText(item.service_title) ||
-    normalizeText(item.title_snapshot) ||
-    normalizeText(item.title) ||
+    normalizeText(safeItem.service_title) ||
+    normalizeText(safeItem.title_snapshot) ||
+    normalizeText(safeItem.title) ||
     normalizeText(fallbackTitle)
   )
 }
@@ -483,7 +488,9 @@ export function buildPaymentSuccessData({
     : []
   const normalizedBookingItems =
     Array.isArray(bookingItems) && bookingItems.length > 0 ? bookingItems : fallbackBookingItems
-  const primaryBookingItem = normalizedBookingItems[0] ?? fallbackBookingItems[0] ?? {}
+  const primaryBookingItem = normalizeObject(
+    normalizedBookingItems[0] ?? fallbackBookingItems[0],
+  )
   const resolvedCurrency =
     payment?.currency ??
     paymentResultPayload?.currency ??
@@ -519,7 +526,11 @@ export function buildPaymentSuccessData({
       paymentResultPayload?.payment_status ??
       fallbackPaymentSuccess.payment_status ??
       PAYMENT_STATUSES.success,
-    booking_status: booking?.booking_status ?? fallbackPaymentSuccess.booking_status ?? 'paid',
+    booking_status:
+      booking?.booking_status ??
+      booking?.status ??
+      fallbackPaymentSuccess.booking_status ??
+      'paid',
     amount: resolvedAmount,
     currency: resolvedCurrency,
     payment_method: resolvedPaymentMethod,
@@ -551,14 +562,19 @@ export function buildPaymentSuccessData({
       total_amount: resolvedAmount,
       currency: resolvedCurrency,
     },
-    booking_items: normalizedBookingItems.map((item) => ({
-      ...item,
-      service_title: resolveBookingItemServiceTitle(item),
-      total_amount: resolveNumber(
-        item.total_amount,
-        resolveNumber(item.unit_price_snapshot) * resolveNumber(item.quantity, 1),
-      ),
-    })),
+    booking_items: normalizedBookingItems.map((item) => {
+      const safeItem = normalizeObject(item)
+
+      return {
+        ...safeItem,
+        service_snapshot: normalizeObject(safeItem.service_snapshot),
+        service_title: resolveBookingItemServiceTitle(safeItem),
+        total_amount: resolveNumber(
+          safeItem.total_amount,
+          resolveNumber(safeItem.unit_price_snapshot) * resolveNumber(safeItem.quantity, 1),
+        ),
+      }
+    }),
   }
 }
 

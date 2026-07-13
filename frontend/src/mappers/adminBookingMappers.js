@@ -161,10 +161,18 @@ function mapStatusTone(status) {
 }
 
 function getPaymentProof(payment = {}) {
+  if (!payment) {
+    return null
+  }
+
   return payment.proof_summary ?? payment.proof ?? null
 }
 
 function isPendingPaymentProof(payment = {}) {
+  if (!payment) {
+    return false
+  }
+
   const proof = getPaymentProof(payment)
 
   return (
@@ -239,6 +247,7 @@ export function mapAdminBookingSummary(summary = {}, detail = null) {
 
   return {
     bookingCode: summary.booking_code,
+    createdAtLabel: formatDateTime(summary.created_at) || 'Chưa có dữ liệu',
     createdLabel: formatRelativeTime(summary.created_at),
     customerEmail:
       summary.contact_email ||
@@ -309,20 +318,7 @@ export function mapAdminBookingPaginationMeta(meta = {}) {
 
 export function getAdminBookingActionConfig(status) {
   if (status === ADMIN_BOOKING_STATUSES.paid) {
-    return [
-      {
-        action: 'cancel',
-        icon: 'x',
-        label: 'Từ chối',
-        tone: 'reject',
-      },
-      {
-        action: 'confirm',
-        icon: 'check',
-        label: 'Xác nhận',
-        tone: 'confirm',
-      },
-    ]
+    return []
   }
 
   if (status === ADMIN_BOOKING_STATUSES.pendingPayment) {
@@ -330,14 +326,7 @@ export function getAdminBookingActionConfig(status) {
   }
 
   if (status === ADMIN_BOOKING_STATUSES.confirmed) {
-    return [
-      {
-        action: 'start',
-        icon: 'check',
-        label: 'Bắt đầu',
-        tone: 'progress',
-      },
-    ]
+    return []
   }
 
   if (status === ADMIN_BOOKING_STATUSES.inProgress) {
