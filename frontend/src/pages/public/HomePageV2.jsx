@@ -53,7 +53,6 @@ function HomePageV2() {
           ctaPath={heroCtaPath}
           description={hero.description}
           imageAlt={hero.art_image_alt}
-          imageUrl={hero.art_image_url}
           titleLeading={hero.title_leading}
           titleScript={hero.title_script}
         />
