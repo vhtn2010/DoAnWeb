@@ -1,3 +1,6 @@
+import { CHECKOUT_BAGGAGE_FEE_BY_ROUTE } from '../../constants/checkout.js'
+import { formatCurrencyVND } from '../../utils/formatCurrency.js'
+
 function TravelIcon() {
   return (
     <svg fill="none" viewBox="0 0 24 24">
@@ -25,6 +28,16 @@ function ArrowRightIcon() {
       />
     </svg>
   )
+}
+
+function buildBaggageActionLabel(isSelected, baggageKey) {
+  const feeAmount = formatCurrencyVND(CHECKOUT_BAGGAGE_FEE_BY_ROUTE[baggageKey] ?? 0)
+
+  if (isSelected) {
+    return `Đã thêm ${feeAmount}`
+  }
+
+  return `Thêm hành lý ${feeAmount}`
 }
 
 function CheckoutSpecialRequestCard({
@@ -60,7 +73,7 @@ function CheckoutSpecialRequestCard({
           >
             <span>Chiều đi</span>
             <span className="checkout-special-card__baggage-action">
-              {baggageSelection.baggage_departure ? 'Đã thêm hành lý' : 'Thêm hành lý'}
+              {buildBaggageActionLabel(Boolean(baggageSelection.baggage_departure), 'baggage_departure')}
               <ArrowRightIcon />
             </span>
           </button>
@@ -76,7 +89,7 @@ function CheckoutSpecialRequestCard({
           >
             <span>Chiều về</span>
             <span className="checkout-special-card__baggage-action">
-              {baggageSelection.baggage_return ? 'Đã thêm hành lý' : 'Thêm hành lý'}
+              {buildBaggageActionLabel(Boolean(baggageSelection.baggage_return), 'baggage_return')}
               <ArrowRightIcon />
             </span>
           </button>

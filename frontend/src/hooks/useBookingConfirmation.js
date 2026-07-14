@@ -32,6 +32,23 @@ import {
 
 const FALLBACK_SERVICE_IMAGE_URL = '/assets/template/service/detail/ha-long-gallery-main.png'
 
+function createEmptyBookingConfirmationViewModel() {
+  return {
+    bookingCode: '',
+    contactName: '',
+    itemCountLabel: '0 Mục',
+    paymentMethod: '',
+    summary: {
+      subtotal_amount: '0₫',
+      tax_and_fee_amount: '0₫',
+      discount_amount: '0₫',
+      total_amount: '0₫',
+      currency: 'VND',
+    },
+    items: [],
+  }
+}
+
 function normalizeBookingItems(items = []) {
   return items.map((item) => {
     const serviceSnapshot = item.service_snapshot ?? {}
@@ -192,7 +209,6 @@ export default function useBookingConfirmation() {
 
           setBooking(normalizeBooking({
             ...handoff.booking,
-            booking_code: 'CHO-XAC-NHAN',
             booking_status: 'draft',
             status: 'draft',
           }))
@@ -346,12 +362,18 @@ export default function useBookingConfirmation() {
   }, [authState, booking?.id, booking?.refunds, isCheckoutDraftConfirmation, reloadToken])
 
   const viewModel = useMemo(
-    () =>
-      buildBookingConfirmationViewModel({
-        booking,
-        bookingItems,
-        paymentOptions: [],
-      }),
+    () => {
+      try {
+        return buildBookingConfirmationViewModel({
+          booking,
+          bookingItems: Array.isArray(bookingItems) ? bookingItems : [],
+          paymentOptions: [],
+        })
+      } catch (viewModelError) {
+        console.error('Không thể dựng dữ liệu trang xác nhận đơn hàng:', viewModelError)
+        return createEmptyBookingConfirmationViewModel()
+      }
+    },
     [booking, bookingItems],
   )
 

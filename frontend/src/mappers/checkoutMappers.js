@@ -6,12 +6,14 @@ import {
   PAYMENT_STATUSES,
 } from '../constants/bookings.js'
 import {
+  CHECKOUT_BAGGAGE_FEE_BY_ROUTE,
   CHECKOUT_DEFAULT_CURRENCY,
   CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
   CHECKOUT_SPECIAL_REQUEST_TEMPLATE,
 } from '../constants/checkout.js'
 import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
+import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
 
 function normalizeAuthState(authState = ROLES.guest) {
   return authState === ROLES.customer ? ROLES.customer : ROLES.guest
@@ -24,6 +26,68 @@ function resolveNumber(...values) {
 
 function normalizeText(value = '') {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function hasResolvableNumber(...values) {
+  return values.some((value) => {
+    if (typeof value === 'number') {
+      return Number.isFinite(value)
+    }
+
+    return typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))
+  })
+}
+
+export function normalizeCheckoutSpecialRequests(specialRequests = {}) {
+  return {
+    ...cloneCheckoutValue(CHECKOUT_SPECIAL_REQUEST_TEMPLATE),
+    ...(specialRequests ?? {}),
+  }
+}
+
+export function getCheckoutBaggageSelections(specialRequests = {}) {
+  const normalizedSpecialRequests = normalizeCheckoutSpecialRequests(specialRequests)
+
+  return Object.entries(normalizedSpecialRequests)
+    .filter(([, isEnabled]) => Boolean(isEnabled))
+    .map(([requestKey]) => requestKey)
+}
+
+function getCheckoutBaggageLabelByKey(requestKey) {
+  if (requestKey === 'baggage_departure') {
+    return 'Chiều đi'
+  }
+
+  if (requestKey === 'baggage_return') {
+    return 'Chiều về'
+  }
+
+  return ''
+}
+
+export function buildCheckoutBaggageLabel(specialRequests = {}) {
+  const baggageLabels = getCheckoutBaggageSelections(specialRequests)
+    .map((requestKey) => getCheckoutBaggageLabelByKey(requestKey))
+    .filter(Boolean)
+
+  return baggageLabels.join(', ')
+}
+
+export function getCheckoutBaggageFeeAmount(specialRequests = {}) {
+  return getCheckoutBaggageSelections(specialRequests).reduce(
+    (totalAmount, requestKey) => totalAmount + resolveNumber(CHECKOUT_BAGGAGE_FEE_BY_ROUTE[requestKey]),
+    0,
+  )
+}
+
+export function buildCheckoutOrderNote({ note = '', specialRequests = {} } = {}) {
+  const normalizedNote = normalizeText(note)
+  const baggageLabel = buildCheckoutBaggageLabel(specialRequests)
+  const baggageNote = baggageLabel
+    ? `Nhu cầu hành lý ký gửi: ${baggageLabel}.`
+    : ''
+
+  return [baggageNote, normalizedNote].filter(Boolean).join('\n')
 }
 
 function buildBadgeText(serviceType) {
@@ -120,7 +184,14 @@ export function calculateCheckoutSummary(payload = {}) {
     payload.serviceFeeAmount,
   )
   const vatAmount = resolveNumber(payload.vat_amount, payload.vatAmount)
-  const surchargeAmount = resolveNumber(payload.surcharge_amount, payload.surchargeAmount)
+  const baggageFeeAmount = resolveNumber(
+    payload.baggage_fee_amount,
+    payload.baggageFeeAmount,
+    getCheckoutBaggageFeeAmount(payload.special_requests ?? payload.specialRequests),
+  )
+  const surchargeAmount = hasResolvableNumber(payload.surcharge_amount, payload.surchargeAmount)
+    ? resolveNumber(payload.surcharge_amount, payload.surchargeAmount)
+    : baggageFeeAmount
   const taxAndFeeAmount = resolveNumber(
     payload.tax_and_fee_amount,
     payload.taxAndFeeAmount,
@@ -136,6 +207,7 @@ export function calculateCheckoutSummary(payload = {}) {
     subtotal_amount: subtotalAmount,
     vat_amount: vatAmount,
     service_fee_amount: serviceFeeAmount,
+    baggage_fee_amount: baggageFeeAmount,
     surcharge_amount: surchargeAmount,
     tax_and_fee_amount: taxAndFeeAmount,
     discount_amount: discountAmount,
@@ -256,6 +328,7 @@ export function buildCheckoutDraftFromCartSnapshot(
   return {
     auth_state: normalizeAuthState(authState),
     cart_id: cartSummaryPayload?.cart_id ?? cart?.id ?? '',
+    preview_booking_code: resolvePreviewBookingCode(cartSummaryPayload?.preview_booking_code),
     selected_cart_item_ids: normalizedSelectedIds,
     contact_name: emptyContactValues.contact_name,
     contact_email: emptyContactValues.contact_email,
@@ -308,8 +381,12 @@ export function validateCheckoutForm(formValues = {}) {
 }
 
 export function buildCheckoutPayload(formValues = {}) {
+  const specialRequests = normalizeCheckoutSpecialRequests(formValues.special_requests)
+  const customerNote = normalizeText(formValues.note)
+
   return {
     cart_id: formValues.cart_id ?? '',
+    preview_booking_code: normalizeText(formValues.preview_booking_code).toUpperCase(),
     selected_cart_item_ids: Array.isArray(formValues.selected_cart_item_ids)
       ? [...formValues.selected_cart_item_ids]
       : [],
@@ -317,7 +394,11 @@ export function buildCheckoutPayload(formValues = {}) {
     contact_email: normalizeText(formValues.contact_email),
     contact_phone: normalizeText(formValues.contact_phone),
     voucher_code: normalizeText(formValues.voucher_code).toUpperCase(),
-    note: normalizeText(formValues.note),
+    customer_note: customerNote,
+    note: buildCheckoutOrderNote({
+      note: customerNote,
+      specialRequests,
+    }),
     travellers: Array.isArray(formValues.travellers)
       ? formValues.travellers.map((traveller) => ({
           cart_item_id: traveller.cart_item_id,
@@ -328,11 +409,12 @@ export function buildCheckoutPayload(formValues = {}) {
           },
         }))
       : [],
-    special_requests: {
-      ...(formValues.special_requests ?? {}),
-    },
+    special_requests: specialRequests,
     summary: {
-      ...(formValues.summary ?? {}),
+      ...calculateCheckoutSummary({
+        ...(formValues.summary ?? {}),
+        special_requests: specialRequests,
+      }),
       currency: formValues.summary?.currency ?? CHECKOUT_DEFAULT_CURRENCY,
     },
   }
@@ -340,7 +422,7 @@ export function buildCheckoutPayload(formValues = {}) {
 
 export function buildPaymentConfirmationHandoff(checkoutPayload = {}) {
   const summary = checkoutPayload.summary ?? {}
-  const bookingCode = 'NVBT20241012001'
+  const bookingCode = resolvePreviewBookingCode(checkoutPayload.preview_booking_code)
   const bookingId = 'booking-preview-checkout-001'
   const totalAmount = resolveNumber(summary.total_amount)
 
@@ -352,6 +434,7 @@ export function buildPaymentConfirmationHandoff(checkoutPayload = {}) {
       contact_name: normalizeText(checkoutPayload.contact_name),
       contact_email: normalizeText(checkoutPayload.contact_email),
       contact_phone: normalizeText(checkoutPayload.contact_phone),
+      customer_note: normalizeText(checkoutPayload.customer_note),
       note: normalizeText(checkoutPayload.note),
       booking_status: BOOKING_STATUSES.pending_payment,
       payment_status: PAYMENT_STATUSES.initiated,
@@ -359,6 +442,7 @@ export function buildPaymentConfirmationHandoff(checkoutPayload = {}) {
       discount_amount: resolveNumber(summary.discount_amount),
       tax_amount: resolveNumber(summary.vat_amount),
       service_fee_amount: resolveNumber(summary.service_fee_amount),
+      baggage_fee_amount: resolveNumber(summary.baggage_fee_amount),
       surcharge_amount: resolveNumber(summary.surcharge_amount),
       tax_and_fee_amount: resolveNumber(summary.tax_and_fee_amount),
       total_amount: totalAmount,

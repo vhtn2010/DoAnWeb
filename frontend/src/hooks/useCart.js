@@ -18,6 +18,7 @@ import {
 } from '../mappers/cartMappers.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
@@ -71,6 +72,20 @@ function buildItemRoute(item) {
   }
 
   return `/services/${slug}`
+}
+
+function getTourPassengerCounts(item = {}) {
+  const options = item.options ?? {}
+  const childCount = Math.max(Number(options.child_count) || 0, 0)
+  const adultCount = Math.max(
+    Number(options.adult_count) || Math.max((Number(item.quantity) || 1) - childCount, 1),
+    1,
+  )
+
+  return {
+    adult_count: adultCount,
+    child_count: childCount,
+  }
 }
 
 function normalizeServerSummary(summary = {}, fallbackItemCount = 0) {
@@ -400,6 +415,31 @@ export default function useCart() {
       return
     }
 
+    const currentTourPassengerCounts = getTourPassengerCounts(item)
+    const nextPayload =
+      item.service_type === SERVICE_TYPES.tour
+        ? (() => {
+            const currentQuantity = Math.max(Number(item.quantity) || 1, 1)
+            const delta = normalizedQuantity - currentQuantity
+            const nextAdultCount = Math.max(currentTourPassengerCounts.adult_count + delta, 1)
+            const nextQuantityValue = Math.max(
+              nextAdultCount + currentTourPassengerCounts.child_count,
+              1,
+            )
+
+            return {
+              options: {
+                ...(item.options ?? {}),
+                ...currentTourPassengerCounts,
+                adult_count: nextAdultCount,
+              },
+              quantity: nextQuantityValue,
+            }
+          })()
+        : {
+            quantity: normalizedQuantity,
+          }
+
     setError('')
     setUpdatingItemIds((currentIds) =>
       currentIds.includes(item.id) ? currentIds : [...currentIds, item.id],
@@ -408,16 +448,21 @@ export default function useCart() {
     try {
       const response = await updateCartItem(
         item.id,
-        {
-          quantity: normalizedQuantity,
-        },
+        nextPayload,
         { authState },
       )
       const responseItem = response.data?.cart_item
       const fallbackItem = {
         ...item,
-        quantity: normalizedQuantity,
-        total_amount: Number(item.unit_price_snapshot) * normalizedQuantity,
+        options:
+          item.service_type === SERVICE_TYPES.tour
+            ? {
+                ...(item.options ?? {}),
+                ...nextPayload.options,
+              }
+            : item.options,
+        quantity: nextPayload.quantity,
+        total_amount: Number(item.unit_price_snapshot) * nextPayload.quantity,
       }
       const nextItem = mapCartItemToView(responseItem ?? fallbackItem)
       const nextCartItems = cartItems.map((cartItem) =>
@@ -431,6 +476,67 @@ export default function useCart() {
     } catch (updateError) {
       const nextMessage =
         updateError?.message ?? 'Không thể cập nhật số lượng dịch vụ trong giỏ hàng.'
+      setError(nextMessage)
+      setFeedback(createFeedbackState('error', nextMessage))
+    } finally {
+      setUpdatingItemIds((currentIds) => currentIds.filter((itemId) => itemId !== item.id))
+    }
+  }
+
+  async function handleTourPassengerChange(item, passengerType, nextCount) {
+    if (!cart?.id || !item?.id || item.service_type !== SERVICE_TYPES.tour) {
+      return
+    }
+
+    const currentCounts = getTourPassengerCounts(item)
+    const normalizedCount =
+      passengerType === 'child_count'
+        ? Math.max(Number(nextCount) || 0, 0)
+        : Math.max(Number(nextCount) || 1, 1)
+    const nextCounts = {
+      ...currentCounts,
+      [passengerType]: normalizedCount,
+    }
+    const nextQuantity = Math.max(nextCounts.adult_count + nextCounts.child_count, 1)
+
+    setError('')
+    setUpdatingItemIds((currentIds) =>
+      currentIds.includes(item.id) ? currentIds : [...currentIds, item.id],
+    )
+
+    try {
+      const response = await updateCartItem(
+        item.id,
+        {
+          options: {
+            ...(item.options ?? {}),
+            ...nextCounts,
+          },
+          quantity: nextQuantity,
+        },
+        { authState },
+      )
+      const responseItem = response.data?.cart_item
+      const fallbackItem = {
+        ...item,
+        options: {
+          ...(item.options ?? {}),
+          ...nextCounts,
+        },
+        quantity: nextQuantity,
+      }
+      const nextItem = mapCartItemToView(responseItem ?? fallbackItem)
+      const nextCartItems = cartItems.map((cartItem) =>
+        cartItem.id === item.id ? nextItem : cartItem,
+      )
+
+      setCartItems(nextCartItems)
+      setSummary(buildSummary(nextCartItems, selectedItemIds))
+      resetVoucherState()
+      setFeedback(createFeedbackState('success', 'Đã cập nhật số hành khách cho tour.'))
+    } catch (updateError) {
+      const nextMessage =
+        updateError?.message ?? 'Không thể cập nhật số hành khách của tour lúc này.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     } finally {
@@ -491,15 +597,21 @@ export default function useCart() {
         return
       }
 
+      const previewBookingCode = resolvePreviewBookingCode()
+
       navigate(buildPublicAuthPath('/booking-confirmation', isCustomer), {
         state: {
           selectedCartItemIds: resolvedSelectedItemIds,
-          cartSummaryPayload: createCartSummaryPayload(
-            cart,
-            summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds),
-            resolvedSelectedItemIds,
-            appliedVoucher?.code ?? voucherCode,
-          ),
+          previewBookingCode,
+          cartSummaryPayload: {
+            ...createCartSummaryPayload(
+              cart,
+              summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds),
+              resolvedSelectedItemIds,
+              appliedVoucher?.code ?? voucherCode,
+            ),
+            preview_booking_code: previewBookingCode,
+          },
         },
       })
     } catch (validateError) {
@@ -662,6 +774,7 @@ export default function useCart() {
     handleEditItem,
     handleGoBack,
     handleOpenVoucherPicker,
+    handleTourPassengerChange,
     handleQuantityChange,
     handleRemoveItem,
     handleRemoveVoucher,

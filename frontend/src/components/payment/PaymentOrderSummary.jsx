@@ -79,6 +79,13 @@ function buildPaymentHint(payment, selectedMethodMeta) {
       : 'Đây là yêu cầu chuyển khoản thủ công. Hãy tải chứng từ sau khi hoàn tất chuyển khoản.'
   }
 
+  if (
+    payment.status === PAYMENT_STATUSES.pending &&
+    normalizePaymentMethod(payment.payment_method) === PAYMENT_METHOD_CODES.cashAtOffice
+  ) {
+    return 'Đây là yêu cầu thanh toán trực tiếp tại văn phòng, hiện không phát sinh phí xử lý thêm trong phạm vi MVP.'
+  }
+
   if (payment.status === PAYMENT_STATUSES.pending) {
     return 'Đây là yêu cầu thanh toán trực tiếp đang chờ nhân viên xác nhận theo quy trình nội bộ.'
   }
@@ -98,7 +105,6 @@ function buildPaymentHint(payment, selectedMethodMeta) {
 
 function PaymentOrderSummary({
   canCancelPayment = false,
-  feedback,
   isCancellingPayment = false,
   isDisabled,
   isPaid,
@@ -121,9 +127,15 @@ function PaymentOrderSummary({
           <span>Tạm tính</span>
           <strong>{summary.subtotal_amount}</strong>
         </div>
+        {summary.baggage_fee_amount ? (
+          <div className="payment-order-summary__row">
+            <span>Phí hành lý ký gửi</span>
+            <strong>{summary.baggage_fee_amount}</strong>
+          </div>
+        ) : null}
         <div className="payment-order-summary__row">
           <span>Thuế & Phí</span>
-          <strong>{summary.tax_and_fee_amount}</strong>
+          <strong>{summary.tax_and_fee_without_baggage_amount ?? summary.tax_and_fee_amount}</strong>
         </div>
         <div className="payment-order-summary__row payment-order-summary__row--discount">
           <span>Giảm giá</span>
@@ -154,7 +166,7 @@ function PaymentOrderSummary({
         </div>
         <div className="payment-order-summary__info-row">
           <span className="payment-order-summary__info-label">Mã giao dịch</span>
-          <strong className="payment-order-summary__info-value">
+          <strong className="payment-order-summary__info-value payment-order-summary__info-value--code">
             {payment?.payment_code ?? 'Sẽ tạo sau khi xác nhận'}
           </strong>
         </div>
@@ -196,14 +208,8 @@ function PaymentOrderSummary({
         <span aria-hidden="true">
           <LockIcon />
         </span>
-        Mã hóa SSL và bảo vệ thông tin khách hàng
+        Thông tin cá nhân và giao dịch của bạn được bảo mật cẩn thận, chỉ dùng cho xác nhận thanh toán và hỗ trợ đơn hàng.
       </p>
-
-      {feedback ? (
-        <p className="payment-order-summary__feedback" role="status">
-          {feedback}
-        </p>
-      ) : null}
     </section>
   )
 }

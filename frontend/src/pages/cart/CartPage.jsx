@@ -22,6 +22,7 @@ function CartPage() {
     handleEditItem,
     handleGoBack,
     handleOpenVoucherPicker,
+    handleTourPassengerChange,
     handleQuantityChange,
     handleRemoveItem,
     handleRemoveVoucher,
@@ -53,6 +54,7 @@ function CartPage() {
           error={error}
           handleClearCart={handleClearCart}
           handleEditItem={handleEditItem}
+          handleTourPassengerChange={handleTourPassengerChange}
           handleQuantityChange={handleQuantityChange}
           handleRemoveItem={handleRemoveItem}
           handleToggleAll={handleToggleAll}

@@ -36,6 +36,19 @@ function pluralizeVietnamese(count, singularLabel) {
   return `${count} ${singularLabel}`
 }
 
+function buildTourPassengerSummary(item) {
+  const options = item.options ?? {}
+  const adultCount = Number(options.adult_count) || item.quantity || 1
+  const childCount = Math.max(Number(options.child_count) || 0, 0)
+  const passengerLabels = [pluralizeVietnamese(adultCount, 'Người lớn')]
+
+  if (childCount > 0) {
+    passengerLabels.push(pluralizeVietnamese(childCount, 'Trẻ em'))
+  }
+
+  return passengerLabels.join(' • ')
+}
+
 function buildOptionSummary(item) {
   const { options = {}, service_type: serviceType } = item
 
@@ -47,8 +60,7 @@ function buildOptionSummary(item) {
 
   if (serviceType === SERVICE_TYPES.tour) {
     const packageName = options.package_name ?? 'Gói tour'
-    const adultCount = Number(options.adult_count) || item.quantity || 1
-    return `${packageName} • ${pluralizeVietnamese(adultCount, 'Người lớn')}`
+    return `${packageName} • ${buildTourPassengerSummary(item)}`
   }
 
   if (serviceType === SERVICE_TYPES.hotel) {
@@ -60,7 +72,7 @@ function buildOptionSummary(item) {
   }
 
   if (serviceType === SERVICE_TYPES.train) {
-    return options.seat_class ?? 'Tàu hoả'
+    return options.seat_class ?? 'Tàu hỏa'
   }
 
   if (serviceType === SERVICE_TYPES.combo) {
@@ -76,6 +88,8 @@ export function mapCartItemToView(item) {
     options: {
       ...item.options,
       option_summary: buildOptionSummary(item),
+      passenger_summary:
+        item.service_type === SERVICE_TYPES.tour ? buildTourPassengerSummary(item) : '',
       schedule_label: formatCartScheduleLabel(item.start_at, item.end_at),
     },
   }

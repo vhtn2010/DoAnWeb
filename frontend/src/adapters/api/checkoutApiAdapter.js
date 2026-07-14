@@ -52,6 +52,7 @@ export async function applyVoucher(code, { cartId, currentSummary } = {}) {
       summary: calculateCheckoutSummary({
         discount_amount: response.data.discount_amount,
         service_fee_amount: currentSummary?.service_fee_amount ?? 0,
+        surcharge_amount: currentSummary?.surcharge_amount ?? 0,
         subtotal_amount: response.data.subtotal_amount ?? currentSummary?.subtotal_amount ?? 0,
       }),
       voucher_code: response.data.code ?? code,

@@ -156,7 +156,11 @@ function buildStatusTone(status) {
     return 'warning'
   }
 
-  if (status === 'paid' || status === 'confirmed' || status === 'in_progress') {
+  if (status === 'paid' || status === 'confirmed') {
+    return 'success'
+  }
+
+  if (status === 'in_progress') {
     return 'info'
   }
 

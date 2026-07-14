@@ -32,6 +32,10 @@ function isBankTransferMethod(methodCode) {
   return normalizePaymentMethod(methodCode) === PAYMENT_METHOD_CODES.manualBankTransfer
 }
 
+function isCashAtOfficeMethod(methodCode) {
+  return normalizePaymentMethod(methodCode) === PAYMENT_METHOD_CODES.cashAtOffice
+}
+
 function arePaymentMethodsEquivalent(leftMethodCode, rightMethodCode) {
   const normalizedLeft = normalizePaymentMethod(leftMethodCode)
   const normalizedRight = normalizePaymentMethod(rightMethodCode)
@@ -73,6 +77,7 @@ function resolveSelectedMethodCode(methodCode, methods = []) {
 
   if (OFFLINE_ASSISTED_METHOD_CODES.has(normalizedMethodCode)) {
     return (
+      methods.find((method) => normalizePaymentMethod(method.code) === PAYMENT_METHOD_CODES.cashAtOffice)?.code ??
       methods.find((method) => OFFLINE_ASSISTED_METHOD_CODES.has(normalizePaymentMethod(method.code)))?.code ??
       normalizedMethodCode
     )
@@ -87,7 +92,7 @@ function buildMethodDescription(method = {}) {
   }
 
   if (method.code === PAYMENT_METHOD_CODES.cashAtOffice) {
-    return method.office_address ?? method.instructions ?? 'Thanh toán tại văn phòng'
+    return method.office_address ?? method.instructions ?? 'Thanh toán trực tiếp tại văn phòng'
   }
 
   return method.hotline ?? method.instructions ?? 'Thanh toán trực tiếp với nhân viên'
@@ -166,25 +171,29 @@ function normalizePaymentMethods(methods = []) {
   }))
   const bankTransferMethod =
     normalized.find((method) => method.code === PAYMENT_METHOD_CODES.manualBankTransfer) ?? null
-  const otherMethod =
-    normalized.find((method) => method.code === PAYMENT_METHOD_CODES.staffCollect) ??
+  const directOfficeMethod =
     normalized.find((method) => method.code === PAYMENT_METHOD_CODES.cashAtOffice) ??
+    normalized.find((method) => method.code === PAYMENT_METHOD_CODES.staffCollect) ??
     null
   const nextMethods = []
 
   if (bankTransferMethod) {
     nextMethods.push({
       ...bankTransferMethod,
-      description: 'Sau khi xác nhận, bạn sẽ sang màn hình chuyển khoản để xem QR và tải bill.',
+      description: 'Thanh toán thủ công qua chuyển khoản, sau đó xem QR và tải bill ở bước tiếp theo.',
       label: 'Chuyển khoản ngân hàng',
     })
   }
 
-  if (otherMethod) {
+  if (directOfficeMethod) {
     nextMethods.push({
-      ...otherMethod,
-      description: 'Nhân viên sẽ liên hệ để hướng dẫn thanh toán và xác nhận thủ công.',
-      label: 'Phương thức khác',
+      ...directOfficeMethod,
+      description: directOfficeMethod.code === PAYMENT_METHOD_CODES.cashAtOffice
+        ? 'Đến văn phòng hoặc điểm giao dịch để thanh toán trực tiếp, không phát sinh phí xử lý thêm.'
+        : 'Nhân viên sẽ liên hệ để hướng dẫn thanh toán trực tiếp và xác nhận thủ công.',
+      label: directOfficeMethod.code === PAYMENT_METHOD_CODES.cashAtOffice
+        ? 'Thanh toán trực tiếp tại văn phòng'
+        : 'Nhân viên thu hộ',
     })
   }
 
@@ -211,6 +220,7 @@ function normalizeBookingItems(items = []) {
 
 function buildSummaryFromBooking(booking = {}) {
   return buildPaymentSummary({
+    baggage_fee_amount: booking.baggage_fee_amount,
     currency: booking.currency,
     discount_amount: booking.discount_amount,
     subtotal_amount: booking.subtotal_amount,
@@ -242,6 +252,10 @@ function buildResultMessage(payment, proof) {
     }
 
     return 'Yêu cầu chuyển khoản đã được tạo. Sau khi chuyển khoản, vui lòng tải ảnh chứng từ để hệ thống đối soát.'
+  }
+
+  if (payment.status === PAYMENT_STATUSES.pending && isCashAtOfficeMethod(payment.payment_method)) {
+    return 'Yêu cầu thanh toán trực tiếp tại văn phòng đã được tạo và đang chờ bạn hoàn tất tại điểm giao dịch.'
   }
 
   if (payment.status === PAYMENT_STATUSES.pending) {
@@ -277,16 +291,32 @@ function buildActionLabel({
     return 'Thanh toán'
   }
 
+  if (isSamePendingMethod && isCashAtOfficeMethod(selectedPaymentMethod)) {
+    return 'Xem yêu cầu tại văn phòng'
+  }
+
   if (isSamePendingMethod) {
     return 'Theo dõi yêu cầu'
   }
 
   if (payment?.status === PAYMENT_STATUSES.cancelled) {
-    return isBankTransferMethod(selectedPaymentMethod) ? 'Thanh toán' : 'Tạo lại yêu cầu'
+    if (isBankTransferMethod(selectedPaymentMethod)) {
+      return 'Thanh toán'
+    }
+
+    if (isCashAtOfficeMethod(selectedPaymentMethod)) {
+      return 'Tạo lại yêu cầu tại văn phòng'
+    }
+
+    return 'Tạo lại yêu cầu trực tiếp'
   }
 
   if (isBankTransferMethod(selectedPaymentMethod)) {
     return 'Thanh toán'
+  }
+
+  if (isCashAtOfficeMethod(selectedPaymentMethod)) {
+    return 'Tạo yêu cầu tại văn phòng'
   }
 
   return 'Gửi yêu cầu cho nhân viên'

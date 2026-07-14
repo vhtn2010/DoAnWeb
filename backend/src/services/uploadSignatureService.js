@@ -37,6 +37,9 @@ const PERMISSION_GROUPS = Object.freeze({
     'service.update',
     'service.create',
   ]),
+  support: Object.freeze([
+    'support.reply',
+  ]),
   systemAssets: Object.freeze([
     'settings.update',
   ]),
@@ -61,6 +64,11 @@ const FOLDER_POLICIES = Object.freeze({
     resourceTypes: Object.freeze(['image', 'video']),
     resolvedSegment: 'services',
     scope: 'service_assets',
+  }),
+  support: Object.freeze({
+    resourceTypes: Object.freeze(['image']),
+    resolvedSegment: 'support',
+    scope: 'support_assets',
   }),
   'system-assets': Object.freeze({
     resourceTypes: Object.freeze(['image', 'raw']),
@@ -210,6 +218,21 @@ const ensureRoleScope = ({
     if (
       roleCode === 'staff' &&
       permissionCodes.some((code) => PERMISSION_GROUPS.services.includes(code))
+    ) {
+      return;
+    }
+
+    if (['admin', 'system_admin'].includes(roleCode)) {
+      return;
+    }
+
+    throw buildForbiddenError();
+  }
+
+  if (folder === 'support') {
+    if (
+      roleCode === 'staff' &&
+      permissionCodes.some((code) => PERMISSION_GROUPS.support.includes(code))
     ) {
       return;
     }

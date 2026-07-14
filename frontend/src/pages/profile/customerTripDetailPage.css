@@ -90,6 +90,10 @@
   border-radius: 24px;
 }
 
+.customer-trip-hero--compact {
+  grid-template-columns: minmax(180px, 0.58fr) minmax(0, 1.42fr);
+}
+
 .customer-trip-hero__media {
   min-height: 240px;
   background: #fff4ef;
@@ -107,6 +111,15 @@
   align-content: center;
   gap: 9px;
   padding: 22px 28px;
+}
+
+.customer-trip-hero--compact .customer-trip-hero__media {
+  min-height: 180px;
+}
+
+.customer-trip-hero--compact .customer-trip-hero__content {
+  gap: 7px;
+  padding: 18px 22px;
 }
 
 .customer-trip-status {
@@ -168,6 +181,11 @@
   line-height: 1.05;
 }
 
+.customer-trip-hero--compact h1 {
+  font-size: clamp(1.15rem, 2.2vw, 1.95rem);
+  line-height: 1.08;
+}
+
 .customer-trip-hero__content > p:not(.customer-trip-hero__eyebrow):not(.customer-trip-feedback) {
   max-width: 620px;
   margin: 0;
@@ -175,6 +193,11 @@
   font-size: 0.84rem;
   font-weight: 650;
   line-height: 1.45;
+}
+
+.customer-trip-hero--compact .customer-trip-hero__content > p:not(.customer-trip-hero__eyebrow):not(.customer-trip-feedback) {
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 .customer-trip-hero__facts,
@@ -196,6 +219,12 @@
   font-weight: 800;
 }
 
+.customer-trip-hero--compact .customer-trip-hero__facts span {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 0.7rem;
+}
+
 .customer-trip-hero__actions button {
   min-height: 34px;
   display: inline-flex;
@@ -209,6 +238,13 @@
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 900;
+}
+
+.customer-trip-hero--compact .customer-trip-hero__actions button {
+  min-height: 30px;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 0.72rem;
 }
 
 .customer-trip-hero__actions button:first-child {
@@ -226,6 +262,11 @@
 .customer-trip-hero__actions svg {
   width: 14px;
   height: 14px;
+}
+
+.customer-trip-hero--compact .customer-trip-hero__actions svg {
+  width: 12px;
+  height: 12px;
 }
 
 .customer-trip-feedback {

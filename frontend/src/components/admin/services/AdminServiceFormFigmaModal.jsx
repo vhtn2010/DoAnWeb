@@ -713,6 +713,9 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                 : 'Chưa thể hoàn tất thao tác lưu.'}
             </strong>
             <p>{submitMessage}</p>
+            <div className="admin-service-modal__toast-progress" aria-hidden="true">
+              <span className="admin-service-modal__toast-progress-bar" />
+            </div>
           </div>
         ) : null}
     </div>

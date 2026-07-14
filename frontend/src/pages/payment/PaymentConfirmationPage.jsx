@@ -83,8 +83,8 @@ function PaymentConfirmationPage() {
 
               <PaymentContactCard
                 contactForm={contactForm}
+                customerNote={booking?.customer_note}
                 errors={fieldErrors}
-                onChange={actions.updateContactField}
               />
 
               <PaymentMethodPanel
@@ -107,7 +107,6 @@ function PaymentConfirmationPage() {
             <aside className="payment-confirmation-page__sidebar">
               <PaymentOrderSummary
                 canCancelPayment={canCancelPendingPayment}
-                feedback={feedback}
                 isCancellingPayment={cancellingPayment}
                 isDisabled={isPrimaryActionDisabled}
                 isPaid={isPaid}

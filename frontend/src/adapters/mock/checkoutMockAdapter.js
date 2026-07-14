@@ -62,6 +62,7 @@ export async function applyVoucher(code, currentSummary = {}) {
         subtotal_amount: currentSummary.subtotal_amount,
         service_fee_amount:
           currentSummary.service_fee_amount ?? CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
+        surcharge_amount: currentSummary.surcharge_amount ?? 0,
         discount_amount: voucher.discount_amount,
       }),
     },

@@ -239,6 +239,10 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
 
 export function buildPaymentSummary(summary = {}) {
   const subtotalAmount = resolveNumber(summary.subtotal_amount, summary.subtotalAmount)
+  const baggageFeeAmount = resolveNumber(
+    summary.baggage_fee_amount,
+    summary.baggageFeeAmount,
+  )
   const taxAndFeeAmount = resolveNumber(
     summary.tax_and_fee_amount,
     summary.taxAndFeeAmount,
@@ -248,6 +252,7 @@ export function buildPaymentSummary(summary = {}) {
 
   return {
     subtotal_amount: subtotalAmount,
+    baggage_fee_amount: baggageFeeAmount,
     tax_and_fee_amount: taxAndFeeAmount,
     discount_amount: discountAmount,
     total_amount: resolveNumber(
@@ -279,6 +284,7 @@ export function buildPaymentConfirmationFromBookingHandoff({
     contact_name: normalizeText(booking?.contact_name) || fallbackBooking.contact_name,
     contact_email: normalizeText(booking?.contact_email) || fallbackBooking.contact_email,
     contact_phone: normalizePhoneDisplay(booking?.contact_phone) || fallbackBooking.contact_phone,
+    customer_note: normalizeText(booking?.customer_note) || normalizeText(fallbackBooking.customer_note),
     currency: booking?.currency ?? fallbackBooking.currency ?? PAYMENT_DEFAULT_CURRENCY,
   }
   const normalizedItems =
@@ -361,6 +367,9 @@ export function buildPaymentConfirmationViewModel({
   bookingItems = [],
   paymentSummary,
 } = {}) {
+  const baggageFeeAmount = resolveNumber(paymentSummary?.baggage_fee_amount)
+  const taxAndFeeAmount = resolveNumber(paymentSummary?.tax_and_fee_amount)
+
   return {
     itemCountLabel: `${bookingItems.length} mục`,
     items: bookingItems.map((item) => ({
@@ -372,7 +381,13 @@ export function buildPaymentConfirmationViewModel({
     })),
     summary: {
       subtotal_amount: formatCurrencyVND(resolveNumber(paymentSummary?.subtotal_amount)),
-      tax_and_fee_amount: formatCurrencyVND(resolveNumber(paymentSummary?.tax_and_fee_amount)),
+      baggage_fee_amount: baggageFeeAmount > 0
+        ? formatCurrencyVND(baggageFeeAmount)
+        : '',
+      tax_and_fee_amount: formatCurrencyVND(taxAndFeeAmount),
+      tax_and_fee_without_baggage_amount: formatCurrencyVND(
+        Math.max(taxAndFeeAmount - baggageFeeAmount, 0),
+      ),
       discount_amount: formatCurrencyVND(resolveNumber(paymentSummary?.discount_amount)),
       total_amount: formatCurrencyVND(resolveNumber(paymentSummary?.total_amount)),
       currency: paymentSummary?.currency ?? PAYMENT_DEFAULT_CURRENCY,

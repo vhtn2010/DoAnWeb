@@ -5,6 +5,7 @@ import {
 import { ROLES } from '../constants/roles.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
 
 function normalizeText(value = '') {
   return typeof value === 'string' ? value.trim() : ''
@@ -155,7 +156,11 @@ export function buildBookingConfirmationFromCheckoutHandoff({
     fallbackBooking.total_amount,
   )
   const normalizedAuthState = getNormalizedAuthState(authState)
-  const bookingCode = fallbackBooking.booking_code ?? 'NVBT20241012001'
+  const bookingCode = resolvePreviewBookingCode(
+    checkoutPayload?.preview_booking_code,
+    cartSummaryPayload?.preview_booking_code,
+    fallbackBooking.booking_code,
+  )
 
   return {
     booking: {
@@ -186,6 +191,11 @@ export function buildBookingConfirmationFromCheckoutHandoff({
         checkoutPayload?.summary?.service_fee_amount,
         cartSummaryPayload?.summary?.service_fee_amount,
         fallbackBooking.service_fee_amount,
+      ),
+      baggage_fee_amount: resolveNumber(
+        checkoutPayload?.summary?.baggage_fee_amount,
+        cartSummaryPayload?.summary?.baggage_fee_amount,
+        fallbackBooking.baggage_fee_amount,
       ),
       surcharge_amount: resolveNumber(
         checkoutPayload?.summary?.surcharge_amount,

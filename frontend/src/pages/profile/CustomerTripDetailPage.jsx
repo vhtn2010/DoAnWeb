@@ -760,6 +760,9 @@ function CustomerTripDetailPage() {
     () => buildTripViewModel(booking, bookingItems, statusHistory),
     [booking, bookingItems, statusHistory],
   )
+  const isCompactHero = ['confirmed', 'paid', 'completed'].includes(
+    booking?.booking_status ?? booking?.status,
+  )
 
   function goBackToOrders() {
     navigate(buildPublicAuthPath('/profile/orders', isCustomer))
@@ -831,7 +834,13 @@ function CustomerTripDetailPage() {
 
         {!loading && !error && booking ? (
           <>
-            <section className="customer-trip-hero">
+            <section
+              className={
+                isCompactHero
+                  ? 'customer-trip-hero customer-trip-hero--compact'
+                  : 'customer-trip-hero'
+              }
+            >
               <div className="customer-trip-hero__media">
                 <img alt={viewModel.title} src={viewModel.heroImage} />
               </div>

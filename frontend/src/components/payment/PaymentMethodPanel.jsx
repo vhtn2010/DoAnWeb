@@ -1,3 +1,5 @@
+import { PAYMENT_METHOD_CODES } from '../../constants/payments.js'
+
 function PaymentIcon() {
   return (
     <svg fill="none" viewBox="0 0 24 24">
@@ -20,12 +22,23 @@ function PaymentIcon() {
   )
 }
 
+function resolveMethodHelper(method) {
+  if (method?.code === PAYMENT_METHOD_CODES.manualBankTransfer) {
+    return 'Sau khi xác nhận, bạn sẽ được chuyển sang màn hình QR để xem thông tin chuyển khoản và tải bill.'
+  }
+
+  if (method?.code === PAYMENT_METHOD_CODES.cashAtOffice) {
+    return 'Thanh toán trực tiếp tại văn phòng, không phát sinh phí xử lý thêm trong giai đoạn này.'
+  }
+
+  return 'Sau khi xác nhận, nhân viên sẽ liên hệ với bạn để hướng dẫn thanh toán trực tiếp và xác nhận đơn.'
+}
+
 function PaymentMethodPanel({
   errors,
   methods,
   onSelectMethod,
   selectedMethod,
-  selectedMethodMeta,
 }) {
   return (
     <section className="payment-method-panel">
@@ -48,25 +61,32 @@ function PaymentMethodPanel({
             const isActive = method.code === selectedMethod
 
             return (
-              <button
-                className={`payment-method-panel__option ${
-                  isActive ? 'payment-method-panel__option--active' : ''
-                }`}
-                key={method.id}
-                type="button"
-                onClick={() => onSelectMethod(method.code)}
-              >
-                <span className="payment-method-panel__option-copy">
-                  <strong>{method.label}</strong>
-                  <small>{method.description}</small>
-                </span>
-                <span
-                  className={`payment-method-panel__option-dot ${
-                    isActive ? 'payment-method-panel__option-dot--active' : ''
+              <div className="payment-method-panel__option-group" key={method.id}>
+                <button
+                  className={`payment-method-panel__option ${
+                    isActive ? 'payment-method-panel__option--active' : ''
                   }`}
-                  aria-hidden="true"
-                />
-              </button>
+                  type="button"
+                  onClick={() => onSelectMethod(method.code)}
+                >
+                  <span className="payment-method-panel__option-copy">
+                    <strong>{method.label}</strong>
+                    <small>{method.description}</small>
+                  </span>
+                  <span
+                    className={`payment-method-panel__option-dot ${
+                      isActive ? 'payment-method-panel__option-dot--active' : ''
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {isActive ? (
+                  <p className="payment-method-panel__helper" role="note">
+                    {resolveMethodHelper(method)}
+                  </p>
+                ) : null}
+              </div>
             )
           })}
         </div>
@@ -79,19 +99,6 @@ function PaymentMethodPanel({
 
       {errors.selected_payment_method ? (
         <p className="payment-method-panel__error">{errors.selected_payment_method}</p>
-      ) : null}
-
-      {selectedMethodMeta ? (
-        <div className="payment-method-panel__helper">
-          {selectedMethodMeta.code === 'manual_bank_transfer' ? (
-            <p>
-              Sau khi xác nhận, bạn sẽ được chuyển sang trang thanh toán riêng để xem QR, thông
-              tin chuyển khoản và tải bill.
-            </p>
-          ) : (
-            <p>Nhân viên sẽ liên hệ với bạn sau khi gửi yêu cầu để hướng dẫn thanh toán thủ công.</p>
-          )}
-        </div>
       ) : null}
     </section>
   )

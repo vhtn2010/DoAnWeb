@@ -2213,6 +2213,37 @@
   background: #fff;
 }
 
+.payment-contact-input--readonly {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  color: #64748b;
+  cursor: default;
+}
+
+.payment-contact-input--readonly span {
+  width: 100%;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.payment-contact-note-box {
+  border: 1px solid rgba(241, 225, 222, 0.98);
+  border-radius: 22px;
+  background: rgba(255, 251, 248, 0.96);
+  padding: 18px 22px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.payment-contact-note-box p {
+  margin: 0;
+  color: #5b4746;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 .payment-method-panel__card-input input,
 .payment-order-summary__voucher-controls input {
   border: none;
@@ -2532,6 +2563,11 @@
   padding-top: 22px;
 }
 
+.payment-method-panel__option-group {
+  display: grid;
+  gap: 6px;
+}
+
 .payment-method-panel__option {
   width: 100%;
   border: 1px solid rgba(228, 212, 210, 0.96);
@@ -2590,18 +2626,12 @@
 }
 
 .payment-method-panel__helper {
-  margin-top: 18px;
-  padding: 16px 18px;
-  border-radius: 18px;
-  background: rgba(255, 250, 246, 0.96);
-  border: 1px solid rgba(241, 225, 222, 0.98);
-}
-
-.payment-method-panel__helper p {
   margin: 0;
-  color: #6e6060;
-  font-size: 0.92rem;
-  line-height: 1.65;
+  padding-left: 12px;
+  color: #c2410c;
+  font-size: 0.83rem;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .payment-method-panel__card-field {
@@ -3176,22 +3206,34 @@
 }
 
 .payment-order-summary__info-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
 }
 
 .payment-order-summary__info-label {
   color: #7a6863;
   font-size: 0.88rem;
   font-weight: 700;
+  line-height: 1.45;
 }
 
 .payment-order-summary__info-value {
   color: #241716;
   font-size: 0.92rem;
+  font-weight: 800;
   text-align: right;
+  line-height: 1.45;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.payment-order-summary__info-value--code {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  word-break: break-all;
 }
 
 .payment-order-summary__helper {
@@ -3298,18 +3340,13 @@
 
 .payment-order-summary__security-note {
   margin: 16px 0 0;
-  color: #7c6f6f;
-  font-size: 0.82rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: #6f6464;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.65;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-}
-
-.payment-order-summary__feedback {
-  margin-top: 18px;
 }
 
 .payment-trust-cards {
@@ -9322,8 +9359,8 @@
 }
 
 .profile-history-item--review {
-  border-color: rgba(31, 111, 235, 0.24);
-  background: linear-gradient(90deg, rgba(239, 246, 255, 0.72), #fff 34%);
+  border-color: rgba(245, 158, 11, 0.28);
+  background: linear-gradient(90deg, rgba(255, 247, 237, 0.88), #fff 34%);
 }
 
 .profile-history-item--danger {
@@ -9472,8 +9509,8 @@
 }
 
 .profile-history-item__status--review {
-  background: rgba(31, 111, 235, 0.12);
-  color: #1d4ed8;
+  background: rgba(139, 92, 246, 0.16);
+  color: #6d28d9;
 }
 
 .profile-history-item__status--danger {
@@ -10781,10 +10818,47 @@
   grid-template-columns: 116px minmax(0, 1fr) auto auto;
   gap: 20px;
   box-shadow: 0 14px 28px rgba(95, 68, 61, 0.05);
+  position: relative;
+  overflow: hidden;
   transition:
     transform 160ms ease,
     border-color 160ms ease,
     box-shadow 160ms ease;
+}
+
+.profile-history-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 6px;
+  border-radius: 0 999px 999px 0;
+  background: rgba(214, 40, 40, 0.18);
+}
+
+.profile-history-item--success::before {
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+}
+
+.profile-history-item--warning::before {
+  background: linear-gradient(180deg, #f59e0b, #d97706);
+}
+
+.profile-history-item--review::before {
+  background: linear-gradient(180deg, #8b5cf6, #6d28d9);
+}
+
+.profile-history-item--danger::before {
+  background: linear-gradient(180deg, #ef4444, #d62828);
+}
+
+.profile-history-item--neutral::before {
+  background: linear-gradient(180deg, #a8a29e, #78716c);
+}
+
+.profile-history-item--info::before {
+  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
 }
 
 .profile-history-item--danger {

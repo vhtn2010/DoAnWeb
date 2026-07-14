@@ -28,6 +28,7 @@ const ALLOWED_PURPOSES = Object.freeze([
   'payment_proof',
   'report_file',
   'invoice_pdf',
+  'support_reply',
 ]);
 const PURPOSE_POLICIES = Object.freeze({
   avatar: Object.freeze({
@@ -66,6 +67,12 @@ const PURPOSE_POLICIES = Object.freeze({
     resourceTypes: Object.freeze(['video']),
     scope: 'services',
   }),
+  support_reply: Object.freeze({
+    allowedRoles: Object.freeze(['staff', 'admin', 'system_admin']),
+    folderSegment: 'support',
+    resourceTypes: Object.freeze(['image']),
+    scope: 'support',
+  }),
 });
 const PERMISSION_GROUPS = Object.freeze({
   payments: Object.freeze([
@@ -81,6 +88,9 @@ const PERMISSION_GROUPS = Object.freeze({
   services: Object.freeze([
     'service.update',
     'service.create',
+  ]),
+  support: Object.freeze([
+    'support.reply',
   ]),
   systemAssets: Object.freeze([
     'settings.update',
@@ -438,6 +448,21 @@ const ensurePurposeScope = ({
     if (
       auth.roleCode === 'staff' &&
       permissionCodes.some((code) => PERMISSION_GROUPS.services.includes(code))
+    ) {
+      return;
+    }
+
+    if (['admin', 'system_admin'].includes(auth.roleCode)) {
+      return;
+    }
+
+    throw buildForbiddenError();
+  }
+
+  if (policy.scope === 'support') {
+    if (
+      auth.roleCode === 'staff' &&
+      permissionCodes.some((code) => PERMISSION_GROUPS.support.includes(code))
     ) {
       return;
     }

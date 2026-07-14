@@ -32,6 +32,7 @@ export default function CartItemsSection({
   error,
   handleClearCart,
   handleEditItem,
+  handleTourPassengerChange,
   handleQuantityChange,
   handleRemoveItem,
   handleToggleAll,
@@ -112,6 +113,7 @@ export default function CartItemsSection({
               isUpdatingQuantity={updatingItemIds.includes(item.id)}
               item={item}
               onEdit={handleEditItem}
+              onTourPassengerChange={handleTourPassengerChange}
               onQuantityChange={handleQuantityChange}
               onRemove={handleRemoveItem}
               onToggle={handleToggleItem}
