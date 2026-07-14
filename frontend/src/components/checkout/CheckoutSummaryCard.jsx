@@ -88,6 +88,7 @@ function CheckoutSummaryCard({
   buttonLabel,
   feedbackMessage,
   formErrors,
+  isSubmitting = false,
   onContinue,
   summary,
   summaryService,
@@ -161,8 +162,14 @@ function CheckoutSummaryCard({
           <span className="checkout-summary-card__vat-note">Đã bao gồm VAT</span>
         </div>
 
-        <button className="checkout-summary-card__button" type="button" onClick={onContinue}>
-          {buttonLabel}
+        <button
+          aria-busy={isSubmitting}
+          className="checkout-summary-card__button"
+          disabled={isSubmitting}
+          type="button"
+          onClick={onContinue}
+        >
+          {isSubmitting ? 'Đang xử lý...' : buttonLabel}
         </button>
 
         <p className="checkout-summary-card__note">

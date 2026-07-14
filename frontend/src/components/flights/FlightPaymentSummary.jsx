@@ -4,7 +4,14 @@ function formatPaymentAmount(value) {
   }).format(Math.max(Number(value) || 0, 0))
 }
 
-function FlightPaymentSummary({ flight, selectedFare, formatCurrency, onAddToCart, onBookNow }) {
+function FlightPaymentSummary({
+  flight,
+  formatCurrency,
+  onAddToCart,
+  onBookNow,
+  pendingAction = '',
+  selectedFare,
+}) {
   const ticketPrice = Number(selectedFare?.price ?? flight.sale_price ?? 0)
   const taxes = Number(selectedFare?.taxes ?? 0)
   const addOns = Number(selectedFare?.add_ons ?? 0)
@@ -48,18 +55,22 @@ function FlightPaymentSummary({ flight, selectedFare, formatCurrency, onAddToCar
         </div>
 
         <button
+          aria-busy={pendingAction === 'booking'}
           className="flight-payment-summary__button flight-payment-summary__button--primary"
+          disabled={Boolean(pendingAction)}
           type="button"
           onClick={onBookNow}
         >
-          {flight.payment_summary.cta_primary}
+          {pendingAction === 'booking' ? 'Đang xử lý...' : flight.payment_summary.cta_primary}
         </button>
         <button
+          aria-busy={pendingAction === 'cart'}
           className="flight-payment-summary__button flight-payment-summary__button--secondary"
+          disabled={Boolean(pendingAction)}
           type="button"
           onClick={onAddToCart}
         >
-          {flight.payment_summary.cta_secondary}
+          {pendingAction === 'cart' ? 'Đang thêm...' : flight.payment_summary.cta_secondary}
         </button>
       </div>
     </aside>

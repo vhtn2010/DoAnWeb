@@ -41,6 +41,7 @@ const {
   verifyRefreshToken,
 } = require('../utils/sessionToken');
 const {
+  escapeHtml,
   renderEmailButton,
   renderEmailInfoRows,
   renderEmailLayout,
@@ -63,6 +64,10 @@ const AUTH_RESEND_VERIFICATION_ACTION = 'auth.resend_verification';
 const AUTH_RESEND_VERIFY_EMAIL_TEMPLATE_CODE = 'AUTH_RESEND_VERIFY_EMAIL';
 const AUTH_VERIFY_EMAIL_ACTION = 'auth.verify_email';
 const AUTH_VERIFY_EMAIL_TEMPLATE_CODE = 'AUTH_VERIFY_EMAIL';
+const AUTH_VERIFY_EMAIL_LOGO_URL =
+  'https://res.cloudinary.com/dm5kyfyrl/image/upload/v1784049011/net-viet-travel/email/templates/auth-verify/logo.png';
+const AUTH_VERIFY_EMAIL_HERO_URL =
+  'https://res.cloudinary.com/dm5kyfyrl/image/upload/v1784049018/net-viet-travel/email/templates/auth-verify/hero.png';
 const CUSTOMER_ROLE_CODE = 'customer';
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -494,49 +499,116 @@ const buildVerificationLinks = (token) => {
   };
 };
 
+const renderVerificationEmailHtml = ({
+  expiresInMinutes,
+  fullName,
+  verificationUrl,
+}) => {
+  const safeFullName = escapeHtml(fullName || 'bạn');
+  const safeVerificationUrl = escapeHtml(verificationUrl);
+  const safeExpiresInMinutes = escapeHtml(expiresInMinutes);
+
+  return [
+    '<!doctype html>',
+    '<html lang="vi">',
+    '<head>',
+    '<meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    '<meta name="color-scheme" content="light">',
+    '<title>Xác thực tài khoản Nét Việt</title>',
+    '</head>',
+    '<body style="margin:0;padding:0;background:#0b0b0b;font-family:\'Be Vietnam Pro\',Arial,Helvetica,sans-serif;color:#222222;">',
+    `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Xác thực tài khoản Nét Việt trong ${safeExpiresInMinutes} phút.</div>`,
+    '<table role="presentation" cellspacing="0" cellpadding="0" width="100%" style="width:100%;border-collapse:collapse;background:#0b0b0b;">',
+    '<tr>',
+    '<td align="center" style="padding:30px 16px;">',
+    '<table role="presentation" cellspacing="0" cellpadding="0" width="100%" style="width:100%;max-width:762px;border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #f3f4f6;border-radius:12px;overflow:hidden;box-shadow:0 18px 46px rgba(0,0,0,0.32);">',
+    '<tr>',
+    '<td align="center" style="padding:30px 24px 24px;background:#ffffff;">',
+    `<img src="${escapeHtml(AUTH_VERIFY_EMAIL_LOGO_URL)}" width="383" alt="Nét Việt" style="display:block;width:383px;max-width:100%;height:auto;border:0;">`,
+    '</td>',
+    '</tr>',
+    '<tr>',
+    '<td style="height:25px;background:#ffffff;font-size:0;line-height:0;">&nbsp;</td>',
+    '</tr>',
+    '<tr>',
+    '<td style="height:2px;background:#d62828;font-size:0;line-height:0;">&nbsp;</td>',
+    '</tr>',
+    '<tr>',
+    '<td style="padding:49px 58px 0;background:#ffffff;">',
+    '<h1 style="margin:0;text-align:center;color:#191c1d;font-family:\'Be Vietnam Pro\',Arial,Helvetica,sans-serif;font-size:36px;font-weight:700;line-height:1.1;">Xác thực tài khoản</h1>',
+    '<div style="height:44px;line-height:44px;font-size:0;">&nbsp;</div>',
+    `<p style="margin:0 0 32px;color:#191c1d;font-family:'Be Vietnam Pro',Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;line-height:24px;">Xin chào ${safeFullName},</p>`,
+    `<p style="margin:0 0 18px;color:#191c1d;font-family:'Be Vietnam Pro',Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;line-height:20px;">Cảm ơn bạn đã đăng ký tài khoản trên website Nét Việt.</p>`,
+    `<p style="margin:0;color:#191c1d;font-family:'Be Vietnam Pro',Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;line-height:20px;">Để hoàn tất quá trình đăng ký và kích hoạt tài khoản, vui lòng nhấp vào liên kết bên dưới.</p>`,
+    '</td>',
+    '</tr>',
+    '<tr>',
+    '<td align="center" style="padding:40px 21px 0;background:#ffffff;">',
+    `<img src="${escapeHtml(AUTH_VERIFY_EMAIL_HERO_URL)}" width="720" alt="Minh họa Nét Việt" style="display:block;width:100%;max-width:720px;height:auto;border:0;">`,
+    '</td>',
+    '</tr>',
+    '<tr>',
+    '<td align="center" style="padding:28px 58px 0;background:#ffffff;">',
+    `<a href="${safeVerificationUrl}" style="display:inline-block;color:#d62828;font-family:'Be Vietnam Pro',Arial,Helvetica,sans-serif;font-size:28px;font-weight:700;line-height:1.1;text-decoration:underline;">Xác thực tại đây</a>`,
+    `<p style="margin:10px 0 0;color:#6b7280;font-family:'Be Vietnam Pro',Arial,Helvetica,sans-serif;font-size:11px;font-style:italic;line-height:16px;">Liên kết xác thực chỉ có hiệu lực trong vòng ${safeExpiresInMinutes} phút.</p>`,
+    '</td>',
+    '</tr>',
+    '<tr>',
+    '<td style="padding:40px 58px 0;background:#ffffff;">',
+    '<table role="presentation" cellspacing="0" cellpadding="0" width="100%" style="width:100%;border-collapse:separate;border-spacing:0;background:#fdeeee;border-radius:8px;">',
+    '<tr>',
+    '<td width="38" valign="top" style="padding:18px 0 18px 18px;">',
+    '<div style="width:20px;height:20px;border:2px solid #d62828;border-radius:10px;color:#d62828;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;line-height:18px;text-align:center;">!</div>',
+    '</td>',
+    '<td style="padding:18px 18px 18px 12px;color:#191c1d;font-family:\'Be Vietnam Pro\',Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;line-height:18px;">',
+    'Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.<br>',
+    'Không chia sẻ liên kết xác thực với bất kỳ ai.',
+    '</td>',
+    '</tr>',
+    '</table>',
+    '</td>',
+    '</tr>',
+    '<tr>',
+    '<td style="padding:34px 58px 24px;background:#ffffff;color:#191c1d;font-family:\'Be Vietnam Pro\',Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;">',
+    '<p style="margin:0 0 2px;">Trân trọng,</p>',
+    '<p style="margin:0;font-weight:700;">Đội ngũ <span style="color:#d62828;">Nét Việt</span></p>',
+    '</td>',
+    '</tr>',
+    '<tr>',
+    '<td style="padding:14px 24px 18px;border-top:1px solid #f2f2f2;background:#ffffff;color:#9ca3af;font-family:\'Be Vietnam Pro\',Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;text-align:center;">',
+    '© 2026 Nét Việt. All rights reserved.',
+    '</td>',
+    '</tr>',
+    '</table>',
+    '</td>',
+    '</tr>',
+    '</table>',
+    '</body>',
+    '</html>',
+  ].join('');
+};
+
 const buildVerificationEmail = ({
   expiresInMinutes,
   fullName,
   verificationUrl,
 }) => ({
-  html: renderEmailLayout({
-    badge: 'Xác thực tài khoản',
-    body: [
-      renderEmailButton({
-        href: verificationUrl,
-        label: 'Xác thực email',
-      }),
-      renderEmailSection({
-        title: 'Liên kết xác thực',
-        children: renderEmailInfoRows([
-          {
-            label: 'Đường dẫn',
-            value: verificationUrl,
-          },
-          {
-            label: 'Hạn xác thực',
-            value: `${expiresInMinutes} phut`,
-          },
-        ]),
-      }),
-    ].join(''),
-    footerNote:
-      'Nếu bạn không tạo tài khoản này, vui lòng bỏ qua email này hoặc liên hệ bộ phận hỗ trợ.',
-    greeting: `Xin chào ${fullName},`,
-    intro: [
-      'Tài khoản Net Viet Travel của bạn đã được tạo thành công.',
-      `Vui lòng xác thực email trong vòng ${expiresInMinutes} phút để bảo vệ tài khoản và bắt đầu quản lý chuyến đi.`,
-    ],
-    preheader: `Xác thực tài khoản Net Viet Travel trong ${expiresInMinutes} phút.`,
-    title: 'Hoàn tất kích hoạt tài khoản',
+  html: renderVerificationEmailHtml({
+    expiresInMinutes,
+    fullName,
+    verificationUrl,
   }),
-  subject: 'Xác thực tài khoản Net Viet Travel',
+  subject: 'Xác thực tài khoản Nét Việt',
   text: [
     `Xin chào ${fullName},`,
-    'Tài khoản Net Viet Travel của bạn đã được tạo thành công.',
-    `Vui lòng xác thực email trong vòng ${expiresInMinutes} phút tại:`,
+    'Cảm ơn bạn đã đăng ký tài khoản trên website Nét Việt.',
+    'Để hoàn tất quá trình đăng ký và kích hoạt tài khoản, vui lòng nhấp vào liên kết bên dưới.',
     verificationUrl,
-    'Nếu bạn không tạo tài khoản này, vui lòng bỏ qua email này hoặc liên hệ bộ phận hỗ trợ.',
+    `Liên kết xác thực chỉ có hiệu lực trong vòng ${expiresInMinutes} phút.`,
+    'Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email. Không chia sẻ liên kết xác thực với bất kỳ ai.',
+    'Trân trọng,',
+    'Đội ngũ Nét Việt',
   ].join('\n\n'),
 });
 

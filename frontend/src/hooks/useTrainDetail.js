@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAddToCartToast } from '../components/public/feedback/addToCartToastContext.js'
 import { mapTrainDetailResponseToView } from '../mappers/trainMappers.js'
@@ -127,7 +127,9 @@ export default function useTrainDetail() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState('')
   const [reloadSeed, setReloadSeed] = useState(0)
+  const pendingActionRef = useRef('')
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -467,36 +469,56 @@ export default function useTrainDetail() {
   }
 
   async function addToCartAction() {
+    if (pendingActionRef.current) {
+      return
+    }
+
     if (!isAuthenticatedCustomer) {
       setIsLoginPromptOpen(true)
       return
     }
 
-    const result = await buildTrainBooking({
-      missingSeatMessage: 'Vui lòng chọn chỗ trước khi thêm vào giỏ hàng.',
-      shouldShowCartToast: true,
-    })
+    pendingActionRef.current = 'cart'
+    setPendingAction('cart')
 
-    if (!result.success) {
-      return
+    try {
+      await buildTrainBooking({
+        missingSeatMessage: 'Vui lòng chọn chỗ trước khi thêm vào giỏ hàng.',
+        shouldShowCartToast: true,
+      })
+    } finally {
+      pendingActionRef.current = ''
+      setPendingAction('')
     }
   }
 
   async function bookNowAction() {
+    if (pendingActionRef.current) {
+      return
+    }
+
     if (!isAuthenticatedCustomer) {
       setIsLoginPromptOpen(true)
       return
     }
 
-    const result = await buildTrainBooking({
-      missingSeatMessage: 'Vui lòng chọn chỗ trước khi tiếp tục.',
-    })
+    pendingActionRef.current = 'booking'
+    setPendingAction('booking')
 
-    if (!result.success) {
-      return
+    try {
+      const result = await buildTrainBooking({
+        missingSeatMessage: 'Vui lòng chọn chỗ trước khi tiếp tục.',
+      })
+
+      if (!result.success) {
+        return
+      }
+
+      navigate(preserveAuthQuery('/cart'))
+    } finally {
+      pendingActionRef.current = ''
+      setPendingAction('')
     }
-
-    navigate(preserveAuthQuery('/cart'))
   }
 
   function goBackToTrains() {
@@ -552,6 +574,7 @@ export default function useTrainDetail() {
     isFavorite,
     isLoginPromptOpen,
     loading,
+    pendingAction,
     preserveAuthQuery,
     relatedTrains,
     retry,

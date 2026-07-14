@@ -69,6 +69,7 @@ function FlightDetailPage() {
     isLoginPromptOpen,
     loginPromptVariant,
     loading,
+    pendingAction,
     retry,
     selectFare,
     selectedFare,
@@ -168,8 +169,9 @@ function FlightDetailPage() {
 
           <FlightPaymentSummary
             flight={flight}
-            selectedFare={selectedFare}
             formatCurrency={formatCurrency}
+            pendingAction={pendingAction}
+            selectedFare={selectedFare}
             onAddToCart={addToCartAction}
             onBookNow={bookNowAction}
           />

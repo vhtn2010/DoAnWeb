@@ -1,6 +1,28 @@
 import { apiPost } from '../../services/apiClient.js'
 
 const CLOUDINARY_UPLOAD_TIMEOUT_MS = 30000
+const PAYMENT_PROOF_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
+const PAYMENT_PROOF_ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+])
+
+export function validatePaymentProofFile(file) {
+  if (!file) {
+    return 'Vui lòng tải bill chuyển khoản trước khi gửi duyệt.'
+  }
+
+  if (!PAYMENT_PROOF_ALLOWED_MIME_TYPES.has(file.type)) {
+    return 'Bill chuyển khoản phải là ảnh JPG, PNG hoặc WEBP.'
+  }
+
+  if (file.size > PAYMENT_PROOF_MAX_FILE_SIZE_BYTES) {
+    return 'Bill chuyển khoản không được vượt quá 5MB.'
+  }
+
+  return ''
+}
 
 async function uploadSignedAsset({
   file,
@@ -51,6 +73,12 @@ export function completeUpload(payload = {}) {
 }
 
 export async function uploadPaymentProofAsset(file) {
+  const validationError = validatePaymentProofFile(file)
+
+  if (validationError) {
+    throw new Error(validationError)
+  }
+
   const signatureResponse = await createUploadSignature({
     folder: 'payments',
     resource_type: 'image',

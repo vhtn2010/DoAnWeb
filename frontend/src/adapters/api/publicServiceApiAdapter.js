@@ -154,6 +154,45 @@ export async function getTourServiceBySlug(slug) {
   }
 }
 
+export async function getPublicServiceBySlug(slug) {
+  const response = await apiGet(`/services/${slug}`, {
+    query: withCacheBust(),
+  })
+  const service = response.data ?? null
+
+  if (!service) {
+    return {
+      ...response,
+      data: null,
+      success: false,
+    }
+  }
+
+  let galleryImages = [service.primary_image ?? service.image_url ?? FALLBACK_TOUR_IMAGE_URL].filter(
+    Boolean,
+  )
+
+  if (service.id) {
+    try {
+      const imagesResponse = await apiGet(`/services/${service.id}/images`, {
+        query: withCacheBust(),
+      })
+      galleryImages = buildGalleryImages(service.primary_image, imagesResponse.data)
+    } catch {
+      galleryImages = buildGalleryImages(service.primary_image, [])
+    }
+  }
+
+  return {
+    ...response,
+    data: {
+      ...service,
+      gallery_images: galleryImages.length ? galleryImages : [FALLBACK_TOUR_IMAGE_URL],
+      image_url: service.primary_image ?? galleryImages[0] ?? FALLBACK_TOUR_IMAGE_URL,
+    },
+  }
+}
+
 export async function getFeaturedTourServices({
   excludeSlug = '',
   limit = 3,

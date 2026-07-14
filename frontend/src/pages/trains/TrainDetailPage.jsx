@@ -69,6 +69,7 @@ function TrainDetailPage() {
     isFavorite,
     isLoginPromptOpen,
     loading,
+    pendingAction,
     relatedTrains,
     retry,
     selectCar,
@@ -192,6 +193,7 @@ function TrainDetailPage() {
             <TrainBookingSummary
               bookingSummary={bookingSummary}
               formatCurrency={formatCurrency}
+              pendingAction={pendingAction}
               onAddToCart={addToCartAction}
               onBookNow={bookNowAction}
             />

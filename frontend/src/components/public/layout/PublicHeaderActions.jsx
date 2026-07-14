@@ -1,20 +1,24 @@
 import { Link } from 'react-router-dom'
 import PublicHeaderIconAction from './PublicHeaderIconAction.jsx'
 
-function getProfileInitials(name = '', fallback = 'NV') {
-  const words = String(name)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-
-  if (!words.length) {
-    return fallback
-  }
-
-  return words
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('')
+function ProfilePlaceholderIcon() {
+  return (
+    <svg aria-hidden="true" className="public-header__profile-icon" viewBox="0 0 24 24">
+      <path
+        d="M12 12.15a4.15 4.15 0 1 0 0-8.3 4.15 4.15 0 0 0 0 8.3Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+      />
+      <path
+        d="M4.95 20.1c.76-3.62 3.36-5.75 7.05-5.75s6.29 2.13 7.05 5.75"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  )
 }
 
 function PublicHeaderActions({
@@ -42,10 +46,6 @@ function PublicHeaderActions({
   const profileDisplayName = currentUser?.full_name || currentUser?.email || 'Net Viet Travel'
   const profileAvatarUrl =
     typeof currentUser?.avatar_url === 'string' ? currentUser.avatar_url.trim() : ''
-  const profileInitials = getProfileInitials(
-    currentUser?.full_name || currentUser?.email || '',
-    'NV',
-  )
 
   return (
     <div className="public-header__actions">
@@ -114,9 +114,13 @@ function PublicHeaderActions({
                   <span
                     aria-hidden="true"
                     className="public-header__profile-avatar public-header__profile-avatar--placeholder"
-                  />
+                  >
+                    <ProfilePlaceholderIcon />
+                  </span>
                 ) : (
-                  <span className="public-header__profile-avatar">{profileInitials}</span>
+                  <span className="public-header__profile-avatar public-header__profile-avatar--placeholder">
+                    <ProfilePlaceholderIcon />
+                  </span>
                 )}
               </Link>
             </span>

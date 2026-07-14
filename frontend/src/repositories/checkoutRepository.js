@@ -11,8 +11,11 @@ import {
   submitCheckout as submitCheckoutWithMockAdapter,
   validateCheckoutFormWithMock,
 } from '../adapters/mock/checkoutMockAdapter.js'
-import { ROLES } from '../constants/roles.js'
-import { getAuthSession } from '../services/authSession.js'
+import {
+  createCustomerAuthRequiredResponse,
+  isCustomerApiRequested,
+  shouldUseCustomerApi,
+} from '../utils/customerApiSession.js'
 
 const checkoutAdapter = {
   applyVoucher: applyVoucherWithMockAdapter,
@@ -23,16 +26,13 @@ const checkoutAdapter = {
   validateCheckoutForm: validateCheckoutFormWithMock,
 }
 
-function shouldUseApi(authState = ROLES.guest) {
-  const session = getAuthSession()
-  const role = session.user?.role ?? session.user?.role_code ?? ''
-
-  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
-}
-
 export function getCheckoutDraft(params) {
-  if (shouldUseApi(params?.authState)) {
+  if (shouldUseCustomerApi(params?.authState)) {
     return getCheckoutDraftWithApiAdapter(params)
+  }
+
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return checkoutAdapter.getCheckoutDraft(params)
@@ -43,11 +43,15 @@ export function calculateCheckoutSummary(payload) {
 }
 
 export function applyVoucher(code, currentSummary, options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return applyVoucherWithApiAdapter(code, {
       cartId: options.cartId,
       currentSummary,
     })
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return checkoutAdapter.applyVoucher(code, currentSummary)
@@ -62,8 +66,12 @@ export function buildCheckoutPayload(formState) {
 }
 
 export function submitCheckout(payload, options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return submitCheckoutWithApiAdapter(payload, options)
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return checkoutAdapter.submitCheckout(payload)

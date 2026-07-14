@@ -17,8 +17,11 @@ import {
   updateCurrentPassword as updateCurrentPasswordWithApiAdapter,
   updateCurrentProfile as updateCurrentProfileWithApiAdapter,
 } from '../adapters/api/profileApiAdapter.js'
-import { ROLES } from '../constants/roles.js'
-import { getAuthSession } from '../services/authSession.js'
+import {
+  createCustomerAuthRequiredResponse,
+  isCustomerApiRequested,
+  shouldUseCustomerApi,
+} from '../utils/customerApiSession.js'
 
 const profileAdapter = {
   buildProfileActionPayload: buildProfileActionPayloadWithMock,
@@ -35,30 +38,39 @@ const profileAdapter = {
   updateCurrentProfile: updateCurrentProfileWithApiAdapter,
 }
 
-function shouldUseApi(authState = ROLES.guest) {
-  const session = getAuthSession()
-  const role = session.user?.role ?? session.user?.role_code ?? ''
-
-  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
-}
-
 export function getCustomerProfile(params) {
-  if (shouldUseApi(params?.authState)) {
+  if (shouldUseCustomerApi(params?.authState)) {
     return getCustomerProfileDashboardWithApiAdapter(params)
+  }
+
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return profileAdapter.getCustomerProfile(params)
 }
 
 export function getFavoriteDestinations(params) {
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
+  }
+
   return profileAdapter.getFavoriteDestinations(params)
 }
 
 export function getUpcomingTrip(params) {
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
+  }
+
   return profileAdapter.getUpcomingTrip(params)
 }
 
 export function getBookingHistory(params) {
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
+  }
+
   return profileAdapter.getBookingHistory(params)
 }
 

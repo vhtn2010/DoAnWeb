@@ -208,6 +208,7 @@ function CartSummaryCard({
   availableVoucherCount,
   canApplyVoucherSelection,
   feedbackHint,
+  isCheckingOut,
   isContinueDisabled,
   isCustomer,
   isVoucherLoading,
@@ -282,12 +283,13 @@ function CartSummaryCard({
         </div>
 
         <button
+          aria-busy={isCheckingOut}
           className="cart-summary-card__button"
           disabled={isContinueDisabled}
           type="button"
           onClick={onContinue}
         >
-          Tiếp tục
+          {isCheckingOut ? 'Đang kiểm tra...' : 'Tiếp tục'}
         </button>
 
         <p className="cart-summary-card__hint">

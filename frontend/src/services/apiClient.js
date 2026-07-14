@@ -1,9 +1,8 @@
 import axios from 'axios'
+import { AUTH_STORAGE_EVENT_KEYS, readStoredItem, writeStoredItem, subscribeStorageChanges } from './authStorage.js'
 
 const DEFAULT_API_BASE_URL = '/api'
 const DEFAULT_TIMEOUT_MS = 20000
-const ACCESS_TOKEN_STORAGE_KEY = 'net-viet-travel.access-token'
-const REFRESH_TOKEN_STORAGE_KEY = 'net-viet-travel.refresh-token'
 const AUTH_REFRESH_PATH = '/auth/refresh-token'
 const AUTH_EVENT_NAME = 'net-viet-travel.auth'
 const SESSION_ERROR_CODES = new Set(['AUTH_TOKEN_EXPIRED', 'UNAUTHORIZED'])
@@ -18,62 +17,6 @@ function normalizeBaseUrl(value) {
     : DEFAULT_API_BASE_URL
 
   return baseUrl.replace(/\/+$/, '') || DEFAULT_API_BASE_URL
-}
-
-function canUseStorage() {
-  return typeof window !== 'undefined' && Boolean(window.sessionStorage)
-}
-
-function canUseLegacyStorage() {
-  return typeof window !== 'undefined' && Boolean(window.localStorage)
-}
-
-function readStorageItem(key) {
-  if (!canUseStorage()) {
-    return ''
-  }
-
-  try {
-    const value = window.sessionStorage.getItem(key) ?? ''
-
-    if (value || !canUseLegacyStorage()) {
-      return value
-    }
-
-    const legacyValue = window.localStorage.getItem(key) ?? ''
-
-    if (legacyValue) {
-      window.sessionStorage.setItem(key, legacyValue)
-      window.localStorage.removeItem(key)
-    }
-
-    return legacyValue
-  } catch {
-    return ''
-  }
-}
-
-function writeStorageItem(key, value) {
-  if (!canUseStorage()) {
-    return
-  }
-
-  try {
-    if (value) {
-      window.sessionStorage.setItem(key, value)
-      if (canUseLegacyStorage()) {
-        window.localStorage.removeItem(key)
-      }
-      return
-    }
-
-    window.sessionStorage.removeItem(key)
-    if (canUseLegacyStorage()) {
-      window.localStorage.removeItem(key)
-    }
-  } catch {
-    // Storage can be unavailable in private mode or blocked browser contexts.
-  }
 }
 
 function emitAuthEvent(type, payload = {}) {
@@ -302,6 +245,10 @@ function shouldClearSessionForError(error) {
 }
 
 function unwrapApiResponse(response) {
+  if (response.config?.rawResponse) {
+    return response
+  }
+
   return response.data
 }
 
@@ -385,34 +332,59 @@ export function subscribeAuthEvents(listener) {
 
   window.addEventListener(AUTH_EVENT_NAME, handler)
 
-  return () => window.removeEventListener(AUTH_EVENT_NAME, handler)
+  const unsubscribeStorage = subscribeStorageChanges(({ key, newValue }) => {
+    if (!key || !AUTH_STORAGE_EVENT_KEYS.includes(key)) {
+      return
+    }
+
+    listener?.({
+      payload: {
+        key,
+        newValue: newValue ?? '',
+        source: 'storage',
+      },
+      type: newValue ? 'session-updated' : 'session-cleared',
+    })
+  })
+
+  return () => {
+    window.removeEventListener(AUTH_EVENT_NAME, handler)
+    unsubscribeStorage()
+  }
 }
 
 export function getAccessToken() {
-  return readStorageItem(ACCESS_TOKEN_STORAGE_KEY)
+  return readStoredItem('net-viet-travel.access-token')
 }
 
 export function getRefreshToken() {
-  return readStorageItem(REFRESH_TOKEN_STORAGE_KEY)
+  return readStoredItem('net-viet-travel.refresh-token')
 }
 
 export function setAuthTokens({ accessToken, refreshToken } = {}) {
   if (accessToken !== undefined) {
-    writeStorageItem(ACCESS_TOKEN_STORAGE_KEY, accessToken)
+    writeStoredItem('net-viet-travel.access-token', accessToken)
   }
 
   if (refreshToken !== undefined) {
-    writeStorageItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken)
+    writeStoredItem('net-viet-travel.refresh-token', refreshToken)
   }
 }
 
 export function clearAuthTokens() {
-  writeStorageItem(ACCESS_TOKEN_STORAGE_KEY, '')
-  writeStorageItem(REFRESH_TOKEN_STORAGE_KEY, '')
+  writeStoredItem('net-viet-travel.access-token', '')
+  writeStoredItem('net-viet-travel.refresh-token', '')
 }
 
 export function apiGet(url, config) {
   return apiClient.get(url, normalizeLegacyConfig(config))
+}
+
+export function apiGetRaw(url, config) {
+  return apiClient.get(url, {
+    ...normalizeLegacyConfig(config),
+    rawResponse: true,
+  })
 }
 
 export function apiPost(url, data, config) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   applyCartVoucher,
@@ -207,6 +207,7 @@ export default function useCart() {
   const [feedback, setFeedback] = useState(() => createFeedbackState())
   const [voucherCode, setVoucherCode] = useState('')
   const [appliedVoucher, setAppliedVoucher] = useState(null)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [voucherLoading, setVoucherLoading] = useState(false)
   const [updatingItemIds, setUpdatingItemIds] = useState([])
   const [isVoucherPickerOpen, setIsVoucherPickerOpen] = useState(false)
@@ -214,6 +215,26 @@ export default function useCart() {
   const [voucherWalletLoading, setVoucherWalletLoading] = useState(false)
   const [voucherWalletError, setVoucherWalletError] = useState('')
   const [hasLoadedVoucherWallet, setHasLoadedVoucherWallet] = useState(false)
+  const checkoutLoadingRef = useRef(false)
+  const updatingItemIdsRef = useRef(new Set())
+  const voucherLoadingRef = useRef(false)
+
+  function startItemUpdate(itemId) {
+    if (updatingItemIdsRef.current.has(itemId)) {
+      return false
+    }
+
+    updatingItemIdsRef.current.add(itemId)
+    setUpdatingItemIds((currentIds) =>
+      currentIds.includes(itemId) ? currentIds : [...currentIds, itemId],
+    )
+    return true
+  }
+
+  function finishItemUpdate(itemId) {
+    updatingItemIdsRef.current.delete(itemId)
+    setUpdatingItemIds((currentIds) => currentIds.filter((currentItemId) => currentItemId !== itemId))
+  }
 
   function buildSummary(nextCartItems, nextSelectedItemIds = []) {
     return createCartSummaryFromItems(nextCartItems, nextSelectedItemIds)
@@ -415,6 +436,10 @@ export default function useCart() {
       return
     }
 
+    if (!startItemUpdate(item.id)) {
+      return
+    }
+
     const currentTourPassengerCounts = getTourPassengerCounts(item)
     const nextPayload =
       item.service_type === SERVICE_TYPES.tour
@@ -441,9 +466,6 @@ export default function useCart() {
           }
 
     setError('')
-    setUpdatingItemIds((currentIds) =>
-      currentIds.includes(item.id) ? currentIds : [...currentIds, item.id],
-    )
 
     try {
       const response = await updateCartItem(
@@ -479,7 +501,7 @@ export default function useCart() {
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     } finally {
-      setUpdatingItemIds((currentIds) => currentIds.filter((itemId) => itemId !== item.id))
+      finishItemUpdate(item.id)
     }
   }
 
@@ -499,10 +521,11 @@ export default function useCart() {
     }
     const nextQuantity = Math.max(nextCounts.adult_count + nextCounts.child_count, 1)
 
+    if (!startItemUpdate(item.id)) {
+      return
+    }
+
     setError('')
-    setUpdatingItemIds((currentIds) =>
-      currentIds.includes(item.id) ? currentIds : [...currentIds, item.id],
-    )
 
     try {
       const response = await updateCartItem(
@@ -540,7 +563,7 @@ export default function useCart() {
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     } finally {
-      setUpdatingItemIds((currentIds) => currentIds.filter((itemId) => itemId !== item.id))
+      finishItemUpdate(item.id)
     }
   }
 
@@ -567,7 +590,7 @@ export default function useCart() {
   }
 
   async function handleContinueCheckout() {
-    if (!cart?.id) {
+    if (!cart?.id || checkoutLoadingRef.current) {
       return
     }
 
@@ -576,6 +599,8 @@ export default function useCart() {
       return
     }
 
+    checkoutLoadingRef.current = true
+    setCheckoutLoading(true)
     setError('')
 
     try {
@@ -619,6 +644,9 @@ export default function useCart() {
         validateError?.message ?? 'Không thể kiểm tra giỏ hàng trước khi tiếp tục.'
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
+    } finally {
+      checkoutLoadingRef.current = false
+      setCheckoutLoading(false)
     }
   }
 
@@ -651,6 +679,10 @@ export default function useCart() {
   }
 
   async function handleApplyVoucher(nextVoucherCode = voucherCode) {
+    if (voucherLoadingRef.current) {
+      return
+    }
+
     const normalizedCode = String(nextVoucherCode || '').trim().toUpperCase()
 
     if (!normalizedCode) {
@@ -658,6 +690,7 @@ export default function useCart() {
       return
     }
 
+    voucherLoadingRef.current = true
     setVoucherLoading(true)
 
     try {
@@ -682,11 +715,17 @@ export default function useCart() {
         ),
       )
     } finally {
+      voucherLoadingRef.current = false
       setVoucherLoading(false)
     }
   }
 
   async function handleRemoveVoucher() {
+    if (voucherLoadingRef.current) {
+      return
+    }
+
+    voucherLoadingRef.current = true
     setVoucherLoading(true)
 
     try {
@@ -704,11 +743,17 @@ export default function useCart() {
         ),
       )
     } finally {
+      voucherLoadingRef.current = false
       setVoucherLoading(false)
     }
   }
 
   async function handleClearCart() {
+    if (voucherLoadingRef.current) {
+      return
+    }
+
+    voucherLoadingRef.current = true
     setVoucherLoading(true)
     setError('')
 
@@ -727,6 +772,7 @@ export default function useCart() {
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
     } finally {
+      voucherLoadingRef.current = false
       setVoucherLoading(false)
     }
   }
@@ -781,6 +827,7 @@ export default function useCart() {
     handleToggleAll,
     handleToggleItem,
     isAllSelected,
+    isCheckingOut: checkoutLoading,
     isCustomer,
     isVoucherLoading: voucherLoading,
     isVoucherPickerOpen,

@@ -120,6 +120,7 @@ function HotelDetailPage() {
     hotel,
     isFavorite,
     loading,
+    pendingAction,
     retry,
     rooms,
     selectRoom,
@@ -227,6 +228,7 @@ function HotelDetailPage() {
             feedback={feedback}
             formatCurrency={formatCurrency}
             hotel={hotel}
+            pendingAction={pendingAction}
             selectedRoom={selectedRoom}
             onAddToCart={goToCartMock}
             onCheckout={goToCheckoutMock}

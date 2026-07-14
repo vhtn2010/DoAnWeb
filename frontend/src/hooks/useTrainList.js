@@ -126,6 +126,9 @@ export default function useTrainList() {
   const { isCustomer } = usePublicSession()
 
   const [searchState, setSearchState] = useState(() => createInitialSearchState(searchParams))
+  const [appliedSearchState, setAppliedSearchState] = useState(() =>
+    createInitialSearchState(searchParams),
+  )
   const [draftFilters, setDraftFilters] = useState(() => createInitialFilterState(searchParams))
   const [appliedFilters, setAppliedFilters] = useState(() => createInitialFilterState(searchParams))
   const [selectedSort, setSelectedSort] = useState(
@@ -176,12 +179,12 @@ export default function useTrainList() {
 
       try {
         const response = await listTrains({
-          trip_type: searchState.trip_type,
-          from_station: searchState.from_station,
-          to_station: searchState.to_station,
-          departure_date: searchState.departure_date,
-          return_date: searchState.return_date,
-          passengers: searchState.passengers,
+          trip_type: appliedSearchState.trip_type,
+          from_station: appliedSearchState.from_station,
+          to_station: appliedSearchState.to_station,
+          departure_date: appliedSearchState.departure_date,
+          return_date: appliedSearchState.return_date,
+          passengers: appliedSearchState.passengers,
           train_types: appliedFilters.train_types,
           price_ranges: appliedFilters.price_ranges,
           departure_windows: appliedFilters.departure_windows,
@@ -220,14 +223,14 @@ export default function useTrainList() {
     return () => {
       isActive = false
     }
-  }, [appliedFilters, currentPage, reloadSeed, searchState, selectedSort])
+  }, [appliedFilters, appliedSearchState, currentPage, reloadSeed, selectedSort])
 
   function preserveAuthQuery(path) {
     return buildPublicAuthPath(path, isCustomer)
   }
 
   function syncSearchParams({
-    nextSearchState = searchState,
+    nextSearchState = appliedSearchState,
     nextFilters = appliedFilters,
     nextSort = selectedSort,
     nextPage = currentPage,
@@ -300,9 +303,10 @@ export default function useTrainList() {
     }
 
     setCurrentPage(1)
+    setAppliedSearchState(searchState)
     setSelectedTrainId('')
     setFeedback(createFeedbackState('info', 'Đã cập nhật kết quả chuyến tàu theo lựa chọn của bạn.'))
-    syncSearchParams({ nextPage: 1 })
+    syncSearchParams({ nextPage: 1, nextSearchState: searchState })
   }
 
   function setFilter(filterKey, value) {
@@ -393,17 +397,17 @@ export default function useTrainList() {
 
   const resultSummary = useMemo(() => {
     return {
-      hasRoute: Boolean(searchState.from_station) && Boolean(searchState.to_station),
+      hasRoute: Boolean(appliedSearchState.from_station) && Boolean(appliedSearchState.to_station),
       total: meta.total_display ?? meta.total ?? 0,
-      fromLabel: getStationLabel(defaults.stations, searchState.from_station),
-      toLabel: getStationLabel(defaults.stations, searchState.to_station),
+      fromLabel: getStationLabel(defaults.stations, appliedSearchState.from_station),
+      toLabel: getStationLabel(defaults.stations, appliedSearchState.to_station),
     }
   }, [
     defaults.stations,
     meta.total,
     meta.total_display,
-    searchState.from_station,
-    searchState.to_station,
+    appliedSearchState.from_station,
+    appliedSearchState.to_station,
   ])
 
   const selectedTrain = useMemo(() => {

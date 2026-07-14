@@ -140,6 +140,9 @@ export default function useFlightList() {
   const { isCustomer } = usePublicSession()
 
   const [searchState, setSearchState] = useState(() => createInitialSearchState(searchParams))
+  const [appliedSearchState, setAppliedSearchState] = useState(() =>
+    createInitialSearchState(searchParams),
+  )
   const [draftFilters, setDraftFilters] = useState(() => createInitialFilterState(searchParams))
   const [appliedFilters, setAppliedFilters] = useState(() => createInitialFilterState(searchParams))
   const [selectedSort, setSelectedSort] = useState(
@@ -190,13 +193,13 @@ export default function useFlightList() {
 
       try {
         const response = await listFlights({
-          trip_type: searchState.trip_type,
-          from_location: searchState.from_location,
-          to_location: searchState.to_location,
-          departure_date: searchState.departure_date,
-          return_date: searchState.return_date,
-          cabin_class: searchState.cabin_class,
-          passengers: searchState.passengers,
+          trip_type: appliedSearchState.trip_type,
+          from_location: appliedSearchState.from_location,
+          to_location: appliedSearchState.to_location,
+          departure_date: appliedSearchState.departure_date,
+          return_date: appliedSearchState.return_date,
+          cabin_class: appliedSearchState.cabin_class,
+          passengers: appliedSearchState.passengers,
           airline_codes: appliedFilters.airline_codes,
           price_ranges: appliedFilters.price_ranges,
           departure_windows: appliedFilters.departure_windows,
@@ -242,14 +245,14 @@ export default function useFlightList() {
     return () => {
       isActive = false
     }
-  }, [appliedFilters, currentPage, reloadSeed, searchState, selectedSort])
+  }, [appliedFilters, appliedSearchState, currentPage, reloadSeed, selectedSort])
 
   function preserveAuthQuery(path) {
     return buildPublicAuthPath(path, isCustomer)
   }
 
   function syncSearchParams({
-    nextSearchState = searchState,
+    nextSearchState = appliedSearchState,
     nextFilters = appliedFilters,
     nextSort = selectedSort,
     nextPage = currentPage,
@@ -332,9 +335,10 @@ export default function useFlightList() {
     }
 
     setCurrentPage(1)
+    setAppliedSearchState(searchState)
     setSelectedFlightId('')
     setFeedback(createFeedbackState('info', 'Đã cập nhật kết quả chuyến bay theo lựa chọn của bạn.'))
-    syncSearchParams({ nextPage: 1 })
+    syncSearchParams({ nextPage: 1, nextSearchState: searchState })
   }
 
   function setFilter(filterKey, value) {
@@ -420,15 +424,15 @@ export default function useFlightList() {
   const resultSummary = useMemo(() => {
     return {
       total: meta.total_display ?? meta.total ?? 0,
-      fromLabel: formatResultLocation(defaults.airports, searchState.from_location),
-      toLabel: formatResultLocation(defaults.airports, searchState.to_location),
+      fromLabel: formatResultLocation(defaults.airports, appliedSearchState.from_location),
+      toLabel: formatResultLocation(defaults.airports, appliedSearchState.to_location),
     }
   }, [
     defaults.airports,
     meta.total,
     meta.total_display,
-    searchState.from_location,
-    searchState.to_location,
+    appliedSearchState.from_location,
+    appliedSearchState.to_location,
   ])
 
   return {

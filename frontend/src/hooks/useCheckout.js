@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CHECKOUT_VALID_VOUCHER_CODES } from '../constants/checkout.js'
 import {
@@ -95,6 +95,26 @@ export default function useCheckout() {
   const [submitFeedback, setSubmitFeedback] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [voucherLoading, setVoucherLoading] = useState(false)
+  const submitIntentRef = useRef(null)
+  const submittingRef = useRef(false)
+  const voucherLoadingRef = useRef(false)
+
+  function resetSubmitIntent() {
+    submitIntentRef.current = null
+  }
+
+  function getCheckoutIdempotencyKey(cartId) {
+    if (!submitIntentRef.current || submitIntentRef.current.cartId !== cartId) {
+      submitIntentRef.current = {
+        cartId,
+        key: createIdempotencyKey(`checkout-${cartId}`),
+      }
+    }
+
+    return submitIntentRef.current.key
+  }
 
   function buildSummaryWithDraftValues(currentDraft, {
     discountAmount,
@@ -145,6 +165,7 @@ export default function useCheckout() {
           return
         }
 
+        resetSubmitIntent()
         setCheckoutDraft(syncCheckoutDraftTravellers(response.data))
         setBaseSummary(response.data.summary)
       } catch (loadError) {
@@ -201,6 +222,7 @@ export default function useCheckout() {
         [name]: value,
       })
     })
+    resetSubmitIntent()
     setSubmitFeedback('')
     setFormErrors((currentErrors) => clearFieldError(currentErrors, name))
   }
@@ -218,6 +240,7 @@ export default function useCheckout() {
         [name]: checked,
       }
     })
+    resetSubmitIntent()
     setSubmitFeedback('')
     setFormErrors((currentErrors) => clearFieldError(currentErrors, name))
   }
@@ -235,6 +258,7 @@ export default function useCheckout() {
         note: value,
       }
     })
+    resetSubmitIntent()
     setSubmitFeedback('')
   }
 
@@ -257,6 +281,7 @@ export default function useCheckout() {
         }),
       }
     })
+    resetSubmitIntent()
     setSubmitFeedback('Đã cập nhật yêu cầu hành lý ký gửi cho đơn hàng của bạn.')
   }
 
@@ -282,11 +307,12 @@ export default function useCheckout() {
           : currentDraft.summary,
       }
     })
+    resetSubmitIntent()
     setVoucherFeedback('')
   }
 
   async function handleApplyVoucher() {
-    if (!checkoutDraft) {
+    if (!checkoutDraft || voucherLoadingRef.current) {
       return
     }
 
@@ -296,6 +322,9 @@ export default function useCheckout() {
       setVoucherFeedback('Vui lòng nhập mã ưu đãi.')
       return
     }
+
+    voucherLoadingRef.current = true
+    setVoucherLoading(true)
 
     try {
       const summaryBeforeDiscount = buildSummaryWithDraftValues(checkoutDraft, {
@@ -326,13 +355,17 @@ export default function useCheckout() {
         }
       })
       setVoucherFeedback(response.message)
+      resetSubmitIntent()
     } catch (applyError) {
       setVoucherFeedback(applyError?.message ?? 'Không thể áp dụng mã ưu đãi lúc này.')
+    } finally {
+      voucherLoadingRef.current = false
+      setVoucherLoading(false)
     }
   }
 
   async function handleSubmitCheckout() {
-    if (!checkoutDraft) {
+    if (!checkoutDraft || submittingRef.current) {
       return
     }
 
@@ -348,10 +381,13 @@ export default function useCheckout() {
 
     const checkoutPayload = buildCheckoutPayload(checkoutDraft)
 
+    submittingRef.current = true
+    setSubmitting(true)
+
     try {
       const response = await submitCheckout(checkoutPayload, {
         authState,
-        idempotencyKey: createIdempotencyKey(`checkout-${checkoutDraft.cart_id}`),
+        idempotencyKey: getCheckoutIdempotencyKey(checkoutDraft.cart_id),
       })
 
       if (!response.success || !response.data) {
@@ -372,6 +408,9 @@ export default function useCheckout() {
       })
     } catch (submitError) {
       setSubmitFeedback(resolveReadableCheckoutSubmitError(submitError))
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
     }
   }
 
@@ -389,8 +428,10 @@ export default function useCheckout() {
     handleVoucherChange,
     loading,
     preserveAuthQuery,
+    submitting,
     submitFeedback,
     summaryService: checkoutDraft?.summary_service ?? null,
+    voucherLoading,
     voucherFeedback,
   }
 }

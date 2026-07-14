@@ -3,6 +3,7 @@ function HotelBookingPanel({
   feedback,
   formatCurrency,
   hotel,
+  pendingAction = '',
   selectedRoom,
   onAddToCart,
   onCheckout,
@@ -54,19 +55,23 @@ function HotelBookingPanel({
 
         <div className="hotel-booking-panel__actions">
           <button
+            aria-busy={pendingAction === 'checkout'}
             className="hotel-booking-panel__button hotel-booking-panel__button--primary"
+            disabled={Boolean(pendingAction)}
             type="button"
             onClick={() => onCheckout()}
           >
-            Đặt ngay
+            {pendingAction === 'checkout' ? 'Đang xử lý...' : 'Đặt ngay'}
           </button>
 
           <button
+            aria-busy={pendingAction === 'cart'}
             className="hotel-booking-panel__button hotel-booking-panel__button--secondary"
+            disabled={Boolean(pendingAction)}
             type="button"
             onClick={() => onAddToCart()}
           >
-            Thêm vào giỏ hàng
+            {pendingAction === 'cart' ? 'Đang thêm...' : 'Thêm vào giỏ hàng'}
           </button>
         </div>
 

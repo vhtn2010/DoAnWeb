@@ -29,6 +29,7 @@ function CartPage() {
     handleToggleAll,
     handleToggleItem,
     isAllSelected,
+    isCheckingOut,
     isCustomer,
     isVoucherLoading,
     isVoucherPickerOpen,
@@ -77,7 +78,8 @@ function CartPage() {
                 ? 'Chọn dịch vụ muốn đặt, kiểm tra lại ở bước xác nhận rồi nhập thông tin đặt đơn.'
                 : 'Bạn có thể tiếp tục đặt dịch vụ và nhập thông tin liên hệ ở bước tiếp theo.'
             }
-            isContinueDisabled={!canContinue}
+            isCheckingOut={isCheckingOut}
+            isContinueDisabled={!canContinue || isCheckingOut}
             isCustomer={isCustomer}
             isVoucherLoading={isVoucherLoading}
             isVoucherPickerOpen={isVoucherPickerOpen}

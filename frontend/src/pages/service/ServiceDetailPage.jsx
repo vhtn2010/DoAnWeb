@@ -147,6 +147,7 @@ function ServiceDetailPage() {
     adultTotal,
     bookingMessage,
     breadcrumbHomePath,
+    breadcrumbListLabel,
     breadcrumbListPath,
     childCount,
     childTotal,
@@ -165,7 +166,6 @@ function ServiceDetailPage() {
     setAdultCount,
     setChildCount,
     setDepartureDate,
-    setIsFavorite,
     setSelectedImage,
     totalPrice,
   } = useTourServiceDetail()
@@ -186,7 +186,7 @@ function ServiceDetailPage() {
             </Link>
             <span aria-hidden="true">›</span>
             <Link className="service-detail-page__breadcrumb-link" to={breadcrumbListPath}>
-              Danh sách Tour
+              {breadcrumbListLabel}
             </Link>
           </nav>
 
@@ -229,7 +229,7 @@ function ServiceDetailPage() {
           </Link>
           <span aria-hidden="true">›</span>
           <Link className="service-detail-page__breadcrumb-link" to={breadcrumbListPath}>
-            Danh sách Tour
+            {breadcrumbListLabel}
           </Link>
           <span aria-hidden="true">›</span>
           <span className="service-detail-page__breadcrumb-current">{leadLocation}</span>
@@ -272,7 +272,7 @@ function ServiceDetailPage() {
                 isFavorite ? 'service-detail-page__action-button--active' : ''
               }`}
               type="button"
-              onClick={() => setIsFavorite((currentValue) => !currentValue)}
+              onClick={handleToggleFavorite}
             >
               <HeartIcon />
             </button>

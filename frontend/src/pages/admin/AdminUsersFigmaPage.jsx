@@ -1,4 +1,5 @@
 import { ROLES } from '../../constants/roles.js'
+import AdminUserReasonModal from '../../components/admin/users/AdminUserReasonModal.jsx'
 import { AdminPagination } from '../../components/admin/ui/index.js'
 import {
   ADMIN_USER_SORT_OPTIONS,
@@ -268,6 +269,7 @@ function AdminUsersFigmaPage() {
     canResendVerification,
     checkedUserIds,
     closeForm,
+    closeReasonModal,
     currentRole,
     error,
     feedback,
@@ -283,6 +285,7 @@ function AdminUsersFigmaPage() {
     pagination,
     query,
     reloadUsers,
+    reasonModalState,
     removeUser,
     resendVerification,
     resetFilters,
@@ -300,10 +303,12 @@ function AdminUsersFigmaPage() {
     setStatusFilter,
     sortOrder,
     statusFilter,
+    submitReasonModal,
     submitUserForm,
     toggleAllVisibleUsers,
     toggleUserChecked,
     updateFormField,
+    updateReasonModalReason,
     users,
   } = useAdminUsers()
   const roleOverviewCards = ROLE_OVERVIEW_CARDS.map((card) => ({
@@ -385,6 +390,14 @@ function AdminUsersFigmaPage() {
           </section>
         </div>
       ) : null}
+
+      <AdminUserReasonModal
+        isSubmitting={actionLoading}
+        modal={reasonModalState}
+        onChangeReason={updateReasonModalReason}
+        onClose={closeReasonModal}
+        onConfirm={submitReasonModal}
+      />
 
       <form className="admin-users-page__toolbar" role="search" onSubmit={(event) => event.preventDefault()}>
         <label className="admin-users-page__search" htmlFor="admin-user-search">

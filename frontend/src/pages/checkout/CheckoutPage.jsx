@@ -21,8 +21,10 @@ function CheckoutPage() {
     handleSubmitCheckout,
     handleVoucherChange,
     loading,
+    submitting,
     submitFeedback,
     summaryService,
+    voucherLoading,
     voucherFeedback,
   } = useCheckout()
 
@@ -60,6 +62,7 @@ function CheckoutPage() {
                 buttonLabel="Tiếp tục thanh toán"
                 feedbackMessage={submitFeedback}
                 formErrors={formErrors}
+                isSubmitting={submitting}
                 onContinue={handleSubmitCheckout}
                 summary={formattedSummary}
                 summaryService={summaryService}
@@ -67,6 +70,7 @@ function CheckoutPage() {
 
               <CheckoutVoucherCard
                 feedbackMessage={voucherFeedback}
+                isApplying={voucherLoading}
                 onApplyVoucher={handleApplyVoucher}
                 onChange={handleVoucherChange}
                 value={checkoutDraft.voucher_code}

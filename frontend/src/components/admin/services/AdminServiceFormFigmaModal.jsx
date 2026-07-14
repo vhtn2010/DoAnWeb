@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import AdminTourItinerarySection from './AdminTourItinerarySection.jsx'
 import AdminServiceTypeFields from './AdminServiceTypeFields.jsx'
 import { uploadServiceImageAsset } from '../../../adapters/api/uploadApiAdapter.js'
@@ -15,6 +15,8 @@ import {
   getInitialServiceFormValues,
   slugifyServiceTitle,
 } from '../../../mappers/adminServiceMappers.js'
+
+const ADMIN_SERVICE_TOAST_DURATION_MS = 3500
 
 const requiredFieldNames = new Set([
   'service_type',
@@ -239,6 +241,10 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     onClose()
   }
 
+  const handleDismissToast = useCallback(() => {
+    setSubmitMessage('')
+  }, [])
+
   useEffect(() => {
     setFormValues(getInitialServiceFormValues(service))
     setErrors({})
@@ -258,11 +264,11 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     }
 
     const timeoutId = window.setTimeout(() => {
-      setSubmitMessage('')
-    }, 15000)
+      handleDismissToast()
+    }, ADMIN_SERVICE_TOAST_DURATION_MS)
 
     return () => window.clearTimeout(timeoutId)
-  }, [submitMessage])
+  }, [handleDismissToast, submitMessage])
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -863,6 +869,23 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
             )}
             role={submitTone === 'success' ? 'status' : 'alert'}
           >
+            <button
+              aria-label="Đóng thông báo"
+              className="admin-service-modal__toast-close"
+              type="button"
+              onClick={handleDismissToast}
+            >
+              <svg aria-hidden="true" viewBox="0 0 16 16">
+                <path
+                  d="m4 4 8 8M12 4 4 12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+              </svg>
+            </button>
             <strong>
               {submitTone === 'success'
                 ? 'Đã lưu thành công.'

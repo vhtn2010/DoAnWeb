@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
 import { useAddToCartToast } from '../components/public/feedback/addToCartToastContext.js'
 import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
 import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
-import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
+import {
+  checkHotelAvailability,
+  getHotelDetailBySlug,
+  getHotelRooms,
+} from '../repositories/hotelRepository.js'
 import useFavorites from './useFavorites.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 import usePublicAccessGate from './usePublicAccessGate.js'
@@ -178,7 +182,9 @@ export default function useHotelDetail() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
   const [availability, setAvailability] = useState(() => createAvailabilityState())
+  const [pendingAction, setPendingAction] = useState('')
   const [reloadSeed, setReloadSeed] = useState(0)
+  const pendingActionRef = useRef('')
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -358,32 +364,70 @@ export default function useHotelDetail() {
 
     const requestedGuests = Math.max(1, Number(guests) || 1)
     const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
-    const maxGuests =
-      Number(nextRoom.max_guests) ||
-      Number(nextRoom.max_adults ?? 0) + Number(nextRoom.max_children ?? 0)
-    const isAvailable =
-      calculateStayNights(checkinDate, checkoutDate) >= 1 &&
-      requestedGuests <= Math.max(1, maxGuests) &&
-      requestedQuantity <= Number(nextRoom.available_quantity ?? 0)
-    const response = {
-      data: {
-        available_quantity: Number(nextRoom.available_quantity ?? 0),
-        checkin_date: checkinDate,
-        checkout_date: checkoutDate,
-        guests: requestedGuests,
-        hotel_service_id: hotel.id,
-        is_available: isAvailable,
-        selected_room_id: nextRoom.id,
-      },
-      success: true,
+    const stayNights = calculateStayNights(checkinDate, checkoutDate)
+
+    if (stayNights < 1) {
+      const dateMessage = 'Vui lòng chọn ngày nhận và trả phòng hợp lệ.'
+
+      setAvailability({
+        checked: true,
+        data: null,
+        isAvailable: false,
+        message: dateMessage,
+      })
+      setFeedback(createFeedbackState('error', dateMessage))
+      return {
+        data: null,
+        success: false,
+      }
     }
+
+    let response
+
+    try {
+      response = await checkHotelAvailability({
+        adults: requestedGuests,
+        children: 0,
+        quantity: requestedQuantity,
+        reference_id: nextRoom.id,
+        service_id: hotel.id,
+        start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
+      })
+    } catch (availabilityError) {
+      const nextMessage =
+        availabilityError?.message ?? 'Không thể kiểm tra tình trạng phòng lúc này.'
+
+      setAvailability({
+        checked: true,
+        data: null,
+        isAvailable: false,
+        message: nextMessage,
+      })
+      setFeedback(createFeedbackState('error', nextMessage))
+      return {
+        data: null,
+        success: false,
+      }
+    }
+
+    const isAvailable = Boolean(response.success && response.data?.is_available)
+    const responseData = response.data
+      ? {
+          ...response.data,
+          checkin_date: checkinDate,
+          checkout_date: checkoutDate,
+          guests: requestedGuests,
+          hotel_service_id: hotel.id,
+          selected_room_id: nextRoom.id,
+        }
+      : null
     const nextMessage = isAvailable
-      ? `Còn ${response.data?.available_quantity ?? 0} phòng khả dụng cho lựa chọn hiện tại.`
-      : 'Lựa chọn hiện tại chưa khả dụng. Vui lòng đổi ngày hoặc số khách.'
+      ? `Còn ${responseData?.available_quantity ?? 0} phòng khả dụng cho lựa chọn hiện tại.`
+      : (response.message ?? 'Lựa chọn hiện tại chưa khả dụng. Vui lòng đổi ngày hoặc số khách.')
 
     const nextAvailability = {
       checked: true,
-      data: response.data,
+      data: responseData,
       isAvailable,
       message: nextMessage,
     }
@@ -398,7 +442,10 @@ export default function useHotelDetail() {
       setFeedback(createFeedbackState('error', nextMessage))
     }
 
-    return response
+    return {
+      ...response,
+      data: responseData,
+    }
   }
 
   async function addSelectedRoomToCart({ roomIdOverride, shouldShowCartToast = false } = {}) {
@@ -484,6 +531,10 @@ export default function useHotelDetail() {
   }
 
   async function goToCartAction(roomIdOverride) {
+    if (pendingActionRef.current) {
+      return
+    }
+
     if (!isAuthenticatedCustomer) {
       openLoginRequiredModal({
         description: 'Đăng nhập để lưu phòng bạn chọn và tiếp tục đặt chỗ thuận tiện hơn.',
@@ -493,17 +544,32 @@ export default function useHotelDetail() {
       return
     }
 
-    const result = await addSelectedRoomToCart({
-      roomIdOverride,
-      shouldShowCartToast: true,
-    })
+    pendingActionRef.current = 'cart'
+    setPendingAction('cart')
 
-    if (!result.success) {
-      return
+    try {
+      await addSelectedRoomToCart({
+        roomIdOverride,
+        shouldShowCartToast: true,
+      })
+    } catch (actionError) {
+      setFeedback(
+        createFeedbackState(
+          'error',
+          actionError?.message ?? 'Không thể thêm phòng vào giỏ hàng lúc này.',
+        ),
+      )
+    } finally {
+      pendingActionRef.current = ''
+      setPendingAction('')
     }
   }
 
   async function goToCheckoutAction(roomIdOverride) {
+    if (pendingActionRef.current) {
+      return
+    }
+
     if (!isAuthenticatedCustomer) {
       openLoginRequiredModal({
         description:
@@ -514,13 +580,28 @@ export default function useHotelDetail() {
       return
     }
 
-    const result = await addSelectedRoomToCart({ roomIdOverride })
+    pendingActionRef.current = 'checkout'
+    setPendingAction('checkout')
 
-    if (!result.success) {
-      return
+    try {
+      const result = await addSelectedRoomToCart({ roomIdOverride })
+
+      if (!result.success) {
+        return
+      }
+
+      navigate(buildPublicAuthPath('/cart', isCustomer))
+    } catch (actionError) {
+      setFeedback(
+        createFeedbackState(
+          'error',
+          actionError?.message ?? 'Không thể chuẩn bị đặt phòng lúc này.',
+        ),
+      )
+    } finally {
+      pendingActionRef.current = ''
+      setPendingAction('')
     }
-
-    navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
   function retry() {
@@ -573,6 +654,7 @@ export default function useHotelDetail() {
     isFavorite,
     isCustomer,
     loading,
+    pendingAction,
     relatedHotels,
     retry,
     roomQuantity,

@@ -8,6 +8,10 @@ import { HOME_SORT_QUERY_MAP } from '../constants/homeFigma.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { formatQueryDate, slugifyQueryValue } from '../mappers/homeFigmaMappers.js'
 import {
+  normalizeVietnamLocationDisplay,
+  normalizeVietnamLocationOptions,
+} from '../utils/locationDisplay.js'
+import {
   getFeaturedServices as getFeaturedServicesFromApi,
   getPopularLocations as getPopularLocationsFromApi,
   getPublicPromotions as getPublicPromotionsFromApi,
@@ -44,7 +48,9 @@ function normalizeLocationKey(value = '') {
 
 function createDestinationVisualLookup(destinations = []) {
   return destinations.reduce((lookup, destination, index) => {
-    const locationKey = normalizeLocationKey(destination.title || destination.slug)
+    const locationKey = normalizeLocationKey(
+      normalizeVietnamLocationDisplay(destination.title || destination.slug),
+    )
 
     lookup[locationKey] = {
       badge_text: destination.badge_text ?? destination.details?.badge_text ?? '',
@@ -61,6 +67,73 @@ function createDestinationVisualLookup(destinations = []) {
 
     return lookup
   }, {})
+}
+
+function createPopularLocationLookup(popularLocations = []) {
+  return popularLocations.reduce((lookup, locationEntry) => {
+    const locationKey = normalizeLocationKey(
+      normalizeVietnamLocationDisplay(locationEntry?.location),
+    )
+
+    if (locationKey && !lookup.has(locationKey)) {
+      lookup.set(locationKey, locationEntry)
+    }
+
+    return lookup
+  }, new Map())
+}
+
+function buildHomeDestinations(popularLocations = [], fallbackDestinations = []) {
+  if (!popularLocations.length) {
+    return fallbackDestinations
+  }
+
+  const destinationVisualLookup = createDestinationVisualLookup(fallbackDestinations)
+  const popularLocationLookup = createPopularLocationLookup(popularLocations)
+  const usedPopularLocationKeys = new Set()
+
+  const orderedDestinations = fallbackDestinations.map((fallbackDestination, index) => {
+    const locationKey = normalizeLocationKey(
+      normalizeVietnamLocationDisplay(
+        fallbackDestination.title || fallbackDestination.location_text,
+      ),
+    )
+    const popularLocation = popularLocationLookup.get(locationKey)
+    const fallbackVisual =
+      destinationVisualLookup[locationKey] ??
+      destinationVisualLookup[`index-${index}`] ??
+      {}
+
+    if (popularLocation) {
+      usedPopularLocationKeys.add(locationKey)
+    }
+
+    return mapPopularLocationToDestination(
+      popularLocation ?? {
+        location: fallbackDestination.title,
+        service_count: 0,
+      },
+      fallbackVisual,
+      index,
+    )
+  })
+
+  const extraDestinations = popularLocations
+    .filter((locationEntry) => {
+      const locationKey = normalizeLocationKey(
+        normalizeVietnamLocationDisplay(locationEntry?.location),
+      )
+
+      return locationKey && !usedPopularLocationKeys.has(locationKey)
+    })
+    .map((locationEntry, index) => {
+      const destinationIndex = orderedDestinations.length + index
+      const fallbackVisual = destinationVisualLookup[`index-${destinationIndex}`] ?? {}
+
+      return mapPopularLocationToDestination(locationEntry, fallbackVisual, destinationIndex)
+    })
+
+  return [...orderedDestinations, ...extraDestinations].slice(0, 4)
 }
 
 function getPriceUnit(serviceType) {
@@ -90,7 +163,9 @@ function mapFeaturedServiceToHomeCard(service = {}, fallback = {}) {
     title: service.title ?? fallback.title ?? '',
     slug: service.slug ?? fallback.slug ?? '',
     short_description: service.short_description ?? fallback.short_description ?? '',
-    location_text: service.location_text ?? fallback.location_text ?? '',
+    location_text: normalizeVietnamLocationDisplay(
+      service.location_text ?? fallback.location_text ?? '',
+    ),
     base_price: service.base_price ?? fallback.base_price ?? 0,
     sale_price: salePrice,
     currency: service.currency ?? fallback.currency ?? 'VND',
@@ -105,7 +180,9 @@ function mapFeaturedServiceToHomeCard(service = {}, fallback = {}) {
 }
 
 function mapPopularLocationToDestination(locationEntry = {}, fallback = {}, index = 0) {
-  const locationName = locationEntry.location ?? fallback.title ?? ''
+  const locationName = normalizeVietnamLocationDisplay(
+    locationEntry.location ?? fallback.title ?? '',
+  )
   const serviceCount = Number(locationEntry.service_count) || 0
 
   return {
@@ -182,7 +259,6 @@ export async function getHomePageData() {
   const fallbackDestinations = Array.isArray(fallbackData.destinations)
     ? fallbackData.destinations
     : []
-  const destinationVisualLookup = createDestinationVisualLookup(fallbackDestinations)
 
   const [
     featuredResult,
@@ -226,15 +302,7 @@ export async function getHomePageData() {
       : []
   const destinations =
     popularLocations.length > 0
-      ? popularLocations.map((locationEntry, index) => {
-        const locationKey = normalizeLocationKey(locationEntry.location)
-        const fallbackVisual =
-          destinationVisualLookup[locationKey] ??
-          destinationVisualLookup[`index-${index}`] ??
-          {}
-
-        return mapPopularLocationToDestination(locationEntry, fallbackVisual, index)
-      })
+      ? buildHomeDestinations(popularLocations, fallbackDestinations)
       : fallbackDestinations
 
   const filterOptions = filterOptionsResult.status === 'fulfilled'
@@ -242,8 +310,8 @@ export async function getHomePageData() {
     : null
   const provinces =
     Array.isArray(filterOptions?.locations) && filterOptions.locations.length > 0
-      ? filterOptions.locations
-      : fallbackData.provinces
+      ? normalizeVietnamLocationOptions(filterOptions.locations)
+      : normalizeVietnamLocationOptions(fallbackData.provinces)
   const promotions =
     promotionsResult.status === 'fulfilled' && Array.isArray(promotionsResult.value?.data)
       ? promotionsResult.value.data

@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
 import { useAddToCartToast } from '../components/public/feedback/addToCartToastContext.js'
 import {
   getFeaturedTourServices,
-  getTourServiceBySlug,
+  getPublicServiceBySlug,
 } from '../repositories/publicServiceRepository.js'
-import { mapTourServiceToView } from '../mappers/serviceMappers.js'
+import { mapPublicServiceToView } from '../mappers/publicServiceDetailMappers.js'
 import useFavorites from './useFavorites.js'
 import usePublicAccessGate from './usePublicAccessGate.js'
 import usePublicSession from './usePublicSession.js'
@@ -19,7 +19,7 @@ import {
 } from '../services/favoriteStorage.js'
 
 function getLeadLocation(locationText) {
-  return locationText.split(',')[0].trim()
+  return String(locationText ?? '').split(',')[0].trim()
 }
 
 function parseTourDepartureDate(value) {
@@ -298,6 +298,7 @@ export default function useTourServiceDetail() {
   const [pendingAction, setPendingAction] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const pendingActionRef = useRef('')
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -317,7 +318,7 @@ export default function useTourServiceDetail() {
       setErrorMessage('')
 
       try {
-        const detailResponse = await getTourServiceBySlug(slug)
+        const detailResponse = await getPublicServiceBySlug(slug)
 
         if (!isActive) {
           return
@@ -330,13 +331,15 @@ export default function useTourServiceDetail() {
           return
         }
 
-        const mappedService = mapTourServiceToView(detailResponse.data, {
+        const mappedService = mapPublicServiceToView(detailResponse.data, {
           detailPath: buildPublicAuthPath(`/services/${detailResponse.data.slug}`, isCustomer),
         })
-        const featuredResponse = await getFeaturedTourServices({
-          excludeSlug: detailResponse.data.slug,
-          limit: 3,
-        })
+        const featuredResponse = detailResponse.data.service_type === 'tour'
+          ? await getFeaturedTourServices({
+              excludeSlug: detailResponse.data.slug,
+              limit: 3,
+            })
+          : { data: [] }
 
         if (!isActive) {
           return
@@ -346,7 +349,7 @@ export default function useTourServiceDetail() {
         setRecommendedServices(
           Array.isArray(featuredResponse.data)
             ? featuredResponse.data.map((featuredService) =>
-                mapTourServiceToView(featuredService, {
+                mapPublicServiceToView(featuredService, {
                   detailPath: buildPublicAuthPath(`/services/${featuredService.slug}`, isCustomer),
                 }),
               )
@@ -380,7 +383,11 @@ export default function useTourServiceDetail() {
     }
 
     setSelectedImage(service.gallery_images[0] ?? service.image_url)
-    setDepartureDate(resolveTourDepartureDate(service, service.details.departure_dates[0] ?? '', 2))
+    setDepartureDate(
+      service.service_type === 'combo'
+        ? ''
+        : resolveTourDepartureDate(service, service.details.departure_dates[0] ?? '', 2),
+    )
     setAdultCount(2)
     setChildCount(0)
     setIsShared(false)
@@ -444,6 +451,10 @@ export default function useTourServiceDetail() {
       return null
     }
 
+    if (service.service_type === 'combo') {
+      return null
+    }
+
     const travellerCount = getTravellerCount(adultCount, childCount)
     const resolvedDepartureDate = resolveTourDepartureDate(service, departureDate, travellerCount)
 
@@ -482,7 +493,16 @@ export default function useTourServiceDetail() {
   }
 
   async function handleAddToCart() {
+    if (pendingActionRef.current) {
+      return
+    }
+
     if (!service) {
+      return
+    }
+
+    if (service.service_type === 'combo') {
+      setBookingMessage('Combo hiện được hỗ trợ tư vấn trước khi đặt.')
       return
     }
 
@@ -495,6 +515,7 @@ export default function useTourServiceDetail() {
       return
     }
 
+    pendingActionRef.current = 'cart'
     setPendingAction('cart')
     setBookingMessage('')
 
@@ -504,12 +525,22 @@ export default function useTourServiceDetail() {
     } catch (error) {
       setBookingMessage(resolveTourCartErrorMessage(error, getTravellerCount(adultCount, childCount)))
     } finally {
+      pendingActionRef.current = ''
       setPendingAction('')
     }
   }
 
   async function handleBookNow() {
+    if (pendingActionRef.current) {
+      return
+    }
+
     if (!service) {
+      return
+    }
+
+    if (service.service_type === 'combo') {
+      setBookingMessage('Combo hiện được hỗ trợ tư vấn trước khi đặt.')
       return
     }
 
@@ -523,6 +554,7 @@ export default function useTourServiceDetail() {
       return
     }
 
+    pendingActionRef.current = 'checkout'
     setPendingAction('checkout')
     setBookingMessage('')
 
@@ -547,6 +579,7 @@ export default function useTourServiceDetail() {
     } catch (error) {
       setBookingMessage(resolveTourCartErrorMessage(error, getTravellerCount(adultCount, childCount)))
     } finally {
+      pendingActionRef.current = ''
       setPendingAction('')
     }
   }
@@ -557,6 +590,23 @@ export default function useTourServiceDetail() {
   const infoItems = useMemo(() => {
     if (!service) {
       return []
+    }
+
+    if (service.service_type === 'combo') {
+      return [
+        {
+          label: 'Loại dịch vụ',
+          value: 'Combo',
+        },
+        {
+          label: 'Hạng mục',
+          value: `${Array.isArray(service.details?.combo_items) ? service.details.combo_items.length : 0} mục`,
+        },
+        {
+          label: 'Hình thức',
+          value: 'Tư vấn trước khi đặt',
+        },
+      ]
     }
 
     return [
@@ -598,6 +648,7 @@ export default function useTourServiceDetail() {
     adultTotal,
     bookingMessage,
     breadcrumbHomePath,
+    breadcrumbListLabel: service?.service_type === 'combo' ? 'Danh sách Combo' : 'Danh sách Tour',
     breadcrumbListPath,
     childCount,
     childTotal,
