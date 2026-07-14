@@ -33,9 +33,17 @@ const PERMISSION_GROUPS = Object.freeze({
     'report.read',
     'dashboard.read',
   ]),
+  refunds: Object.freeze([
+    'refund.read_all',
+    'refund.process',
+    'refund.approve',
+  ]),
   services: Object.freeze([
     'service.update',
     'service.create',
+  ]),
+  support: Object.freeze([
+    'support.reply',
   ]),
   systemAssets: Object.freeze([
     'settings.update',
@@ -52,6 +60,11 @@ const FOLDER_POLICIES = Object.freeze({
     resolvedSegment: 'payments',
     scope: 'self',
   }),
+  refunds: Object.freeze({
+    resourceTypes: Object.freeze(['image']),
+    resolvedSegment: 'refunds',
+    scope: 'self',
+  }),
   reports: Object.freeze({
     resourceTypes: Object.freeze(['raw']),
     resolvedSegment: 'reports',
@@ -61,6 +74,11 @@ const FOLDER_POLICIES = Object.freeze({
     resourceTypes: Object.freeze(['image', 'video']),
     resolvedSegment: 'services',
     scope: 'service_assets',
+  }),
+  support: Object.freeze({
+    resourceTypes: Object.freeze(['image']),
+    resolvedSegment: 'support',
+    scope: 'support_assets',
   }),
   'system-assets': Object.freeze({
     resourceTypes: Object.freeze(['image', 'raw']),
@@ -221,6 +239,39 @@ const ensureRoleScope = ({
     throw buildForbiddenError();
   }
 
+  if (folder === 'refunds') {
+    if (roleCode === 'customer') {
+      return;
+    }
+
+    if (
+      ['staff', 'admin', 'system_admin'].includes(roleCode) &&
+      (
+        permissionCodes.some((code) => PERMISSION_GROUPS.refunds.includes(code)) ||
+        ['admin', 'system_admin'].includes(roleCode)
+      )
+    ) {
+      return;
+    }
+
+    throw buildForbiddenError();
+  }
+
+  if (folder === 'support') {
+    if (
+      roleCode === 'staff' &&
+      permissionCodes.some((code) => PERMISSION_GROUPS.support.includes(code))
+    ) {
+      return;
+    }
+
+    if (['admin', 'system_admin'].includes(roleCode)) {
+      return;
+    }
+
+    throw buildForbiddenError();
+  }
+
   if (folder === 'reports') {
     if (!['admin', 'system_admin'].includes(roleCode)) {
       throw buildForbiddenError();
@@ -261,7 +312,8 @@ const resolvePermissionCodes = async ({
 }) => {
   if (
     folder === 'avatar' ||
-    (folder === 'payments' && auth.roleCode === 'customer')
+    ((folder === 'payments' || folder === 'refunds') &&
+      auth.roleCode === 'customer')
   ) {
     return [];
   }

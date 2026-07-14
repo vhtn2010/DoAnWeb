@@ -5,6 +5,7 @@ import {
 import { ROLES } from '../constants/roles.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
 
 function normalizeText(value = '') {
   return typeof value === 'string' ? value.trim() : ''
@@ -13,6 +14,18 @@ function normalizeText(value = '') {
 function resolveNumber(...values) {
   const numericValue = values.find((value) => typeof value === 'number' && Number.isFinite(value))
   return numericValue ?? 0
+}
+
+function sumPricingAmounts(source = {}) {
+  const values = [source.vat_amount, source.tax_amount, source.service_fee_amount, source.surcharge_amount]
+    .filter((value) => typeof value === 'number' && Number.isFinite(value))
+
+  if (values.length === 0) {
+    return undefined
+  }
+
+  const vatAmount = resolveNumber(source.vat_amount, source.tax_amount)
+  return vatAmount + resolveNumber(source.service_fee_amount) + resolveNumber(source.surcharge_amount)
 }
 
 function getNormalizedAuthState(authState = ROLES.guest) {
@@ -129,9 +142,12 @@ export function buildBookingConfirmationFromCheckoutHandoff({
     fallbackBooking.discount_amount,
   )
   const taxAndFeeAmount = resolveNumber(
-    checkoutPayload?.summary?.service_fee_amount,
-    cartSummaryPayload?.summary?.service_fee_amount,
-    resolveNumber(fallbackBooking.tax_amount) + resolveNumber(fallbackBooking.service_fee_amount),
+    checkoutPayload?.summary?.tax_and_fee_amount,
+    cartSummaryPayload?.summary?.tax_and_fee_amount,
+    sumPricingAmounts(checkoutPayload?.summary),
+    sumPricingAmounts(cartSummaryPayload?.summary),
+    resolveNumber(fallbackBooking.tax_and_fee_amount),
+    sumPricingAmounts(fallbackBooking),
   )
   const totalAmount = resolveNumber(
     checkoutPayload?.summary?.total_amount,
@@ -140,7 +156,11 @@ export function buildBookingConfirmationFromCheckoutHandoff({
     fallbackBooking.total_amount,
   )
   const normalizedAuthState = getNormalizedAuthState(authState)
-  const bookingCode = fallbackBooking.booking_code ?? 'NVBT20241012001'
+  const bookingCode = resolvePreviewBookingCode(
+    checkoutPayload?.preview_booking_code,
+    cartSummaryPayload?.preview_booking_code,
+    fallbackBooking.booking_code,
+  )
 
   return {
     booking: {
@@ -161,8 +181,33 @@ export function buildBookingConfirmationFromCheckoutHandoff({
       note: normalizeText(checkoutPayload?.note) || fallbackBooking.note,
       subtotal_amount: subtotalAmount,
       discount_amount: discountAmount,
-      tax_amount: taxAndFeeAmount,
-      service_fee_amount: 0,
+      vat_amount: resolveNumber(
+        checkoutPayload?.summary?.vat_amount,
+        cartSummaryPayload?.summary?.vat_amount,
+        fallbackBooking.vat_amount,
+        fallbackBooking.tax_amount,
+      ),
+      service_fee_amount: resolveNumber(
+        checkoutPayload?.summary?.service_fee_amount,
+        cartSummaryPayload?.summary?.service_fee_amount,
+        fallbackBooking.service_fee_amount,
+      ),
+      baggage_fee_amount: resolveNumber(
+        checkoutPayload?.summary?.baggage_fee_amount,
+        cartSummaryPayload?.summary?.baggage_fee_amount,
+        fallbackBooking.baggage_fee_amount,
+      ),
+      surcharge_amount: resolveNumber(
+        checkoutPayload?.summary?.surcharge_amount,
+        cartSummaryPayload?.summary?.surcharge_amount,
+        fallbackBooking.surcharge_amount,
+      ),
+      tax_and_fee_amount: taxAndFeeAmount,
+      tax_amount: resolveNumber(
+        checkoutPayload?.summary?.vat_amount,
+        cartSummaryPayload?.summary?.vat_amount,
+        fallbackBooking.tax_amount,
+      ),
       total_amount: totalAmount,
       currency: checkoutPayload?.summary?.currency ?? fallbackBooking.currency ?? BOOKING_DEFAULT_CURRENCY,
       voucher_code:
@@ -201,7 +246,10 @@ export function buildBookingConfirmationViewModel({
   paymentOptions = [],
 } = {}) {
   const taxAndFeeAmount =
-    resolveNumber(booking?.tax_amount) + resolveNumber(booking?.service_fee_amount)
+    resolveNumber(
+      booking?.tax_and_fee_amount,
+      sumPricingAmounts(booking),
+    )
 
   return {
     bookingCode: booking?.booking_code ?? '',

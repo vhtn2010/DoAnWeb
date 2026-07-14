@@ -14,9 +14,44 @@ function normalizeText(value = '') {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function normalizeObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+}
+
 function resolveNumber(...values) {
-  const numericValue = values.find((value) => typeof value === 'number' && Number.isFinite(value))
-  return numericValue ?? 0
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+
+    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+      return Number(value)
+    }
+  }
+
+  return 0
+}
+
+function sumPricingAmounts(source = {}) {
+  const hasAnyPricingAmount = [
+    source.vat_amount,
+    source.tax_amount,
+    source.service_fee_amount,
+    source.surcharge_amount,
+  ].some((value) => (
+    typeof value === 'number' ||
+    (typeof value === 'string' && value.trim() !== '')
+  ))
+
+  if (!hasAnyPricingAmount) {
+    return undefined
+  }
+
+  return (
+    resolveNumber(source.vat_amount, source.tax_amount) +
+    resolveNumber(source.service_fee_amount) +
+    resolveNumber(source.surcharge_amount)
+  )
 }
 
 function formatDurationLabel(item) {
@@ -59,13 +94,82 @@ function formatLongVietnameseDate(dateValue) {
   return `${parsedDate.getDate()} tháng ${parsedDate.getMonth() + 1}, ${parsedDate.getFullYear()}`
 }
 
-function resolvePaymentMethodLabel(methodCode, fallbackLabel = '') {
-  const normalizedMethod = normalizePaymentMethod(methodCode)
-  const matchedMethod = PAYMENT_METHOD_OPTIONS.find((method) => method.code === normalizedMethod)
+export function clonePaymentValue(value) {
+  return JSON.parse(JSON.stringify(value))
+}
 
+export function normalizePaymentMethod(methodCode) {
+  const normalizedMethod = String(methodCode ?? '').trim().toLowerCase()
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.card ||
+    normalizedMethod === 'credit_card'
+  ) {
+    return PAYMENT_METHOD_CODES.card
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.wallet ||
+    normalizedMethod === 'momo' ||
+    normalizedMethod === 'vnpay'
+  ) {
+    return PAYMENT_METHOD_CODES.wallet
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.manualBankTransfer ||
+    normalizedMethod === 'bank_transfer' ||
+    normalizedMethod === 'manual-bank-transfer' ||
+    normalizedMethod === 'manual transfer'
+  ) {
+    return PAYMENT_METHOD_CODES.manualBankTransfer
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.cashAtOffice ||
+    normalizedMethod === 'cash_at_branch' ||
+    normalizedMethod === 'cash'
+  ) {
+    return PAYMENT_METHOD_CODES.cashAtOffice
+  }
+
+  if (
+    normalizedMethod === PAYMENT_METHOD_CODES.staffCollect ||
+    normalizedMethod === 'staff_collecting'
+  ) {
+    return PAYMENT_METHOD_CODES.staffCollect
+  }
+
+  return ''
+}
+
+export function isDirectPaymentMethod(methodCode) {
+  const normalizedMethod = normalizePaymentMethod(methodCode)
+
+  return [
+    PAYMENT_METHOD_CODES.manualBankTransfer,
+    PAYMENT_METHOD_CODES.cashAtOffice,
+    PAYMENT_METHOD_CODES.staffCollect,
+  ].includes(normalizedMethod)
+}
+
+export function normalizePhoneDisplay(phoneValue = '') {
+  const digitsOnly = String(phoneValue ?? '').replace(/\D/g, '')
+
+  if (digitsOnly.length === 10) {
+    return `${digitsOnly.slice(0, 3)} ${digitsOnly.slice(3, 6)} ${digitsOnly.slice(6)}`
+  }
+
+  return String(phoneValue ?? '').trim()
+}
+
+function resolvePaymentMethodLabel(methodCode, fallbackLabel = '') {
   if (fallbackLabel) {
     return fallbackLabel
   }
+
+  const normalizedMethod = normalizePaymentMethod(methodCode)
+  const matchedMethod = PAYMENT_METHOD_OPTIONS.find((method) => method.code === normalizedMethod)
 
   if (normalizedMethod === PAYMENT_METHOD_CODES.card) {
     return 'Thẻ tín dụng (Visa/Mastercard)'
@@ -97,8 +201,8 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
   ) {
     return {
       description:
-        'Cảm ơn quý khách đã tin tưởng lựa chọn Nét Việt Travel. Chúng tôi rất hân hạnh được đồng hành cùng bạn trong hành trình sắp tới.',
-      title: 'Thanh toán thành công!',
+        'Cảm ơn bạn đã thanh toán. Hệ thống đã ghi nhận đơn hàng và sẽ tiếp tục gửi thông tin liên quan trong các bước tiếp theo.',
+      title: 'Thanh toán thành công',
     }
   }
 
@@ -109,7 +213,7 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
   ) {
     return {
       description:
-        'Hệ thống đã ghi nhận yêu cầu thanh toán. Bộ phận vận hành sẽ xác nhận ngay khi kiểm tra xong chứng từ hoặc phương thức bạn đã chọn.',
+        'Yêu cầu thanh toán đã được tạo. Bộ phận vận hành sẽ xác nhận sau khi kiểm tra chứng từ hoặc hình thức thanh toán bạn đã chọn.',
       title: 'Đã ghi nhận yêu cầu thanh toán',
     }
   }
@@ -121,7 +225,7 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
   ) {
     return {
       description:
-        'Giao dịch này chưa hoàn tất. Bạn có thể quay lại bước thanh toán để thử lại hoặc liên hệ chăm sóc khách hàng nếu cần hỗ trợ.',
+        'Yêu cầu thanh toán này chưa hoàn tất. Bạn có thể quay lại bước thanh toán để tạo lại yêu cầu mới khi sẵn sàng.',
       title: 'Thanh toán chưa hoàn tất',
     }
   }
@@ -133,74 +237,22 @@ function buildPaymentStatusPresentation(paymentStatus = PAYMENT_STATUSES.pending
   }
 }
 
-export function clonePaymentValue(value) {
-  return JSON.parse(JSON.stringify(value))
-}
-
-export function normalizePaymentMethod(methodCode) {
-  const normalizedMethod = String(methodCode ?? '').trim().toLowerCase()
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.card ||
-    normalizedMethod === 'credit_card' ||
-    normalizedMethod === 'card'
-  ) {
-    return PAYMENT_METHOD_CODES.card
-  }
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.wallet ||
-    normalizedMethod === 'wallet' ||
-    normalizedMethod === 'bank_transfer' ||
-    normalizedMethod === 'momo' ||
-    normalizedMethod === 'vnpay'
-  ) {
-    return PAYMENT_METHOD_CODES.wallet
-  }
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.manualBankTransfer ||
-    normalizedMethod === 'manual-bank-transfer' ||
-    normalizedMethod === 'manual transfer'
-  ) {
-    return PAYMENT_METHOD_CODES.manualBankTransfer
-  }
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.cashAtOffice ||
-    normalizedMethod === 'cash_at_branch' ||
-    normalizedMethod === 'cash'
-  ) {
-    return PAYMENT_METHOD_CODES.cashAtOffice
-  }
-
-  if (
-    normalizedMethod === PAYMENT_METHOD_CODES.staffCollect ||
-    normalizedMethod === 'staff_collecting'
-  ) {
-    return PAYMENT_METHOD_CODES.staffCollect
-  }
-
-  return PAYMENT_METHOD_CODES.card
-}
-
-export function normalizePhoneDisplay(phoneValue = '') {
-  const digitsOnly = String(phoneValue ?? '').replace(/\D/g, '')
-
-  if (digitsOnly.length === 10) {
-    return `${digitsOnly.slice(0, 3)} ${digitsOnly.slice(3, 6)} ${digitsOnly.slice(6)}`
-  }
-
-  return String(phoneValue ?? '').trim()
-}
-
 export function buildPaymentSummary(summary = {}) {
   const subtotalAmount = resolveNumber(summary.subtotal_amount, summary.subtotalAmount)
-  const taxAndFeeAmount = resolveNumber(summary.tax_and_fee_amount, summary.taxAndFeeAmount)
+  const baggageFeeAmount = resolveNumber(
+    summary.baggage_fee_amount,
+    summary.baggageFeeAmount,
+  )
+  const taxAndFeeAmount = resolveNumber(
+    summary.tax_and_fee_amount,
+    summary.taxAndFeeAmount,
+    sumPricingAmounts(summary),
+  )
   const discountAmount = resolveNumber(summary.discount_amount, summary.discountAmount)
 
   return {
     subtotal_amount: subtotalAmount,
+    baggage_fee_amount: baggageFeeAmount,
     tax_and_fee_amount: taxAndFeeAmount,
     discount_amount: discountAmount,
     total_amount: resolveNumber(
@@ -232,6 +284,7 @@ export function buildPaymentConfirmationFromBookingHandoff({
     contact_name: normalizeText(booking?.contact_name) || fallbackBooking.contact_name,
     contact_email: normalizeText(booking?.contact_email) || fallbackBooking.contact_email,
     contact_phone: normalizePhoneDisplay(booking?.contact_phone) || fallbackBooking.contact_phone,
+    customer_note: normalizeText(booking?.customer_note) || normalizeText(fallbackBooking.customer_note),
     currency: booking?.currency ?? fallbackBooking.currency ?? PAYMENT_DEFAULT_CURRENCY,
   }
   const normalizedItems =
@@ -260,8 +313,10 @@ export function buildPaymentConfirmationFromBookingHandoff({
     fallbackSummary.subtotal_amount,
   )
   const taxAndFeeAmount = resolveNumber(
-    resolveNumber(normalizedBooking.tax_amount) + resolveNumber(normalizedBooking.service_fee_amount),
+    normalizedBooking.tax_and_fee_amount,
+    sumPricingAmounts(normalizedBooking),
     fallbackSummary.tax_and_fee_amount,
+    sumPricingAmounts(fallbackSummary),
   )
   const discountAmount = resolveNumber(
     normalizedBooking.discount_amount,
@@ -312,8 +367,11 @@ export function buildPaymentConfirmationViewModel({
   bookingItems = [],
   paymentSummary,
 } = {}) {
+  const baggageFeeAmount = resolveNumber(paymentSummary?.baggage_fee_amount)
+  const taxAndFeeAmount = resolveNumber(paymentSummary?.tax_and_fee_amount)
+
   return {
-    itemCountLabel: `${bookingItems.length} Mục`,
+    itemCountLabel: `${bookingItems.length} mục`,
     items: bookingItems.map((item) => ({
       ...item,
       duration_label: formatDurationLabel(item),
@@ -323,7 +381,13 @@ export function buildPaymentConfirmationViewModel({
     })),
     summary: {
       subtotal_amount: formatCurrencyVND(resolveNumber(paymentSummary?.subtotal_amount)),
-      tax_and_fee_amount: formatCurrencyVND(resolveNumber(paymentSummary?.tax_and_fee_amount)),
+      baggage_fee_amount: baggageFeeAmount > 0
+        ? formatCurrencyVND(baggageFeeAmount)
+        : '',
+      tax_and_fee_amount: formatCurrencyVND(taxAndFeeAmount),
+      tax_and_fee_without_baggage_amount: formatCurrencyVND(
+        Math.max(taxAndFeeAmount - baggageFeeAmount, 0),
+      ),
       discount_amount: formatCurrencyVND(resolveNumber(paymentSummary?.discount_amount)),
       total_amount: formatCurrencyVND(resolveNumber(paymentSummary?.total_amount)),
       currency: paymentSummary?.currency ?? PAYMENT_DEFAULT_CURRENCY,
@@ -334,7 +398,6 @@ export function buildPaymentConfirmationViewModel({
 
 export function validatePaymentConfirmationForm({
   contactForm,
-  cardNumber,
   selectedPaymentMethod,
 } = {}) {
   const errors = {}
@@ -355,13 +418,6 @@ export function validatePaymentConfirmationForm({
 
   if (!normalizeText(selectedPaymentMethod)) {
     errors.selected_payment_method = 'Vui lòng chọn phương thức thanh toán.'
-  }
-
-  if (
-    normalizePaymentMethod(selectedPaymentMethod) === PAYMENT_METHOD_CODES.card &&
-    !normalizeText(cardNumber)
-  ) {
-    errors.card_number = 'Vui lòng nhập số thẻ thanh toán.'
   }
 
   return errors
@@ -408,6 +464,30 @@ export function buildPaymentContactForm(booking = {}) {
   }
 }
 
+function resolveBookingItemServiceTitle(item = {}, fallbackTitle = '') {
+  const safeItem = normalizeObject(item)
+  const snapshot = normalizeObject(safeItem.service_snapshot)
+
+  return (
+    normalizeText(snapshot.title) ||
+    normalizeText(safeItem.service_title) ||
+    normalizeText(safeItem.title_snapshot) ||
+    normalizeText(safeItem.title) ||
+    normalizeText(fallbackTitle)
+  )
+}
+
+function resolvePaymentSuccessServiceTitle(paymentSuccess = {}) {
+  const primaryBookingItem = Array.isArray(paymentSuccess.booking_items)
+    ? paymentSuccess.booking_items[0]
+    : null
+
+  return (
+    normalizeText(paymentSuccess.booking?.service_title) ||
+    resolveBookingItemServiceTitle(primaryBookingItem, 'Dịch vụ đang được cập nhật')
+  )
+}
+
 export function buildPaymentSuccessData({
   basePaymentSuccessData,
   payment,
@@ -423,7 +503,9 @@ export function buildPaymentSuccessData({
     : []
   const normalizedBookingItems =
     Array.isArray(bookingItems) && bookingItems.length > 0 ? bookingItems : fallbackBookingItems
-  const primaryBookingItem = normalizedBookingItems[0] ?? fallbackBookingItems[0] ?? {}
+  const primaryBookingItem = normalizeObject(
+    normalizedBookingItems[0] ?? fallbackBookingItems[0],
+  )
   const resolvedCurrency =
     payment?.currency ??
     paymentResultPayload?.currency ??
@@ -459,7 +541,11 @@ export function buildPaymentSuccessData({
       paymentResultPayload?.payment_status ??
       fallbackPaymentSuccess.payment_status ??
       PAYMENT_STATUSES.success,
-    booking_status: booking?.booking_status ?? fallbackPaymentSuccess.booking_status ?? 'paid',
+    booking_status:
+      booking?.booking_status ??
+      booking?.status ??
+      fallbackPaymentSuccess.booking_status ??
+      'paid',
     amount: resolvedAmount,
     currency: resolvedCurrency,
     payment_method: resolvedPaymentMethod,
@@ -473,7 +559,10 @@ export function buildPaymentSuccessData({
     },
     booking: {
       booking_code: resolvedBookingCode ?? '',
-      service_title: primaryBookingItem.service_title ?? fallbackBooking.service_title ?? '',
+      service_title: resolveBookingItemServiceTitle(
+        primaryBookingItem,
+        fallbackBooking.service_title,
+      ),
       departure_date: primaryBookingItem.start_at ?? fallbackBooking.departure_date ?? '',
       departure_date_label:
         fallbackBooking.departure_date_label ??
@@ -488,13 +577,19 @@ export function buildPaymentSuccessData({
       total_amount: resolvedAmount,
       currency: resolvedCurrency,
     },
-    booking_items: normalizedBookingItems.map((item) => ({
-      ...item,
-      total_amount: resolveNumber(
-        item.total_amount,
-        resolveNumber(item.unit_price_snapshot) * resolveNumber(item.quantity, 1),
-      ),
-    })),
+    booking_items: normalizedBookingItems.map((item) => {
+      const safeItem = normalizeObject(item)
+
+      return {
+        ...safeItem,
+        service_snapshot: normalizeObject(safeItem.service_snapshot),
+        service_title: resolveBookingItemServiceTitle(safeItem),
+        total_amount: resolveNumber(
+          safeItem.total_amount,
+          resolveNumber(safeItem.unit_price_snapshot) * resolveNumber(safeItem.quantity, 1),
+        ),
+      }
+    }),
   }
 }
 
@@ -507,7 +602,7 @@ export function buildPaymentSuccessViewModel(paymentSuccess = {}) {
     title: presentation.title,
     description: presentation.description,
     orderInfo: {
-      sectionTitle: 'Thông tin đơn đặt tour',
+      sectionTitle: 'Thông tin đơn đặt',
       leftColumn: [
         {
           label: 'Mã đơn hàng',
@@ -526,8 +621,8 @@ export function buildPaymentSuccessViewModel(paymentSuccess = {}) {
       ],
       rightColumn: [
         {
-          label: 'Tên tour',
-          value: paymentSuccess.booking?.service_title ?? '',
+          label: 'Tên dịch vụ',
+          value: resolvePaymentSuccessServiceTitle(paymentSuccess),
           tone: 'brand',
         },
         {

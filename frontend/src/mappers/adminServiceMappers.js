@@ -32,7 +32,7 @@ const SERVICE_DETAIL_TEMPLATES = Object.freeze({
     transport_type: 'bus',
     max_group_size: '',
     departure_schedule: '',
-    itinerary: '',
+    itinerary: [],
     included_services: '',
     excluded_services: '',
     terms: '',
@@ -95,6 +95,13 @@ function parseNumberValue(value, fallback = null) {
   return Number.isNaN(parsedValue) ? fallback : parsedValue
 }
 
+let adminTourEditorSeed = 0
+
+function createAdminTourEditorId(prefix) {
+  adminTourEditorSeed += 1
+  return `${prefix}-${adminTourEditorSeed}`
+}
+
 function serializeListValue(value, formatter = (item) => item) {
   if (!Array.isArray(value)) {
     return value ?? ''
@@ -135,6 +142,228 @@ function normalizeMultilineArray(value) {
   return String(value ?? '')
     .split('\n')
     .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function serializeDepartureScheduleValue(value) {
+  if (!Array.isArray(value)) {
+    return value ?? ''
+  }
+
+  return value
+    .map((item) => {
+      if (item == null) {
+        return ''
+      }
+
+      if (typeof item === 'string') {
+        return item
+      }
+
+      try {
+        return JSON.stringify(item)
+      } catch {
+        return ''
+      }
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+function parseDepartureScheduleValue(value) {
+  return normalizeMultilineArray(value).map((line) => {
+    if (line.startsWith('{')) {
+      try {
+        const parsedItem = JSON.parse(line)
+
+        if (parsedItem && typeof parsedItem === 'object' && !Array.isArray(parsedItem)) {
+          return parsedItem
+        }
+      } catch {
+        // Let backend validate unsupported lines if needed.
+      }
+    }
+
+    const isoDateMatch = line.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (isoDateMatch) {
+      return {
+        date: line,
+      }
+    }
+
+    const localDateMatch = line.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+    if (localDateMatch) {
+      return {
+        date: `${localDateMatch[3]}-${localDateMatch[2]}-${localDateMatch[1]}`,
+      }
+    }
+
+    return {
+      label: line,
+    }
+  })
+}
+
+function normalizeOptionalText(value = '') {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function splitLegacyTourActionItems(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeOptionalText(String(item ?? '')))
+      .filter(Boolean)
+  }
+
+  return normalizeMultilineArray(value)
+}
+
+export function createEmptyAdminTourAction(action = {}) {
+  return {
+    id: action.id ?? createAdminTourEditorId('tour-action'),
+    time: normalizeOptionalText(action.time),
+    title: normalizeOptionalText(action.title),
+    description: normalizeOptionalText(action.description),
+  }
+}
+
+export function createEmptyAdminTourDay(dayNumber = 1, day = {}) {
+  const normalizedDayNumber = Number(day.day_number ?? day.day ?? dayNumber)
+
+  return {
+    actions: Array.isArray(day.actions) && day.actions.length
+      ? day.actions.map((action) => createEmptyAdminTourAction(action))
+      : [createEmptyAdminTourAction()],
+    day_number:
+      Number.isFinite(normalizedDayNumber) && normalizedDayNumber > 0
+        ? normalizedDayNumber
+        : dayNumber,
+    id: day.id ?? createAdminTourEditorId('tour-day'),
+    summary: normalizeOptionalText(day.summary),
+    title: normalizeOptionalText(day.title),
+  }
+}
+
+export function normalizeAdminTourItinerary(itinerary = [], { ensureAtLeastOneDay = false } = {}) {
+  if (!Array.isArray(itinerary)) {
+    return ensureAtLeastOneDay ? [createEmptyAdminTourDay(1)] : []
+  }
+
+  const normalizedDays = itinerary.map((day, index) => {
+    if (typeof day === 'string') {
+      return {
+        actions: [
+          createEmptyAdminTourAction({
+            title: day,
+          }),
+        ],
+        day_number: index + 1,
+        id: createAdminTourEditorId('tour-day'),
+        summary: '',
+        title: '',
+      }
+    }
+
+    if (!day || typeof day !== 'object') {
+      return createEmptyAdminTourDay(index + 1)
+    }
+
+    const legacyActionItems =
+      Array.isArray(day.actions) && day.actions.length
+        ? day.actions
+        : splitLegacyTourActionItems(day.activities ?? day.highlights)
+
+    const actions = legacyActionItems.length
+      ? legacyActionItems.map((action) => {
+          if (typeof action === 'string') {
+            return createEmptyAdminTourAction({
+              title: action,
+            })
+          }
+
+          return createEmptyAdminTourAction({
+            description: action.description ?? action.summary ?? '',
+            time: action.time ?? '',
+            title: action.title ?? action.label ?? action.name ?? '',
+          })
+        })
+      : (normalizeOptionalText(day.title) || normalizeOptionalText(day.summary) || normalizeOptionalText(day.description))
+        ? [
+            createEmptyAdminTourAction({
+              description: day.summary ?? day.description ?? '',
+              title: day.title ?? '',
+            }),
+          ]
+        : [createEmptyAdminTourAction()]
+
+    return {
+      actions,
+      day_number: Number(day.day_number ?? day.day ?? index + 1) || index + 1,
+      id: day.id ?? createAdminTourEditorId('tour-day'),
+      summary: normalizeOptionalText(day.summary ?? day.description ?? ''),
+      title:
+        Array.isArray(day.actions) && day.actions.length
+          ? normalizeOptionalText(day.title)
+          : '',
+    }
+  })
+
+  if (normalizedDays.length > 0) {
+    return normalizedDays
+  }
+
+  return ensureAtLeastOneDay ? [createEmptyAdminTourDay(1)] : []
+}
+
+export function serializeAdminTourItinerary(itinerary = []) {
+  if (!Array.isArray(itinerary)) {
+    return []
+  }
+
+  return itinerary
+    .map((day, index) => {
+      if (!day || typeof day !== 'object') {
+        return null
+      }
+
+      const actions = Array.isArray(day.actions)
+        ? day.actions
+            .map((action) => {
+              if (!action || typeof action !== 'object') {
+                return null
+              }
+
+              const title = normalizeOptionalText(action.title)
+              const description = normalizeOptionalText(action.description)
+              const time = normalizeOptionalText(action.time)
+
+              if (!title && !description && !time) {
+                return null
+              }
+
+              return {
+                description: description || null,
+                time: time || null,
+                title: title || description || 'Hoat dong',
+              }
+            })
+            .filter(Boolean)
+        : []
+
+      const dayTitle = normalizeOptionalText(day.title)
+      const daySummary = normalizeOptionalText(day.summary)
+
+      if (!dayTitle && !daySummary && actions.length === 0) {
+        return null
+      }
+
+      return {
+        actions,
+        day_number: index + 1,
+        summary: daySummary || null,
+        title: dayTitle || null,
+      }
+    })
     .filter(Boolean)
 }
 
@@ -184,8 +413,8 @@ function normalizeServiceDetails(serviceType, details, fallbackPrice) {
       duration_nights: parseNumberValue(details.duration_nights),
       transport_type: details.transport_type || 'bus',
       max_group_size: parseNumberValue(details.max_group_size),
-      departure_schedule: normalizeMultilineArray(details.departure_schedule),
-      itinerary: normalizeMultilineArray(details.itinerary),
+      departure_schedule: parseDepartureScheduleValue(details.departure_schedule),
+      itinerary: serializeAdminTourItinerary(details.itinerary),
       included_services: details.included_services.trim(),
       excluded_services: details.excluded_services.trim(),
       terms: details.terms.trim(),
@@ -296,6 +525,13 @@ export function slugifyServiceTitle(value) {
 }
 
 export function createServiceDetailDefaults(serviceType) {
+  if (serviceType === SERVICE_TYPES.tour) {
+    return {
+      ...(SERVICE_DETAIL_TEMPLATES[serviceType] ?? {}),
+      itinerary: [createEmptyAdminTourDay(1)],
+    }
+  }
+
   return {
     ...(SERVICE_DETAIL_TEMPLATES[serviceType] ?? {}),
   }
@@ -334,8 +570,10 @@ export function getInitialServiceFormValues(service = null) {
             transport_type: sourceDetails.transport_type ?? defaults.transport_type,
             max_group_size:
               sourceDetails.max_group_size != null ? String(sourceDetails.max_group_size) : '',
-            departure_schedule: serializeListValue(sourceDetails.departure_schedule),
-            itinerary: serializeListValue(sourceDetails.itinerary),
+            departure_schedule: serializeDepartureScheduleValue(sourceDetails.departure_schedule),
+            itinerary: normalizeAdminTourItinerary(sourceDetails.itinerary, {
+              ensureAtLeastOneDay: true,
+            }),
             included_services: sourceDetails.included_services ?? defaults.included_services,
             excluded_services: sourceDetails.excluded_services ?? defaults.excluded_services,
             terms: sourceDetails.terms ?? defaults.terms,

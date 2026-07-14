@@ -40,6 +40,22 @@ const LOG_METADATA_SENSITIVE_KEYS = new Set([
 const DEFAULT_LOGS_PAGE = 1;
 const DEFAULT_LOGS_LIMIT = 20;
 const MAX_LOGS_LIMIT = 100;
+const CUSTOMER_VISIBLE_LOG_ACTIONS = [
+  'auth.change_email_confirmed',
+  'auth.change_email_requested',
+  'auth.reset_password',
+  'auth.verify_email',
+  'customer.booking.checkout',
+  'customer.booking.contact_update',
+  'payment.direct.confirm',
+  'profile.avatar_update',
+  'profile.change_password',
+  'profile.update',
+  'account.deactivation_requested',
+  'admin.booking.confirm',
+  'admin.booking.complete',
+  'admin.booking.status_override',
+];
 const MAX_DEACTIVATION_REASON_LENGTH = 500;
 const FORBIDDEN_UPDATE_FIELDS = [
   'avatar_url',
@@ -917,8 +933,9 @@ const createProfileService = ({
         SELECT COUNT(*)::integer AS total
         FROM user_logs
         WHERE user_id = $1
+          AND action = ANY($2::text[])
       `,
-      [userId],
+      [userId, CUSTOMER_VISIBLE_LOG_ACTIONS],
     );
     const total = countResult.rows[0]?.total || 0;
     const logsResult = await queryImpl(
@@ -934,11 +951,12 @@ const createProfileService = ({
           created_at
         FROM user_logs
         WHERE user_id = $1
+          AND action = ANY($2::text[])
         ORDER BY created_at DESC
-        LIMIT $2
-        OFFSET $3
+        LIMIT $3
+        OFFSET $4
       `,
-      [userId, pagination.limit, offset],
+      [userId, CUSTOMER_VISIBLE_LOG_ACTIONS, pagination.limit, offset],
     );
     const totalPages =
       total === 0 ? 0 : Math.ceil(total / pagination.limit);

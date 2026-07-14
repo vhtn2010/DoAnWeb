@@ -972,12 +972,14 @@ const mapFlightDetail = (detail) => ({
 });
 
 const mapTrainDetail = (detail) => ({
+  id: detail.id,
   train_number: detail.train_number,
   departure_station: detail.departure_station,
   arrival_station: detail.arrival_station,
   departure_at: detail.departure_at,
   arrival_at: detail.arrival_at,
   seat_class: detail.seat_class,
+  seats_total: detail.seats_total,
   seats_available: detail.seats_available,
   fare_price:
     detail.fare_price == null
@@ -1019,6 +1021,10 @@ const mapTrainSearchResult = (train) => ({
   departure_at: train.departure_at,
   arrival_at: train.arrival_at,
   seat_class: train.seat_class,
+  seats_total:
+    train.seats_total == null
+      ? null
+      : Number(train.seats_total),
   seats_available: Number(train.seats_available),
   fare_price:
     train.fare_price == null

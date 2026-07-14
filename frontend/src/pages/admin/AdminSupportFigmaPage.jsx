@@ -1,12 +1,19 @@
+import { useMemo, useRef, useState } from 'react'
 import { AdminPagination } from '../../components/admin/ui/index.js'
-import {
-  ADMIN_SUPPORT_STATUS_OPTIONS,
-} from '../../constants/adminSupport.js'
+import { uploadSupportReplyImageAsset } from '../../adapters/api/uploadApiAdapter.js'
+import { ADMIN_SUPPORT_STATUS_OPTIONS } from '../../constants/adminSupport.js'
 import useAdminSupport from '../../hooks/useAdminSupport.js'
 import {
   getAdminSupportPriorityMeta,
   getAdminSupportStatusMeta,
 } from '../../mappers/adminSupportMappers.js'
+import {
+  appendSupportImageMarkdown,
+  getSupportImageAlt,
+  getSupportMessageImageBlocks,
+  parseSupportInlineSegments,
+  parseSupportMessageBlocks,
+} from '../../utils/adminSupportMessageFormat.js'
 
 function cx(...classNames) {
   return classNames.filter(Boolean).join(' ')
@@ -82,7 +89,7 @@ function ImageIcon() {
   )
 }
 
-function TextStyleButton({ children, disabled = false, label }) {
+function TextStyleButton({ children, disabled = false, label, onClick }) {
   return (
     <button
       className="admin-support-reply__tool"
@@ -90,6 +97,8 @@ function TextStyleButton({ children, disabled = false, label }) {
       type="button"
       aria-label={label}
       title={label}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
     >
       {children}
     </button>
@@ -128,7 +137,7 @@ function getCompactSupportBadgeLabel(label = '') {
     'chờ khách': 'Chờ khách',
     'chờ nhân viên': 'Chờ xử lý',
     'khẩn cấp': 'Khẩn',
-    'thấp': 'Thấp',
+    thấp: 'Thấp',
     'ưu tiên cao': 'Cao',
     spam: 'Spam',
   }
@@ -136,11 +145,51 @@ function getCompactSupportBadgeLabel(label = '') {
   return compactLabels[normalizedLabel] || label
 }
 
-function getMessageParagraphs(message) {
-  return String(message || '')
-    .split(/\n{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
+function renderSupportInlineContent(text = '') {
+  const lines = String(text || '').split('\n')
+
+  return lines.map((line, lineIndex) => (
+    <span key={`line-${lineIndex}`}>
+      {parseSupportInlineSegments(line).map((segment, segmentIndex) => {
+        if (segment.type === 'strong') {
+          return <strong key={`segment-${lineIndex}-${segmentIndex}`}>{segment.text}</strong>
+        }
+
+        if (segment.type === 'em') {
+          return <em key={`segment-${lineIndex}-${segmentIndex}`}>{segment.text}</em>
+        }
+
+        return <span key={`segment-${lineIndex}-${segmentIndex}`}>{segment.text}</span>
+      })}
+      {lineIndex < lines.length - 1 ? <br /> : null}
+    </span>
+  ))
+}
+
+function SupportMessageBody({ message }) {
+  const blocks = parseSupportMessageBlocks(message)
+
+  return (
+    <div className="admin-support-message__body">
+      {blocks.map((block, index) => {
+        if (block.type === 'image') {
+          return (
+            <figure className="admin-support-message__image" key={`${block.url}-${index}`}>
+              <a href={block.url} target="_blank" rel="noreferrer">
+                <img alt={block.alt} loading="lazy" src={block.url} />
+              </a>
+            </figure>
+          )
+        }
+
+        return (
+          <p key={`paragraph-${index}`}>
+            {renderSupportInlineContent(block.text)}
+          </p>
+        )
+      })}
+    </div>
+  )
 }
 
 function openContactLink(href) {
@@ -158,6 +207,9 @@ function buildMailLink(email, subject) {
 }
 
 function AdminSupportFigmaPage() {
+  const replyInputRef = useRef(null)
+  const imageUploadRef = useRef(null)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const {
     actionLoading,
     currentPage,
@@ -177,6 +229,7 @@ function AdminSupportFigmaPage() {
     selectedTicket,
     sendReply,
     setCurrentPage,
+    setFeedback,
     setIsInternalNote,
     setReplyMessage,
     setSearchQuery,
@@ -196,7 +249,108 @@ function AdminSupportFigmaPage() {
     Boolean(selectedTicket?.canReply) &&
     replyMessage.trim().length > 0 &&
     !actionLoading &&
-    !detailLoading
+    !detailLoading &&
+    !isUploadingImage
+  const attachedImages = useMemo(
+    () => getSupportMessageImageBlocks(replyMessage),
+    [replyMessage],
+  )
+
+  function focusReplyInput(selectionStart, selectionEnd = selectionStart) {
+    window.requestAnimationFrame(() => {
+      if (!replyInputRef.current) {
+        return
+      }
+
+      replyInputRef.current.focus()
+      replyInputRef.current.setSelectionRange(selectionStart, selectionEnd)
+    })
+  }
+
+  function applyTextStyle(marker) {
+    const textarea = replyInputRef.current
+    const currentValue = replyMessage
+
+    if (!textarea) {
+      setReplyMessage(`${currentValue}${marker}${marker}`)
+      return
+    }
+
+    const selectionStart = textarea.selectionStart ?? currentValue.length
+    const selectionEnd = textarea.selectionEnd ?? currentValue.length
+    const selectedText = currentValue.slice(selectionStart, selectionEnd)
+    const wrappedText = `${marker}${selectedText}${marker}`
+    const nextValue =
+      `${currentValue.slice(0, selectionStart)}${wrappedText}${currentValue.slice(selectionEnd)}`
+
+    setReplyMessage(nextValue)
+
+    if (selectedText) {
+      focusReplyInput(
+        selectionStart + marker.length,
+        selectionStart + marker.length + selectedText.length,
+      )
+      return
+    }
+
+    focusReplyInput(selectionStart + marker.length)
+  }
+
+  function triggerImageUpload() {
+    if (actionLoading || detailLoading || isUploadingImage || !selectedTicket?.canReply) {
+      return
+    }
+
+    imageUploadRef.current?.click()
+  }
+
+  async function handleImageSelection(event) {
+    const files = Array.from(event.target.files || [])
+
+    event.target.value = ''
+
+    if (!files.length) {
+      return
+    }
+
+    setIsUploadingImage(true)
+
+    try {
+      let nextMessage = replyMessage
+
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+          throw new Error('Chỉ hỗ trợ đính kèm tệp hình ảnh trong khung phản hồi này.')
+        }
+
+        const uploadResponse = await uploadSupportReplyImageAsset(file)
+        const assetUrl = uploadResponse?.data?.asset_url
+
+        if (!assetUrl) {
+          throw new Error('Không thể lấy đường dẫn ảnh sau khi tải lên.')
+        }
+
+        nextMessage = appendSupportImageMarkdown(nextMessage, {
+          alt: getSupportImageAlt(file.name),
+          url: assetUrl,
+        })
+      }
+
+      setReplyMessage(nextMessage)
+      setFeedback({
+        message: 'Đã chèn ảnh vào nội dung phản hồi.',
+        tone: 'success',
+      })
+      focusReplyInput(nextMessage.length)
+    } catch (uploadError) {
+      setFeedback({
+        message: uploadError?.message || 'Không thể tải ảnh đính kèm lúc này.',
+        tone: 'error',
+      })
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
 
   return (
     <main className="admin-support-page">
@@ -445,9 +599,7 @@ function AdminSupportFigmaPage() {
                       ) : null}
                     </div>
                     <div className="admin-support-message">
-                      {getMessageParagraphs(reply.message).map((paragraph) => (
-                        <p key={paragraph}>{paragraph}</p>
-                      ))}
+                      <SupportMessageBody message={reply.message} />
                     </div>
                   </div>
                 </article>
@@ -462,10 +614,19 @@ function AdminSupportFigmaPage() {
             <form className="admin-support-reply" onSubmit={sendReply}>
               <SupportAvatar name="Net Viet" size="sm" />
               <div className="admin-support-reply__editor">
+                <input
+                  ref={imageUploadRef}
+                  accept="image/*"
+                  className="admin-support-reply__input-hidden"
+                  multiple
+                  type="file"
+                  onChange={handleImageSelection}
+                />
                 <label className="admin-support-page__sr-only" htmlFor="support-reply">
                   Phản hồi
                 </label>
                 <textarea
+                  ref={replyInputRef}
                   disabled={!selectedTicket.canReply || actionLoading || detailLoading}
                   id="support-reply"
                   placeholder={
@@ -477,18 +638,57 @@ function AdminSupportFigmaPage() {
                   value={replyMessage}
                   onChange={(event) => setReplyMessage(event.target.value)}
                 />
+                {attachedImages.length > 0 ? (
+                  <div className="admin-support-reply__attachments" aria-label="Ảnh đã đính kèm">
+                    {attachedImages.map((image, index) => (
+                      <figure className="admin-support-reply__attachment" key={`${image.url}-${index}`}>
+                        <img alt={image.alt} loading="lazy" src={image.url} />
+                        <figcaption>{image.alt}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="admin-support-reply__toolbar">
                   <div className="admin-support-reply__tools" role="group" aria-label="Định dạng phản hồi">
-                    <TextStyleButton disabled={actionLoading} label="In đậm"><strong>B</strong></TextStyleButton>
-                    <TextStyleButton disabled={actionLoading} label="In nghiêng"><em>I</em></TextStyleButton>
+                    <TextStyleButton
+                      disabled={actionLoading || detailLoading || isUploadingImage || !selectedTicket.canReply}
+                      label="In đậm"
+                      onClick={() => applyTextStyle('**')}
+                    >
+                      <strong>B</strong>
+                    </TextStyleButton>
+                    <TextStyleButton
+                      disabled={actionLoading || detailLoading || isUploadingImage || !selectedTicket.canReply}
+                      label="In nghiêng"
+                      onClick={() => applyTextStyle('*')}
+                    >
+                      <em>I</em>
+                    </TextStyleButton>
                     <span className="admin-support-reply__divider" aria-hidden="true" />
-                    <TextStyleButton disabled={actionLoading} label="Đính kèm tệp"><PaperclipIcon /></TextStyleButton>
-                    <TextStyleButton disabled={actionLoading} label="Đính kèm hình ảnh"><ImageIcon /></TextStyleButton>
+                    <TextStyleButton
+                      disabled={actionLoading || detailLoading || isUploadingImage || !selectedTicket.canReply}
+                      label="Đính kèm tệp hình"
+                      onClick={triggerImageUpload}
+                    >
+                      <PaperclipIcon />
+                    </TextStyleButton>
+                    <TextStyleButton
+                      disabled={actionLoading || detailLoading || isUploadingImage || !selectedTicket.canReply}
+                      label="Đính kèm hình ảnh"
+                      onClick={triggerImageUpload}
+                    >
+                      <ImageIcon />
+                    </TextStyleButton>
                   </div>
+                  {isUploadingImage ? (
+                    <span className="admin-support-reply__uploading" role="status">
+                      Đang tải ảnh...
+                    </span>
+                  ) : null}
                   <label className="admin-support-reply__internal">
                     <input
                       checked={isInternalNote}
-                      disabled={!selectedTicket.canReply || actionLoading || detailLoading}
+                      disabled={!selectedTicket.canReply || actionLoading || detailLoading || isUploadingImage}
                       type="checkbox"
                       onChange={(event) => setIsInternalNote(event.target.checked)}
                     />

@@ -1,6 +1,10 @@
 export const CHECKOUT_DEFAULT_CURRENCY = 'VND'
 export const CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT = 1250000
 export const CHECKOUT_VOUCHER_DISCOUNT_AMOUNT = 300000
+export const CHECKOUT_BAGGAGE_FEE_BY_ROUTE = Object.freeze({
+  baggage_departure: 350000,
+  baggage_return: 350000,
+})
 
 export const CHECKOUT_VALID_VOUCHER_CODES = Object.freeze([
   'SUMMER2026',

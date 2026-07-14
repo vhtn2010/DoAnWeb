@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import AdminTourItinerarySection from './AdminTourItinerarySection.jsx'
 import AdminServiceTypeFields from './AdminServiceTypeFields.jsx'
 import {
   ADMIN_SERVICE_FORM_STATUS_OPTIONS,
@@ -158,14 +159,6 @@ function ImageIcon() {
   )
 }
 
-function CalendarIcon() {
-  return (
-    <ModalIcon>
-      <path d="M6.5 4.5v3M17.5 4.5v3M4.5 9h15M5 6.5h14v13H5v-13Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-    </ModalIcon>
-  )
-}
-
 function UploadIcon() {
   return (
     <ModalIcon>
@@ -197,88 +190,49 @@ function SectionTitle({ children, icon }) {
   )
 }
 
-function TimelinePreview() {
-  return (
-    <section className="admin-service-modal__section admin-service-modal__timeline-section">
-      <div className="admin-service-modal__timeline-header">
-        <SectionTitle icon={<CalendarIcon />}>Lịch trình chi tiết (Đối với tour du lịch)</SectionTitle>
-        <button className="admin-service-modal__add-day" type="button">
-          <span aria-hidden="true">+</span>
-          Thêm ngày
-        </button>
-      </div>
-
-      <div className="admin-service-modal__timeline">
-        <span className="admin-service-modal__timeline-line" aria-hidden="true" />
-
-        <article className="admin-service-modal__day admin-service-modal__day--active">
-          <span className="admin-service-modal__day-number">1</span>
-          <div className="admin-service-modal__day-card">
-            <div className="admin-service-modal__day-row">
-              <input
-                aria-label="Tiêu đề ngày 1"
-                className="admin-service-modal__day-input"
-                defaultValue="Khởi hành và Thăm quan Đại Nội"
-                type="text"
-              />
-              <input
-                aria-label="Thời gian ngày 1"
-                className="admin-service-modal__day-time"
-                defaultValue="08:00 AM"
-                type="text"
-              />
-            </div>
-            <textarea
-              aria-label="Nội dung ngày 1"
-              className="admin-service-modal__day-textarea"
-              defaultValue="Hướng dẫn viên đón khách tại điểm hẹn. Khởi hành tham quan Đại Nội - Hoàng cung của 13 vị vua triều Nguyễn với Ngọ Môn, Điện Thái Hòa..."
-              rows="3"
-            />
-          </div>
-        </article>
-
-        <article className="admin-service-modal__day">
-          <span className="admin-service-modal__day-number">2</span>
-          <div className="admin-service-modal__day-card admin-service-modal__day-card--empty">
-            <div className="admin-service-modal__day-row">
-              <input
-                aria-label="Tiêu đề ngày 2"
-                className="admin-service-modal__day-input"
-                placeholder="Tiêu đề ngày 2"
-                type="text"
-              />
-              <input
-                aria-label="Thời gian ngày 2"
-                className="admin-service-modal__day-time"
-                placeholder="Thời gian"
-                type="text"
-              />
-            </div>
-            <p>Nhấp để thêm chi tiết lịch trình ngày tiếp theo...</p>
-          </div>
-        </article>
-      </div>
-    </section>
-  )
-}
-
 function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, service }) {
   const [formValues, setFormValues] = useState(() => getInitialServiceFormValues(service))
   const [errors, setErrors] = useState({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [slugTouched, setSlugTouched] = useState(mode === 'edit')
+  const [submitTone, setSubmitTone] = useState('error')
+  const [submitMessage, setSubmitMessage] = useState('')
   const titleId = useId()
   const descriptionId = useId()
+
+  const handleRequestClose = () => {
+    if (isSubmitting) {
+      return
+    }
+
+    onClose()
+  }
 
   useEffect(() => {
     setFormValues(getInitialServiceFormValues(service))
     setErrors({})
+    setIsSubmitting(false)
     setSlugTouched(mode === 'edit')
+    setSubmitTone('error')
+    setSubmitMessage('')
   }, [mode, service])
+
+  useEffect(() => {
+    if (!submitMessage) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSubmitMessage('')
+    }, 15000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [submitMessage])
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
     const handleEscape = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !isSubmitting) {
         onClose()
       }
     }
@@ -290,7 +244,7 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleEscape)
     }
-  }, [onClose])
+  }, [isSubmitting, onClose])
 
   const isEditMode = mode === 'edit'
   const submitLabel = isEditMode ? 'Cập nhật Dịch vụ' : 'Tạo Dịch vụ'
@@ -354,16 +308,61 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     }))
   }
 
-  const handleSubmit = (submitIntent) => {
+  const handleDetailValueChange = (name, value) => {
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      details: {
+        ...currentValues.details,
+        [name]: value,
+      },
+    }))
+  }
+
+  const handleSubmit = async (submitIntent) => {
+    if (isSubmitting) {
+      return
+    }
+
     const nextErrors = validateServiceForm(formValues)
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
+      setSubmitTone('error')
+      setSubmitMessage('Vui lòng kiểm tra lại các trường bắt buộc trước khi lưu.')
       return
     }
 
     setErrors({})
-    onSave(formValues, submitIntent)
+    setSubmitTone('error')
+    setSubmitMessage('')
+    setIsSubmitting(true)
+
+    try {
+      const result = await onSave(formValues, submitIntent)
+
+      if (result?.success) {
+        if (result?.data) {
+          setFormValues(getInitialServiceFormValues(result.data))
+          setSlugTouched(true)
+        }
+
+        setErrors({})
+        setSubmitTone('success')
+        setSubmitMessage(result?.message || 'Đã lưu dịch vụ thành công.')
+        return
+      }
+
+      if (!result?.success) {
+        if (result?.fieldErrors && Object.keys(result.fieldErrors).length > 0) {
+          setErrors(result.fieldErrors)
+        }
+
+        setSubmitTone('error')
+        setSubmitMessage(result?.message || 'Chưa thể lưu dịch vụ. Vui lòng thử lại.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -373,9 +372,13 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
       aria-labelledby={titleId}
       className="admin-service-modal admin-service-modal--figma-create"
       role="dialog"
-      onClick={onClose}
+      onClick={handleRequestClose}
     >
-      <div className="admin-service-modal__dialog" onClick={(event) => event.stopPropagation()}>
+      <div
+        aria-busy={isSubmitting}
+        className="admin-service-modal__dialog"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="admin-service-modal__header">
           <div className="admin-service-modal__header-copy">
             <h2 className="admin-service-modal__title" id={titleId}>
@@ -422,8 +425,9 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
           <button
             aria-label="Đóng modal dịch vụ"
             className="admin-service-modal__close"
+            disabled={isSubmitting}
             type="button"
-            onClick={onClose}
+            onClick={handleRequestClose}
           >
             ×
           </button>
@@ -522,7 +526,13 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                 </div>
               </section>
 
-              {formValues.service_type === 'tour' ? <TimelinePreview /> : null}
+              {formValues.service_type === 'tour' ? (
+                <AdminTourItinerarySection
+                  error={errors['details.itinerary']}
+                  itinerary={formValues.details.itinerary}
+                  onChange={(nextItinerary) => handleDetailValueChange('itinerary', nextItinerary)}
+                />
+              ) : null}
 
               <section className="admin-service-modal__section">
                 <div className="admin-service-modal__section-heading">
@@ -660,25 +670,54 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                   />
                 </FieldShell>
               </section>
-
-              <div className="admin-service-modal__side-actions">
-                <button className="admin-service-modal__button admin-service-modal__button--primary" type="button" onClick={() => handleSubmit('save')}>
-                  {submitLabel}
-                </button>
-                <button className="admin-service-modal__button admin-service-modal__button--secondary" type="button" onClick={() => handleSubmit('draft')}>
-                  Lưu bản nháp
-                </button>
-              </div>
             </aside>
           </div>
         </div>
 
         <div className="admin-service-modal__footer">
-          <button className="admin-service-modal__button admin-service-modal__button--ghost" type="button" onClick={onClose}>
-            Hủy
-          </button>
+          <div className="admin-service-modal__side-actions admin-service-modal__side-actions--footer">
+            <button
+              className="admin-service-modal__button admin-service-modal__button--secondary"
+              disabled={isSubmitting}
+              type="button"
+              onClick={() => handleSubmit('draft')}
+            >
+              {isSubmitting ? 'Đang lưu...' : 'Lưu bản nháp'}
+            </button>
+            <button
+              className="admin-service-modal__button admin-service-modal__button--primary"
+              disabled={isSubmitting}
+              type="button"
+              onClick={() => handleSubmit('save')}
+            >
+              {isSubmitting ? 'Đang lưu...' : submitLabel}
+            </button>
+          </div>
         </div>
       </div>
+
+        {submitMessage ? (
+          <div
+            aria-live="polite"
+            className={cx(
+              'admin-service-modal__toast',
+              submitTone === 'success'
+                ? 'admin-service-modal__toast--success'
+                : 'admin-service-modal__toast--error',
+            )}
+            role={submitTone === 'success' ? 'status' : 'alert'}
+          >
+            <strong>
+              {submitTone === 'success'
+                ? 'Đã lưu thành công.'
+                : 'Chưa thể hoàn tất thao tác lưu.'}
+            </strong>
+            <p>{submitMessage}</p>
+            <div className="admin-service-modal__toast-progress" aria-hidden="true">
+              <span className="admin-service-modal__toast-progress-bar" />
+            </div>
+          </div>
+        ) : null}
     </div>
   )
 }

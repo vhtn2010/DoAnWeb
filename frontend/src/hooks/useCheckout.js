@@ -4,11 +4,15 @@ import { CHECKOUT_VALID_VOUCHER_CODES } from '../constants/checkout.js'
 import {
   applyVoucher,
   buildCheckoutPayload,
+  calculateCheckoutSummary,
   getCheckoutDraft,
   submitCheckout,
   validateCheckoutForm,
 } from '../repositories/checkoutRepository.js'
-import { syncCheckoutDraftTravellers } from '../mappers/checkoutMappers.js'
+import {
+  getCheckoutBaggageFeeAmount,
+  syncCheckoutDraftTravellers,
+} from '../mappers/checkoutMappers.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
@@ -22,6 +26,36 @@ function clearFieldError(currentErrors, fieldName) {
   const nextErrors = { ...currentErrors }
   delete nextErrors[fieldName]
   return nextErrors
+}
+
+function resolveCheckoutSubmitError(error) {
+  if (error?.code === 'CART_ITEM_NOT_AVAILABLE') {
+    return 'Dịch vụ trong giỏ hàng vừa được cập nhật trạng thái. Vui lòng quay lại giỏ hàng kiểm tra lại số lượng hoặc ngày đi rồi thanh toán lại.'
+  }
+
+  if (error?.code === 'CART_EMPTY') {
+    return 'Giỏ hàng hiện không còn dịch vụ nào để thanh toán.'
+  }
+
+  return error?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.'
+}
+
+function resolveReadableCheckoutSubmitError(error) {
+  const fallbackMessage = resolveCheckoutSubmitError(error)
+
+  if (!error?.code && !error?.message) {
+    return fallbackMessage
+  }
+
+  if (error?.code === 'CART_ITEM_NOT_AVAILABLE') {
+    return 'Dịch vụ trong giỏ hàng hiện không còn đủ điều kiện thanh toán. Vui lòng kiểm tra lại số lượng hoặc ngày đi trong giỏ hàng rồi thử lại.'
+  }
+
+  if (error?.code === 'CART_EMPTY') {
+    return 'Giỏ hàng hiện không còn dịch vụ nào để thanh toán.'
+  }
+
+  return error?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.'
 }
 
 export default function useCheckout() {
@@ -61,6 +95,27 @@ export default function useCheckout() {
   const [submitFeedback, setSubmitFeedback] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  function buildSummaryWithDraftValues(currentDraft, {
+    discountAmount,
+    specialRequests,
+  } = {}) {
+    return calculateCheckoutSummary({
+      subtotal_amount: currentDraft?.summary?.subtotal_amount ?? baseSummary?.subtotal_amount ?? 0,
+      vat_amount: currentDraft?.summary?.vat_amount ?? baseSummary?.vat_amount ?? 0,
+      service_fee_amount:
+        currentDraft?.summary?.service_fee_amount ?? baseSummary?.service_fee_amount ?? 0,
+      surcharge_amount: getCheckoutBaggageFeeAmount(
+        specialRequests ?? currentDraft?.special_requests ?? {},
+      ),
+      discount_amount:
+        discountAmount ??
+        currentDraft?.summary?.discount_amount ??
+        baseSummary?.discount_amount ??
+        0,
+      special_requests: specialRequests ?? currentDraft?.special_requests ?? {},
+    })
+  }
 
   useEffect(() => {
     let isActive = true
@@ -121,8 +176,13 @@ export default function useCheckout() {
 
     return {
       ...checkoutDraft.summary,
+      has_baggage_fee: checkoutDraft.summary.baggage_fee_amount > 0,
       subtotal_amount: formatCurrencyVND(checkoutDraft.summary.subtotal_amount),
+      vat_amount: formatCurrencyVND(checkoutDraft.summary.vat_amount),
       service_fee_amount: formatCurrencyVND(checkoutDraft.summary.service_fee_amount),
+      baggage_fee_amount: formatCurrencyVND(checkoutDraft.summary.baggage_fee_amount),
+      surcharge_amount: formatCurrencyVND(checkoutDraft.summary.surcharge_amount),
+      tax_and_fee_amount: formatCurrencyVND(checkoutDraft.summary.tax_and_fee_amount),
       discount_amount: formatCurrencyVND(checkoutDraft.summary.discount_amount),
       total_amount: formatCurrencyVND(checkoutDraft.summary.total_amount),
     }
@@ -184,15 +244,20 @@ export default function useCheckout() {
         return currentDraft
       }
 
+      const nextSpecialRequests = {
+        ...currentDraft.special_requests,
+        [baggageKey]: !currentDraft.special_requests?.[baggageKey],
+      }
+
       return {
         ...currentDraft,
-        special_requests: {
-          ...currentDraft.special_requests,
-          [baggageKey]: !currentDraft.special_requests?.[baggageKey],
-        },
+        special_requests: nextSpecialRequests,
+        summary: buildSummaryWithDraftValues(currentDraft, {
+          specialRequests: nextSpecialRequests,
+        }),
       }
     })
-    setSubmitFeedback('Đã cập nhật yêu cầu chuẩn bị cho hành trình của bạn.')
+    setSubmitFeedback('Đã cập nhật yêu cầu hành lý ký gửi cho đơn hàng của bạn.')
   }
 
   function handleVoucherChange(event) {
@@ -212,7 +277,9 @@ export default function useCheckout() {
       return {
         ...currentDraft,
         voucher_code: value,
-        summary: shouldResetSummary ? baseSummary : currentDraft.summary,
+        summary: shouldResetSummary
+          ? buildSummaryWithDraftValues(currentDraft, { discountAmount: 0 })
+          : currentDraft.summary,
       }
     })
     setVoucherFeedback('')
@@ -231,14 +298,14 @@ export default function useCheckout() {
     }
 
     try {
-      const response = await applyVoucher(
-        normalizedVoucher,
-        baseSummary ?? checkoutDraft.summary,
-        {
-          authState,
-          cartId: checkoutDraft.cart_id,
-        },
-      )
+      const summaryBeforeDiscount = buildSummaryWithDraftValues(checkoutDraft, {
+        discountAmount: 0,
+      })
+
+      const response = await applyVoucher(normalizedVoucher, summaryBeforeDiscount, {
+        authState,
+        cartId: checkoutDraft.cart_id,
+      })
 
       if (!response.success || !response.data) {
         setVoucherFeedback(response.message ?? 'Mã ưu đãi không hợp lệ hoặc chưa áp dụng được.')
@@ -253,7 +320,9 @@ export default function useCheckout() {
         return {
           ...currentDraft,
           voucher_code: response.data.voucher_code,
-          summary: response.data.summary,
+          summary: buildSummaryWithDraftValues(currentDraft, {
+            discountAmount: response.data.summary?.discount_amount ?? 0,
+          }),
         }
       })
       setVoucherFeedback(response.message)
@@ -286,14 +355,12 @@ export default function useCheckout() {
       })
 
       if (!response.success || !response.data) {
-        setSubmitFeedback(response.message ?? 'Khong the chuan bi buoc thanh toan luc nay.')
+        setSubmitFeedback(response.message ?? 'Không thể chuẩn bị bước thanh toán lúc này.')
         return
       }
 
       setSubmitFeedback(response.message)
-      navigate(
-        preserveAuthQuery('/payment-confirmation'),
-        {
+      navigate(preserveAuthQuery('/payment-confirmation'), {
         state: {
           booking: response.data,
           bookingCode: response.data.booking_code,
@@ -302,10 +369,9 @@ export default function useCheckout() {
           checkoutPayload: response.data.checkout_payload ?? checkoutPayload,
           selectedCartItemIds,
         },
-        },
-      )
+      })
     } catch (submitError) {
-      setSubmitFeedback(submitError?.message ?? 'Không thể chuẩn bị thông tin đặt đơn lúc này.')
+      setSubmitFeedback(resolveReadableCheckoutSubmitError(submitError))
     }
   }
 

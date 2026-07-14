@@ -331,6 +331,7 @@ export default function useAdminSupport() {
     selectedTicket,
     sendReply,
     setCurrentPage,
+    setFeedback,
     setIsInternalNote,
     setReplyMessage,
     setSearchQuery,

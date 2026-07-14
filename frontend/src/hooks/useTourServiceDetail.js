@@ -75,8 +75,12 @@ function formatDateTimeStamp(date, time = '08:00:00') {
 
 function buildTourCartItem({
   adultCount,
+  adultPrice,
   childCount,
+  childPrice,
   departureDate,
+  infantCount = 0,
+  infantPrice = 0,
   service,
   totalPrice,
 }) {
@@ -93,10 +97,15 @@ function buildTourCartItem({
     start_at: formatDateTimeStamp(startDate, '08:00:00'),
     end_at: formatDateTimeStamp(endDate, '18:00:00'),
     quantity: travellerCount,
-    unit_price_snapshot: totalPrice,
+    unit_price_snapshot: adultPrice,
     options: {
       adult_count: adultCount,
+      adult_price: adultPrice,
       child_count: childCount,
+      child_price: childPrice,
+      infant_count: infantCount,
+      infant_price: infantPrice,
+      selected_total_price: totalPrice,
       departure_date: departureDate,
       duration_text: service.duration_text,
       package_name: service.tour_type ?? service.title,
@@ -149,7 +158,11 @@ export default function useTourServiceDetail() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({
+        behavior: 'smooth',
+        left: 0,
+        top: 0,
+      })
     }
   }, [slug])
 
@@ -277,7 +290,9 @@ export default function useTourServiceDetail() {
 
     const cartItem = buildTourCartItem({
       adultCount,
+      adultPrice: service?.sale_price ?? 0,
       childCount,
+      childPrice: childUnitPrice,
       departureDate,
       service,
       totalPrice,
@@ -323,7 +338,6 @@ export default function useTourServiceDetail() {
           ? 'Tour đã được thêm vào giỏ hàng của bạn.'
           : 'Tour đã được thêm vào giỏ hàng xem trước.',
       )
-      navigate(buildPublicAuthPath('/cart', isCustomer))
     } catch (error) {
       setBookingMessage(error?.message ?? 'Không thể thêm tour vào giỏ hàng lúc này.')
     } finally {

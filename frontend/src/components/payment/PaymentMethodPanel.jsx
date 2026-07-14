@@ -1,6 +1,4 @@
 import { PAYMENT_METHOD_CODES } from '../../constants/payments.js'
-import { normalizePaymentMethod } from '../../mappers/paymentMappers.js'
-import PaymentQrCodePanel from './PaymentQrCodePanel.jsx'
 
 function PaymentIcon() {
   return (
@@ -24,48 +22,24 @@ function PaymentIcon() {
   )
 }
 
-function LockIcon() {
-  return (
-    <svg fill="none" viewBox="0 0 20 20">
-      <rect
-        height="8.5"
-        rx="2.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        width="10"
-        x="5"
-        y="8.5"
-      />
-      <path
-        d="M7.5 8.5V6.8A2.5 2.5 0 0 1 10 4.3a2.5 2.5 0 0 1 2.5 2.5v1.7"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.6"
-      />
-    </svg>
-  )
+function resolveMethodHelper(method) {
+  if (method?.code === PAYMENT_METHOD_CODES.manualBankTransfer) {
+    return 'Sau khi xác nhận, bạn sẽ được chuyển sang màn hình QR để xem thông tin chuyển khoản và tải bill.'
+  }
+
+  if (method?.code === PAYMENT_METHOD_CODES.cashAtOffice) {
+    return 'Thanh toán trực tiếp tại văn phòng, không phát sinh phí xử lý thêm trong giai đoạn này.'
+  }
+
+  return 'Sau khi xác nhận, nhân viên sẽ liên hệ với bạn để hướng dẫn thanh toán trực tiếp và xác nhận đơn.'
 }
 
 function PaymentMethodPanel({
-  amountLabel,
-  bookingCode,
-  cardNumber,
   errors,
   methods,
-  onCardNumberChange,
-  onProofFieldChange,
-  onProofFileChange,
   onSelectMethod,
-  payment,
-  paymentProof,
-  proofForm,
   selectedMethod,
-  selectedMethodMeta,
-  uploadingProof,
 }) {
-  const isCardMethod =
-    normalizePaymentMethod(selectedMethod) === PAYMENT_METHOD_CODES.card
-
   return (
     <section className="payment-method-panel">
       <header className="payment-method-panel__header">
@@ -75,73 +49,57 @@ function PaymentMethodPanel({
         <div>
           <h2 className="payment-method-panel__title">Phương thức thanh toán</h2>
           <p className="payment-method-panel__subtitle">
-            Chọn cách thanh toán phù hợp nhất cho đơn hàng của bạn.
+            Chọn phương thức phù hợp trước khi tiếp tục. Nếu chọn chuyển khoản ngân hàng, hệ thống
+            sẽ đưa bạn sang màn hình thanh toán riêng để xem QR và gửi bill.
           </p>
         </div>
       </header>
 
-      <div className="payment-method-panel__options">
-        {methods.map((method) => {
-          const isActive = method.code === selectedMethod
+      {methods.length > 0 ? (
+        <div className="payment-method-panel__options">
+          {methods.map((method) => {
+            const isActive = method.code === selectedMethod
 
-          return (
-            <button
-              className={`payment-method-panel__option ${
-                isActive ? 'payment-method-panel__option--active' : ''
-              }`}
-              key={method.id}
-              type="button"
-              onClick={() => onSelectMethod(method.code)}
-            >
-              <span className="payment-method-panel__option-copy">
-                <strong>{method.label}</strong>
-                <small>{method.description}</small>
-              </span>
-              <span
-                className={`payment-method-panel__option-dot ${
-                  isActive ? 'payment-method-panel__option-dot--active' : ''
-                }`}
-                aria-hidden="true"
-              />
-            </button>
-          )
-        })}
-      </div>
+            return (
+              <div className="payment-method-panel__option-group" key={method.id}>
+                <button
+                  className={`payment-method-panel__option ${
+                    isActive ? 'payment-method-panel__option--active' : ''
+                  }`}
+                  type="button"
+                  onClick={() => onSelectMethod(method.code)}
+                >
+                  <span className="payment-method-panel__option-copy">
+                    <strong>{method.label}</strong>
+                    <small>{method.description}</small>
+                  </span>
+                  <span
+                    className={`payment-method-panel__option-dot ${
+                      isActive ? 'payment-method-panel__option-dot--active' : ''
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {isActive ? (
+                  <p className="payment-method-panel__helper" role="note">
+                    {resolveMethodHelper(method)}
+                  </p>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="payment-method-panel__error">
+          Hiện chưa có phương thức thanh toán trực tiếp khả dụng. Vui lòng liên hệ bộ phận hỗ trợ
+          để được hướng dẫn thêm.
+        </p>
+      )}
 
       {errors.selected_payment_method ? (
         <p className="payment-method-panel__error">{errors.selected_payment_method}</p>
       ) : null}
-
-      {isCardMethod ? (
-        <label className="payment-method-panel__card-field">
-          <span>Số thẻ</span>
-          <div className="payment-method-panel__card-input">
-            <input
-              placeholder="0000 0000 0000 0000"
-              type="text"
-              value={cardNumber}
-              onChange={onCardNumberChange}
-            />
-            <span className="payment-method-panel__card-lock" aria-hidden="true">
-              <LockIcon />
-            </span>
-          </div>
-          {errors.card_number ? <small>{errors.card_number}</small> : null}
-        </label>
-      ) : (
-        <PaymentQrCodePanel
-          amountLabel={amountLabel}
-          bookingCode={bookingCode}
-          errors={errors}
-          method={selectedMethodMeta}
-          onProofFieldChange={onProofFieldChange}
-          onProofFileChange={onProofFileChange}
-          payment={payment}
-          paymentProof={paymentProof}
-          proofForm={proofForm}
-          uploadingProof={uploadingProof}
-        />
-      )}
     </section>
   )
 }

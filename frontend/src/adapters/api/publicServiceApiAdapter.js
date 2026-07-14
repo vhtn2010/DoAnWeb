@@ -5,6 +5,13 @@ import { apiGet } from '../../services/apiClient.js'
 const DEFAULT_LOCATION_LIMIT = 10
 const FALLBACK_TOUR_IMAGE_URL = '/assets/template/service/list/tour-mien-trung.png'
 
+function withCacheBust(params = {}) {
+  return {
+    ...params,
+    _t: Date.now(),
+  }
+}
+
 function toNumber(value) {
   if (value == null || value === '') {
     return null
@@ -46,13 +53,13 @@ function normalizeTourCard(service = {}) {
       salePrice < resolvedBasePrice,
     id: service.id ?? fallbackSlug,
     image_url: service.primary_image ?? service.image_url ?? FALLBACK_TOUR_IMAGE_URL,
-    location_text: service.location_text ?? 'Dang cap nhat',
+    location_text: service.location_text ?? 'Đang cập nhật',
     sale_price: resolvedSalePrice,
     service_type: service.service_type ?? SERVICE_TYPES.tour,
     short_description: service.short_description ?? '',
     slug: fallbackSlug,
     status: service.status ?? 'active',
-    title: service.title ?? 'Tour dang cap nhat',
+    title: service.title ?? 'Tour đang cập nhật',
   }
 }
 
@@ -89,7 +96,7 @@ export async function listTourServices({
   sort = DEFAULT_TOUR_SORT,
 } = {}) {
   const response = await apiGet('/services', {
-    query: {
+    query: withCacheBust({
       limit,
       location,
       max_price: maxPrice,
@@ -98,7 +105,7 @@ export async function listTourServices({
       q,
       sort,
       type: SERVICE_TYPES.tour,
-    },
+    }),
   })
 
   return {
@@ -109,7 +116,9 @@ export async function listTourServices({
 }
 
 export async function getTourServiceBySlug(slug) {
-  const response = await apiGet(`/services/${slug}`)
+  const response = await apiGet(`/services/${slug}`, {
+    query: withCacheBust(),
+  })
   const service = response.data ?? null
 
   if (!service || service.service_type !== SERVICE_TYPES.tour) {
@@ -126,7 +135,9 @@ export async function getTourServiceBySlug(slug) {
 
   if (service.id) {
     try {
-      const imagesResponse = await apiGet(`/services/${service.id}/images`)
+      const imagesResponse = await apiGet(`/services/${service.id}/images`, {
+        query: withCacheBust(),
+      })
       galleryImages = buildGalleryImages(service.primary_image, imagesResponse.data)
     } catch {
       galleryImages = buildGalleryImages(service.primary_image, [])
@@ -149,10 +160,10 @@ export async function getFeaturedTourServices({
 } = {}) {
   const safeLimit = Math.max(Number(limit) || 3, 1)
   const response = await apiGet('/services/featured', {
-    query: {
+    query: withCacheBust({
       limit: excludeSlug ? safeLimit + 1 : safeLimit,
       type: SERVICE_TYPES.tour,
-    },
+    }),
   })
   const normalizedServices = Array.isArray(response.data)
     ? response.data.map(normalizeTourCard).filter((service) => service.slug !== excludeSlug)
@@ -176,14 +187,18 @@ export async function getFeaturedTourServices({
 
 export async function getTourServiceCatalog() {
   const [filterOptionsResponse, popularLocationsResponse, enumResponse] = await Promise.all([
-    apiGet('/services/filter-options'),
+    apiGet('/services/filter-options', {
+      query: withCacheBust(),
+    }),
     apiGet('/locations/popular', {
-      query: {
+      query: withCacheBust({
         limit: DEFAULT_LOCATION_LIMIT,
         type: SERVICE_TYPES.tour,
-      },
+      }),
     }),
-    apiGet('/lookups/enums'),
+    apiGet('/lookups/enums', {
+      query: withCacheBust(),
+    }),
   ])
 
   return {

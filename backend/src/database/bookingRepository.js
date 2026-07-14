@@ -59,6 +59,9 @@ const createBookingRepository = ({
           b.contact_phone,
           b.subtotal_amount,
           b.discount_amount,
+          b.vat_amount,
+          b.service_fee_amount,
+          b.surcharge_amount,
           b.total_amount,
           b.currency,
           b.voucher_id,
@@ -213,6 +216,9 @@ const createBookingRepository = ({
             b.contact_name,
             b.subtotal_amount,
             b.discount_amount,
+            b.vat_amount,
+            b.service_fee_amount,
+            b.surcharge_amount,
             b.total_amount,
             b.currency,
             b.expires_at,
@@ -230,6 +236,9 @@ const createBookingRepository = ({
             b.contact_name,
             b.subtotal_amount,
             b.discount_amount,
+            b.vat_amount,
+            b.service_fee_amount,
+            b.surcharge_amount,
             b.total_amount,
             b.currency,
             b.expires_at,
@@ -315,8 +324,16 @@ const createBookingRepository = ({
           s.status,
           s.cancellation_policy,
           s.metadata,
+          image.image_url AS primary_image,
           s.created_at
         FROM services s
+        LEFT JOIN LATERAL (
+          SELECT si.image_url
+          FROM service_images si
+          WHERE si.service_id = s.id
+          ORDER BY si.is_primary DESC, si.sort_order ASC, si.created_at ASC, si.id ASC
+          LIMIT 1
+        ) image ON TRUE
         WHERE s.id = $1
           AND s.status = 'active'
           AND s.deleted_at IS NULL
@@ -333,8 +350,39 @@ const createBookingRepository = ({
       `
         SELECT
           service_id,
-          departure_schedule
+          departure_location,
+          destination_location,
+          duration_days,
+          duration_nights,
+          transport_type,
+          max_group_size,
+          departure_schedule,
+          itinerary,
+          included_services,
+          excluded_services,
+          terms
         FROM tour_details
+        WHERE service_id = $1
+        LIMIT 1
+      `,
+      [serviceId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getHotelDetail = async (serviceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          service_id,
+          star_rating,
+          address,
+          checkin_time,
+          checkout_time,
+          amenities,
+          hotel_policy
+        FROM hotel_details
         WHERE service_id = $1
         LIMIT 1
       `,
@@ -483,6 +531,9 @@ const createBookingRepository = ({
           b.contact_phone,
           b.subtotal_amount,
           b.discount_amount,
+          b.vat_amount,
+          b.service_fee_amount,
+          b.surcharge_amount,
           b.total_amount,
           b.currency,
           b.voucher_id,
@@ -580,6 +631,9 @@ const createBookingRepository = ({
             contact_phone,
             subtotal_amount,
             discount_amount,
+            vat_amount,
+            service_fee_amount,
+            surcharge_amount,
             total_amount,
             currency,
             voucher_id,
@@ -589,7 +643,7 @@ const createBookingRepository = ({
             updated_at
           )
           VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW()
           )
           RETURNING
             id,
@@ -601,6 +655,9 @@ const createBookingRepository = ({
             contact_phone,
             subtotal_amount,
             discount_amount,
+            vat_amount,
+            service_fee_amount,
+            surcharge_amount,
             total_amount,
             currency,
             voucher_id,
@@ -618,6 +675,9 @@ const createBookingRepository = ({
           booking.contact_phone,
           booking.subtotal_amount,
           booking.discount_amount,
+          booking.vat_amount,
+          booking.service_fee_amount,
+          booking.surcharge_amount,
           booking.total_amount,
           booking.currency,
           booking.voucher_id,
@@ -946,6 +1006,7 @@ const createBookingRepository = ({
     getCartById,
     getFlightDetailById,
     getPublicServiceById,
+    getHotelDetail,
     getRoomTypeById,
     getTourDetail,
     getTrainDetailById,

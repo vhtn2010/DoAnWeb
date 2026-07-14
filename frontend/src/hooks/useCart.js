@@ -6,24 +6,42 @@ import {
   getActiveCart,
   removeCartItem,
   removeCartVoucher,
+  updateCartItem,
   validateCart,
 } from '../repositories/cartRepository.js'
+import { getCurrentUserVouchers } from '../repositories/profileRepository.js'
 import {
   createCartSummaryFromItems,
   createCartSummaryPayload,
+  mapCartItemToView,
   mapCartResponseToView,
 } from '../mappers/cartMappers.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
 const EMPTY_SUMMARY = Object.freeze({
   subtotal_amount: 0,
   discount_amount: 0,
+  vat_amount: 0,
+  service_fee_amount: 0,
+  surcharge_amount: 0,
+  tax_and_fee_amount: 0,
   total_amount: 0,
   currency: 'VND',
+  pricing_breakdown: {
+    items: [],
+    vat_rate: 0.08,
+  },
   selected_item_count: 0,
+})
+
+const voucherDateFormatter = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
 })
 
 function createFeedbackState(tone = 'info', message = '') {
@@ -56,13 +74,122 @@ function buildItemRoute(item) {
   return `/services/${slug}`
 }
 
+function getTourPassengerCounts(item = {}) {
+  const options = item.options ?? {}
+  const childCount = Math.max(Number(options.child_count) || 0, 0)
+  const adultCount = Math.max(
+    Number(options.adult_count) || Math.max((Number(item.quantity) || 1) - childCount, 1),
+    1,
+  )
+
+  return {
+    adult_count: adultCount,
+    child_count: childCount,
+  }
+}
+
 function normalizeServerSummary(summary = {}, fallbackItemCount = 0) {
+  const vatAmount = Number(summary.vat_amount ?? summary.tax_amount ?? 0)
+  const serviceFeeAmount = Number(summary.service_fee_amount ?? 0)
+  const surchargeAmount = Number(summary.surcharge_amount ?? 0)
+
   return {
     currency: summary.currency ?? 'VND',
     discount_amount: Number(summary.discount_amount ?? 0),
+    pricing_breakdown: summary.pricing_breakdown ?? EMPTY_SUMMARY.pricing_breakdown,
     selected_item_count: Number(summary.item_count ?? fallbackItemCount),
+    service_fee_amount: serviceFeeAmount,
     subtotal_amount: Number(summary.subtotal_amount ?? 0),
+    surcharge_amount: surchargeAmount,
+    tax_and_fee_amount: Number(
+      summary.tax_and_fee_amount ??
+        vatAmount + serviceFeeAmount + surchargeAmount,
+    ),
     total_amount: Number(summary.total_amount ?? 0),
+    vat_amount: vatAmount,
+  }
+}
+
+function formatVoucherDate(value) {
+  const parsedDate = value ? new Date(value) : null
+
+  if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+    return ''
+  }
+
+  return voucherDateFormatter.format(parsedDate)
+}
+
+function formatVoucherDiscountLabel(voucher = {}) {
+  if (voucher.discount_type === 'percent') {
+    const percentValue = Number(voucher.discount_value || 0)
+    const maxDiscountLabel = voucher.max_discount_amount
+      ? `, tối đa ${formatCurrencyVND(voucher.max_discount_amount)}`
+      : ''
+
+    return `${percentValue}%${maxDiscountLabel}`
+  }
+
+  return formatCurrencyVND(voucher.discount_value)
+}
+
+function formatVoucherMinOrderLabel(voucher = {}) {
+  const minOrderAmount = Number(voucher.min_order_amount || 0)
+
+  if (minOrderAmount <= 0) {
+    return 'Không yêu cầu đơn tối thiểu'
+  }
+
+  return `Đơn từ ${formatCurrencyVND(minOrderAmount)}`
+}
+
+function formatVoucherTargetLabel(serviceType) {
+  if (serviceType === SERVICE_TYPES.flight) {
+    return 'Áp dụng cho vé máy bay'
+  }
+
+  if (serviceType === SERVICE_TYPES.train) {
+    return 'Áp dụng cho vé tàu'
+  }
+
+  if (serviceType === SERVICE_TYPES.hotel || serviceType === SERVICE_TYPES.room) {
+    return 'Áp dụng cho khách sạn'
+  }
+
+  if (serviceType === SERVICE_TYPES.tour) {
+    return 'Áp dụng cho tour'
+  }
+
+  if (serviceType === SERVICE_TYPES.combo) {
+    return 'Áp dụng cho combo'
+  }
+
+  return 'Áp dụng cho nhiều dịch vụ'
+}
+
+function formatVoucherValidityLabel(voucher = {}) {
+  if (voucher.valid_to) {
+    return `Hạn dùng đến ${formatVoucherDate(voucher.valid_to)}`
+  }
+
+  return 'Đang cập nhật thời hạn'
+}
+
+function mapVoucherWalletItem(voucher = {}) {
+  return {
+    code: String(voucher.code || '').toUpperCase(),
+    description:
+      voucher.description ||
+      voucher.title ||
+      'Ưu đãi này đang sẵn sàng để áp dụng cho giỏ hàng phù hợp của bạn.',
+    discount_label: formatVoucherDiscountLabel(voucher),
+    id: voucher.id || '',
+    min_order_label: formatVoucherMinOrderLabel(voucher),
+    promotion_name: voucher.promotion?.name || '',
+    status: voucher.status || 'expired',
+    target_label: formatVoucherTargetLabel(voucher.target_service_type),
+    title: voucher.title || voucher.promotion?.name || voucher.code || 'Voucher',
+    validity_label: formatVoucherValidityLabel(voucher),
   }
 }
 
@@ -81,6 +208,12 @@ export default function useCart() {
   const [voucherCode, setVoucherCode] = useState('')
   const [appliedVoucher, setAppliedVoucher] = useState(null)
   const [voucherLoading, setVoucherLoading] = useState(false)
+  const [updatingItemIds, setUpdatingItemIds] = useState([])
+  const [isVoucherPickerOpen, setIsVoucherPickerOpen] = useState(false)
+  const [voucherWallet, setVoucherWallet] = useState([])
+  const [voucherWalletLoading, setVoucherWalletLoading] = useState(false)
+  const [voucherWalletError, setVoucherWalletError] = useState('')
+  const [hasLoadedVoucherWallet, setHasLoadedVoucherWallet] = useState(false)
 
   function buildSummary(nextCartItems, nextSelectedItemIds = []) {
     return createCartSummaryFromItems(nextCartItems, nextSelectedItemIds)
@@ -99,6 +232,36 @@ export default function useCart() {
     return {
       cart: nextCartState.cart,
       cartItems: nextCartState.cart_items,
+    }
+  }
+
+  async function loadVoucherWallet({ force = false } = {}) {
+    if (!isCustomer) {
+      return
+    }
+
+    if (voucherWalletLoading || (hasLoadedVoucherWallet && !force)) {
+      return
+    }
+
+    setVoucherWalletLoading(true)
+    setVoucherWalletError('')
+
+    try {
+      const response = await getCurrentUserVouchers()
+      const nextVoucherWallet = Array.isArray(response?.data)
+        ? response.data.map((voucher) => mapVoucherWalletItem(voucher))
+        : []
+
+      setVoucherWallet(nextVoucherWallet)
+      setHasLoadedVoucherWallet(true)
+    } catch (loadError) {
+      setVoucherWallet([])
+      setVoucherWalletError(
+        loadError?.message || 'Không thể tải kho voucher của bạn lúc này.',
+      )
+    } finally {
+      setVoucherWalletLoading(false)
     }
   }
 
@@ -122,6 +285,10 @@ export default function useCart() {
         setSelectedItemIds([])
         setSummary(buildSummary(nextCartState.cartItems, []))
         resetVoucherState()
+        setIsVoucherPickerOpen(false)
+        setVoucherWallet([])
+        setVoucherWalletError('')
+        setHasLoadedVoucherWallet(false)
       } catch (loadError) {
         if (!isActive) {
           return
@@ -132,6 +299,10 @@ export default function useCart() {
         setSelectedItemIds([])
         setSummary(EMPTY_SUMMARY)
         resetVoucherState()
+        setIsVoucherPickerOpen(false)
+        setVoucherWallet([])
+        setVoucherWalletError('')
+        setHasLoadedVoucherWallet(false)
         setError(loadError?.message ?? 'Không thể tải giỏ hàng lúc này.')
       } finally {
         if (isActive) {
@@ -233,6 +404,146 @@ export default function useCart() {
     }
   }
 
+  async function handleQuantityChange(item, nextQuantity) {
+    if (!cart?.id || !item?.id) {
+      return
+    }
+
+    const normalizedQuantity = Math.max(Number(nextQuantity) || 1, 1)
+
+    if (normalizedQuantity === Number(item.quantity)) {
+      return
+    }
+
+    const currentTourPassengerCounts = getTourPassengerCounts(item)
+    const nextPayload =
+      item.service_type === SERVICE_TYPES.tour
+        ? (() => {
+            const currentQuantity = Math.max(Number(item.quantity) || 1, 1)
+            const delta = normalizedQuantity - currentQuantity
+            const nextAdultCount = Math.max(currentTourPassengerCounts.adult_count + delta, 1)
+            const nextQuantityValue = Math.max(
+              nextAdultCount + currentTourPassengerCounts.child_count,
+              1,
+            )
+
+            return {
+              options: {
+                ...(item.options ?? {}),
+                ...currentTourPassengerCounts,
+                adult_count: nextAdultCount,
+              },
+              quantity: nextQuantityValue,
+            }
+          })()
+        : {
+            quantity: normalizedQuantity,
+          }
+
+    setError('')
+    setUpdatingItemIds((currentIds) =>
+      currentIds.includes(item.id) ? currentIds : [...currentIds, item.id],
+    )
+
+    try {
+      const response = await updateCartItem(
+        item.id,
+        nextPayload,
+        { authState },
+      )
+      const responseItem = response.data?.cart_item
+      const fallbackItem = {
+        ...item,
+        options:
+          item.service_type === SERVICE_TYPES.tour
+            ? {
+                ...(item.options ?? {}),
+                ...nextPayload.options,
+              }
+            : item.options,
+        quantity: nextPayload.quantity,
+        total_amount: Number(item.unit_price_snapshot) * nextPayload.quantity,
+      }
+      const nextItem = mapCartItemToView(responseItem ?? fallbackItem)
+      const nextCartItems = cartItems.map((cartItem) =>
+        cartItem.id === item.id ? nextItem : cartItem,
+      )
+
+      setCartItems(nextCartItems)
+      setSummary(buildSummary(nextCartItems, selectedItemIds))
+      resetVoucherState()
+      setFeedback(createFeedbackState('success', 'Đã cập nhật số lượng trong giỏ hàng.'))
+    } catch (updateError) {
+      const nextMessage =
+        updateError?.message ?? 'Không thể cập nhật số lượng dịch vụ trong giỏ hàng.'
+      setError(nextMessage)
+      setFeedback(createFeedbackState('error', nextMessage))
+    } finally {
+      setUpdatingItemIds((currentIds) => currentIds.filter((itemId) => itemId !== item.id))
+    }
+  }
+
+  async function handleTourPassengerChange(item, passengerType, nextCount) {
+    if (!cart?.id || !item?.id || item.service_type !== SERVICE_TYPES.tour) {
+      return
+    }
+
+    const currentCounts = getTourPassengerCounts(item)
+    const normalizedCount =
+      passengerType === 'child_count'
+        ? Math.max(Number(nextCount) || 0, 0)
+        : Math.max(Number(nextCount) || 1, 1)
+    const nextCounts = {
+      ...currentCounts,
+      [passengerType]: normalizedCount,
+    }
+    const nextQuantity = Math.max(nextCounts.adult_count + nextCounts.child_count, 1)
+
+    setError('')
+    setUpdatingItemIds((currentIds) =>
+      currentIds.includes(item.id) ? currentIds : [...currentIds, item.id],
+    )
+
+    try {
+      const response = await updateCartItem(
+        item.id,
+        {
+          options: {
+            ...(item.options ?? {}),
+            ...nextCounts,
+          },
+          quantity: nextQuantity,
+        },
+        { authState },
+      )
+      const responseItem = response.data?.cart_item
+      const fallbackItem = {
+        ...item,
+        options: {
+          ...(item.options ?? {}),
+          ...nextCounts,
+        },
+        quantity: nextQuantity,
+      }
+      const nextItem = mapCartItemToView(responseItem ?? fallbackItem)
+      const nextCartItems = cartItems.map((cartItem) =>
+        cartItem.id === item.id ? nextItem : cartItem,
+      )
+
+      setCartItems(nextCartItems)
+      setSummary(buildSummary(nextCartItems, selectedItemIds))
+      resetVoucherState()
+      setFeedback(createFeedbackState('success', 'Đã cập nhật số hành khách cho tour.'))
+    } catch (updateError) {
+      const nextMessage =
+        updateError?.message ?? 'Không thể cập nhật số hành khách của tour lúc này.'
+      setError(nextMessage)
+      setFeedback(createFeedbackState('error', nextMessage))
+    } finally {
+      setUpdatingItemIds((currentIds) => currentIds.filter((itemId) => itemId !== item.id))
+    }
+  }
+
   function handleEditItem(item) {
     const nextRoute = buildItemRoute(item)
 
@@ -249,7 +560,7 @@ export default function useCart() {
     setFeedback(
       createFeedbackState(
         'info',
-        'Đang mở lại trang dịch vụ để bạn điều chỉnh ngày đi, hạng vé hoặc tùy chọn liên quan.',
+        'Đang mở lại trang dịch vụ để bạn điều chỉnh ngày đi, hạng vé hoặc các tùy chọn liên quan.',
       ),
     )
     navigate(buildPublicAuthPath(nextRoute, isCustomer))
@@ -286,15 +597,21 @@ export default function useCart() {
         return
       }
 
+      const previewBookingCode = resolvePreviewBookingCode()
+
       navigate(buildPublicAuthPath('/booking-confirmation', isCustomer), {
         state: {
           selectedCartItemIds: resolvedSelectedItemIds,
-          cartSummaryPayload: createCartSummaryPayload(
-            cart,
-            summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds),
-            resolvedSelectedItemIds,
-            appliedVoucher?.code ?? voucherCode,
-          ),
+          previewBookingCode,
+          cartSummaryPayload: {
+            ...createCartSummaryPayload(
+              cart,
+              summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds),
+              resolvedSelectedItemIds,
+              appliedVoucher?.code ?? voucherCode,
+            ),
+            preview_booking_code: previewBookingCode,
+          },
         },
       })
     } catch (validateError) {
@@ -314,11 +631,30 @@ export default function useCart() {
     navigate(buildPublicAuthPath('/services', isCustomer))
   }
 
-  async function handleApplyVoucher() {
-    const normalizedCode = voucherCode.trim().toUpperCase()
+  async function handleOpenVoucherPicker() {
+    if (!isCustomer) {
+      setFeedback(
+        createFeedbackState(
+          'error',
+          'Vui lòng đăng nhập tài khoản khách hàng để xem kho voucher của bạn.',
+        ),
+      )
+      return
+    }
+
+    setIsVoucherPickerOpen(true)
+    await loadVoucherWallet()
+  }
+
+  function handleCloseVoucherPicker() {
+    setIsVoucherPickerOpen(false)
+  }
+
+  async function handleApplyVoucher(nextVoucherCode = voucherCode) {
+    const normalizedCode = String(nextVoucherCode || '').trim().toUpperCase()
 
     if (!normalizedCode) {
-      setFeedback(createFeedbackState('error', 'Vui lòng nhập mã voucher để áp dụng.'))
+      setFeedback(createFeedbackState('error', 'Vui lòng chọn voucher để áp dụng.'))
       return
     }
 
@@ -336,6 +672,7 @@ export default function useCart() {
       )
       setAppliedVoucher(response.data?.voucher ?? nextSummary?.voucher ?? null)
       setVoucherCode(normalizedCode)
+      setIsVoucherPickerOpen(false)
       setFeedback(createFeedbackState('success', response.message || 'Đã áp dụng voucher.'))
     } catch (applyError) {
       setFeedback(
@@ -400,18 +737,30 @@ export default function useCart() {
     () => ({
       ...effectiveSummary,
       discount_amount: formatCurrencyVND(effectiveSummary.discount_amount),
+      service_fee_amount: formatCurrencyVND(effectiveSummary.service_fee_amount),
       subtotal_amount: formatCurrencyVND(effectiveSummary.subtotal_amount),
+      surcharge_amount: formatCurrencyVND(effectiveSummary.surcharge_amount),
+      tax_and_fee_amount: formatCurrencyVND(effectiveSummary.tax_and_fee_amount),
       total_amount: formatCurrencyVND(effectiveSummary.total_amount),
+      vat_amount: formatCurrencyVND(effectiveSummary.vat_amount),
     }),
     [effectiveSummary],
   )
 
+  const availableVouchers = useMemo(
+    () => voucherWallet.filter((voucher) => voucher.status === 'active'),
+    [voucherWallet],
+  )
+
   const canContinue = selectedItemIds.length > 0
+  const canApplyVoucherSelection = selectedItemIds.length > 0
   const isAllSelected = cartItems.length > 0 && selectedItemIds.length === cartItems.length
 
   return {
     appliedVoucher,
     authState,
+    availableVouchers,
+    canApplyVoucherSelection,
     canContinue,
     cart,
     cartItems,
@@ -420,9 +769,13 @@ export default function useCart() {
     formattedSummary,
     handleApplyVoucher,
     handleClearCart,
+    handleCloseVoucherPicker,
     handleContinueCheckout,
     handleEditItem,
     handleGoBack,
+    handleOpenVoucherPicker,
+    handleTourPassengerChange,
+    handleQuantityChange,
     handleRemoveItem,
     handleRemoveVoucher,
     handleToggleAll,
@@ -430,10 +783,15 @@ export default function useCart() {
     isAllSelected,
     isCustomer,
     isVoucherLoading: voucherLoading,
+    isVoucherPickerOpen,
+    isVoucherWalletLoading: voucherWalletLoading,
     loading,
+    loadVoucherWallet,
     reloadCart,
     selectedItemIds,
-    setVoucherCode,
+    updatingItemIds,
     voucherCode,
+    voucherWallet,
+    voucherWalletError,
   }
 }

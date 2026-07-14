@@ -18,6 +18,7 @@ const adminBookingService = require('../services/adminBookingService');
 
 const BOOKING_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const BOOKING_ITEM_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const PAYMENT_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalCancelBooking = adminBookingService.cancelBooking;
 const originalGetBookingDetail = adminBookingService.getBookingDetail;
@@ -180,6 +181,24 @@ test('adminBookingService.listBookings validates filters and applies staff servi
               expires_at: '2026-07-02T01:00:00.000Z',
               id: BOOKING_ID,
               item_count: 2,
+              latest_payment_amount: '1400000',
+              latest_payment_created_at: '2026-07-01T01:10:00.000Z',
+              latest_payment_currency: 'VND',
+              latest_payment_expired_at: '2026-07-02T01:00:00.000Z',
+              latest_payment_id: PAYMENT_ID,
+              latest_payment_method: 'manual_bank_transfer',
+              latest_payment_paid_at: null,
+              latest_payment_code: 'PAY202607010001',
+              latest_payment_provider: 'direct',
+              latest_payment_raw_response: {
+                proof: {
+                  bank_transaction_code: 'FT24070123456',
+                  proof_image_url: 'https://res.cloudinary.com/demo/image/upload/v1/proof.jpg',
+                  submitted_at: '2026-07-01T01:20:00.000Z',
+                  transfer_note: 'NVT BK202607010001',
+                },
+              },
+              latest_payment_status: 'pending',
               service_title: 'Tour Da Nang',
               status: BOOKING_STATUS.PAID,
               subtotal_amount: '1500000',
@@ -231,11 +250,34 @@ test('adminBookingService.listBookings validates filters and applies staff servi
         expires_at: '2026-07-02T01:00:00.000Z',
         id: BOOKING_ID,
         item_count: 2,
+        latest_payment: {
+          amount: 1400000,
+          created_at: '2026-07-01T01:10:00.000Z',
+          currency: 'VND',
+          expired_at: '2026-07-02T01:00:00.000Z',
+          has_proof: true,
+          id: PAYMENT_ID,
+          paid_at: null,
+          payment_code: 'PAY202607010001',
+          payment_method: 'manual_bank_transfer',
+          proof_summary: {
+            bank_transaction_code: 'FT24070123456',
+            proof_image_url: 'https://res.cloudinary.com/demo/image/upload/v1/proof.jpg',
+            submitted_at: '2026-07-01T01:20:00.000Z',
+            transfer_note: 'NVT BK202607010001',
+          },
+          provider: 'direct',
+          status: 'pending',
+        },
+        service_fee_amount: 0,
         service_title: 'Tour Da Nang',
         status: BOOKING_STATUS.PAID,
         subtotal_amount: 1500000,
+        surcharge_amount: 0,
+        tax_and_fee_amount: 0,
         total_amount: 1400000,
         updated_at: '2026-07-01T01:30:00.000Z',
+        vat_amount: 0,
       },
     ],
     meta: {
@@ -1941,7 +1983,7 @@ test('adminBookingService.resendBookingConfirmationEmail sends a confirmation em
     bookingId: BOOKING_ID,
     bookingStatus: BOOKING_STATUS.CONFIRMED,
     createdAt: fixedNow,
-    subject: 'Booking BK202607010015 - Gui lai email xac nhan',
+    subject: 'Booking BK202607010015 - Gửi lại email xác nhận',
     templateCode: 'BOOKING_CONFIRMATION_RESEND',
     toEmail: 'customer@example.com',
     userId: 'user-1',
@@ -1950,7 +1992,7 @@ test('adminBookingService.resendBookingConfirmationEmail sends a confirmation em
   assert.equal(emailPayload.to.name, 'Nguyen Van A');
   assert.match(emailPayload.subject, /BK202607010015/);
   assert.match(emailPayload.text, /Tour Da Nang/);
-  assert.match(emailPayload.html, /Tong thanh toan/);
+  assert.match(emailPayload.html, /Tổng thanh toán/);
   assert.deepEqual(sentPayload, {
     emailLogId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
     messageId: 'sendgrid-message-1',

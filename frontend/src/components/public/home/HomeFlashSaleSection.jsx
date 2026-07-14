@@ -39,7 +39,7 @@ function FlashSaleCard({ formatCurrency, index, service }) {
     <Link
       className="home-offer-card"
       to={detailPath}
-      style={{ '--offer-delay': `${index * 120}ms` }}
+      style={{ '--offer-delay': `${480 + index * 170}ms` }}
     >
       <svg className="home-offer-card__outline" aria-hidden="true" preserveAspectRatio="none">
         <rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="27" pathLength="1" />

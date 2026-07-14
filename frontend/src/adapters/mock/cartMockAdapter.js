@@ -119,17 +119,29 @@ export async function updateCartItem(cartItemId, payload = {}) {
     throw new Error('Không tìm thấy dịch vụ cần chỉnh sửa.')
   }
 
-  snapshot.cart_items = snapshot.cart_items.map((item) =>
-    item.id === cartItemId
-      ? {
-          ...item,
-          options: {
-            ...item.options,
-            ...(payload.options ?? {}),
-          },
-        }
-      : item,
-  )
+  let updatedCartItem = null
+
+  snapshot.cart_items = snapshot.cart_items.map((item) => {
+    if (item.id !== cartItemId) {
+      return item
+    }
+
+    const nextQuantity = Number(payload.quantity) > 0
+      ? Number(payload.quantity)
+      : Number(item.quantity) || 1
+    const nextItem = {
+      ...item,
+      options: {
+        ...item.options,
+        ...(payload.options ?? {}),
+      },
+      quantity: nextQuantity,
+      total_amount: Number(item.unit_price_snapshot || 0) * nextQuantity,
+    }
+
+    updatedCartItem = nextItem
+    return nextItem
+  })
   touchCart(snapshot)
 
   return {
@@ -138,6 +150,8 @@ export async function updateCartItem(cartItemId, payload = {}) {
       'Chỉnh sửa chi tiết giỏ hàng sẽ được nối API PATCH /cart/items/{cart_item_id} ở phase integration.',
     data: {
       cart_item_id: cartItemId,
+      cart_item: cloneValue(updatedCartItem),
+      summary: createCartSummaryFromItems(snapshot.cart_items, snapshot.cart_items.map((item) => item.id)),
     },
   }
 }

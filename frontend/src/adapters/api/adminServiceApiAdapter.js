@@ -5,8 +5,6 @@ import {
   apiPost,
 } from '../../services/apiClient.js'
 
-const TRANSPORT_INVENTORY_FIELDS = new Set(['seats_available', 'seats_total'])
-
 function normalizeListParams({
   destination,
   limit,
@@ -138,41 +136,22 @@ function omitUnsupportedCreateFields(payload = {}) {
   }
 }
 
-function stripTransportInventoryFields(details = {}) {
-  return Object.entries(details).reduce((result, [key, value]) => {
-    if (TRANSPORT_INVENTORY_FIELDS.has(key)) {
-      return result
-    }
-
-    result[key] = value
-    return result
-  }, {})
-}
-
-function normalizeDetailsForRequest(serviceType, details, { isUpdate = false } = {}) {
+function normalizeDetailsForRequest(details) {
   if (!details || typeof details !== 'object' || Array.isArray(details)) {
     return details
-  }
-
-  if (isUpdate && (serviceType === 'flight' || serviceType === 'train')) {
-    return stripTransportInventoryFields(details)
   }
 
   return details
 }
 
-function normalizePayloadForRequest(payload = {}, options = {}) {
+function normalizePayloadForRequest(payload = {}) {
   if (!payload.details) {
     return payload
   }
 
   return {
     ...payload,
-    details: normalizeDetailsForRequest(
-      options.serviceType ?? payload.service_type,
-      payload.details,
-      options,
-    ),
+    details: normalizeDetailsForRequest(payload.details),
   }
 }
 
@@ -180,8 +159,8 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function normalizeComboPayloadForRequest(payload = {}, options = {}) {
-  const normalizedPayload = normalizePayloadForRequest(payload, options)
+function normalizeComboPayloadForRequest(payload = {}) {
+  const normalizedPayload = normalizePayloadForRequest(payload)
   const {
     details,
     metadata,
@@ -288,8 +267,8 @@ export async function updateAdminService(serviceId, payload = {}) {
   const response = await apiPatch(
     isComboService ? `/admin/services/combos/${serviceId}` : `/admin/services/${serviceId}`,
     isComboService
-      ? normalizeComboPayloadForRequest(servicePayload, { isUpdate: true, serviceType })
-      : normalizePayloadForRequest(servicePayload, { isUpdate: true, serviceType }),
+      ? normalizeComboPayloadForRequest(servicePayload)
+      : normalizePayloadForRequest(servicePayload),
   )
   const normalizedResponse = normalizeServiceResponse(response)
   const serviceWithImage = await attachPrimaryImageIfNeeded(

@@ -7,6 +7,7 @@ import {
   AdminErrorState,
   AdminLoadingBlock,
   AdminPagination,
+  AdminTextarea,
 } from '../../components/admin/ui/index.js'
 import {
   ADMIN_BOOKING_STATUSES,
@@ -15,13 +16,34 @@ import {
 import useAdminBookings from '../../hooks/useAdminBookings.js'
 import { mapAdminBookingDetail } from '../../mappers/adminBookingMappers.js'
 import { getAdminBookingDetail } from '../../repositories/adminBookingRepository.js'
+import {
+  confirmAdminPayment,
+  rejectAdminPayment,
+} from '../../repositories/adminPaymentRepository.js'
 import { getAdminVoucherDetail } from '../../repositories/adminUtilityRepository.js'
 import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN')
+const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+})
 
 function formatCurrency(value) {
   return `${currencyFormatter.format(value)} Đ`
+}
+
+function formatDisplayDateTime(value) {
+  if (!value) {
+    return 'Chưa có dữ liệu'
+  }
+
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime()) ? 'Chưa có dữ liệu' : dateTimeFormatter.format(date)
 }
 
 function BookingIcon({ name }) {
@@ -139,15 +161,6 @@ function BookingIcon({ name }) {
   }
 }
 
-function BookingMetaItem({ icon, children }) {
-  return (
-    <span className="admin-booking-card__meta-item">
-      <BookingIcon name={icon} />
-      {children}
-    </span>
-  )
-}
-
 function BookingInfoItem({ icon, label, value }) {
   return (
     <p className="admin-booking-card__info-item">
@@ -164,7 +177,7 @@ function getStatusDisplayIcon(tone) {
     return 'x'
   }
 
-  if (tone === 'success' || tone === 'brand') {
+  if (tone === 'success' || tone === 'brand' || tone === 'confirmed') {
     return 'check'
   }
 
@@ -247,13 +260,101 @@ function getBookingDiscountContent(booking, voucherDetail) {
   }
 }
 
+function getBookingStatusGuidance(booking) {
+  if (!booking) {
+    return null
+  }
+
+  const reviewSubmittedAt = booking.reviewPayment?.submittedAt
+  const defaultNote = booking.note || 'Chưa có ghi chú bổ sung.'
+  const departureValue = booking.departureLabel || 'Chưa có dữ liệu'
+  const returnValue = booking.returnLabel || 'Chưa có dữ liệu'
+
+  if (booking.reviewPayment) {
+    return {
+      detailLabel: 'Thời gian gửi bill',
+      detailValue: formatDisplayDateTime(reviewSubmittedAt),
+      tone: 'review',
+      title: 'Chờ duyệt chứng từ',
+      description:
+        'Khách đã gửi bill chuyển khoản. Vui lòng đối soát số tiền, nội dung chuyển khoản và ảnh chứng từ trước khi phê duyệt hoặc từ chối.',
+    }
+  }
+
+  switch (booking.status) {
+    case ADMIN_BOOKING_STATUSES.pendingPayment:
+      return {
+        detailLabel: 'Ghi chú',
+        detailValue: defaultNote,
+        tone: 'info',
+        title: 'Chờ khách thanh toán',
+        description:
+          'Đơn chưa có chứng từ hợp lệ. Khách cần hoàn tất thanh toán hoặc gửi lại bill trước khi admin xử lý tiếp.',
+      }
+    case ADMIN_BOOKING_STATUSES.paid:
+    case ADMIN_BOOKING_STATUSES.confirmed:
+      return {
+        detailLabel: 'Ngày khởi hành',
+        detailValue: departureValue,
+        tone: 'confirmed',
+        title: 'Đơn đã xác nhận',
+        description:
+          'Thanh toán đã được ghi nhận. Hành trình đã sẵn sàng và sẽ được phục vụ theo lịch khởi hành.',
+      }
+    case ADMIN_BOOKING_STATUSES.inProgress:
+      return {
+        detailLabel: 'Ngày kết thúc dự kiến',
+        detailValue: returnValue,
+        tone: 'brand',
+        title: 'Chuyến đang diễn ra',
+        description:
+          'Dịch vụ đang trong thời gian phục vụ. Chỉ đánh dấu hoàn thành khi hành trình hoặc dịch vụ đã kết thúc.',
+      }
+    case ADMIN_BOOKING_STATUSES.completed:
+      return {
+        detailLabel: 'Ngày hoàn tất',
+        detailValue: returnValue,
+        tone: 'success',
+        title: 'Đơn đã hoàn thành',
+        description:
+          'Hành trình đã kết thúc và đơn được lưu vào lịch sử. Chỉ kiểm tra lại khi có yêu cầu hỗ trợ sau chuyến đi.',
+      }
+    case ADMIN_BOOKING_STATUSES.cancelRequested:
+      return {
+        detailLabel: 'Ghi chú',
+        detailValue: defaultNote,
+        tone: 'warning',
+        title: 'Khách yêu cầu hủy',
+        description:
+          'Vui lòng kiểm tra điều kiện hủy, chính sách hoàn tiền và liên hệ khách trước khi xác nhận hủy đơn.',
+      }
+    case ADMIN_BOOKING_STATUSES.cancelled:
+      return {
+        detailLabel: 'Ghi chú',
+        detailValue: defaultNote,
+        tone: 'danger',
+        title: 'Đơn đã hủy',
+        description:
+          'Đơn không còn hiệu lực. Thông tin được giữ lại để đối soát và hỗ trợ khi cần.',
+      }
+    default:
+      return {
+        detailLabel: 'Ghi chú',
+        detailValue: defaultNote,
+        tone: booking.statusTone || 'neutral',
+        title: booking.statusLabel || 'Trạng thái đơn hàng',
+        description:
+          'Vui lòng kiểm tra thông tin đơn và xử lý theo đúng trạng thái hiện tại trên hệ thống.',
+      }
+  }
+}
+
 function normalizeSearchText(value) {
   return String(value || '').trim().toLowerCase()
 }
 
 const VISIBLE_BOOKING_STATUS_VALUES = new Set([
   ADMIN_BOOKING_STATUSES.all,
-  ADMIN_BOOKING_STATUSES.paid,
   ADMIN_BOOKING_STATUSES.pendingPayment,
   ADMIN_BOOKING_STATUSES.confirmed,
   ADMIN_BOOKING_STATUSES.inProgress,
@@ -285,6 +386,11 @@ function AdminBookingsPage() {
     ADMIN_PERMISSIONS.bookingsWrite,
     currentPermissions,
   )
+  const canProcessPayments = hasPermission(
+    currentRole,
+    ADMIN_PERMISSIONS.paymentsProcess,
+    currentPermissions,
+  )
   const canReadVouchers = hasPermission(
     currentRole,
     ADMIN_PERMISSIONS.vouchersRead,
@@ -296,6 +402,11 @@ function AdminBookingsPage() {
   const [detailBooking, setDetailBooking] = useState(null)
   const [detailError, setDetailError] = useState('')
   const [detailLoading, setDetailLoading] = useState(false)
+  const [paymentActionLoading, setPaymentActionLoading] = useState(false)
+  const [paymentActionType, setPaymentActionType] = useState('')
+  const [paymentFeedback, setPaymentFeedback] = useState('')
+  const [paymentRejectReason, setPaymentRejectReason] = useState('')
+  const [paymentRejectReasonError, setPaymentRejectReasonError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [voucherDetail, setVoucherDetail] = useState(null)
 
@@ -310,6 +421,9 @@ function AdminBookingsPage() {
       setDetailLoading(true)
       setDetailError('')
       setDetailBooking(null)
+      setPaymentFeedback('')
+      setPaymentRejectReason('')
+      setPaymentRejectReasonError('')
       setVoucherDetail(null)
 
       try {
@@ -387,6 +501,9 @@ function AdminBookingsPage() {
   function openBookingDetail(booking) {
     setDetailBooking(null)
     setDetailError('')
+    setPaymentFeedback('')
+    setPaymentRejectReason('')
+    setPaymentRejectReasonError('')
     setVoucherDetail(null)
     setActiveBooking(booking)
   }
@@ -398,9 +515,125 @@ function AdminBookingsPage() {
     }
   }
 
+  async function handleApprovePayment(booking, reviewPayment) {
+    if (!reviewPayment?.id) {
+      setPaymentFeedback('Không tìm thấy giao dịch chuyển khoản của đơn này.')
+      return
+    }
+
+    setPaymentActionLoading(true)
+    setPaymentActionType('approve')
+    setPaymentFeedback('')
+    setPaymentRejectReasonError('')
+
+    try {
+      const response = await confirmAdminPayment(reviewPayment.id, {
+        collector_note: `Admin xác nhận đã nhận tiền cho đơn ${booking.bookingCode}.`,
+        next_booking_status: ADMIN_BOOKING_STATUSES.confirmed,
+        received_amount: reviewPayment.amount,
+        received_at: new Date().toISOString(),
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || 'Không thể phê duyệt thanh toán lúc này.')
+      }
+
+      setPaymentFeedback('Đã phê duyệt thanh toán. Đơn hàng đã chuyển sang trạng thái đã xác nhận.')
+      setDetailBooking((currentBooking) =>
+        currentBooking
+          ? {
+              ...currentBooking,
+              reviewPayment: null,
+              status: ADMIN_BOOKING_STATUSES.confirmed,
+              statusLabel: 'Đã xác nhận',
+              statusTone: 'confirmed',
+            }
+          : currentBooking,
+      )
+      reloadBookings()
+      setActiveBooking(null)
+    } catch (approveError) {
+      setPaymentFeedback(
+        approveError?.message || 'Không thể phê duyệt thanh toán lúc này.',
+      )
+    } finally {
+      setPaymentActionLoading(false)
+      setPaymentActionType('')
+    }
+  }
+
+  async function handleRejectPayment(_booking, reviewPayment) {
+    if (!reviewPayment?.id) {
+      setPaymentFeedback('Không tìm thấy giao dịch chuyển khoản của đơn này.')
+      return
+    }
+
+    const normalizedReason = paymentRejectReason.trim()
+
+    if (!normalizedReason) {
+      setPaymentRejectReasonError('Vui lòng nhập lý do từ chối bill trước khi tiếp tục.')
+      setPaymentFeedback('')
+      return
+    }
+
+    setPaymentActionLoading(true)
+    setPaymentActionType('reject')
+    setPaymentFeedback('')
+    setPaymentRejectReasonError('')
+
+    try {
+      const response = await rejectAdminPayment(reviewPayment.id, {
+        reason: normalizedReason,
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || 'Không thể từ chối bill chuyển khoản lúc này.')
+      }
+
+      setPaymentFeedback('Đã từ chối bill chuyển khoản và đưa đơn hàng về trạng thái chờ thanh toán.')
+      setPaymentRejectReason('')
+      setDetailBooking((currentBooking) =>
+        currentBooking
+          ? {
+              ...currentBooking,
+              note: currentBooking.note
+                ? `${currentBooking.note} | Từ chối bill: ${normalizedReason}`
+                : `Từ chối bill: ${normalizedReason}`,
+              reviewPayment: null,
+              status: ADMIN_BOOKING_STATUSES.pendingPayment,
+              statusLabel: 'Chờ thanh toán',
+              statusTone: 'info',
+            }
+          : currentBooking,
+      )
+      reloadBookings()
+    } catch (rejectError) {
+      setPaymentFeedback(rejectError?.message || 'Không thể từ chối bill chuyển khoản lúc này.')
+    } finally {
+      setPaymentActionLoading(false)
+      setPaymentActionType('')
+    }
+  }
+
+  async function handleDetailBookingAction(booking, action) {
+    const didUpdate = await updateBookingAction(booking, action)
+
+    if (!didUpdate) {
+      return
+    }
+
+    if (action === 'cancel') {
+      setActiveBooking(null)
+    }
+  }
+
   const modalBooking = detailBooking ?? activeBooking
   const modalBookingAmounts = getBookingAmounts(modalBooking)
   const modalBookingDiscount = getBookingDiscountContent(modalBooking, voucherDetail)
+  const modalReviewPayment = modalBooking?.reviewPayment ?? null
+  const modalReviewProof = modalReviewPayment?.proof ?? null
+  const modalBookingActions = modalReviewPayment ? [] : getBookingActions(modalBooking?.status)
+  const modalStatusGuidance = getBookingStatusGuidance(modalBooking)
   const visibleStatusOptions = useMemo(
     () =>
       ADMIN_BOOKING_STATUS_OPTIONS.filter((option) =>
@@ -524,16 +757,11 @@ function AdminBookingsPage() {
                           >
                             {booking.statusLabel}
                           </span>
-                          <span className="admin-booking-card__time">
-                            {booking.createdLabel}
+                          <span className="admin-booking-card__time-detail">
+                            Thời gian đặt: {booking.createdAtLabel}
                           </span>
                         </div>
 
-                        <div className="admin-booking-card__meta">
-                          <BookingMetaItem icon="location">{booking.destination}</BookingMetaItem>
-                          <BookingMetaItem icon="users">{booking.travelers}</BookingMetaItem>
-                          <BookingMetaItem icon="clock">{booking.duration}</BookingMetaItem>
-                        </div>
                       </div>
                     </header>
 
@@ -759,6 +987,22 @@ function AdminBookingsPage() {
                   <DetailField label="Hành khách" value={modalBooking.travelers} />
                 </div>
 
+                {modalStatusGuidance ? (
+                  <section
+                    className={`admin-booking-detail-modal__status-guidance admin-booking-detail-modal__status-guidance--${modalStatusGuidance.tone}`}
+                  >
+                    <div>
+                      <span>Trạng thái hiện tại</span>
+                      <h4>{modalStatusGuidance.title}</h4>
+                      <p>{modalStatusGuidance.description}</p>
+                    </div>
+                    <dl>
+                      <dt>{modalStatusGuidance.detailLabel}</dt>
+                      <dd>{modalStatusGuidance.detailValue}</dd>
+                    </dl>
+                  </section>
+                ) : null}
+
                 <div className="admin-booking-detail-modal__line-items">
                   {(modalBooking.serviceItems ?? []).length > 0 ? (
                     modalBooking.serviceItems.map((item) => (
@@ -781,9 +1025,153 @@ function AdminBookingsPage() {
                   )}
                 </div>
 
-                <p className="admin-booking-detail-modal__note">
-                  <strong>Ghi chú:</strong> {modalBooking.note}
-                </p>
+                {modalReviewPayment ? (
+                  <section className="admin-booking-detail-modal__payment-review">
+                    <div className="admin-booking-detail-modal__payment-review-copy">
+                      <span>Chứng từ chuyển khoản</span>
+                      <h4>Khách đã gửi bill, vui lòng đối soát trước khi phê duyệt.</h4>
+                    </div>
+
+                    <div className="admin-booking-detail-modal__payment-proof">
+                      {modalReviewProof?.proof_image_url ? (
+                        <a
+                          className="admin-booking-detail-modal__proof-link"
+                          href={modalReviewProof.proof_image_url}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          <img
+                            alt={`Bill chuyển khoản của đơn ${modalBooking.bookingCode}`}
+                            src={modalReviewProof.proof_image_url}
+                          />
+                        </a>
+                      ) : (
+                        <div className="admin-booking-detail-modal__proof-empty">
+                          Chưa có ảnh bill trong giao dịch này.
+                        </div>
+                      )}
+
+                      <div className="admin-booking-detail-modal__payment-grid">
+                        <DetailField label="Mã thanh toán" value={modalReviewPayment.paymentCode} />
+                        <DetailField
+                          label="Số tiền đã chuyển"
+                          value={formatCurrency(modalReviewPayment.amount)}
+                        />
+                        <DetailField
+                          label="Mã giao dịch ngân hàng"
+                          value={modalReviewProof?.bank_transaction_code || 'Chưa nhập'}
+                        />
+                        <DetailField
+                          label="Thời gian gửi bill"
+                          value={formatDisplayDateTime(modalReviewProof?.submitted_at)}
+                        />
+                        <DetailField
+                          label="Nội dung chuyển khoản"
+                          value={modalReviewProof?.transfer_note || 'Chưa có dữ liệu'}
+                        />
+                      </div>
+                    </div>
+
+                    {paymentFeedback ? (
+                      <p className="admin-booking-detail-modal__payment-feedback" role="status">
+                        {paymentFeedback}
+                      </p>
+                    ) : null}
+
+                    <div className="admin-booking-detail-modal__payment-reject">
+                      <label
+                        className="admin-booking-detail-modal__payment-reject-label"
+                        htmlFor="admin-payment-reject-reason"
+                      >
+                        Lý do từ chối bill nếu chứng từ không hợp lệ
+                      </label>
+                      <AdminTextarea
+                        id="admin-payment-reject-reason"
+                        className="admin-booking-detail-modal__payment-reject-input"
+                        disabled={!canProcessPayments || paymentActionLoading}
+                        invalid={Boolean(paymentRejectReasonError)}
+                        placeholder="Ví dụ: Không khớp số tiền, bill chỉnh sửa, không tìm thấy giao dịch ngân hàng..."
+                        rows={3}
+                        value={paymentRejectReason}
+                        onChange={(event) => {
+                          setPaymentRejectReason(event.target.value)
+                          if (paymentRejectReasonError) {
+                            setPaymentRejectReasonError('')
+                          }
+                        }}
+                      />
+                      {paymentRejectReasonError ? (
+                        <p
+                          className="admin-booking-detail-modal__payment-reject-error"
+                          role="alert"
+                        >
+                          {paymentRejectReasonError}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="admin-booking-detail-modal__payment-actions">
+                      {!canProcessPayments ? (
+                        <span>Bạn chưa có quyền xử lý chứng từ thanh toán.</span>
+                      ) : null}
+
+                      <div className="admin-booking-detail-modal__payment-actions-group">
+                        <button
+                          className="admin-booking-card__action admin-booking-card__action--reject"
+                          disabled={!canProcessPayments || paymentActionLoading}
+                          type="button"
+                          aria-busy={
+                            (paymentActionLoading && paymentActionType === 'reject') || undefined
+                          }
+                          onClick={() => handleRejectPayment(modalBooking, modalReviewPayment)}
+                        >
+                          <BookingIcon name="x" />
+                          {paymentActionLoading && paymentActionType === 'reject'
+                            ? 'Đang từ chối...'
+                            : 'Từ chối'}
+                        </button>
+                        <button
+                          className="admin-booking-card__action admin-booking-card__action--confirm"
+                          disabled={!canProcessPayments || paymentActionLoading}
+                          type="button"
+                          aria-busy={
+                            (paymentActionLoading && paymentActionType === 'approve') || undefined
+                          }
+                          onClick={() => handleApprovePayment(modalBooking, modalReviewPayment)}
+                        >
+                          <BookingIcon name="check" />
+                          {paymentActionLoading && paymentActionType === 'approve'
+                            ? 'Đang phê duyệt...'
+                            : 'Phê duyệt'}
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                ) : null}
+
+                {modalBookingActions.length > 0 ? (
+                  <div className="admin-booking-detail-modal__actions">
+                    {modalBookingActions.map((action) => (
+                      <button
+                        className={`admin-booking-card__action admin-booking-card__action--${action.tone}`}
+                        disabled={
+                          !canWriteBookings || isBookingActionLoading(modalBooking, action.action)
+                        }
+                        key={action.action}
+                        type="button"
+                        aria-busy={
+                          isBookingActionLoading(modalBooking, action.action) || undefined
+                        }
+                        onClick={() => handleDetailBookingAction(modalBooking, action.action)}
+                      >
+                        <BookingIcon name={action.icon} />
+                        {isBookingActionLoading(modalBooking, action.action)
+                          ? 'Đang xử lý...'
+                          : action.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
 
                 {modalBookingDiscount ? (
                   <p className="admin-booking-detail-modal__discount-summary">

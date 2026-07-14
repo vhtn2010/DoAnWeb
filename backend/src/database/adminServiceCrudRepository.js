@@ -57,6 +57,14 @@ const logUserAction = async (client, {
   );
 };
 
+const toJsonbParam = (value) => {
+  if (value == null) {
+    return null;
+  }
+
+  return JSON.stringify(value);
+};
+
 const createAdminServiceCrudRepository = ({
   getPoolImpl = getPool,
   queryImpl = query,
@@ -201,8 +209,8 @@ const createAdminServiceCrudRepository = ({
         details.duration_nights,
         details.transport_type,
         details.max_group_size,
-        details.departure_schedule,
-        details.itinerary,
+        toJsonbParam(details.departure_schedule),
+        toJsonbParam(details.itinerary),
         details.included_services,
         details.excluded_services,
         details.terms,
@@ -237,7 +245,7 @@ const createAdminServiceCrudRepository = ({
         details.address,
         details.checkin_time,
         details.checkout_time,
-        details.amenities,
+        toJsonbParam(details.amenities),
         details.hotel_policy,
       ],
     );

@@ -102,7 +102,11 @@ export default function useFlightDetail() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({
+        behavior: 'smooth',
+        left: 0,
+        top: 0,
+      })
     }
   }, [referenceId, slug])
 
@@ -295,8 +299,7 @@ export default function useFlightDetail() {
       authState,
       previewItem: result.cartItem,
     })
-
-    navigate(preserveAuthQuery('/cart'))
+    setFeedback(createFeedbackState('success', 'Vé máy bay đã được thêm vào giỏ hàng của bạn.'))
   }
 
   async function bookNowAction() {

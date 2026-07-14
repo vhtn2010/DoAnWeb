@@ -77,7 +77,17 @@ test('paymentService.uploadCustomerPaymentProof updates proof for owner pending 
 
         return {
           id: PAYMENT_ID,
-          provider: 'direct',
+          payment_method: 'bank_transfer',
+          provider: 'bank_transfer',
+          raw_response: {
+            direct_payment: {
+              channel: 'direct',
+              requested_method: 'manual_bank_transfer',
+              requested_provider: 'direct',
+              stored_method: 'bank_transfer',
+              stored_provider: 'bank_transfer',
+            },
+          },
           status: 'pending',
           user_id: CUSTOMER_ID,
         };

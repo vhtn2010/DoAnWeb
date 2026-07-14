@@ -429,6 +429,13 @@ const sanitizeCustomerSummary = (booking) => ({
   phone: booking.customer_phone || null,
 });
 
+const getTaxAndFeeAmount = (booking = {}) =>
+  roundMoney(
+    Number(booking.vat_amount || 0) +
+      Number(booking.service_fee_amount || 0) +
+      Number(booking.surcharge_amount || 0),
+  );
+
 const sanitizeBookingSummary = (booking) => ({
   booking_code: booking.booking_code,
   contact_email: booking.contact_email,
@@ -441,11 +448,62 @@ const sanitizeBookingSummary = (booking) => ({
   expires_at: booking.expires_at,
   id: booking.id,
   item_count: Number(booking.item_count || 0),
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   service_title: booking.service_title || null,
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
   updated_at: booking.updated_at,
+  vat_amount: roundMoney(booking.vat_amount),
+});
+
+const sanitizePaymentProofSummary = (rawResponse) => {
+  const proof = rawResponse?.proof;
+
+  if (!proof || typeof proof !== 'object' || Array.isArray(proof)) {
+    return null;
+  }
+
+  return {
+    bank_transaction_code: proof.bank_transaction_code || null,
+    proof_image_url: proof.proof_image_url || null,
+    submitted_at:
+      proof.submitted_at ||
+      proof.uploaded_at ||
+      proof.created_at ||
+      null,
+    transfer_note: proof.transfer_note || null,
+  };
+};
+
+const sanitizeLatestPaymentSummary = (booking) => {
+  if (!booking.latest_payment_id) {
+    return null;
+  }
+
+  const proofSummary = sanitizePaymentProofSummary(booking.latest_payment_raw_response);
+
+  return {
+    amount: roundMoney(booking.latest_payment_amount),
+    created_at: booking.latest_payment_created_at,
+    currency: booking.latest_payment_currency || DEFAULT_CURRENCY,
+    expired_at: booking.latest_payment_expired_at,
+    has_proof: Boolean(proofSummary),
+    id: booking.latest_payment_id,
+    paid_at: booking.latest_payment_paid_at,
+    payment_code: booking.latest_payment_code,
+    payment_method: booking.latest_payment_method,
+    proof_summary: proofSummary,
+    provider: booking.latest_payment_provider,
+    status: booking.latest_payment_status,
+  };
+};
+
+const sanitizeBookingSummaryWithPayment = (booking) => ({
+  ...sanitizeBookingSummary(booking),
+  latest_payment: sanitizeLatestPaymentSummary(booking),
 });
 
 const sanitizeBookingItemSummary = (item) => ({
@@ -468,10 +526,12 @@ const sanitizePaymentSummary = (payment) => ({
   created_at: payment.created_at,
   currency: payment.currency || DEFAULT_CURRENCY,
   expired_at: payment.expired_at,
+  has_proof: Boolean(sanitizePaymentProofSummary(payment.raw_response)),
   id: payment.id,
   paid_at: payment.paid_at,
   payment_code: payment.payment_code,
   payment_method: payment.payment_method,
+  proof_summary: sanitizePaymentProofSummary(payment.raw_response),
   provider: payment.provider,
   status: payment.status,
 });
@@ -606,11 +666,15 @@ const sanitizeBookingDetail = ({
   note: booking.note,
   payments: payments.map(sanitizePaymentSummary),
   refunds: refunds.map(sanitizeRefundSummary),
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
   updated_at: booking.updated_at,
   user_id: booking.user_id,
+  vat_amount: roundMoney(booking.vat_amount),
   voucher_id: booking.voucher_id || null,
 });
 
@@ -846,13 +910,13 @@ const buildBookingConfirmationResendEmail = ({
   booking,
   items,
 }) => {
-  const contactName = booking.contact_name || 'Quy khach';
+  const contactName = booking.contact_name || 'Quý khách';
   const itemLinesText = items.length === 0
-    ? '- Khong co dich vu dinh kem'
+    ? '- Không có dịch vụ đính kèm'
     : items.map((item, index) => {
       const schedule = [
-        item.start_at ? `bat dau: ${item.start_at}` : null,
-        item.end_at ? `ket thuc: ${item.end_at}` : null,
+        item.start_at ? `bắt đầu: ${item.start_at}` : null,
+        item.end_at ? `kết thúc: ${item.end_at}` : null,
       ]
         .filter(Boolean)
         .join(', ');
@@ -860,11 +924,11 @@ const buildBookingConfirmationResendEmail = ({
       return `${index + 1}. ${item.title_snapshot} (${item.service_type}) - SL ${item.quantity}${schedule ? ` - ${schedule}` : ''}`;
     }).join('\n');
   const itemLinesHtml = items.length === 0
-    ? renderEmailParagraph('Khong co dich vu dinh kem')
+    ? renderEmailParagraph('Không có dịch vụ đính kèm')
     : items.map((item) => {
       const schedule = [
-        item.start_at ? `Bat dau: ${item.start_at}` : null,
-        item.end_at ? `Ket thuc: ${item.end_at}` : null,
+        item.start_at ? `Bắt đầu: ${item.start_at}` : null,
+        item.end_at ? `Kết thúc: ${item.end_at}` : null,
       ]
         .filter(Boolean)
         .join(' | ');
@@ -881,23 +945,23 @@ const buildBookingConfirmationResendEmail = ({
 
   return {
     html: renderEmailLayout({
-      badge: 'Xac nhan booking',
+      badge: 'Xác nhận booking',
       body: [
         renderEmailSection({
-          title: 'Thong tin booking',
+          title: 'Thông tin booking',
           children: renderEmailInfoRows([
             {
-              label: 'Ma booking',
+              label: 'Mã booking',
               value: booking.booking_code,
             },
             {
-              label: 'Trang thai',
+              label: 'Trạng thái',
               value: booking.status,
             },
           ]),
         }),
         renderEmailSection({
-          title: 'Danh sach dich vu',
+          title: 'Danh sách dịch vụ',
           children: items.length === 0
             ? itemLinesHtml
             : [
@@ -907,44 +971,44 @@ const buildBookingConfirmationResendEmail = ({
               ].join(''),
         }),
         renderEmailSection({
-          title: 'Tong ket thanh toan',
+          title: 'Tổng kết thanh toán',
           children: renderEmailInfoRows([
             {
-              label: 'Tam tinh',
+              label: 'Tạm tính',
               value: `${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
             },
             {
-              label: 'Giam gia',
+              label: 'Giảm giá',
               value: `${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
             },
             {
-              label: 'Tong thanh toan',
+              label: 'Tổng thanh toán',
               value: `${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
             },
           ]),
         }),
       ].join(''),
       footerNote:
-        'Neu can ho tro them, vui long lien he bo phan CSKH de duoc kiem tra booking nhanh nhat.',
-      greeting: `Xin chao ${contactName},`,
+        'Nếu cần hỗ trợ thêm, vui lòng liên hệ bộ phận CSKH để được kiểm tra booking nhanh nhất.',
+      greeting: `Xin chào ${contactName},`,
       intro: [
-        `Chung toi gui lai email xac nhan booking ${booking.booking_code}.`,
-        'Cac thong tin quan trong ve dich vu va thanh toan duoc tom tat ben duoi.',
+        `Chúng tôi gửi lại email xác nhận booking ${booking.booking_code}.`,
+        'Các thông tin quan trọng về dịch vụ và thanh toán được tóm tắt bên dưới.',
       ],
-      preheader: `Thong tin xac nhan booking ${booking.booking_code}.`,
+      preheader: `Thông tin xác nhận booking ${booking.booking_code}.`,
       title: `Booking ${booking.booking_code}`,
     }),
-    subject: `Booking ${booking.booking_code} - Gui lai email xac nhan`,
+    subject: `Booking ${booking.booking_code} - Gửi lại email xác nhận`,
     text: [
-      `Xin chao ${contactName},`,
-      `Chung toi gui lai email xac nhan booking ${booking.booking_code}.`,
-      `Trang thai booking: ${booking.status}`,
-      'Danh sach dich vu:',
+      `Xin chào ${contactName},`,
+      `Chúng tôi gửi lại email xác nhận booking ${booking.booking_code}.`,
+      `Trạng thái booking: ${booking.status}`,
+      'Danh sách dịch vụ:',
       itemLinesText,
-      `Tam tinh: ${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
-      `Giam gia: ${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
-      `Tong thanh toan: ${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
-      'Neu can ho tro them, vui long lien he bo phan CSKH.',
+      `Tạm tính: ${roundMoney(booking.subtotal_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      `Giảm giá: ${roundMoney(booking.discount_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      `Tổng thanh toán: ${roundMoney(booking.total_amount)} ${booking.currency || DEFAULT_CURRENCY}`,
+      'Nếu cần hỗ trợ thêm, vui lòng liên hệ bộ phận CSKH.',
     ].join('\n'),
   };
 };
@@ -993,7 +1057,7 @@ const createAdminBookingService = ({
     });
 
     return {
-      items: result.rows.map(sanitizeBookingSummary),
+      items: result.rows.map(sanitizeBookingSummaryWithPayment),
       meta: buildPaginationMeta({
         limit,
         page,

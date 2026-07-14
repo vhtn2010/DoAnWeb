@@ -17,9 +17,9 @@ export const PAYMENT_PROVIDER_BY_METHOD = Object.freeze({
 })
 
 export const PAYMENT_CONFIRMATION_STEPS = Object.freeze([
-  { id: 1, label: 'Kiểm Tra' },
-  { id: 2, label: 'Thông Tin' },
-  { id: 3, label: 'Thanh Toán' },
+  { id: 1, label: 'Kiểm tra' },
+  { id: 2, label: 'Thông tin' },
+  { id: 3, label: 'Thanh toán' },
 ])
 
 export const PAYMENT_DEFAULT_CARD_NUMBER = '0000 0000 0000 0000'
@@ -44,7 +44,7 @@ export const PAYMENT_METHOD_OPTIONS = Object.freeze([
     id: 'payment-method-bank-transfer',
     code: PAYMENT_METHOD_CODES.manualBankTransfer,
     label: 'Chuyển khoản ngân hàng',
-    description: 'Tạo giao dịch và bổ sung chứng từ sau khi chuyển khoản',
+    description: 'Tạo yêu cầu thanh toán và bổ sung chứng từ sau khi chuyển khoản',
     provider: PAYMENT_PROVIDER_BY_METHOD[PAYMENT_METHOD_CODES.manualBankTransfer],
   },
   {
@@ -58,7 +58,7 @@ export const PAYMENT_METHOD_OPTIONS = Object.freeze([
     id: 'payment-method-staff-collect',
     code: PAYMENT_METHOD_CODES.staffCollect,
     label: 'Nhân viên hỗ trợ thu hộ',
-    description: 'Bộ phận hỗ trợ sẽ liên hệ hướng dẫn thanh toán',
+    description: 'Bộ phận hỗ trợ sẽ liên hệ để hướng dẫn thanh toán',
     provider: PAYMENT_PROVIDER_BY_METHOD[PAYMENT_METHOD_CODES.staffCollect],
   },
 ])
@@ -77,14 +77,14 @@ export const PAYMENT_VALID_VOUCHERS = Object.freeze([
 export const PAYMENT_TRUST_CARD_ITEMS = Object.freeze([
   {
     id: 'best-price',
-    title: 'Đảm bảo giá tốt nhất',
-    description: 'Hoàn tiền nếu phát hiện thấy giá rẻ hơn.',
+    title: 'Xử lý minh bạch',
+    description: 'Yêu cầu thanh toán luôn có trạng thái rõ ràng để bạn tiện theo dõi.',
     iconLabel: 'Gia',
   },
   {
     id: 'support',
     title: 'Hỗ trợ 24/7',
-    description: 'Đội ngũ hỗ trợ tận tâm luôn sẵn sàng.',
+    description: 'Đội ngũ hỗ trợ sẵn sàng đồng hành khi bạn cần.',
     iconLabel: '24',
   },
 ])

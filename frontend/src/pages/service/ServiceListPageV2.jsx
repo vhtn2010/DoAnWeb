@@ -1,8 +1,10 @@
 import { useLocation } from 'react-router-dom'
+import HomeSearchCard from '../../components/public/home/HomeSearchCard.jsx'
 import ServiceFilterSidebar from '../../components/service/ServiceFilterSidebar.jsx'
 import ServiceListHero from '../../components/service/ServiceListHero.jsx'
 import ServiceResultsSection from '../../components/service/ServiceResultsSection.jsx'
 import useFavorites from '../../hooks/useFavorites.js'
+import useHomePage from '../../hooks/useHomePage.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import useTourServiceList from '../../hooks/useTourServiceList.js'
 import {
@@ -16,6 +18,7 @@ function ServiceListPageV2() {
   const location = useLocation()
   const { currentUser } = usePublicSession()
   const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
+  const homeSearch = useHomePage()
   const {
     categoryOptions,
     currentPage,
@@ -67,6 +70,39 @@ function ServiceListPageV2() {
   return (
     <div className="service-list-page">
       <ServiceListHero />
+
+      <section className="service-list-page__quick-search" aria-label="Tìm kiếm tour">
+        <HomeSearchCard
+          calendarPreview={homeSearch.calendarPreview}
+          calendarSelection={homeSearch.calendarSelection}
+          compareDates={homeSearch.compareDates}
+          displayedDateRange={homeSearch.displayedDateRange}
+          errorMessage=""
+          feedbackMessage={homeSearch.feedbackMessage}
+          filterGroups={homeSearch.filterGroups}
+          formatMonthLabel={homeSearch.formatMonthLabel}
+          getMonthDays={homeSearch.getMonthDays}
+          handleDateFieldToggle={homeSearch.handleDateFieldToggle}
+          handleDateSelect={homeSearch.handleDateSelect}
+          handleFieldSelect={homeSearch.handleFieldSelect}
+          handleFilterSelect={homeSearch.handleFilterSelect}
+          handleRetry={homeSearch.handleRetry}
+          handleSearch={homeSearch.handleSearch}
+          handleSortSelect={homeSearch.handleSortSelect}
+          isSameDay={homeSearch.isSameDay}
+          loading={false}
+          openMenu={homeSearch.openMenu}
+          searchCardRef={homeSearch.searchCardRef}
+          searchFieldOptions={homeSearch.searchFieldOptions}
+          searchState={homeSearch.searchState}
+          showNextMonth={homeSearch.showNextMonth}
+          showPreviousMonth={homeSearch.showPreviousMonth}
+          sortOptions={homeSearch.sortOptions}
+          toggleMenu={homeSearch.toggleMenu}
+          visibleMonths={homeSearch.visibleMonths}
+          weekdayLabels={homeSearch.weekdayLabels}
+        />
+      </section>
 
       <section className="service-list-page__body">
         <div className="service-list-page__layout">

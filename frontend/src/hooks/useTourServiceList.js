@@ -380,7 +380,7 @@ export default function useTourServiceList() {
 
       try {
         if (!catalog.supportsTour) {
-          throw new Error('He thong chua ho tro du lieu tour cong khai.')
+          throw new Error('H? th?ng ch?a h? tr? d? li?u tour c?ng khai.')
         }
 
         const normalizedKeyword = appliedFilters.keyword.trim()

@@ -12,7 +12,9 @@ function ContactIcon() {
   )
 }
 
-function PaymentContactCard({ contactForm, errors, onChange }) {
+function PaymentContactCard({ contactForm, customerNote, errors }) {
+  const hasCustomerNote = typeof customerNote === 'string' && customerNote.trim().length > 0
+
   return (
     <section className="payment-contact-card">
       <header className="payment-contact-card__header">
@@ -22,50 +24,44 @@ function PaymentContactCard({ contactForm, errors, onChange }) {
         <div>
           <h2 className="payment-contact-card__title">Thông tin liên hệ</h2>
           <p className="payment-contact-card__subtitle">
-            Xác nhận lại thông tin để gửi biên nhận thanh toán.
+            Thông tin này được giữ nguyên từ bước trước để hệ thống gửi biên nhận và bộ phận vận hành liên hệ khi cần.
           </p>
         </div>
       </header>
 
       <div className="payment-contact-grid">
-        <label className="payment-contact-card__field">
-          <span className="payment-contact-label">Họ và Tên *</span>
-          <input
-            className="payment-contact-input"
-            name="contact_name"
-            placeholder="Nguyễn Văn A"
-            type="text"
-            value={contactForm.contact_name}
-            onChange={onChange}
-          />
+        <div className="payment-contact-card__field">
+          <span className="payment-contact-label">Họ và tên *</span>
+          <div className="payment-contact-input payment-contact-input--readonly">
+            <span>{contactForm.contact_name || 'Chưa có thông tin'}</span>
+          </div>
           {errors.contact_name ? <small>{errors.contact_name}</small> : null}
-        </label>
+        </div>
 
-        <label className="payment-contact-card__field">
-          <span className="payment-contact-label">Số Điện Thoại *</span>
-          <input
-            className="payment-contact-input"
-            name="contact_phone"
-            placeholder="090 123 4567"
-            type="text"
-            value={contactForm.contact_phone}
-            onChange={onChange}
-          />
+        <div className="payment-contact-card__field">
+          <span className="payment-contact-label">Số điện thoại *</span>
+          <div className="payment-contact-input payment-contact-input--readonly">
+            <span>{contactForm.contact_phone || 'Chưa có thông tin'}</span>
+          </div>
           {errors.contact_phone ? <small>{errors.contact_phone}</small> : null}
-        </label>
+        </div>
 
-        <label className="payment-contact-card__field payment-contact-field--full">
+        <div className="payment-contact-card__field payment-contact-field--full">
           <span className="payment-contact-label">Email *</span>
-          <input
-            className="payment-contact-input"
-            name="contact_email"
-            placeholder="example@gmail.com"
-            type="email"
-            value={contactForm.contact_email}
-            onChange={onChange}
-          />
+          <div className="payment-contact-input payment-contact-input--readonly">
+            <span>{contactForm.contact_email || 'Chưa có thông tin'}</span>
+          </div>
           {errors.contact_email ? <small>{errors.contact_email}</small> : null}
-        </label>
+        </div>
+
+        {hasCustomerNote ? (
+          <div className="payment-contact-card__field payment-contact-field--full">
+            <span className="payment-contact-label">Ghi chú của bạn</span>
+            <div className="payment-contact-note-box">
+              <p>{customerNote.trim()}</p>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   )

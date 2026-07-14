@@ -500,43 +500,43 @@ const buildVerificationEmail = ({
   verificationUrl,
 }) => ({
   html: renderEmailLayout({
-    badge: 'Xac thuc tai khoan',
+    badge: 'Xác thực tài khoản',
     body: [
       renderEmailButton({
         href: verificationUrl,
-        label: 'Xac thuc email',
+        label: 'Xác thực email',
       }),
       renderEmailSection({
-        title: 'Lien ket xac thuc',
+        title: 'Liên kết xác thực',
         children: renderEmailInfoRows([
           {
-            label: 'Duong dan',
+            label: 'Đường dẫn',
             value: verificationUrl,
           },
           {
-            label: 'Han xac thuc',
+            label: 'Hạn xác thực',
             value: `${expiresInMinutes} phut`,
           },
         ]),
       }),
     ].join(''),
     footerNote:
-      'Neu ban khong tao tai khoan nay, vui long bo qua email nay hoac lien he bo phan ho tro.',
-    greeting: `Xin chao ${fullName},`,
+      'Nếu bạn không tạo tài khoản này, vui lòng bỏ qua email này hoặc liên hệ bộ phận hỗ trợ.',
+    greeting: `Xin chào ${fullName},`,
     intro: [
-      'Tai khoan Net Viet Travel cua ban da duoc tao thanh cong.',
-      `Vui long xac thuc email trong vong ${expiresInMinutes} phut de bao ve tai khoan va bat dau quan ly chuyen di.`,
+      'Tài khoản Net Viet Travel của bạn đã được tạo thành công.',
+      `Vui lòng xác thực email trong vòng ${expiresInMinutes} phút để bảo vệ tài khoản và bắt đầu quản lý chuyến đi.`,
     ],
-    preheader: `Xac thuc tai khoan Net Viet Travel trong ${expiresInMinutes} phut.`,
-    title: 'Hoan tat kich hoat tai khoan',
+    preheader: `Xác thực tài khoản Net Viet Travel trong ${expiresInMinutes} phút.`,
+    title: 'Hoàn tất kích hoạt tài khoản',
   }),
-  subject: 'Xac thuc tai khoan Net Viet Travel',
+  subject: 'Xác thực tài khoản Net Viet Travel',
   text: [
-    `Xin chao ${fullName},`,
-    'Tai khoan Net Viet Travel cua ban da duoc tao thanh cong.',
-    `Vui long xac thuc email trong vong ${expiresInMinutes} phut tai:`,
+    `Xin chào ${fullName},`,
+    'Tài khoản Net Viet Travel của bạn đã được tạo thành công.',
+    `Vui lòng xác thực email trong vòng ${expiresInMinutes} phút tại:`,
     verificationUrl,
-    'Neu ban khong tao tai khoan nay, vui long bo qua email nay hoac lien he bo phan ho tro.',
+    'Nếu bạn không tạo tài khoản này, vui lòng bỏ qua email này hoặc liên hệ bộ phận hỗ trợ.',
   ].join('\n\n'),
 });
 
@@ -556,43 +556,43 @@ const buildResetPasswordEmail = ({
   resetUrl,
 }) => ({
   html: renderEmailLayout({
-    badge: 'Bao mat tai khoan',
+    badge: 'Bảo mật tài khoản',
     body: [
       renderEmailButton({
         href: resetUrl,
-        label: 'Dat lai mat khau',
+        label: 'Đặt lại mật khẩu',
       }),
       renderEmailSection({
-        title: 'Lien ket dat lai mat khau',
+        title: 'Liên kết đặt lại mật khẩu',
         children: renderEmailInfoRows([
           {
-            label: 'Duong dan',
+            label: 'Đường dẫn',
             value: resetUrl,
           },
           {
-            label: 'Han su dung',
+            label: 'Hạn sử dụng',
             value: `${expiresInMinutes} phut`,
           },
         ]),
       }),
     ].join(''),
     footerNote:
-      'Neu ban khong yeu cau dat lai mat khau, hay bo qua email nay. Mat khau hien tai cua ban van duoc giu nguyen.',
-    greeting: `Xin chao ${fullName},`,
+      'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này. Mật khẩu hiện tại của bạn vẫn được giữ nguyên.',
+    greeting: `Xin chào ${fullName},`,
     intro: [
-      'He thong da nhan duoc yeu cau dat lai mat khau cho tai khoan Net Viet Travel cua ban.',
-      `Vui long dat lai mat khau trong vong ${expiresInMinutes} phut de tiep tuc su dung tai khoan an toan.`,
+      'Hệ thống đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản Net Viet Travel của bạn.',
+      `Vui lòng đặt lại mật khẩu trong vòng ${expiresInMinutes} phút để tiếp tục sử dụng tài khoản an toàn.`,
     ],
-    preheader: `Lien ket dat lai mat khau co hieu luc trong ${expiresInMinutes} phut.`,
-    title: 'Dat lai mat khau cua ban',
+    preheader: `Liên kết đặt lại mật khẩu có hiệu lực trong ${expiresInMinutes} phút.`,
+    title: 'Đặt lại mật khẩu của bạn',
   }),
-  subject: 'Dat lai mat khau Net Viet Travel',
+  subject: 'Đặt lại mật khẩu Net Viet Travel',
   text: [
-    `Xin chao ${fullName},`,
-    'He thong da nhan duoc yeu cau dat lai mat khau cho tai khoan Net Viet Travel cua ban.',
-    `Vui long dat lai mat khau trong vong ${expiresInMinutes} phut tai:`,
+    `Xin chào ${fullName},`,
+    'Hệ thống đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản Net Viet Travel của bạn.',
+    `Vui lòng đặt lại mật khẩu trong vòng ${expiresInMinutes} phút tại:`,
     resetUrl,
-    'Neu ban khong yeu cau dat lai mat khau, hay bo qua email nay. Mat khau hien tai cua ban van duoc giu nguyen.',
+    'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này. Mật khẩu hiện tại của bạn vẫn được giữ nguyên.',
   ].join('\n\n'),
 });
 
@@ -613,49 +613,49 @@ const buildChangeEmailConfirmEmail = ({
   newEmail,
 }) => ({
   html: renderEmailLayout({
-    badge: 'Doi email dang nhap',
+    badge: 'Đổi email đăng nhập',
     body: [
       renderEmailButton({
         href: confirmUrl,
-        label: 'Xac nhan email moi',
+        label: 'Xác nhận email mới',
       }),
       renderEmailSection({
-        title: 'Thong tin thay doi',
+        title: 'Thông tin thay đổi',
         children: renderEmailInfoRows([
           newEmail
             ? {
-                label: 'Email moi',
+                label: 'Email mới',
                 value: newEmail,
               }
             : null,
           {
-            label: 'Duong dan',
+            label: 'Đường dẫn',
             value: confirmUrl,
           },
           {
-            label: 'Han xac nhan',
+            label: 'Hạn xác nhận',
             value: `${expiresInMinutes} phut`,
           },
         ]),
       }),
     ].join(''),
     footerNote:
-      'Neu ban khong yeu cau doi email dang nhap, vui long lien he bo phan ho tro de kiem tra tai khoan.',
-    greeting: `Xin chao ${fullName},`,
+      'Nếu bạn không yêu cầu đổi email đăng nhập, vui lòng liên hệ bộ phận hỗ trợ để kiểm tra tài khoản.',
+    greeting: `Xin chào ${fullName},`,
     intro: [
-      'He thong da nhan duoc yeu cau doi email dang nhap cho tai khoan Net Viet Travel cua ban.',
-      `Vui long xac nhan email moi trong vong ${expiresInMinutes} phut de hoan tat thay doi.`,
+      'Hệ thống đã nhận được yêu cầu đổi email đăng nhập cho tài khoản Net Viet Travel của bạn.',
+      `Vui lòng xác nhận email mới trong vòng ${expiresInMinutes} phút để hoàn tất thay đổi.`,
     ],
-    preheader: `Xac nhan email dang nhap moi trong ${expiresInMinutes} phut.`,
-    title: 'Xac nhan email dang nhap moi',
+    preheader: `Xác nhận email đăng nhập mới trong ${expiresInMinutes} phút.`,
+    title: 'Xác nhận email đăng nhập mới',
   }),
-  subject: 'Xac nhan doi email dang nhap Net Viet Travel',
+  subject: 'Xác nhận đổi email đăng nhập Net Viet Travel',
   text: [
-    `Xin chao ${fullName},`,
-    'He thong da nhan duoc yeu cau doi email dang nhap cho tai khoan Net Viet Travel cua ban.',
-    `Vui long xac nhan email moi trong vong ${expiresInMinutes} phut tai:`,
+    `Xin chào ${fullName},`,
+    'Hệ thống đã nhận được yêu cầu đổi email đăng nhập cho tài khoản Net Viet Travel của bạn.',
+    `Vui lòng xác nhận email mới trong vòng ${expiresInMinutes} phút tại:`,
     confirmUrl,
-    'Neu ban khong yeu cau doi email dang nhap, vui long lien he bo phan ho tro de kiem tra tai khoan.',
+    'Nếu bạn không yêu cầu đổi email đăng nhập, vui lòng liên hệ bộ phận hỗ trợ để kiểm tra tài khoản.',
   ].join('\n\n'),
 });
 

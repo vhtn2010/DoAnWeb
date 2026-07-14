@@ -267,7 +267,7 @@ test('emailLogService.listAdminMailTemplates returns fixed safe metadata for aut
   assert.ok(Array.isArray(result));
   assert.ok(result.length >= 10);
   assert.deepEqual(result[0], {
-    description: 'Email xac thuc tai khoan sau khi dang ky.',
+    description: 'Email xác thực tài khoản sau khi đăng ký.',
     display_name: 'Verify Email',
     required_variables: [
       'full_name',
@@ -661,7 +661,7 @@ test('emailLogService.resendAdminEmailLog resends booking confirmation email wit
 
   assert.equal(sendPayloads.length, 1);
   assert.equal(sendPayloads[0].to.email, 'customer@example.com');
-  assert.match(sendPayloads[0].subject, /Gui lai email xac nhan/);
+  assert.match(sendPayloads[0].subject, /Gửi lại email xác nhận/);
   assert.equal(createdLogs.length, 1);
   assert.equal(createdLogs[0].templateCode, 'BOOKING_CONFIRMATION_RESEND');
   assert.equal(result.id, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd');
@@ -769,7 +769,7 @@ test('GET /api/admin/mail/templates returns fixed template metadata and blocks c
 
     return [
       {
-        description: 'Email xac thuc tai khoan sau khi dang ky.',
+        description: 'Email xác thực tài khoản sau khi đăng ký.',
         display_name: 'Verify Email',
         required_variables: [
           'full_name',
@@ -779,7 +779,7 @@ test('GET /api/admin/mail/templates returns fixed template metadata and blocks c
         template_code: 'AUTH_VERIFY_EMAIL',
       },
       {
-        description: 'Email ho tro thu cong do staff hoac admin gui trong ngu canh support ticket.',
+        description: 'Email hỗ trợ thủ công do staff hoặc admin gửi trong ngữ cảnh support ticket.',
         display_name: 'Support Manual Email',
         required_variables: [
           'customer_name',
@@ -1139,7 +1139,7 @@ test('POST /api/admin/email-logs/{email_log_id}/resend returns resend result and
       sent_at: '2026-07-02T10:41:00.000Z',
       source_email_log_id: EMAIL_LOG_ID,
       status: 'sent',
-      subject: 'Booking BK202607020001 - Gui lai email xac nhan',
+      subject: 'Booking BK202607020001 - Gửi lại email xác nhận',
       template_code: 'BOOKING_CONFIRMATION_RESEND',
       to_email: 'customer@example.com',
     };

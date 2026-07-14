@@ -50,16 +50,16 @@ function resolveReviewItems(reviewItems = []) {
     {
       id: 'review-an-nguyen',
       name: 'An Nguyen',
-      stayed_text: 'Da luu tru - 2 tuan truoc',
+      stayed_text: 'Đã lưu trú - 2 tuần trước',
       rating: 4.8,
-      comment: 'Khong gian dep, nhan vien than thien va bua sang kha day dan.',
+      comment: 'Không gian đẹp, nhân viên thân thiện và bữa sáng khá đầy đặn.',
     },
     {
       id: 'review-linh-tran',
       name: 'Linh Tran',
-      stayed_text: 'Da luu tru - 1 thang truoc',
+      stayed_text: 'Đã lưu trú - 1 tháng trước',
       rating: 4.9,
-      comment: 'View dep, phong sach se va rat phu hop cho ky nghi gia dinh.',
+      comment: 'View đẹp, phòng sạch sẽ và rất phù hợp cho kỳ nghỉ gia đình.',
     },
   ]
 
@@ -70,7 +70,7 @@ function resolveReviewItems(reviewItems = []) {
     id: item.id ?? `hotel-review-${index + 1}`,
     name: item.name ?? 'Guest',
     initials: item.initials ?? buildInitials(item.name),
-    stayed_text: item.stayed_text ?? 'Da luu tru gan day',
+    stayed_text: item.stayed_text ?? 'Đã lưu trú gần đây',
     rating: Number(item.rating ?? 0),
     comment: item.comment ?? '',
   }))

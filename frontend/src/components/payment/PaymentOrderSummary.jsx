@@ -1,3 +1,7 @@
+import { PAYMENT_METHOD_CODES } from '../../constants/payments.js'
+import { PAYMENT_STATUSES } from '../../constants/bookings.js'
+import { normalizePaymentMethod } from '../../mappers/paymentMappers.js'
+
 function LockIcon() {
   return (
     <svg fill="none" viewBox="0 0 20 20">
@@ -20,21 +24,98 @@ function LockIcon() {
   )
 }
 
+function formatDateTime(dateValue) {
+  if (!dateValue) {
+    return 'Chưa có'
+  }
+
+  const parsedDate = new Date(dateValue)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return 'Chưa có'
+  }
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsedDate)
+}
+
+function getPaymentStatusLabel(status) {
+  switch (status) {
+    case PAYMENT_STATUSES.success:
+    case PAYMENT_STATUSES.reconciled:
+      return 'Đã xác nhận'
+    case PAYMENT_STATUSES.pending:
+      return 'Chờ xác nhận'
+    case PAYMENT_STATUSES.processing:
+      return 'Đang xử lý'
+    case PAYMENT_STATUSES.cancelled:
+      return 'Đã hủy'
+    case PAYMENT_STATUSES.failed:
+      return 'Thất bại'
+    case PAYMENT_STATUSES.expired:
+      return 'Hết hạn'
+    default:
+      return 'Chưa tạo'
+  }
+}
+
+function buildPaymentHint(payment, selectedMethodMeta) {
+  if (!payment) {
+    return 'Yêu cầu thanh toán sẽ được tạo sau khi bạn xác nhận ở bước này.'
+  }
+
+  if (
+    payment.status === PAYMENT_STATUSES.pending &&
+    normalizePaymentMethod(payment.payment_method) ===
+      PAYMENT_METHOD_CODES.manualBankTransfer
+  ) {
+    return payment.proof_summary?.proof_image_url
+      ? 'Chứng từ chuyển khoản đã được gửi. Bộ phận vận hành sẽ đối soát và xác nhận sớm.'
+      : 'Đây là yêu cầu chuyển khoản thủ công. Hãy tải chứng từ sau khi hoàn tất chuyển khoản.'
+  }
+
+  if (
+    payment.status === PAYMENT_STATUSES.pending &&
+    normalizePaymentMethod(payment.payment_method) === PAYMENT_METHOD_CODES.cashAtOffice
+  ) {
+    return 'Đây là yêu cầu thanh toán trực tiếp tại văn phòng, hiện không phát sinh phí xử lý thêm trong phạm vi MVP.'
+  }
+
+  if (payment.status === PAYMENT_STATUSES.pending) {
+    return 'Đây là yêu cầu thanh toán trực tiếp đang chờ nhân viên xác nhận theo quy trình nội bộ.'
+  }
+
+  if (payment.status === PAYMENT_STATUSES.cancelled) {
+    return 'Yêu cầu trước đó đã bị hủy. Bạn có thể tạo một yêu cầu mới với phương thức hiện tại.'
+  }
+
+  if (payment.status === PAYMENT_STATUSES.success || payment.status === PAYMENT_STATUSES.reconciled) {
+    return 'Thanh toán đã được xác nhận thành công. Bạn có thể xem lại kết quả chi tiết.'
+  }
+
+  return selectedMethodMeta
+    ? `Phương thức hiện tại: ${selectedMethodMeta.label}.`
+    : 'Kiểm tra thông tin trước khi tiếp tục.'
+}
+
 function PaymentOrderSummary({
   canCancelPayment = false,
-  disableVoucherEditing = false,
-  feedback,
   isCancellingPayment = false,
   isDisabled,
   isPaid,
   isSubmitting = false,
-  onApplyVoucher,
   onCancelPayment,
   onPay,
-  onVoucherChange,
   payLabel,
+  payment,
+  selectedMethodMeta,
+  showPrimaryAction = true,
   summary,
-  voucherCode,
 }) {
   return (
     <section className="payment-order-summary">
@@ -46,9 +127,15 @@ function PaymentOrderSummary({
           <span>Tạm tính</span>
           <strong>{summary.subtotal_amount}</strong>
         </div>
+        {summary.baggage_fee_amount ? (
+          <div className="payment-order-summary__row">
+            <span>Phí hành lý ký gửi</span>
+            <strong>{summary.baggage_fee_amount}</strong>
+          </div>
+        ) : null}
         <div className="payment-order-summary__row">
           <span>Thuế & Phí</span>
-          <strong>{summary.tax_and_fee_amount}</strong>
+          <strong>{summary.tax_and_fee_without_baggage_amount ?? summary.tax_and_fee_amount}</strong>
         </div>
         <div className="payment-order-summary__row payment-order-summary__row--discount">
           <span>Giảm giá</span>
@@ -64,44 +151,49 @@ function PaymentOrderSummary({
         <span className="payment-order-summary__vat-note">Đã bao gồm VAT</span>
       </div>
 
-      <div className="payment-order-summary__voucher">
-        <label className="payment-order-summary__voucher-label" htmlFor="payment-voucher-code">
-          Mã giảm giá
-        </label>
-        <div className="payment-order-summary__voucher-controls">
-          <input
-            disabled={disableVoucherEditing || isSubmitting || isCancellingPayment}
-            id="payment-voucher-code"
-            placeholder="Nhập mã ưu đãi"
-            type="text"
-            value={voucherCode}
-            onChange={onVoucherChange}
-          />
-          <button
-            disabled={disableVoucherEditing || isSubmitting || isCancellingPayment}
-            type="button"
-            onClick={onApplyVoucher}
-          >
-            Áp dụng
-          </button>
+      <div className="payment-order-summary__payment-info">
+        <div className="payment-order-summary__info-row">
+          <span className="payment-order-summary__info-label">Trạng thái</span>
+          <strong className="payment-order-summary__info-value">
+            {getPaymentStatusLabel(payment?.status)}
+          </strong>
         </div>
-        {disableVoucherEditing ? (
-          <small className="payment-order-summary__voucher-hint">
-            Voucher chỉ có thể áp dụng ở bước checkout trước khi tạo đơn hàng.
-          </small>
-        ) : null}
+        <div className="payment-order-summary__info-row">
+          <span className="payment-order-summary__info-label">Phương thức</span>
+          <strong className="payment-order-summary__info-value">
+            {selectedMethodMeta?.label ?? payment?.payment_method ?? 'Chưa chọn'}
+          </strong>
+        </div>
+        <div className="payment-order-summary__info-row">
+          <span className="payment-order-summary__info-label">Mã giao dịch</span>
+          <strong className="payment-order-summary__info-value payment-order-summary__info-value--code">
+            {payment?.payment_code ?? 'Sẽ tạo sau khi xác nhận'}
+          </strong>
+        </div>
+        <div className="payment-order-summary__info-row">
+          <span className="payment-order-summary__info-label">Tạo lúc</span>
+          <strong className="payment-order-summary__info-value">
+            {formatDateTime(payment?.created_at)}
+          </strong>
+        </div>
       </div>
 
-      <button
-        className="payment-order-summary__button"
-        disabled={isDisabled || isSubmitting || isCancellingPayment}
-        type="button"
-        onClick={onPay}
-      >
-        {isSubmitting ? 'Đang xử lý...' : payLabel ?? (isPaid ? 'Đã thanh toán' : 'Thanh toán')}
-      </button>
+      <p className="payment-order-summary__helper">{buildPaymentHint(payment, selectedMethodMeta)}</p>
 
-      {canCancelPayment ? (
+      {showPrimaryAction ? (
+        <button
+          className="payment-order-summary__button"
+          disabled={isDisabled || isSubmitting || isCancellingPayment}
+          type="button"
+          onClick={onPay}
+        >
+          {isSubmitting
+            ? 'Đang xử lý...'
+            : payLabel ?? (isPaid ? 'Xem kết quả thanh toán' : 'Tạo yêu cầu thanh toán')}
+        </button>
+      ) : null}
+
+      {canCancelPayment && showPrimaryAction ? (
         <button
           className="payment-order-summary__secondary-button"
           disabled={isSubmitting || isCancellingPayment}
@@ -116,14 +208,8 @@ function PaymentOrderSummary({
         <span aria-hidden="true">
           <LockIcon />
         </span>
-        Mã hóa SSL & thanh toán an toàn
+        Thông tin cá nhân và giao dịch của bạn được bảo mật cẩn thận, chỉ dùng cho xác nhận thanh toán và hỗ trợ đơn hàng.
       </p>
-
-      {feedback ? (
-        <p className="payment-order-summary__feedback" role="status">
-          {feedback}
-        </p>
-      ) : null}
     </section>
   )
 }

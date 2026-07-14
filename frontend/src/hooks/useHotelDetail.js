@@ -180,7 +180,11 @@ export default function useHotelDetail() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({
+        behavior: 'smooth',
+        left: 0,
+        top: 0,
+      })
     }
   }, [slug])
 
@@ -485,8 +489,6 @@ export default function useHotelDetail() {
     if (!result.success) {
       return
     }
-
-    navigate(buildPublicAuthPath('/cart', isCustomer))
   }
 
   async function goToCheckoutAction(roomIdOverride) {

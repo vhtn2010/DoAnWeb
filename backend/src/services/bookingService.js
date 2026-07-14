@@ -13,6 +13,10 @@ const {
 const { createBookingRepository } = require('../database/bookingRepository');
 const { createLookupService } = require('./lookupService');
 const AppError = require('../utils/AppError');
+const {
+  calculateItemPricing,
+  calculatePricingSummary,
+} = require('../utils/pricing');
 
 const DANGEROUS_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -109,6 +113,85 @@ const buildVoucherError = (code, field, message) =>
 const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
+
+const getTaxAndFeeAmount = (booking = {}) =>
+  roundMoney(
+    Number(booking.vat_amount || 0) +
+      Number(booking.service_fee_amount || 0) +
+      Number(booking.surcharge_amount || 0),
+  );
+
+const resolveCheckoutAvailabilityServiceType = (cartItem, service) => {
+  if (
+    service.service_type === SERVICE_TYPE.HOTEL &&
+    cartItem.service_type === SERVICE_TYPE.ROOM
+  ) {
+    return SERVICE_TYPE.HOTEL;
+  }
+
+  return service.service_type || cartItem.service_type;
+};
+
+const buildCheckoutAvailabilityOptions = (cartItem, service) => {
+  const options =
+    cartItem.options && typeof cartItem.options === 'object' && !Array.isArray(cartItem.options)
+      ? { ...cartItem.options }
+      : {};
+
+  if (service.service_type !== SERVICE_TYPE.HOTEL) {
+    return options;
+  }
+
+  if (options.adults == null) {
+    const adultCount =
+      options.adult_count ??
+      options.guest_count ??
+      options.guests;
+
+    if (adultCount != null && Number.isFinite(Number(adultCount))) {
+      options.adults = Number(adultCount);
+    }
+  }
+
+  if (options.children == null) {
+    const childCount = options.child_count ?? options.children_count;
+
+    if (childCount != null && Number.isFinite(Number(childCount))) {
+      options.children = Number(childCount);
+    }
+  }
+
+  return options;
+};
+
+const buildCheckoutAvailabilityBody = (
+  cartItem,
+  service,
+  {
+    includeSchedule = true,
+  } = {},
+) => ({
+  ...(includeSchedule ? {
+    end_at: cartItem.end_at,
+    start_at: cartItem.start_at,
+  } : {}),
+  options: buildCheckoutAvailabilityOptions(cartItem, service),
+  quantity: Number(cartItem.quantity),
+  reference_id: cartItem.reference_id,
+  service_type: resolveCheckoutAvailabilityServiceType(cartItem, service),
+});
+
+const isCheckoutAvailabilityScheduleValidationError = (error) => {
+  if (error?.code !== API_ERROR_CODES.VALIDATION_ERROR) {
+    return false;
+  }
+
+  const details = Array.isArray(error.details) ? error.details : [];
+
+  return details.some((detail) =>
+    detail?.field === 'start_at' || detail?.field === 'end_at',
+  );
+};
 
 const parseUuid = (field, value) => {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value.trim())) {
@@ -529,9 +612,13 @@ const sanitizeCheckoutResponse = ({ booking, items }) => ({
   id: booking.id,
   items: items.map(sanitizeResponseItem),
   note: booking.note,
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
+  vat_amount: roundMoney(booking.vat_amount),
   voucher_id: booking.voucher_id || null,
 });
 
@@ -544,9 +631,13 @@ const sanitizeBookingSummary = (booking) => ({
   expires_at: booking.expires_at,
   id: booking.id,
   item_count: Number(booking.item_count || 0),
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
+  vat_amount: roundMoney(booking.vat_amount),
 });
 
 const sanitizeBookingDetailItem = (item) => ({
@@ -556,6 +647,7 @@ const sanitizeBookingDetailItem = (item) => ({
   reference_id: item.reference_id,
   service_id: item.service_id,
   service_type: item.service_type,
+  service_snapshot: sanitizeServiceSnapshot(item.service_snapshot),
   start_at: item.start_at,
   status: item.status,
   title: item.title_snapshot,
@@ -699,6 +791,132 @@ const sanitizeSnapshotTrain = (train) => {
   };
 };
 
+const getPositiveIntegerCount = (...values) => {
+  for (const value of values) {
+    const parsed = Number(value);
+
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return 0;
+};
+
+const buildPassengerCounts = (cartItem) => {
+  const options =
+    cartItem?.options && typeof cartItem.options === 'object' && !Array.isArray(cartItem.options)
+      ? cartItem.options
+      : {};
+  const childCount = getPositiveIntegerCount(
+    options.child_count,
+    options.children_count,
+    options.children,
+  );
+  const infantCount = getPositiveIntegerCount(
+    options.infant_count,
+    options.infants,
+  );
+  const adultCount = getPositiveIntegerCount(
+    options.adult_count,
+    options.adults,
+    options.guest_count,
+    Number(cartItem?.quantity) - childCount - infantCount,
+    cartItem?.quantity,
+  );
+
+  return {
+    adult_count: adultCount,
+    child_count: childCount,
+    infant_count: infantCount,
+    total_count: Math.max(adultCount + childCount + infantCount, Number(cartItem?.quantity) || 0),
+  };
+};
+
+const sanitizePassengerCounts = (passengerCounts) => {
+  if (
+    !passengerCounts ||
+    typeof passengerCounts !== 'object' ||
+    Array.isArray(passengerCounts)
+  ) {
+    return null;
+  }
+
+  const adultCount = getPositiveIntegerCount(passengerCounts.adult_count);
+  const childCount = getPositiveIntegerCount(passengerCounts.child_count);
+  const infantCount = getPositiveIntegerCount(passengerCounts.infant_count);
+  const totalCount = getPositiveIntegerCount(
+    passengerCounts.total_count,
+    adultCount + childCount + infantCount,
+  );
+
+  if (totalCount === 0) {
+    return null;
+  }
+
+  return {
+    adult_count: adultCount,
+    child_count: childCount,
+    infant_count: infantCount,
+    total_count: totalCount,
+  };
+};
+
+const sanitizeSnapshotDetails = (details) => {
+  if (!details || typeof details !== 'object' || Array.isArray(details)) {
+    return null;
+  }
+
+  const sanitized = {};
+  const passthroughKeys = [
+    'address',
+    'airline_name',
+    'amenities',
+    'arrival_airport',
+    'arrival_at',
+    'arrival_station',
+    'cabin_class',
+    'checkin_time',
+    'checkout_time',
+    'departure_airport',
+    'departure_at',
+    'departure_location',
+    'departure_schedule',
+    'departure_station',
+    'destination_location',
+    'excluded_services',
+    'flight_number',
+    'hotel_policy',
+    'included_services',
+    'itinerary',
+    'seat_class',
+    'terms',
+    'train_number',
+    'transport_type',
+  ];
+  const numericKeys = [
+    'duration_days',
+    'duration_nights',
+    'max_group_size',
+    'star_rating',
+    'fare_price',
+  ];
+
+  for (const key of passthroughKeys) {
+    if (details[key] !== undefined) {
+      sanitized[key] = details[key] ?? null;
+    }
+  }
+
+  for (const key of numericKeys) {
+    if (details[key] !== undefined) {
+      sanitized[key] = details[key] == null ? null : Number(details[key]);
+    }
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+};
+
 const sanitizeServiceSnapshot = (snapshot) => {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     return null;
@@ -713,7 +931,9 @@ const sanitizeServiceSnapshot = (snapshot) => {
     currency: snapshot.currency || DEFAULT_CURRENCY,
     description: snapshot.description || null,
     id: snapshot.id || null,
+    image_url: snapshot.image_url || snapshot.primary_image || null,
     location_text: snapshot.location_text || null,
+    primary_image: snapshot.primary_image || snapshot.image_url || null,
     public_price:
       snapshot.public_price == null
         ? null
@@ -732,6 +952,8 @@ const sanitizeServiceSnapshot = (snapshot) => {
   const roomType = sanitizeSnapshotRoomType(snapshot.room_type);
   const flight = sanitizeSnapshotFlight(snapshot.flight);
   const train = sanitizeSnapshotTrain(snapshot.train);
+  const details = sanitizeSnapshotDetails(snapshot.details);
+  const passengerCounts = sanitizePassengerCounts(snapshot.passenger_counts);
 
   if (roomType) {
     sanitized.room_type = roomType;
@@ -743,6 +965,14 @@ const sanitizeServiceSnapshot = (snapshot) => {
 
   if (train) {
     sanitized.train = train;
+  }
+
+  if (details) {
+    sanitized.details = details;
+  }
+
+  if (passengerCounts) {
+    sanitized.passenger_counts = passengerCounts;
   }
 
   return sanitized;
@@ -823,9 +1053,13 @@ const sanitizeInvoiceResponse = ({
     items: items.map(sanitizeInvoiceItem),
     payments: sanitizedPayments,
     refunds: refunds.map(sanitizeRefundSummary),
+    service_fee_amount: roundMoney(booking.service_fee_amount),
     status: booking.status,
     subtotal_amount: roundMoney(booking.subtotal_amount),
+    surcharge_amount: roundMoney(booking.surcharge_amount),
+    tax_and_fee_amount: getTaxAndFeeAmount(booking),
     total_amount: roundMoney(booking.total_amount),
+    vat_amount: roundMoney(booking.vat_amount),
     updated_at: booking.updated_at,
   };
 };
@@ -975,10 +1209,14 @@ const sanitizeBookingDetail = ({
   note: booking.note,
   payments: payments.map(sanitizePaymentSummary),
   refunds: refunds.map(sanitizeRefundSummary),
+  service_fee_amount: roundMoney(booking.service_fee_amount),
   status: booking.status,
   subtotal_amount: roundMoney(booking.subtotal_amount),
+  surcharge_amount: roundMoney(booking.surcharge_amount),
+  tax_and_fee_amount: getTaxAndFeeAmount(booking),
   total_amount: roundMoney(booking.total_amount),
   updated_at: booking.updated_at,
+  vat_amount: roundMoney(booking.vat_amount),
   voucher_id: booking.voucher_id || null,
 });
 
@@ -1029,6 +1267,7 @@ const buildServiceSnapshot = ({
   cartItem,
   detail,
   service,
+  serviceDetail,
   unitPrice,
 }) => {
   const snapshot = {
@@ -1037,7 +1276,10 @@ const buildServiceSnapshot = ({
     currency: service.currency || DEFAULT_CURRENCY,
     description: service.description || null,
     id: service.id,
+    image_url: service.primary_image || null,
     location_text: service.location_text || null,
+    passenger_counts: buildPassengerCounts(cartItem),
+    primary_image: service.primary_image || null,
     provider_name: service.provider_name || null,
     public_price: roundMoney(unitPrice),
     reference_id: cartItem.reference_id || null,
@@ -1048,6 +1290,37 @@ const buildServiceSnapshot = ({
     slug: service.slug,
     title: service.title,
   };
+
+  if (service.service_type === SERVICE_TYPE.TOUR && serviceDetail) {
+    snapshot.details = {
+      departure_location: serviceDetail.departure_location || null,
+      departure_schedule: serviceDetail.departure_schedule || null,
+      destination_location: serviceDetail.destination_location || null,
+      duration_days:
+        serviceDetail.duration_days == null ? null : Number(serviceDetail.duration_days),
+      duration_nights:
+        serviceDetail.duration_nights == null ? null : Number(serviceDetail.duration_nights),
+      excluded_services: serviceDetail.excluded_services || null,
+      included_services: serviceDetail.included_services || null,
+      itinerary: serviceDetail.itinerary || null,
+      max_group_size:
+        serviceDetail.max_group_size == null ? null : Number(serviceDetail.max_group_size),
+      terms: serviceDetail.terms || null,
+      transport_type: serviceDetail.transport_type || null,
+    };
+  }
+
+  if (service.service_type === SERVICE_TYPE.HOTEL && serviceDetail) {
+    snapshot.details = {
+      address: serviceDetail.address || null,
+      amenities: serviceDetail.amenities || null,
+      checkin_time: serviceDetail.checkin_time || null,
+      checkout_time: serviceDetail.checkout_time || null,
+      hotel_policy: serviceDetail.hotel_policy || null,
+      star_rating:
+        serviceDetail.star_rating == null ? null : Number(serviceDetail.star_rating),
+    };
+  }
 
   if (service.service_type === SERVICE_TYPE.HOTEL && detail) {
     snapshot.room_type = {
@@ -1073,6 +1346,7 @@ const buildServiceSnapshot = ({
       flight_number: detail.flight_number,
       id: detail.id,
     };
+    snapshot.details = { ...snapshot.flight };
   }
 
   if (service.service_type === SERVICE_TYPE.TRAIN && detail) {
@@ -1086,10 +1360,161 @@ const buildServiceSnapshot = ({
       seat_class: detail.seat_class,
       train_number: detail.train_number,
     };
+    snapshot.details = { ...snapshot.train };
   }
 
   return snapshot;
 };
+
+const mergeSnapshotWithCurrentService = (snapshot, fallbackSnapshot) => {
+  if (!fallbackSnapshot) {
+    return snapshot || null;
+  }
+
+  const currentSnapshot =
+    snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)
+      ? snapshot
+      : {};
+  const merged = {
+    ...currentSnapshot,
+  };
+  const liveDisplayKeys = [
+    'cancellation_policy',
+    'description',
+    'id',
+    'image_url',
+    'location_text',
+    'primary_image',
+    'provider_name',
+    'service_code',
+    'service_type',
+    'short_description',
+    'slug',
+    'title',
+  ];
+
+  for (const key of liveDisplayKeys) {
+    if (fallbackSnapshot[key] != null && fallbackSnapshot[key] !== '') {
+      merged[key] = fallbackSnapshot[key];
+    }
+  }
+
+  if (fallbackSnapshot.details || currentSnapshot.details) {
+    merged.details = {
+      ...(currentSnapshot.details || {}),
+      ...(fallbackSnapshot.details || {}),
+    };
+  }
+
+  if (fallbackSnapshot.flight || currentSnapshot.flight) {
+    merged.flight = {
+      ...(currentSnapshot.flight || {}),
+      ...(fallbackSnapshot.flight || {}),
+    };
+  }
+
+  if (fallbackSnapshot.train || currentSnapshot.train) {
+    merged.train = {
+      ...(currentSnapshot.train || {}),
+      ...(fallbackSnapshot.train || {}),
+    };
+  }
+
+  if (fallbackSnapshot.room_type || currentSnapshot.room_type) {
+    merged.room_type = {
+      ...(currentSnapshot.room_type || {}),
+      ...(fallbackSnapshot.room_type || {}),
+    };
+  }
+
+  if (!merged.passenger_counts && fallbackSnapshot.passenger_counts) {
+    merged.passenger_counts = fallbackSnapshot.passenger_counts;
+  }
+
+  return merged;
+};
+
+const buildCurrentServiceSnapshotPatch = async ({
+  item,
+  repository,
+}) => {
+  if (!item.service_id || typeof repository.getPublicServiceById !== 'function') {
+    return null;
+  }
+
+  const service = await repository.getPublicServiceById(item.service_id);
+
+  if (!service) {
+    return null;
+  }
+
+  let detail = null;
+  let serviceDetail = null;
+
+  if (service.service_type === SERVICE_TYPE.TOUR) {
+    serviceDetail =
+      typeof repository.getTourDetail === 'function'
+        ? await repository.getTourDetail(service.id)
+        : null;
+  } else if (service.service_type === SERVICE_TYPE.HOTEL) {
+    serviceDetail =
+      typeof repository.getHotelDetail === 'function'
+        ? await repository.getHotelDetail(service.id)
+        : null;
+
+    if (item.reference_id && typeof repository.getRoomTypeById === 'function') {
+      detail = await repository.getRoomTypeById(item.reference_id);
+    }
+  } else if (service.service_type === SERVICE_TYPE.FLIGHT) {
+    detail =
+      item.reference_id && typeof repository.getFlightDetailById === 'function'
+        ? await repository.getFlightDetailById(item.reference_id)
+        : null;
+    serviceDetail = detail;
+  } else if (service.service_type === SERVICE_TYPE.TRAIN) {
+    detail =
+      item.reference_id && typeof repository.getTrainDetailById === 'function'
+        ? await repository.getTrainDetailById(item.reference_id)
+        : null;
+    serviceDetail = detail;
+  }
+
+  return buildServiceSnapshot({
+    cartItem: {
+      quantity: item.quantity,
+      reference_id: item.reference_id,
+    },
+    detail,
+    service,
+    serviceDetail,
+    unitPrice: item.unit_price || service.sale_price || service.base_price || 0,
+  });
+};
+
+const enrichBookingItemsWithCurrentServiceData = async ({
+  items,
+  repository,
+}) =>
+  Promise.all(
+    items.map(async (item) => {
+      if (!item.service_id) {
+        return item;
+      }
+
+      const fallbackSnapshot = await buildCurrentServiceSnapshotPatch({
+        item,
+        repository,
+      }).catch(() => null);
+
+      return {
+        ...item,
+        service_snapshot: mergeSnapshotWithCurrentService(
+          item.service_snapshot,
+          fallbackSnapshot,
+        ),
+      };
+    }),
+  );
 
 const validateVoucher = async ({
   repository,
@@ -1295,18 +1720,32 @@ const createBookingService = ({
 
       try {
         availabilityResult = await resolvedAvailabilityService.getServiceAvailability({
-          body: {
-            end_at: cartItem.end_at,
-            options: cartItem.options || {},
-            quantity: Number(cartItem.quantity),
-            reference_id: cartItem.reference_id,
-            service_type: cartItem.service_type,
-            start_at: cartItem.start_at,
-          },
+          body: buildCheckoutAvailabilityBody(cartItem, service),
           service_id: cartItem.service_id,
         });
       } catch (error) {
-        if (
+        if (isCheckoutAvailabilityScheduleValidationError(error)) {
+          try {
+            availabilityResult = await resolvedAvailabilityService.getServiceAvailability({
+              body: buildCheckoutAvailabilityBody(cartItem, service, {
+                includeSchedule: false,
+              }),
+              service_id: cartItem.service_id,
+            });
+          } catch (retryError) {
+            if (
+              retryError?.code === API_ERROR_CODES.VALIDATION_ERROR ||
+              retryError?.code === API_ERROR_CODES.RESOURCE_NOT_FOUND
+            ) {
+              throw buildCartItemUnavailableError(
+                cartItem.id,
+                'A cart item can no longer be checked for availability',
+              );
+            }
+
+            throw retryError;
+          }
+        } else if (
           error?.code === API_ERROR_CODES.VALIDATION_ERROR ||
           error?.code === API_ERROR_CODES.RESOURCE_NOT_FOUND
         ) {
@@ -1314,9 +1753,9 @@ const createBookingService = ({
             cartItem.id,
             'A cart item can no longer be checked for availability',
           );
+        } else {
+          throw error;
         }
-
-        throw error;
       }
 
       if (!availabilityResult.available) {
@@ -1328,43 +1767,75 @@ const createBookingService = ({
       }
 
       let detail = null;
+      let serviceDetail = null;
 
-      if (service.service_type === SERVICE_TYPE.HOTEL && cartItem.reference_id) {
-        detail = await repository.getRoomTypeById(cartItem.reference_id);
+      if (service.service_type === SERVICE_TYPE.TOUR) {
+        if (typeof repository.getTourDetail === 'function') {
+          serviceDetail = await repository.getTourDetail(cartItem.service_id);
+        }
+      } else if (service.service_type === SERVICE_TYPE.HOTEL) {
+        if (typeof repository.getHotelDetail === 'function') {
+          serviceDetail = await repository.getHotelDetail(cartItem.service_id);
+        }
+
+        if (cartItem.reference_id) {
+          detail = await repository.getRoomTypeById(cartItem.reference_id);
+        }
       } else if (service.service_type === SERVICE_TYPE.FLIGHT && cartItem.reference_id) {
         detail = await repository.getFlightDetailById(cartItem.reference_id);
+        serviceDetail = detail;
       } else if (service.service_type === SERVICE_TYPE.TRAIN && cartItem.reference_id) {
         detail = await repository.getTrainDetailById(cartItem.reference_id);
+        serviceDetail = detail;
+      }
+
+      if (service.service_type === SERVICE_TYPE.HOTEL && cartItem.reference_id && !detail) {
+        detail = await repository.getRoomTypeById(cartItem.reference_id);
       }
 
       const unitPrice = roundMoney(availabilityResult.unit_price);
-      const totalAmount = roundMoney(unitPrice * Number(cartItem.quantity));
+      const quantity = Number(cartItem.quantity);
+      const pricingInput = {
+        ...cartItem,
+        options: cartItem.options,
+        quantity,
+        service_type: service.service_type,
+        unit_price: unitPrice,
+        unit_price_snapshot: unitPrice,
+      };
+      const itemPricing = calculateItemPricing(pricingInput);
+      const totalAmount = roundMoney(itemPricing.subtotal_amount);
+      const bookingItemUnitPrice = quantity > 0
+        ? roundMoney(totalAmount / quantity)
+        : unitPrice;
+      const serviceSnapshot = buildServiceSnapshot({
+        cartItem,
+        detail,
+        service,
+        serviceDetail,
+        unitPrice,
+      });
+      serviceSnapshot.pricing = itemPricing;
 
       bookingItems.push({
         cart_item_id: cartItem.id,
         end_at: cartItem.end_at,
-        quantity: Number(cartItem.quantity),
+        quantity,
         reference_id: cartItem.reference_id,
         service_id: service.id,
-        service_snapshot: buildServiceSnapshot({
-          cartItem,
-          detail,
-          service,
-          unitPrice,
-        }),
+        service_snapshot: serviceSnapshot,
         service_type: service.service_type,
         start_at: cartItem.start_at,
         status: BOOKING_ITEM_STATUS.PENDING,
         title_snapshot: service.title,
         total_amount: totalAmount,
         traveller_info: parsedBody.travellers.get(cartItem.id) ?? null,
-        unit_price: unitPrice,
+        unit_price: bookingItemUnitPrice,
       });
     }
 
-    const subtotalAmount = roundMoney(
-      bookingItems.reduce((sum, item) => sum + item.total_amount, 0),
-    );
+    const basePricingSummary = calculatePricingSummary(bookingItems);
+    const subtotalAmount = basePricingSummary.subtotal_amount;
     const {
       discountAmount,
       voucher,
@@ -1374,9 +1845,10 @@ const createBookingService = ({
       userId: auth.userId,
       voucherCode: parsedBody.voucherCode,
     });
-    const totalAmount = roundMoney(
-      Math.max(0, subtotalAmount - discountAmount),
-    );
+    const pricingSummary = calculatePricingSummary(bookingItems, {
+      discountAmount,
+      voucher,
+    });
 
     const result = await repository.createCheckout({
       actorUserId: auth.userId,
@@ -1389,10 +1861,13 @@ const createBookingService = ({
         discount_amount: discountAmount,
         expires_at: buildExpiresAt(),
         note: parsedBody.note,
+        service_fee_amount: pricingSummary.service_fee_amount,
         status: BOOKING_STATUS.PENDING_PAYMENT,
         subtotal_amount: subtotalAmount,
-        total_amount: totalAmount,
+        surcharge_amount: pricingSummary.surcharge_amount,
+        total_amount: pricingSummary.total_amount,
         user_id: auth.userId,
+        vat_amount: pricingSummary.vat_amount,
         voucher_id: voucher?.id || null,
       },
       bookingItems,
@@ -1452,9 +1927,14 @@ const createBookingService = ({
       repository.listBookingRefundsByBookingId(parsedBookingId),
     ]);
 
+    const enrichedItems = await enrichBookingItemsWithCurrentServiceData({
+      items,
+      repository,
+    });
+
     return sanitizeBookingDetail({
       booking,
-      items,
+      items: enrichedItems,
       payments,
       refunds,
     });
@@ -1477,8 +1957,12 @@ const createBookingService = ({
     }
 
     const items = await repository.listBookingItemsByBookingId(parsedBookingId);
+    const enrichedItems = await enrichBookingItemsWithCurrentServiceData({
+      items,
+      repository,
+    });
 
-    return items.map(sanitizeBookingItemSnapshot);
+    return enrichedItems.map(sanitizeBookingItemSnapshot);
   };
 
   const getMyBookingStatusHistory = async ({

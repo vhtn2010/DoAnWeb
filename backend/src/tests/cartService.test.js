@@ -3,12 +3,27 @@ const test = require('node:test');
 
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const { createCartService } = require('../services/cartService');
+const { calculatePricingSummary } = require('../utils/pricing');
 
 const createTransactionStub = () => ({
   query: async () => {
     throw new Error('client.query should not be called directly in cart service tests');
   },
 });
+
+const expectCartSummary = (items = [], options = {}) => {
+  const summary = calculatePricingSummary(items, options);
+  const {
+    cart_id: cartId,
+    voucher,
+    ...cartSummary
+  } = summary;
+
+  void cartId;
+  void voucher;
+
+  return cartSummary;
+};
 
 const createEnrichedCartItemRow = ({
   createdAt = '2026-07-01T08:05:00.000Z',
@@ -158,13 +173,15 @@ test('getActiveCart returns newest active cart items with safe summary data', as
     },
   ]);
   assert.equal(result.id, 'cart-2');
-  assert.deepEqual(result.summary, {
-    currency: 'VND',
-    item_count: 1,
-    quantity_total: 2,
-    subtotal_amount: 5980000,
-    total_amount: 5980000,
-  });
+  assert.deepEqual(result.summary, expectCartSummary([
+    {
+      id: 'item-1',
+      options: { adults: 2 },
+      quantity: 2,
+      service_type: 'tour',
+      unit_price_snapshot: 2990000,
+    },
+  ]));
 });
 
 test('addCartItem creates active cart, inserts item, and returns fresh summary', async () => {
@@ -268,13 +285,15 @@ test('addCartItem creates active cart, inserts item, and returns fresh summary',
   assert.deepEqual(result, {
     cart_id: 'cart-new',
     cart_item_id: 'item-new',
-    summary: {
-      currency: 'VND',
-      item_count: 1,
-      quantity_total: 2,
-      subtotal_amount: 5980000,
-      total_amount: 5980000,
-    },
+    summary: expectCartSummary([
+      {
+        id: 'item-new',
+        options: { adults: 2 },
+        quantity: 2,
+        service_type: 'tour',
+        unit_price_snapshot: 2990000,
+      },
+    ]),
   });
   assert.equal(calls.find((entry) => entry.method === 'insertCartItem').payload.unitPriceSnapshot, 2990000);
 });
@@ -374,13 +393,15 @@ test('addCartItem merges duplicate items and updates quantity with current snaps
   assert.equal(calls[0].cartItemId, 'item-existing');
   assert.equal(calls[0].quantity, 4);
   assert.equal(calls[0].unitPriceSnapshot, 3000000);
-  assert.deepEqual(result.summary, {
-    currency: 'VND',
-    item_count: 1,
-    quantity_total: 4,
-    subtotal_amount: 12000000,
-    total_amount: 12000000,
-  });
+  assert.deepEqual(result.summary, expectCartSummary([
+    {
+      id: 'item-existing',
+      options: { adults: 2 },
+      quantity: 4,
+      service_type: 'tour',
+      unit_price_snapshot: 3000000,
+    },
+  ]));
 });
 
 test('addCartItem rejects inactive service with CART_ITEM_NOT_AVAILABLE', async () => {
@@ -514,13 +535,15 @@ test('updateCartItem keeps previous snapshot when only quantity changes', async 
 
   assert.equal(calls[0].unitPriceSnapshot, 2800000);
   assert.equal(result.cart_item.unit_price_snapshot, 2800000);
-  assert.deepEqual(result.summary, {
-    currency: 'VND',
-    item_count: 1,
-    quantity_total: 3,
-    subtotal_amount: 8400000,
-    total_amount: 8400000,
-  });
+  assert.deepEqual(result.summary, expectCartSummary([
+    {
+      id: 'item-qty',
+      options: { adults: 2 },
+      quantity: 3,
+      service_type: 'tour',
+      unit_price_snapshot: 2800000,
+    },
+  ]));
 });
 
 test('updateCartItem refreshes snapshot when options change', async () => {
@@ -647,13 +670,7 @@ test('deleteCartItem removes item from active cart and returns zeroed summary wh
   assert.deepEqual(result, {
     cart_id: 'cart-del',
     deleted_item_id: 'item-del',
-    summary: {
-      currency: 'VND',
-      item_count: 0,
-      quantity_total: 0,
-      subtotal_amount: 0,
-      total_amount: 0,
-    },
+    summary: expectCartSummary(),
   });
 });
 
@@ -671,13 +688,7 @@ test('clearCartItems returns idempotent success when customer has no active cart
 
   assert.deepEqual(result, {
     cart_id: null,
-    summary: {
-      currency: 'VND',
-      item_count: 0,
-      quantity_total: 0,
-      subtotal_amount: 0,
-      total_amount: 0,
-    },
+    summary: expectCartSummary(),
   });
 });
 
@@ -694,16 +705,10 @@ test('getCartSummary returns zero summary when customer has no active cart', asy
     userId: 'user-10',
   });
 
-  assert.deepEqual(result, {
-    cart_id: null,
-    currency: 'VND',
-    discount_amount: 0,
-    item_count: 0,
-    quantity_total: 0,
-    subtotal_amount: 0,
-    total_amount: 0,
+  assert.deepEqual(result, calculatePricingSummary([], {
+    cartId: null,
     voucher: null,
-  });
+  }));
 });
 
 test('getCartSummary applies percent voucher only to matching service type items', async () => {
@@ -769,13 +774,23 @@ test('getCartSummary applies percent voucher only to matching service type items
   });
 
   assert.deepEqual(result, {
-    cart_id: 'cart-summary-1',
-    currency: 'VND',
-    discount_amount: 200000,
-    item_count: 2,
-    quantity_total: 2,
-    subtotal_amount: 3000000,
-    total_amount: 2800000,
+    ...calculatePricingSummary([
+      {
+        id: 'item-tour',
+        quantity: 1,
+        service_type: 'tour',
+        unit_price_snapshot: 2000000,
+      },
+      {
+        id: 'item-hotel',
+        quantity: 1,
+        service_type: 'hotel',
+        unit_price_snapshot: 1000000,
+      },
+    ], {
+      cartId: 'cart-summary-1',
+      discountAmount: 200000,
+    }),
     voucher: {
       applied: true,
       code: 'TOUR10',
@@ -843,7 +858,7 @@ test('getCartSummary returns voucher issue when voucher is expired', async () =>
   });
 
   assert.equal(result.discount_amount, 0);
-  assert.equal(result.total_amount, 1500000);
+  assert.equal(result.total_amount, 1720000);
   assert.deepEqual(result.voucher, {
     applied: false,
     code: 'SAVE50',
@@ -1197,7 +1212,7 @@ test('validateCart returns valid true with current summary and applied voucher',
   assert.deepEqual(result.issues, []);
   assert.equal(result.summary.subtotal_amount, 2000000);
   assert.equal(result.summary.discount_amount, 200000);
-  assert.equal(result.summary.total_amount, 1800000);
+  assert.equal(result.summary.total_amount, 2044000);
   assert.equal(result.summary.voucher.applied, true);
 });
 
@@ -1275,7 +1290,7 @@ test('applyCartVoucher returns strict applied voucher summary for valid cart', a
   });
 
   assert.equal(result.cart_id, 'cart-apply-voucher');
-  assert.equal(result.final_total_amount, 1800000);
+  assert.equal(result.final_total_amount, 2044000);
   assert.equal(result.summary.discount_amount, 200000);
   assert.equal(result.voucher.code, 'TOUR10');
 });
@@ -1333,16 +1348,10 @@ test('removeCartVoucher returns idempotent success when customer has no active c
   assert.deepEqual(result, {
     cart_id: null,
     removed: true,
-    summary: {
-      cart_id: null,
-      currency: 'VND',
-      discount_amount: 0,
-      item_count: 0,
-      quantity_total: 0,
-      subtotal_amount: 0,
-      total_amount: 0,
+    summary: calculatePricingSummary([], {
+      cartId: null,
       voucher: null,
-    },
+    }),
   });
 });
 

@@ -1,3 +1,6 @@
+import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
+import { resolveCartItemLineAmount } from '../../mappers/cartMappers.js'
+
 function CalendarIcon() {
   return (
     <svg fill="none" viewBox="0 0 20 20">
@@ -21,14 +24,63 @@ function CalendarIcon() {
   )
 }
 
+function PassengerCounter({
+  count,
+  disabled = false,
+  label,
+  min = 0,
+  onChange,
+}) {
+  const canDecrease = count > min && !disabled
+
+  return (
+    <div className="cart-item-card__passenger-control">
+      <span className="cart-item-card__passenger-label">{label}</span>
+      <div className="cart-item-card__passenger-stepper">
+        <button
+          aria-label={`Giảm ${label.toLowerCase()}`}
+          className="cart-item-card__quantity-button"
+          disabled={!canDecrease}
+          type="button"
+          onClick={() => onChange(count - 1)}
+        >
+          -
+        </button>
+        <strong className="cart-item-card__passenger-value" aria-live="polite">
+          {count}
+        </strong>
+        <button
+          aria-label={`Tăng ${label.toLowerCase()}`}
+          className="cart-item-card__quantity-button"
+          disabled={disabled}
+          type="button"
+          onClick={() => onChange(count + 1)}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function CartItemCard({
+  formatCurrency,
   isSelected,
+  isUpdatingQuantity = false,
   item,
   onEdit,
+  onQuantityChange,
   onRemove,
   onToggle,
-  formatCurrency,
+  onTourPassengerChange,
 }) {
+  const quantity = Number(item.quantity) > 0 ? Number(item.quantity) : 1
+  const canDecreaseQuantity = quantity > 1 && !isUpdatingQuantity
+  const isTourItem = item.service_type === SERVICE_TYPES.tour
+  const adultCount = Math.max(Number(item.options?.adult_count) || quantity, 1)
+  const childCount = Math.max(Number(item.options?.child_count) || 0, 0)
+  const displayAmount = resolveCartItemLineAmount(item)
+
   return (
     <article className={isSelected ? 'cart-item-card cart-item-card--selected' : 'cart-item-card'}>
       <label className="cart-item-card__checkbox">
@@ -37,32 +89,90 @@ function CartItemCard({
       </label>
 
       <div className="cart-item-card__body">
-        <div className="cart-item-card__media">
+        <button
+          className="cart-item-card__media cart-item-card__detail-trigger"
+          type="button"
+          onClick={() => onEdit(item)}
+        >
           <img
             alt={item.service.title}
             className="cart-item-card__image"
             src={item.service.image_url}
           />
-        </div>
+        </button>
 
         <div className="cart-item-card__content">
           <div className="cart-item-card__heading">
-            <div className="cart-item-card__copy">
+            <button
+              className="cart-item-card__copy cart-item-card__detail-trigger"
+              type="button"
+              onClick={() => onEdit(item)}
+            >
               <h3 className="cart-item-card__title">{item.service.title}</h3>
               <p className="cart-item-card__description">{item.options.option_summary}</p>
               <div className="cart-item-card__schedule">
                 <CalendarIcon />
                 <span>{item.options.schedule_label}</span>
               </div>
-            </div>
+            </button>
 
-            <strong className="cart-item-card__price">
-              {formatCurrency(item.unit_price_snapshot)}
-            </strong>
+            <div className="cart-item-card__price-block">
+              <strong className="cart-item-card__price">{formatCurrency(displayAmount)}</strong>
+            </div>
           </div>
 
           <div className="cart-item-card__actions">
-            <button className="cart-item-card__action" type="button" onClick={() => onEdit(item)}>
+            <div className="cart-item-card__quantity-stack">
+              {isTourItem ? (
+                <div className="cart-item-card__passenger-grid">
+                  <PassengerCounter
+                    count={adultCount}
+                    disabled={isUpdatingQuantity}
+                    label="Người lớn"
+                    min={1}
+                    onChange={(nextCount) => onTourPassengerChange(item, 'adult_count', nextCount)}
+                  />
+                  <PassengerCounter
+                    count={childCount}
+                    disabled={isUpdatingQuantity}
+                    label="Trẻ em"
+                    min={0}
+                    onChange={(nextCount) => onTourPassengerChange(item, 'child_count', nextCount)}
+                  />
+                </div>
+              ) : (
+                <div className="cart-item-card__quantity-control" aria-label={`Số lượng ${item.service.title}`}>
+                  <span className="cart-item-card__quantity-label">Số lượng</span>
+                  <button
+                    aria-label="Giảm số lượng"
+                    className="cart-item-card__quantity-button"
+                    disabled={!canDecreaseQuantity}
+                    type="button"
+                    onClick={() => onQuantityChange(item, quantity - 1)}
+                  >
+                    -
+                  </button>
+                  <strong className="cart-item-card__quantity-value" aria-live="polite">
+                    {quantity}
+                  </strong>
+                  <button
+                    aria-label="Tăng số lượng"
+                    className="cart-item-card__quantity-button"
+                    disabled={isUpdatingQuantity}
+                    type="button"
+                    onClick={() => onQuantityChange(item, quantity + 1)}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              className="cart-item-card__action cart-item-card__action--secondary"
+              type="button"
+              onClick={() => onEdit(item)}
+            >
               Chỉnh sửa
             </button>
             <button

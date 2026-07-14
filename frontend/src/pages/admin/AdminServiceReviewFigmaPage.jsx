@@ -276,11 +276,31 @@ function buildItineraryItems(itinerary = []) {
         return ''
       }
 
-      const dayLabel = item.day ? `Ngày ${item.day}` : 'Lịch trình'
+      const dayNumber = item.day_number ?? item.day
+      const dayLabel = dayNumber ? `Ngày ${dayNumber}` : 'Lịch trình'
       const title = item.title ? ` - ${item.title}` : ''
-      const activities = Array.isArray(item.activities) && item.activities.length > 0
-        ? `: ${item.activities.join(', ')}`
-        : ''
+      const actions = Array.isArray(item.actions) && item.actions.length > 0
+        ? item.actions
+            .map((action) => {
+              if (typeof action === 'string') {
+                return action
+              }
+
+              if (!action || typeof action !== 'object') {
+                return ''
+              }
+
+              return [action.time, action.title, action.description]
+                .filter(Boolean)
+                .join(' - ')
+            })
+            .filter(Boolean)
+        : []
+      const activities = actions.length > 0
+        ? `: ${actions.join('; ')}`
+        : Array.isArray(item.activities) && item.activities.length > 0
+          ? `: ${item.activities.join(', ')}`
+          : ''
 
       return `${dayLabel}${title}${activities}`
     })

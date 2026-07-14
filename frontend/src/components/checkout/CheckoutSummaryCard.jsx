@@ -68,6 +68,22 @@ function formatServiceDateRange(startAt, endAt) {
   return `${startDay} Th${startMonth} - ${endDay} Th${endMonth}, ${year}`
 }
 
+function buildTravellerLabel(options = {}) {
+  const adults = Number(options.adults ?? 0)
+  const children = Number(options.children ?? 0)
+  const travellerParts = []
+
+  if (adults > 0) {
+    travellerParts.push(`${String(adults).padStart(2, '0')} Người lớn`)
+  }
+
+  if (children > 0) {
+    travellerParts.push(`${String(children).padStart(2, '0')} Trẻ em`)
+  }
+
+  return travellerParts.join(' • ') || '01 Người lớn'
+}
+
 function CheckoutSummaryCard({
   buttonLabel,
   feedbackMessage,
@@ -77,8 +93,9 @@ function CheckoutSummaryCard({
   summaryService,
 }) {
   const hasValidationError = Object.keys(formErrors).length > 0
-  const travellerCount = summaryService.options?.adults ?? 2
   const dateRange = formatServiceDateRange(summaryService.start_at, summaryService.end_at)
+  const travellerLabel = buildTravellerLabel(summaryService.options)
+  const hasBaggageFee = Boolean(summary.has_baggage_fee)
 
   return (
     <section className="checkout-summary-card">
@@ -97,20 +114,21 @@ function CheckoutSummaryCard({
 
       <div className="checkout-summary-card__body">
         <div className="checkout-summary-card__meta-list">
-          <div className="checkout-summary-card__meta-item">
-            <SummaryMetaIcon type="calendar" />
-            <span>{dateRange}</span>
+          <div className="checkout-summary-card__meta-row">
+            <div className="checkout-summary-card__meta-item">
+              <SummaryMetaIcon type="calendar" />
+              <span>{dateRange}</span>
+            </div>
+            <strong className="checkout-summary-card__meta-value">
+              {summaryService.options.duration_text}
+            </strong>
           </div>
-          <div className="checkout-summary-card__meta-item">
-            <SummaryMetaIcon type="duration" />
-            <span>{summaryService.options.duration_text}</span>
-          </div>
-          <div className="checkout-summary-card__meta-item">
-            <SummaryMetaIcon type="travellers" />
-            <span>Hành khách</span>
-          </div>
-          <div className="checkout-summary-card__meta-value">
-            {String(travellerCount).padStart(2, '0')} Người lớn
+          <div className="checkout-summary-card__meta-row">
+            <div className="checkout-summary-card__meta-item">
+              <SummaryMetaIcon type="travellers" />
+              <span>Hành khách</span>
+            </div>
+            <strong className="checkout-summary-card__meta-value">{travellerLabel}</strong>
           </div>
         </div>
 
@@ -119,6 +137,12 @@ function CheckoutSummaryCard({
             <span>Giá</span>
             <strong>{summary.subtotal_amount}</strong>
           </div>
+          {hasBaggageFee ? (
+            <div className="checkout-summary-card__price-row">
+              <span>Phí hành lý ký gửi</span>
+              <strong>{summary.baggage_fee_amount}</strong>
+            </div>
+          ) : null}
           <div className="checkout-summary-card__price-row">
             <span>Thuế & Phí dịch vụ</span>
             <strong>{summary.service_fee_amount}</strong>

@@ -33,7 +33,7 @@ function DestinationCard({ index, service }) {
     <Link
       className={`home-destination-card ${modifierClass ?? ''}`}
       to={detailPath}
-      style={{ '--reveal-delay': `${index * 100}ms` }}
+      style={{ '--reveal-delay': `${360 + index * 160}ms` }}
     >
       <div
         aria-hidden="true"

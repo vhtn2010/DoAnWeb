@@ -524,6 +524,7 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
         td.departure_at,
         td.arrival_at,
         td.seat_class,
+        td.seats_total,
         td.seats_available,
         td.fare_price,
         COALESCE(s.currency, 'VND') AS currency

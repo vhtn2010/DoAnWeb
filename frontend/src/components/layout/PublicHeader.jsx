@@ -81,7 +81,7 @@ function PublicHeader({ publicSession }) {
         <button
           aria-controls="public-header-menu"
           aria-expanded={isMobileMenuOpen}
-          aria-label={isMobileMenuOpen ? 'ÄÃ³ng menu' : 'Má»Ÿ menu'}
+          aria-label={isMobileMenuOpen ? 'Đóng menu' : 'Mở menu'}
           className="public-header__menu-toggle"
           type="button"
           onClick={() => setIsMobileMenuOpen((currentValue) => !currentValue)}

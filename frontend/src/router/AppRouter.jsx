@@ -17,11 +17,15 @@ import FlightListPage from '../pages/flights/FlightListPageV2.jsx'
 import HotelDetailPage from '../pages/hotels/HotelDetailPage.jsx'
 import HotelListPage from '../pages/hotels/HotelListPageV2.jsx'
 import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.jsx'
+import PaymentTransferPage from '../pages/payment/PaymentTransferPage.jsx'
 import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
+import CustomerRefundRequestPage from '../pages/profile/CustomerRefundRequestPage.jsx'
+import CustomerTripDetailPage from '../pages/profile/CustomerTripDetailPage.jsx'
 import FavoritesPage from '../pages/profile/FavoritesPage.jsx'
 import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
 import NotificationsPage from '../pages/profile/NotificationsPage.jsx'
+import ProfileOrdersPage from '../pages/profile/ProfileOrdersPage.jsx'
 import ProfilePage from '../pages/profile/ProfilePageV2.jsx'
 import TravelHandbookPage from '../pages/profile/TravelHandbookPage.jsx'
 import ServiceListPage from '../pages/service/ServiceListPageV2.jsx'
@@ -53,10 +57,12 @@ import {
 import AdminRouteGate from '../pages/admin/AdminRouteGate.jsx'
 import CustomerOnlyRoute from './CustomerOnlyRoute.jsx'
 import ProtectedRoute from './ProtectedRoute.jsx'
+import ScrollToTop from './ScrollToTop.jsx'
 
 function AppRouter() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route element={<PublicLayout />}>
           <Route path="/" element={<HomePage />} />
@@ -121,6 +127,18 @@ function AppRouter() {
             }
           />
           <Route
+            path="/payment-transfer/:paymentCode"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem thông tin chuyển khoản, tải bill và chờ admin xác nhận thanh toán."
+                eyebrow="Thanh toán"
+                title="Vui lòng đăng nhập để tiếp tục chuyển khoản"
+              >
+                <PaymentTransferPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
             path="/payment-success/:paymentCode"
             element={
               <CustomerOnlyRoute
@@ -154,6 +172,42 @@ function AppRouter() {
                 title="Vui lòng đăng nhập để mở tài khoản cá nhân"
               >
                 <ProfilePage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/profile/orders"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem lịch sử đơn hàng, trạng thái thanh toán và các yêu cầu đang chờ duyệt."
+                eyebrow="Lịch sử đơn hàng"
+                title="Vui lòng đăng nhập để xem lịch sử đơn hàng"
+              >
+                <ProfileOrdersPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/profile/trips/:bookingCode"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để xem chi tiết lịch trình, dịch vụ đã đặt và các nhắc nhở trước chuyến đi."
+                eyebrow="Chuyến đi"
+                title="Vui lòng đăng nhập để xem chuyến đi của bạn"
+              >
+                <CustomerTripDetailPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/profile/trips/:bookingCode/refund-request"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để gửi yêu cầu hoàn tiền, cung cấp lý do và minh chứng liên quan đến đơn hàng của bạn."
+                eyebrow="Hoàn tiền"
+                title="Vui lòng đăng nhập để gửi yêu cầu hoàn tiền"
+              >
+                <CustomerRefundRequestPage />
               </CustomerOnlyRoute>
             }
           />

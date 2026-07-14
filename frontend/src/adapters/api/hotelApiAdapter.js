@@ -185,7 +185,7 @@ function buildFallbackHotelSummary(service = {}) {
     short_description: service.short_description ?? '',
     slug: service.slug,
     status: service.status ?? SERVICE_STATUSES.active,
-    title: service.title ?? 'Khach san dang cap nhat',
+    title: service.title ?? 'Khách sạn đang cập nhật',
   }
 }
 
@@ -223,7 +223,7 @@ function mapServiceDetailToHotel(service = {}, { gallery } = {}) {
     short_description: service.short_description ?? '',
     slug: service.slug,
     status: SERVICE_STATUSES.active,
-    title: service.title ?? 'Khach san dang cap nhat',
+    title: service.title ?? 'Khách sạn đang cập nhật',
   }
 }
 
@@ -252,7 +252,7 @@ function mapApiRoomToView(room = {}, hotelServiceId) {
     service_type: SERVICE_TYPES.room,
     short_description: room.description ?? '',
     status: SERVICE_STATUSES.active,
-    title: room.name ?? 'Phong dang cap nhat',
+    title: room.name ?? 'Phòng đang cập nhật',
   }
 }
 

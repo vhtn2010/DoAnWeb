@@ -35,7 +35,7 @@ function UserIcon() {
 
 function CheckoutContactCard({ errors, formValues, onChange }) {
   return (
-    <section className="checkout-form-card checkout-form-card--accent">
+    <section className="checkout-form-card checkout-form-card--contact">
       <div className="checkout-form-card__header">
         <span aria-hidden="true" className="checkout-form-card__icon">
           <UserIcon />

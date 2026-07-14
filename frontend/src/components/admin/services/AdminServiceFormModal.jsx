@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import AdminTourItinerarySection from './AdminTourItinerarySection.jsx'
 import AdminServiceTypeFields from './AdminServiceTypeFields.jsx'
 import {
   ADMIN_SERVICE_FORM_STATUS_OPTIONS,
@@ -216,6 +217,16 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
     }))
   }
 
+  const handleDetailValueChange = (name, value) => {
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      details: {
+        ...currentValues.details,
+        [name]: value,
+      },
+    }))
+  }
+
   const handleSubmit = (submitIntent) => {
     const nextErrors = validateServiceForm(formValues)
 
@@ -360,6 +371,14 @@ function AdminServiceFormModal({ currentRole, mode, onClose, onSave, service }) 
                   </FieldShell>
                 </div>
               </section>
+
+              {formValues.service_type === 'tour' ? (
+                <AdminTourItinerarySection
+                  error={errors['details.itinerary']}
+                  itinerary={formValues.details.itinerary}
+                  onChange={(nextItinerary) => handleDetailValueChange('itinerary', nextItinerary)}
+                />
+              ) : null}
 
               <section className="admin-service-modal__section">
                 <div className="admin-service-modal__section-heading">

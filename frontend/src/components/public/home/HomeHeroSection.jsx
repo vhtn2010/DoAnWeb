@@ -1,4 +1,3 @@
-import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 
 function ArrowRightIcon() {
@@ -25,32 +24,8 @@ export default function HomeHeroSection({
   titleLeading,
   titleScript,
 }) {
-  const heroRef = useRef(null)
-
-  function handlePointerMove(event) {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-
-    const bounds = heroRef.current?.getBoundingClientRect()
-    if (!bounds) return
-
-    const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2
-    const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2
-    heroRef.current.style.setProperty('--hero-pointer-x', x.toFixed(3))
-    heroRef.current.style.setProperty('--hero-pointer-y', y.toFixed(3))
-  }
-
-  function resetPointer() {
-    heroRef.current?.style.setProperty('--hero-pointer-x', 0)
-    heroRef.current?.style.setProperty('--hero-pointer-y', 0)
-  }
-
   return (
-    <div
-      className="home-hero__content"
-      ref={heroRef}
-      onMouseLeave={resetPointer}
-      onMouseMove={handlePointerMove}
-    >
+    <div className="home-hero__content">
       <div className="home-hero__sky" aria-hidden="true">
         <span className="home-hero__cloud home-hero__cloud--one" />
         <span className="home-hero__cloud home-hero__cloud--two" />

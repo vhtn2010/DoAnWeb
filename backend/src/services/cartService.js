@@ -11,6 +11,10 @@ const {
 const { withTransaction } = require('../database/client');
 const { createCartRepository } = require('../database/cartRepository');
 const AppError = require('../utils/AppError');
+const {
+  calculateItemPricing,
+  calculatePricingSummary,
+} = require('../utils/pricing');
 
 const UNIQUE_VIOLATION_ERROR_CODE = '23505';
 const UUID_PATTERN =
@@ -204,21 +208,20 @@ const mapCartItem = (item) => {
 };
 
 const buildSummaryFromItems = (items) => {
-  const subtotalAmount = items.reduce(
-    (total, item) => total + item.total_amount,
-    0,
-  );
-  const quantityTotal = items.reduce(
-    (total, item) => total + item.quantity,
-    0,
-  );
+  const summary = calculatePricingSummary(items);
 
   return {
-    currency: DOMAIN_CONSTRAINTS.defaultCurrency,
-    item_count: items.length,
-    quantity_total: quantityTotal,
-    subtotal_amount: subtotalAmount,
-    total_amount: subtotalAmount,
+    currency: summary.currency,
+    discount_amount: summary.discount_amount,
+    item_count: summary.item_count,
+    pricing_breakdown: summary.pricing_breakdown,
+    quantity_total: summary.quantity_total,
+    service_fee_amount: summary.service_fee_amount,
+    subtotal_amount: summary.subtotal_amount,
+    surcharge_amount: summary.surcharge_amount,
+    tax_and_fee_amount: summary.tax_and_fee_amount,
+    total_amount: summary.total_amount,
+    vat_amount: summary.vat_amount,
   };
 };
 
@@ -1129,10 +1132,19 @@ const findMappedCartItem = (items, cartItemId) =>
 
 const buildEmptySummary = () => ({
   currency: DOMAIN_CONSTRAINTS.defaultCurrency,
+  discount_amount: 0,
   item_count: 0,
+  pricing_breakdown: {
+    items: [],
+    vat_rate: 0.08,
+  },
   quantity_total: 0,
+  service_fee_amount: 0,
   subtotal_amount: 0,
+  surcharge_amount: 0,
+  tax_and_fee_amount: 0,
   total_amount: 0,
+  vat_amount: 0,
 });
 
 const buildPricingSummary = (
@@ -1143,26 +1155,13 @@ const buildPricingSummary = (
     voucher = null,
   } = {},
 ) => {
-  const baseSummary = buildSummaryFromItems(items);
-  const safeDiscount = roundMoney(
-    Math.min(
-      Math.max(discountAmount, 0),
-      baseSummary.subtotal_amount,
-    ),
-  );
-
-  return {
-    cart_id: cartId,
-    currency: baseSummary.currency,
-    discount_amount: safeDiscount,
-    item_count: baseSummary.item_count,
-    quantity_total: baseSummary.quantity_total,
-    subtotal_amount: baseSummary.subtotal_amount,
-    total_amount: roundMoney(
-      Math.max(baseSummary.subtotal_amount - safeDiscount, 0),
-    ),
+  const summary = calculatePricingSummary(items, {
+    cartId,
+    discountAmount,
     voucher,
-  };
+  });
+
+  return summary;
 };
 
 const buildEmptyPricingSummary = ({ cartId = null, voucher = null } = {}) => ({
@@ -1170,9 +1169,17 @@ const buildEmptyPricingSummary = ({ cartId = null, voucher = null } = {}) => ({
   currency: DOMAIN_CONSTRAINTS.defaultCurrency,
   discount_amount: 0,
   item_count: 0,
+  pricing_breakdown: {
+    items: [],
+    vat_rate: 0.08,
+  },
   quantity_total: 0,
+  service_fee_amount: 0,
   subtotal_amount: 0,
+  surcharge_amount: 0,
+  tax_and_fee_amount: 0,
   total_amount: 0,
+  vat_amount: 0,
   voucher,
 });
 
@@ -1319,9 +1326,11 @@ const buildValidationSummary = (
   },
 ) => {
   const pricingItems = items.map((item) => ({
+    options: item.options,
     quantity: item.quantity,
     service_type: item.service_type,
-    total_amount: item.current_total_amount,
+    total_amount: getItemEffectiveTotalAmount(item),
+    unit_price_snapshot: item.current_unit_price ?? item.unit_price_snapshot,
   }));
   const pricingSummary = buildPricingSummary(pricingItems, {
     cartId,
@@ -1367,7 +1376,12 @@ const buildVoucherValidationResult = (
 };
 
 const getItemEffectiveTotalAmount = (item) =>
-  roundMoney(item.current_total_amount ?? item.total_amount ?? 0);
+  roundMoney(
+    item.current_total_amount ??
+      calculateItemPricing(item).subtotal_amount ??
+      item.total_amount ??
+      0,
+  );
 
 const isWithinVoucherWindow = (currentTime, validFrom, validTo) => {
   if (validFrom && currentTime < new Date(validFrom)) {
@@ -1383,7 +1397,10 @@ const isWithinVoucherWindow = (currentTime, validFrom, validTo) => {
 
 const calculateEligibleSubtotal = (items, targetServiceType) => {
   if (!targetServiceType) {
-    return items.reduce((total, item) => total + item.total_amount, 0);
+    return items.reduce(
+      (total, item) => total + calculateItemPricing(item).subtotal_amount,
+      0,
+    );
   }
 
   return items.reduce((total, item) => {
@@ -1391,7 +1408,7 @@ const calculateEligibleSubtotal = (items, targetServiceType) => {
       return total;
     }
 
-    return total + item.total_amount;
+    return total + calculateItemPricing(item).subtotal_amount;
   }, 0);
 };
 
@@ -1503,8 +1520,11 @@ const evaluateVoucherForCartValidation = async (
     items.reduce((total, item) => total + getItemEffectiveTotalAmount(item), 0),
   );
   const pricingItems = items.map((item) => ({
+    options: item.options,
+    quantity: item.quantity,
     service_type: item.service_type,
     total_amount: getItemEffectiveTotalAmount(item),
+    unit_price_snapshot: item.unit_price_snapshot,
   }));
 
   if (subtotalAmount < Number(voucher.min_order_amount)) {

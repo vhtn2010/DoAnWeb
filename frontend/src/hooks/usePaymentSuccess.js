@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   buildInvoiceDownloadPayload,
@@ -28,6 +28,11 @@ function downloadBlob(blob, filename) {
   anchor.click()
   anchor.remove()
   window.URL.revokeObjectURL(url)
+}
+
+function formatLoadErrorMessage(message, fallbackMessage) {
+  const normalizedMessage = String(message ?? '').trim()
+  return normalizedMessage || fallbackMessage
 }
 
 export default function usePaymentSuccess() {
@@ -65,6 +70,20 @@ export default function usePaymentSuccess() {
   const [feedback, setFeedback] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
 
+  const buildLocalPaymentSuccess = useCallback(() => {
+    if (!bookingState && !paymentState && !paymentResultPayloadState && !paymentCode) {
+      return null
+    }
+
+    return buildPaymentSuccessData({
+      booking: bookingState,
+      bookingItems: bookingItemsState,
+      payment: paymentState ?? (paymentCode ? { payment_code: paymentCode } : undefined),
+      paymentResultPayload:
+        paymentResultPayloadState ?? (paymentCode ? { payment_code: paymentCode } : undefined),
+    })
+  }, [bookingItemsState, bookingState, paymentCode, paymentResultPayloadState, paymentState])
+
   useEffect(() => {
     let isActive = true
 
@@ -81,6 +100,7 @@ export default function usePaymentSuccess() {
           payment: paymentState,
           paymentResultPayload: paymentResultPayloadState,
         }
+        const localPaymentSuccess = buildLocalPaymentSuccess()
         const response = paymentCode
           ? await getPaymentSuccessByCode(paymentCode, sharedParams)
           : await getPaymentSuccess(sharedParams)
@@ -90,8 +110,18 @@ export default function usePaymentSuccess() {
         }
 
         if (!response.success || !response.data) {
+          if (localPaymentSuccess) {
+            setPaymentSuccess(localPaymentSuccess)
+            return
+          }
+
           setPaymentSuccess(null)
-          setError(response.message ?? 'Không thể tải thông tin thanh toán lúc này.')
+          setError(
+            formatLoadErrorMessage(
+              response.message,
+              'Không thể tải thông tin trạng thái thanh toán lúc này.',
+            ),
+          )
           return
         }
 
@@ -113,14 +143,26 @@ export default function usePaymentSuccess() {
         }
 
         setPaymentSuccess(null)
-        setError('Không thể tải thông tin thanh toán lúc này.')
+        setError('Không thể tải thông tin trạng thái thanh toán lúc này.')
       } catch (loadError) {
         if (!isActive) {
           return
         }
 
+        const localPaymentSuccess = buildLocalPaymentSuccess()
+
+        if (localPaymentSuccess) {
+          setPaymentSuccess(localPaymentSuccess)
+          return
+        }
+
         setPaymentSuccess(null)
-        setError(loadError?.message ?? 'Không thể tải thông tin thanh toán lúc này.')
+        setError(
+          formatLoadErrorMessage(
+            loadError?.message,
+            'Không thể tải thông tin trạng thái thanh toán lúc này.',
+          ),
+        )
       } finally {
         if (isActive) {
           setLoading(false)
@@ -135,6 +177,7 @@ export default function usePaymentSuccess() {
     }
   }, [
     authState,
+    buildLocalPaymentSuccess,
     bookingItemsState,
     bookingState,
     paymentCode,
@@ -143,10 +186,22 @@ export default function usePaymentSuccess() {
     reloadToken,
   ])
 
-  const viewModel = useMemo(
-    () => buildPaymentSuccessViewModel(paymentSuccess ?? {}),
-    [paymentSuccess],
-  )
+  const { viewModel, viewModelError } = useMemo(() => {
+    try {
+      return {
+        viewModel: buildPaymentSuccessViewModel(paymentSuccess ?? {}),
+        viewModelError: '',
+      }
+    } catch (viewError) {
+      return {
+        viewModel: buildPaymentSuccessViewModel({}),
+        viewModelError: formatLoadErrorMessage(
+          viewError?.message,
+          'Không thể dựng giao diện trạng thái thanh toán.',
+        ),
+      }
+    }
+  }, [paymentSuccess])
 
   function retry() {
     setReloadToken((currentToken) => currentToken + 1)
@@ -172,9 +227,7 @@ export default function usePaymentSuccess() {
           : (response.message ?? 'Không thể chuẩn bị hóa đơn điện tử lúc này.'),
       )
     } catch (downloadError) {
-      setFeedback(
-        downloadError?.message ?? 'Không thể chuẩn bị tệp tóm tắt đơn hàng lúc này.',
-      )
+      setFeedback(downloadError?.message ?? 'Không thể chuẩn bị tệp tóm tắt đơn hàng lúc này.')
     }
   }
 
@@ -186,11 +239,16 @@ export default function usePaymentSuccess() {
     navigate(buildPublicAuthPath('/', isCustomer))
   }
 
+  function goToOrderHistory() {
+    navigate(buildPublicAuthPath('/profile/orders', isCustomer))
+  }
+
   return {
     authState,
-    error,
+    error: error || viewModelError,
     feedback,
     loading,
+    paymentCode,
     paymentSuccess,
     preserveAuthQuery: (pathname) => buildPublicAuthPath(pathname, isCustomer),
     viewModel,
@@ -198,6 +256,7 @@ export default function usePaymentSuccess() {
       continueExploreTours,
       downloadInvoiceMock,
       goHome,
+      goToOrderHistory,
       retry,
     },
   }

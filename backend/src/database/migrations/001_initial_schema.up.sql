@@ -595,6 +595,9 @@ CREATE TABLE IF NOT EXISTS bookings (
   contact_phone VARCHAR(20) NULL,
   subtotal_amount NUMERIC(14, 2) NOT NULL,
   discount_amount NUMERIC(14, 2) NOT NULL DEFAULT 0,
+  vat_amount NUMERIC(14, 2) NOT NULL DEFAULT 0,
+  service_fee_amount NUMERIC(14, 2) NOT NULL DEFAULT 0,
+  surcharge_amount NUMERIC(14, 2) NOT NULL DEFAULT 0,
   total_amount NUMERIC(14, 2) NOT NULL,
   currency CHAR(3) NOT NULL DEFAULT 'VND',
   voucher_id UUID NULL REFERENCES vouchers (id),
@@ -606,9 +609,12 @@ CREATE TABLE IF NOT EXISTS bookings (
     CHECK (
       subtotal_amount >= 0
       AND discount_amount >= 0
+      AND vat_amount >= 0
+      AND service_fee_amount >= 0
+      AND surcharge_amount >= 0
       AND total_amount >= 0
       AND discount_amount <= subtotal_amount
-      AND total_amount = subtotal_amount - discount_amount
+      AND total_amount = subtotal_amount - discount_amount + vat_amount + service_fee_amount + surcharge_amount
     )
 );
 

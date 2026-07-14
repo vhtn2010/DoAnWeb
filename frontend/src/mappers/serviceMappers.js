@@ -14,15 +14,15 @@ const DEFAULT_REVIEW_SAMPLES = Object.freeze([
     author_name: 'Net Viet Guest',
     author_initials: 'NV',
     content:
-      'Hanh trinh duoc sap xep gon gang, doi ngu ho tro nhiet tinh va trai nghiem tong the rat de chiu.',
+      'H?nh tr?nh ???c s?p x?p g?n g?ng, ??i ng? h? tr? nhi?t t?nh v? tr?i nghi?m t?ng th? r?t d? ch?u.',
     month_label: 'Gan day',
     rating_value: 5,
   },
   {
-    author_name: 'Khach hang than thiet',
+    author_name: 'Kh?ch h?ng th?n thi?t',
     author_initials: 'KH',
     content:
-      'Lich trinh ro rang, thong tin de theo doi va cac diem dung chan tao cam giac thu thai.',
+      'L?ch tr?nh r? r?ng, th?ng tin d? theo d?i v? c?c ?i?m d?ng ch?n t?o c?m gi?c th? th?i.',
     month_label: 'Gan day',
     rating_value: 5,
   },
@@ -98,7 +98,7 @@ function buildDurationText(durationDays, durationNights) {
     !Number.isFinite(durationNights) ||
     durationNights < 0
   ) {
-    return 'Dang cap nhat'
+    return '?ang c?p nh?t'
   }
 
   return `${durationDays} ngày ${durationNights} đêm`
@@ -203,29 +203,82 @@ function normalizeItinerary(itinerary = []) {
       const summary = day.trim()
 
       return {
+        actions: summary
+          ? [
+              {
+                description: '',
+                time: '',
+                title: summary,
+              },
+            ]
+          : [],
         day_number: index + 1,
         highlights: summary ? [summary] : [],
         summary,
-        title: `Ngay ${index + 1}`,
+        title: `Ng?y ${index + 1}`,
       }
     }
 
     const dayNumber = Number(day?.day_number ?? day?.day ?? index + 1)
-    const highlights = Array.isArray(day?.highlights)
+    const normalizedActions = Array.isArray(day?.actions)
+      ? day.actions
+          .map((action) => {
+            if (typeof action === 'string') {
+              const title = action.trim()
+
+              return title
+                ? {
+                    description: '',
+                    time: '',
+                    title,
+                  }
+                : null
+            }
+
+            if (!action || typeof action !== 'object') {
+              return null
+            }
+
+            const title = String(action.title ?? action.label ?? action.name ?? '').trim()
+            const description = String(action.description ?? action.summary ?? '').trim()
+            const time = String(action.time ?? '').trim()
+
+            if (!title && !description && !time) {
+              return null
+            }
+
+            return {
+              description,
+              time,
+              title: title || description || `Hoat dong ${index + 1}`,
+            }
+          })
+          .filter(Boolean)
+      : []
+    const legacyHighlights = Array.isArray(day?.highlights)
       ? splitTextList(day.highlights)
       : Array.isArray(day?.activities)
         ? splitTextList(day.activities)
         : splitTextList(day?.highlights ?? '')
+    const actionHighlights = normalizedActions
+      .map((action) => action.title || action.description)
+      .filter(Boolean)
+    const highlights = actionHighlights.length ? actionHighlights : legacyHighlights
+    const actionSummary = normalizedActions
+      .map((action) => action.description || action.title)
+      .filter(Boolean)
+      .join('. ')
     const summary =
       day?.summary ??
       day?.description ??
-      (highlights.length ? highlights.join('. ') : '')
+      (actionSummary || (highlights.length ? highlights.join('. ') : ''))
 
     return {
+      actions: normalizedActions,
       day_number: Number.isFinite(dayNumber) && dayNumber > 0 ? dayNumber : index + 1,
       highlights,
       summary,
-      title: day?.title ?? `Ngay ${index + 1}`,
+      title: day?.title ?? `Ng?y ${index + 1}`,
     }
   })
 }
@@ -331,6 +384,6 @@ export function mapTourServiceToView(service, { detailPath } = {}) {
     sort_order: uiMeta.sortOrder ?? 999,
     tour_type: uiMeta.tourType ?? normalizedService.provider_name,
     transport_text:
-      TRANSPORT_TYPE_LABELS[details.transport_type] || details.transport_type || 'Dang cap nhat',
+      TRANSPORT_TYPE_LABELS[details.transport_type] || details.transport_type || '?ang c?p nh?t',
   }
 }

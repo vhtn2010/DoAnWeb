@@ -30,6 +30,10 @@ const parseCsv = (value) => {
     .filter(Boolean);
 };
 
+const hasOwnEnvValue = (name) =>
+  Object.prototype.hasOwnProperty.call(process.env, name) &&
+  String(process.env[name] ?? '').trim() !== '';
+
 const env = process.env.NODE_ENV || 'development';
 const isTest = env === 'test';
 const isProduction = env === 'production';
@@ -80,16 +84,54 @@ const directPaymentEnabledMethods = new Set(
   ),
 );
 
-const isDirectPaymentMethodEnabled = (method, fallbackEnvName) => {
+const hasExplicitDirectPaymentEnv =
+  directPaymentEnabledMethods.size > 0 ||
+  [
+    'DIRECT_PAYMENT_CASH_AT_OFFICE_ENABLED',
+    'DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_ENABLED',
+    'DIRECT_PAYMENT_STAFF_COLLECT_ENABLED',
+    'DIRECT_PAYMENT_HOTLINE',
+    'DIRECT_PAYMENT_CASH_AT_OFFICE_OFFICE_ADDRESS',
+    'DIRECT_PAYMENT_CASH_AT_OFFICE_OFFICE_HOURS',
+    'DIRECT_PAYMENT_CASH_AT_OFFICE_HOTLINE',
+    'DIRECT_PAYMENT_CASH_AT_OFFICE_INSTRUCTIONS',
+    'DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_BANK_NAME',
+    'DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_ACCOUNT_NUMBER',
+    'DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_ACCOUNT_HOLDER',
+    'DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_BRANCH',
+    'DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_TRANSFER_CONTENT_TEMPLATE',
+    'DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_INSTRUCTIONS',
+    'DIRECT_PAYMENT_STAFF_COLLECT_HOTLINE',
+    'DIRECT_PAYMENT_STAFF_COLLECT_CONDITIONS',
+    'DIRECT_PAYMENT_STAFF_COLLECT_INSTRUCTIONS',
+  ].some(hasOwnEnvValue);
+
+const useLocalDirectPaymentDefaults = env === 'development' && !hasExplicitDirectPaymentEnv;
+
+const isDirectPaymentMethodEnabled = (
+  method,
+  fallbackEnvName,
+  localDefaultEnabled = false,
+) => {
   if (directPaymentEnabledMethods.size > 0) {
     return directPaymentEnabledMethods.has(method);
+  }
+
+  if (hasOwnEnvValue(fallbackEnvName)) {
+    return isTruthy(process.env[fallbackEnvName]);
+  }
+
+  if (useLocalDirectPaymentDefaults) {
+    return localDefaultEnabled;
   }
 
   return isTruthy(process.env[fallbackEnvName]);
 };
 
 const directPayment = {
-  hotline: normalizeOptionalString(process.env.DIRECT_PAYMENT_HOTLINE),
+  hotline:
+    normalizeOptionalString(process.env.DIRECT_PAYMENT_HOTLINE) ||
+    (useLocalDirectPaymentDefaults ? '1900 8080' : null),
   methods: {
     cash_at_office: {
       enabled: isDirectPaymentMethodEnabled(
@@ -113,39 +155,53 @@ const directPayment = {
       enabled: isDirectPaymentMethodEnabled(
         'manual_bank_transfer',
         'DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_ENABLED',
+        true,
       ),
       bank_name: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_BANK_NAME,
-      ),
+      ) || (useLocalDirectPaymentDefaults ? 'Vietcombank' : null),
       account_number: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_ACCOUNT_NUMBER,
-      ),
+      ) || (useLocalDirectPaymentDefaults ? '0123456789' : null),
       account_holder: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_ACCOUNT_HOLDER,
-      ),
+      ) || (useLocalDirectPaymentDefaults ? 'CONG TY NET VIET TRAVEL' : null),
       branch: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_BRANCH,
-      ),
+      ) || (useLocalDirectPaymentDefaults ? 'Chi nhánh TP.HCM' : null),
       transfer_content_template: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_TRANSFER_CONTENT_TEMPLATE,
-      ),
+      ) || (useLocalDirectPaymentDefaults ? 'NVT {booking_code}' : null),
       instructions: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_MANUAL_BANK_TRANSFER_INSTRUCTIONS,
+      ) || (
+        useLocalDirectPaymentDefaults
+          ? 'Vui lòng chuyển đúng số tiền, đúng nội dung và tải bill lên hệ thống để admin duyệt thủ công.'
+          : null
       ),
     },
     staff_collect: {
       enabled: isDirectPaymentMethodEnabled(
         'staff_collect',
         'DIRECT_PAYMENT_STAFF_COLLECT_ENABLED',
+        true,
       ),
       hotline: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_STAFF_COLLECT_HOTLINE,
-      ),
+      ) || (useLocalDirectPaymentDefaults ? '1900 8080' : null),
       conditions: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_STAFF_COLLECT_CONDITIONS,
+      ) || (
+        useLocalDirectPaymentDefaults
+          ? 'Nhân viên sẽ chủ động liên hệ để hướng dẫn thanh toán thủ công.'
+          : null
       ),
       instructions: normalizeOptionalString(
         process.env.DIRECT_PAYMENT_STAFF_COLLECT_INSTRUCTIONS,
+      ) || (
+        useLocalDirectPaymentDefaults
+          ? 'Vui lòng giữ liên lạc qua số điện thoại đã đặt để nhân viên hỗ trợ xác nhận.'
+          : null
       ),
     },
   },

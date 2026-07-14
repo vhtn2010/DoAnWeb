@@ -26,8 +26,10 @@ const ALLOWED_PURPOSES = Object.freeze([
   'service_image',
   'service_video',
   'payment_proof',
+  'refund_evidence',
   'report_file',
   'invoice_pdf',
+  'support_reply',
 ]);
 const PURPOSE_POLICIES = Object.freeze({
   avatar: Object.freeze({
@@ -48,6 +50,12 @@ const PURPOSE_POLICIES = Object.freeze({
     resourceTypes: Object.freeze(['image', 'raw']),
     scope: 'self_or_payments',
   }),
+  refund_evidence: Object.freeze({
+    allowedRoles: Object.freeze(['customer', 'staff', 'admin', 'system_admin']),
+    folderSegment: 'refunds',
+    resourceTypes: Object.freeze(['image']),
+    scope: 'self_or_refunds',
+  }),
   report_file: Object.freeze({
     allowedRoles: Object.freeze(['admin', 'system_admin']),
     folderSegment: 'reports',
@@ -66,6 +74,12 @@ const PURPOSE_POLICIES = Object.freeze({
     resourceTypes: Object.freeze(['video']),
     scope: 'services',
   }),
+  support_reply: Object.freeze({
+    allowedRoles: Object.freeze(['staff', 'admin', 'system_admin']),
+    folderSegment: 'support',
+    resourceTypes: Object.freeze(['image']),
+    scope: 'support',
+  }),
 });
 const PERMISSION_GROUPS = Object.freeze({
   payments: Object.freeze([
@@ -78,9 +92,17 @@ const PERMISSION_GROUPS = Object.freeze({
     'report.read',
     'dashboard.read',
   ]),
+  refunds: Object.freeze([
+    'refund.read_all',
+    'refund.process',
+    'refund.approve',
+  ]),
   services: Object.freeze([
     'service.update',
     'service.create',
+  ]),
+  support: Object.freeze([
+    'support.reply',
   ]),
   systemAssets: Object.freeze([
     'settings.update',
@@ -392,7 +414,8 @@ const resolvePermissionCodes = async ({
 }) => {
   if (
     purpose === 'avatar' ||
-    (purpose === 'payment_proof' && auth.roleCode === 'customer')
+    ((purpose === 'payment_proof' || purpose === 'refund_evidence') &&
+      auth.roleCode === 'customer')
   ) {
     return [];
   }
@@ -438,6 +461,39 @@ const ensurePurposeScope = ({
     if (
       auth.roleCode === 'staff' &&
       permissionCodes.some((code) => PERMISSION_GROUPS.services.includes(code))
+    ) {
+      return;
+    }
+
+    if (['admin', 'system_admin'].includes(auth.roleCode)) {
+      return;
+    }
+
+    throw buildForbiddenError();
+  }
+
+  if (policy.scope === 'self_or_refunds') {
+    if (auth.roleCode === 'customer') {
+      return;
+    }
+
+    if (
+      ['staff', 'admin', 'system_admin'].includes(auth.roleCode) &&
+      (
+        permissionCodes.some((code) => PERMISSION_GROUPS.refunds.includes(code)) ||
+        ['admin', 'system_admin'].includes(auth.roleCode)
+      )
+    ) {
+      return;
+    }
+
+    throw buildForbiddenError();
+  }
+
+  if (policy.scope === 'support') {
+    if (
+      auth.roleCode === 'staff' &&
+      permissionCodes.some((code) => PERMISSION_GROUPS.support.includes(code))
     ) {
       return;
     }

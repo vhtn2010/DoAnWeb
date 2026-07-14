@@ -12,21 +12,21 @@ import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js
 
 const SETTINGS_TABS = Object.freeze([
   {
-    description: 'Quan ly phan hien thi cong khai cua thuong hieu, ho tro khach hang va SEO co ban.',
+    description: 'Qu?n l? ph?n hi?n th? c?ng khai c?a th??ng hi?u, h? tr? kh?ch h?ng v? SEO c? b?n.',
     id: 'general',
     label: 'Thiet lap chung',
     summaryTitle: 'Thiet lap hien thi cong khai',
   },
   {
-    description: 'Tap trung vao ho so phap ly, thong tin xuat hoa don va lien he doanh nghiep noi bo.',
+    description: 'T?p trung v?o h? s? ph?p l?, th?ng tin xu?t h?a ??n v? li?n h? doanh nghi?p n?i b?.',
     id: 'business',
-    label: 'Thong tin doanh nghiep',
+    label: 'Th?ng tin doanh nghi?p',
     summaryTitle: 'Ho so doanh nghiep',
   },
   {
     description: 'Bat hoac tat tung phuong thuc thu tien truc tiep va cau hinh noi dung huong dan cong khai.',
     id: 'direct-payment',
-    label: 'Thanh toan truc tiep',
+    label: 'Thanh to?n tr?c ti?p',
     summaryTitle: 'Phuong thuc thu tien truc tiep',
   },
 ])
@@ -39,15 +39,15 @@ const SOCIAL_PLATFORM_FIELDS = Object.freeze([
 ])
 
 const DIRECT_PAYMENT_METHOD_LABELS = Object.freeze({
-  cash_at_office: 'Thanh toan tai van phong',
-  manual_bank_transfer: 'Chuyen khoan thu cong',
-  staff_collect: 'Nhan vien thu ho',
+  cash_at_office: 'Thanh to?n t?i v?n ph?ng',
+  manual_bank_transfer: 'Chuy?n kho?n th? c?ng',
+  staff_collect: 'Nh?n vi?n thu h?',
 })
 
 const DIRECT_PAYMENT_METHOD_DESCRIPTIONS = Object.freeze({
-  cash_at_office: 'Danh cho khach ghe van phong hoac diem giao dich de thanh toan truc tiep.',
-  manual_bank_transfer: 'Hien thi thong tin ngan hang va noi dung chuyen khoan de khach tu thuc hien.',
-  staff_collect: 'Ap dung khi nhan vien duoc phan cong thu tien theo booking hoac doan khach.',
+  cash_at_office: 'D?nh cho kh?ch gh? v?n ph?ng ho?c ?i?m giao d?ch ?? thanh to?n tr?c ti?p.',
+  manual_bank_transfer: 'Hi?n th? th?ng tin ng?n h?ng v? n?i dung chuy?n kho?n ?? kh?ch t? th?c hi?n.',
+  staff_collect: '?p d?ng khi nh?n vi?n ???c ph?n c?ng thu ti?n theo booking ho?c ?o?n kh?ch.',
 })
 
 function createEmptyForm() {
@@ -82,13 +82,13 @@ function getErrorMessage(error, fallback) {
 
 function formatDateTime(value) {
   if (!value) {
-    return 'Chua cap nhat'
+    return 'Ch?a c?p nh?t'
   }
 
   const date = new Date(value)
 
   if (Number.isNaN(date.getTime())) {
-    return 'Chua cap nhat'
+    return 'Ch?a c?p nh?t'
   }
 
   return new Intl.DateTimeFormat('vi-VN', {
@@ -335,7 +335,7 @@ function AdminSettingsPage() {
         }
 
         if (!publicResponse?.success || !businessResponse?.success || !directPaymentResponse?.success) {
-          throw new Error('Khong the tai cau hinh he thong.')
+          throw new Error('Không thể tải cấu hình hệ thống.')
         }
 
         const publicSettings = publicResponse.data || {}
@@ -376,7 +376,7 @@ function AdminSettingsPage() {
           return
         }
 
-        setError(getErrorMessage(loadError, 'Khong the tai cau hinh he thong.'))
+        setError(getErrorMessage(loadError, 'Không thể tải cấu hình hệ thống.'))
       } finally {
         if (isActive) {
           setLoading(false)
@@ -429,7 +429,7 @@ function AdminSettingsPage() {
     event.preventDefault()
 
     if (!canWriteSettings) {
-      setFeedback('Tai khoan hien tai chua co quyen cap nhat cau hinh.')
+      setFeedback('T?i kho?n hi?n t?i ch?a c? quy?n c?p nh?t c?u h?nh.')
       return
     }
 
@@ -446,7 +446,7 @@ function AdminSettingsPage() {
           ...currentMetadata,
           publicUpdatedAt: response.data?.updated_at || currentMetadata.publicUpdatedAt,
         }))
-        setFeedback('Da cap nhat thiet lap chung tu backend API.')
+        setFeedback('?? c?p nh?t thi?t l?p chung t? backend API.')
       }
 
       if (activeTabId === 'business') {
@@ -456,7 +456,7 @@ function AdminSettingsPage() {
           ...currentMetadata,
           businessUpdatedAt: response.data?.updated_at || currentMetadata.businessUpdatedAt,
         }))
-        setFeedback('Da cap nhat thong tin doanh nghiep tu backend API.')
+        setFeedback('?? c?p nh?t th?ng tin doanh nghi?p t? backend API.')
       }
 
       if (activeTabId === 'direct-payment') {
@@ -467,11 +467,11 @@ function AdminSettingsPage() {
           ...currentMetadata,
           directPaymentUpdatedAt: response.data?.updated_at || currentMetadata.directPaymentUpdatedAt,
         }))
-        setFeedback('Da cap nhat cau hinh thanh toan truc tiep tu backend API.')
+        setFeedback('?? c?p nh?t c?u h?nh thanh to?n tr?c ti?p t? backend API.')
       }
     } catch (saveError) {
       setFieldErrors(mapValidationDetails(saveError?.details, activeTabId))
-      setError(getErrorMessage(saveError, 'Khong the luu cau hinh he thong.'))
+      setError(getErrorMessage(saveError, 'Không thể lưu cấu hình hệ thống.'))
     } finally {
       setSaving(false)
     }
@@ -486,16 +486,16 @@ function AdminSettingsPage() {
               <SettingIcon type="general" />
             </span>
             <div className="admin-settings-page__section-copy">
-              <h2 id="settings-general-title">Thong tin public va lien he khach hang</h2>
+              <h2 id="settings-general-title">Th?ng tin public v? li?n h? kh?ch h?ng</h2>
               <p className="admin-settings-page__panel-description">
-                Day la nhom noi dung xuat hien o website public va cac diem cham ho tro khach hang.
+                ??y l? nh?m n?i dung xu?t hi?n ? website public v? c?c ?i?m ch?m h? tr? kh?ch h?ng.
               </p>
             </div>
           </div>
 
           <div className="admin-settings-page__form-grid">
             <label className="admin-settings-page__field" htmlFor="settings-public-site-name">
-              <span>Ten website</span>
+              <span>T?n website</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-public-site-name"
@@ -517,7 +517,7 @@ function AdminSettingsPage() {
               {fieldErrors.public_logo_url || fieldErrors.logo_url ? <small>{fieldErrors.public_logo_url || fieldErrors.logo_url}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-public-hotline">
-              <span>Hotline cong khai</span>
+              <span>Hotline c?ng khai</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-public-hotline"
@@ -527,7 +527,7 @@ function AdminSettingsPage() {
               {fieldErrors.public_hotline || fieldErrors.hotline ? <small>{fieldErrors.public_hotline || fieldErrors.hotline}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-public-support-email">
-              <span>Email ho tro</span>
+              <span>Email h? tr?</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-public-support-email"
@@ -558,7 +558,7 @@ function AdminSettingsPage() {
             <div className="admin-settings-page__section-copy">
               <h2 id="settings-branding-title">Thuong hieu, SEO va mang xa hoi</h2>
               <p className="admin-settings-page__panel-description">
-                Cac truong ben duoi da duoc backend ho tro de quan ly footer, metadata va social links.
+                C?c tr??ng b?n d??i ?? ???c backend h? tr? ?? qu?n l? footer, metadata v? social links.
               </p>
             </div>
           </div>
@@ -575,7 +575,7 @@ function AdminSettingsPage() {
               {fieldErrors.seo_title ? <small>{fieldErrors.seo_title}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-business-hours">
-              <span>Gio hoat dong / lich ho tro</span>
+              <span>Gi? ho?t ??ng / l?ch h? tr?</span>
               <textarea
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-hours"
@@ -583,7 +583,7 @@ function AdminSettingsPage() {
                 value={formValues.business_hours}
                 onChange={(event) => updateField('business_hours', event.target.value)}
               />
-              <small className="admin-settings-page__field-help">Co the nhap van ban thuong hoac JSON neu can cau truc.</small>
+              <small className="admin-settings-page__field-help">C? th? nh?p v?n b?n th??ng ho?c JSON n?u c?n c?u tr?c.</small>
               {fieldErrors.business_hours ? <small>{fieldErrors.business_hours}</small> : null}
             </label>
             <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor="settings-seo-description">
@@ -637,9 +637,9 @@ function AdminSettingsPage() {
               <SettingIcon type="business" />
             </span>
             <div className="admin-settings-page__section-copy">
-              <h2 id="settings-business-title">Thong tin phap ly va xuat hoa don</h2>
+              <h2 id="settings-business-title">Th?ng tin ph?p l? v? xu?t h?a ??n</h2>
               <p className="admin-settings-page__panel-description">
-                Dua tren business settings API, phan nay ho tro them nguoi dai dien, giay phep va ghi chu hoa don.
+                D?a tr?n business settings API, ph?n n?y h? tr? th?m ng??i ??i di?n, gi?y ph?p v? ghi ch? h?a ??n.
               </p>
             </div>
           </div>
@@ -656,7 +656,7 @@ function AdminSettingsPage() {
               {fieldErrors.business_company_name || fieldErrors.company_name ? <small>{fieldErrors.business_company_name || fieldErrors.company_name}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-business-tax-code">
-              <span>Ma so thue</span>
+              <span>M? s? thu?</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-tax-code"
@@ -676,7 +676,7 @@ function AdminSettingsPage() {
               {fieldErrors.legal_representative ? <small>{fieldErrors.legal_representative}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-business-license-no">
-              <span>So giay phep kinh doanh</span>
+              <span>S? gi?y ph?p kinh doanh</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-business-license-no"
@@ -696,7 +696,7 @@ function AdminSettingsPage() {
               {fieldErrors.business_address ? <small>{fieldErrors.business_address}</small> : null}
             </label>
             <label className="admin-settings-page__field" htmlFor="settings-invoice-email">
-              <span>Email nhan hoa don</span>
+              <span>Email nh?n h?a ??n</span>
               <input
                 disabled={loading || saving || !canWriteSettings}
                 id="settings-invoice-email"
@@ -738,7 +738,7 @@ function AdminSettingsPage() {
       return (
         <div className="admin-settings-page__form-grid admin-settings-page__form-grid--method">
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-bank-name`}>
-            <span>Ten ngan hang</span>
+            <span>T?n ng?n h?ng</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-bank-name`}
@@ -768,7 +768,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'account_number') ? <small>{getMethodFieldError(index, 'account_number')}</small> : null}
           </label>
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-branch`}>
-            <span>Chi nhanh</span>
+            <span>Chi nh?nh</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-branch`}
@@ -778,7 +778,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'branch') ? <small>{getMethodFieldError(index, 'branch')}</small> : null}
           </label>
           <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-template`}>
-            <span>Mau noi dung chuyen khoan</span>
+            <span>M?u n?i dung chuy?n kho?n</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-template`}
@@ -801,7 +801,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'qr_code_url') ? <small>{getMethodFieldError(index, 'qr_code_url')}</small> : null}
           </label>
           <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-instructions`}>
-            <span>Huong dan thanh toan</span>
+            <span>H??ng d?n thanh to?n</span>
             <textarea
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-instructions`}
@@ -839,7 +839,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'working_hours') ? <small>{getMethodFieldError(index, 'working_hours')}</small> : null}
           </label>
           <label className="admin-settings-page__field" htmlFor={`payment-${method.code}-hotline`}>
-            <span>Hotline ho tro</span>
+            <span>Hotline h? tr?</span>
             <input
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-hotline`}
@@ -849,7 +849,7 @@ function AdminSettingsPage() {
             {getMethodFieldError(index, 'hotline') ? <small>{getMethodFieldError(index, 'hotline')}</small> : null}
           </label>
           <label className="admin-settings-page__field admin-settings-page__field--wide" htmlFor={`payment-${method.code}-instructions`}>
-            <span>Huong dan nhan tien</span>
+            <span>H??ng d?n nh?n ti?n</span>
             <textarea
               disabled={loading || saving || !canWriteSettings}
               id={`payment-${method.code}-instructions`}
@@ -910,15 +910,15 @@ function AdminSettingsPage() {
               <SettingIcon type="payment" />
             </span>
             <div className="admin-settings-page__section-copy">
-              <h2 id="settings-direct-payment-title">Cau hinh phuong thuc thanh toan truc tiep</h2>
+              <h2 id="settings-direct-payment-title">C?u h?nh ph??ng th?c thanh to?n tr?c ti?p</h2>
               <p className="admin-settings-page__panel-description">
-                Backend hien ho tro ba phuong thuc: tai van phong, chuyen khoan thu cong va nhan vien thu ho.
+                Backend hi?n h? tr? ba ph??ng th?c: t?i v?n ph?ng, chuy?n kho?n th? c?ng v? nh?n vi?n thu h?.
               </p>
             </div>
           </div>
 
           {paymentMethods.length === 0 ? (
-            <p className="admin-settings-page__hint">Chua co cau hinh phuong thuc thanh toan truc tiep.</p>
+            <p className="admin-settings-page__hint">Ch?a c? c?u h?nh ph??ng th?c thanh to?n tr?c ti?p.</p>
           ) : (
             <div className="admin-settings-page__method-list">
               {paymentMethods.map((method, index) => (
@@ -943,7 +943,7 @@ function AdminSettingsPage() {
                       </label>
 
                       <div className="admin-settings-page__method-toggle">
-                        <span className="admin-settings-page__method-state">{method.enabled ? 'Dang bat' : 'Dang tat'}</span>
+                        <span className="admin-settings-page__method-state">{method.enabled ? '?ang b?t' : '?ang t?t'}</span>
                         <button
                           aria-checked={method.enabled}
                           className="admin-settings-page__switch"
@@ -986,23 +986,23 @@ function AdminSettingsPage() {
   const summaryItems = useMemo(() => {
     if (activeTabId === 'business') {
       return [
-        ['Doanh nghiep', formValues.business_company_name || 'Chua cap nhat'],
-        ['Ma so thue', formValues.business_tax_code || 'Chua cap nhat'],
-        ['Email hoa don', formValues.invoice_email || 'Chua cap nhat'],
+        ['Doanh nghi?p', formValues.business_company_name || 'Ch?a c?p nh?t'],
+        ['M? s? thu?', formValues.business_tax_code || 'Ch?a c?p nh?t'],
+        ['Email h?a ??n', formValues.invoice_email || 'Ch?a c?p nh?t'],
       ]
     }
 
     if (activeTabId === 'direct-payment') {
       return [
-        ['Phuong thuc dang bat', `${enabledPaymentCount}/${paymentMethods.length}`],
-        ['Chuyen khoan thu cong', paymentMethods.find((method) => method.code === 'manual_bank_transfer')?.enabled ? 'Dang bat' : 'Dang tat'],
-        ['Thu tai van phong', paymentMethods.find((method) => method.code === 'cash_at_office')?.enabled ? 'Dang bat' : 'Dang tat'],
+        ['Ph??ng th?c ?ang b?t', `${enabledPaymentCount}/${paymentMethods.length}`],
+        ['Chuy?n kho?n th? c?ng', paymentMethods.find((method) => method.code === 'manual_bank_transfer')?.enabled ? '?ang b?t' : '?ang t?t'],
+        ['Thu t?i v?n ph?ng', paymentMethods.find((method) => method.code === 'cash_at_office')?.enabled ? '?ang b?t' : '?ang t?t'],
       ]
     }
 
     return [
-      ['Ten website', formValues.public_site_name || 'Chua cap nhat'],
-      ['Hotline cong khai', formValues.public_hotline || 'Chua cap nhat'],
+      ['T?n website', formValues.public_site_name || 'Ch?a c?p nh?t'],
+      ['Hotline c?ng khai', formValues.public_hotline || 'Ch?a c?p nh?t'],
       ['Mang xa hoi', `${configuredSocialCount} kenh`],
     ]
   }, [activeTabId, configuredSocialCount, enabledPaymentCount, formValues, paymentMethods])
@@ -1010,11 +1010,11 @@ function AdminSettingsPage() {
   return (
     <main className="admin-settings-page">
       <header className="admin-settings-page__header">
-        <h1>Cau hinh he thong</h1>
-        <p>Quan ly thong tin public, doanh nghiep va trang thai thanh toan truc tiep tu backend API.</p>
+        <h1>C?u h?nh h? th?ng</h1>
+        <p>Qu?n l? th?ng tin public, doanh nghi?p v? tr?ng th?i thanh to?n tr?c ti?p t? backend API.</p>
       </header>
 
-      <nav className="admin-settings-page__tabs" aria-label="Nhom cau hinh he thong">
+      <nav className="admin-settings-page__tabs" aria-label="Nh?m c?u h?nh h? th?ng">
         {SETTINGS_TABS.map((tab) => (
           <button
             aria-current={activeTabId === tab.id ? 'page' : undefined}
@@ -1044,11 +1044,11 @@ function AdminSettingsPage() {
 
           <div className="admin-settings-page__status-list">
             <div className="admin-settings-page__status-item">
-              <span>Tab dang mo</span>
+              <span>Tab ?ang m?</span>
               <strong>{activeTab.label}</strong>
             </div>
             <div className="admin-settings-page__status-item">
-              <span>Lan cap nhat gan nhat</span>
+              <span>L?n c?p nh?t g?n nh?t</span>
               <strong>{formatDateTime(activeTabUpdatedAt)}</strong>
             </div>
             {summaryItems.map(([label, value]) => (
@@ -1064,15 +1064,15 @@ function AdminSettingsPage() {
             disabled={loading || saving || !canWriteSettings}
             type="submit"
           >
-            {saving ? 'Dang luu...' : `Luu ${activeTab.label.toLowerCase()}`}
+            {saving ? '?ang l?u...' : `L?u ${activeTab.label.toLowerCase()}`}
           </button>
 
           {!canWriteSettings ? (
-            <p className="admin-settings-page__hint">Tai khoan hien tai chi co quyen xem cau hinh, chua the chinh sua.</p>
+            <p className="admin-settings-page__hint">T?i kho?n hi?n t?i ch? c? quy?n xem c?u h?nh, ch?a th? ch?nh s?a.</p>
           ) : null}
         </aside>
 
-        {loading ? <p className="admin-settings-page__feedback" role="status">Dang tai cau hinh tu API...</p> : null}
+        {loading ? <p className="admin-settings-page__feedback" role="status">?ang t?i c?u h?nh t? API...</p> : null}
       </form>
     </main>
   )

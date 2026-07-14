@@ -89,7 +89,7 @@ export default function HomeValuesSectionV2({ valueProps }) {
             <article
               className="home-values__item"
               key={item.title}
-              style={{ '--value-delay': `${240 + index * 120}ms` }}
+              style={{ '--value-delay': `${480 + index * 170}ms` }}
             >
               <CoreValueIcon type={item.icon} tone={item.tone} />
               <div className="home-values__copy">
