@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import LoginRequiredModal from '../components/auth/LoginRequiredModal.jsx'
 import PublicHeader from '../components/layout/PublicHeader.jsx'
 import PublicFooter from '../components/layout/PublicFooter.jsx'
+import { AddToCartToastProvider } from '../components/public/feedback/AddToCartToast.jsx'
 import { createPublicSessionState } from '../hooks/usePublicSession.js'
 import { getCurrentProfile } from '../repositories/profileRepository.js'
 import { subscribeAuthEvents } from '../services/apiClient.js'
@@ -316,27 +317,29 @@ function PublicLayout() {
   ])
 
   return (
-    <div className={`public-layout ${isHomePage ? 'public-layout--home' : ''}`}>
-      <PublicHeader publicSession={publicSession} />
-      <main className="public-layout__main">
-        <div className="public-layout__content-shell">
-          <span aria-hidden="true" className="public-layout__content-orb public-layout__content-orb--warm" />
-          <span aria-hidden="true" className="public-layout__content-orb public-layout__content-orb--cool" />
-          <div className="public-layout__content">
-            <Outlet context={outletContext} />
+    <AddToCartToastProvider>
+      <div className={`public-layout ${isHomePage ? 'public-layout--home' : ''}`}>
+        <PublicHeader publicSession={publicSession} />
+        <main className="public-layout__main">
+          <div className="public-layout__content-shell">
+            <span aria-hidden="true" className="public-layout__content-orb public-layout__content-orb--warm" />
+            <span aria-hidden="true" className="public-layout__content-orb public-layout__content-orb--cool" />
+            <div className="public-layout__content">
+              <Outlet context={outletContext} />
+            </div>
           </div>
-        </div>
-      </main>
-      <PublicFooter />
-      <LoginRequiredModal
-        description={loginRequiredModal.description}
-        eyebrow={loginRequiredModal.eyebrow}
-        isOpen={loginRequiredModal.isOpen}
-        title={loginRequiredModal.title}
-        onClose={closeLoginRequiredModal}
-        onLogin={handleLoginRequiredModalLogin}
-      />
-    </div>
+        </main>
+        <PublicFooter />
+        <LoginRequiredModal
+          description={loginRequiredModal.description}
+          eyebrow={loginRequiredModal.eyebrow}
+          isOpen={loginRequiredModal.isOpen}
+          title={loginRequiredModal.title}
+          onClose={closeLoginRequiredModal}
+          onLogin={handleLoginRequiredModalLogin}
+        />
+      </div>
+    </AddToCartToastProvider>
   )
 }
 

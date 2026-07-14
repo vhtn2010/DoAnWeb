@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useAddToCartToast } from '../components/public/feedback/addToCartToastContext.js'
 import { mapTrainDetailResponseToView } from '../mappers/trainMappers.js'
 import { addCartItem } from '../repositories/cartRepository.js'
 import {
@@ -113,6 +114,7 @@ export default function useTrainDetail() {
   const navigate = useNavigate()
   const { slug } = useParams()
   const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { showAddToCartToast } = useAddToCartToast()
   const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
   const referenceId = new URLSearchParams(location.search).get('reference_id') ?? ''
 
@@ -377,6 +379,7 @@ export default function useTrainDetail() {
 
   async function buildTrainBooking({
     missingSeatMessage = 'Vui lòng chọn chỗ trước khi tiếp tục.',
+    shouldShowCartToast = false,
   } = {}) {
     if (!train || !selectedCar || !selectedSeats.length || !selectedSeatOption) {
       setFeedback(createFeedbackState('error', missingSeatMessage))
@@ -438,12 +441,11 @@ export default function useTrainDetail() {
         previewItem: cartItem,
       })
 
-      setFeedback(
-        createFeedbackState(
-          'success',
-          `Đã thêm ${selectedSeats.length} chỗ đã chọn vào giỏ hàng của bạn.`,
-        ),
-      )
+      setFeedback(createFeedbackState())
+
+      if (shouldShowCartToast) {
+        showAddToCartToast()
+      }
 
       return {
         success: true,
@@ -472,6 +474,7 @@ export default function useTrainDetail() {
 
     const result = await buildTrainBooking({
       missingSeatMessage: 'Vui lòng chọn chỗ trước khi thêm vào giỏ hàng.',
+      shouldShowCartToast: true,
     })
 
     if (!result.success) {

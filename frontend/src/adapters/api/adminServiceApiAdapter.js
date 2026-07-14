@@ -110,6 +110,7 @@ function normalizeServiceListResponse(response) {
 
 function omitUnsupportedUpdateFields(payload = {}) {
   const {
+    gallery_image_urls: galleryImageUrls,
     image_url: imageUrl,
     service_type: serviceType,
     status: _status,
@@ -117,6 +118,7 @@ function omitUnsupportedUpdateFields(payload = {}) {
   } = payload
 
   return {
+    galleryImageUrls,
     imageUrl,
     payload: updatablePayload,
     serviceType,
@@ -125,12 +127,14 @@ function omitUnsupportedUpdateFields(payload = {}) {
 
 function omitUnsupportedCreateFields(payload = {}) {
   const {
+    gallery_image_urls: galleryImageUrls,
     image_url: imageUrl,
     status: _status,
     ...createPayload
   } = payload
 
   return {
+    galleryImageUrls,
     imageUrl,
     payload: createPayload,
   }
@@ -222,6 +226,47 @@ async function attachPrimaryImageIfNeeded(service, imageUrl) {
   }
 }
 
+async function attachGalleryImagesIfNeeded(service, imageUrls = []) {
+  const nextImageUrls = Array.isArray(imageUrls)
+    ? imageUrls.map((imageUrl) => String(imageUrl ?? '').trim()).filter(Boolean)
+    : []
+
+  if (!service?.id || nextImageUrls.length === 0) {
+    return service
+  }
+
+  const existingImageUrls = new Set(
+    Array.isArray(service.images)
+      ? service.images.map((image) => image?.image_url).filter(Boolean)
+      : [],
+  )
+  const imageUrlsToAttach = nextImageUrls.filter((imageUrl) => !existingImageUrls.has(imageUrl))
+
+  if (imageUrlsToAttach.length === 0) {
+    return service
+  }
+
+  try {
+    await Promise.all(
+      imageUrlsToAttach.map((imageUrl, index) =>
+        apiPost(`/admin/services/${service.id}/images`, {
+          alt_text: service.title || `Service image ${index + 1}`,
+          image_url: imageUrl,
+          is_primary: false,
+        }),
+      ),
+    )
+
+    const refreshedResponse = await getAdminServiceById(service.id)
+    return refreshedResponse.data
+  } catch (error) {
+    return {
+      ...service,
+      image_upload_error: error?.message || 'Không thể gắn ảnh phụ cho dịch vụ.',
+    }
+  }
+}
+
 export async function listAdminServices(params = {}) {
   const response = await apiGet('/admin/services', {
     params: normalizeListParams(params),
@@ -237,7 +282,7 @@ export async function getAdminServiceById(serviceId) {
 }
 
 export async function createAdminService(payload = {}) {
-  const { imageUrl, payload: servicePayload } = omitUnsupportedCreateFields(payload)
+  const { galleryImageUrls, imageUrl, payload: servicePayload } = omitUnsupportedCreateFields(payload)
   const isComboService = isComboPayload(servicePayload)
   const response = await apiPost(
     isComboService ? '/admin/services/combos' : '/admin/services',
@@ -246,9 +291,13 @@ export async function createAdminService(payload = {}) {
       : normalizePayloadForRequest(servicePayload),
   )
   const normalizedResponse = normalizeServiceResponse(response)
-  const serviceWithImage = await attachPrimaryImageIfNeeded(
+  const serviceWithPrimaryImage = await attachPrimaryImageIfNeeded(
     normalizedResponse.data,
     imageUrl,
+  )
+  const serviceWithImage = await attachGalleryImagesIfNeeded(
+    serviceWithPrimaryImage,
+    galleryImageUrls,
   )
 
   return {
@@ -259,6 +308,7 @@ export async function createAdminService(payload = {}) {
 
 export async function updateAdminService(serviceId, payload = {}) {
   const {
+    galleryImageUrls,
     imageUrl,
     payload: servicePayload,
     serviceType,
@@ -271,9 +321,13 @@ export async function updateAdminService(serviceId, payload = {}) {
       : normalizePayloadForRequest(servicePayload),
   )
   const normalizedResponse = normalizeServiceResponse(response)
-  const serviceWithImage = await attachPrimaryImageIfNeeded(
+  const serviceWithPrimaryImage = await attachPrimaryImageIfNeeded(
     normalizedResponse.data,
     imageUrl,
+  )
+  const serviceWithImage = await attachGalleryImagesIfNeeded(
+    serviceWithPrimaryImage,
+    galleryImageUrls,
   )
 
   return {

@@ -136,7 +136,7 @@ function splitTextList(value) {
     .filter(Boolean)
 }
 
-function formatDepartureDate(value) {
+function normalizeDepartureDateKey(value) {
   if (typeof value !== 'string') {
     return ''
   }
@@ -147,29 +147,86 @@ function formatDepartureDate(value) {
     return ''
   }
 
-  const isoDateMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  const isoDateMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})/)
 
   if (isoDateMatch) {
-    return `${isoDateMatch[3]}/${isoDateMatch[2]}/${isoDateMatch[1]}`
+    return `${isoDateMatch[1]}-${isoDateMatch[2]}-${isoDateMatch[3]}`
+  }
+
+  const displayDateMatch = normalizedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+
+  if (displayDateMatch) {
+    return `${displayDateMatch[3]}-${displayDateMatch[2]}-${displayDateMatch[1]}`
   }
 
   const parsedDate = new Date(normalizedValue)
 
   if (Number.isNaN(parsedDate.getTime())) {
-    return normalizedValue
+    return ''
   }
 
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(parsedDate)
+  return parsedDate.toISOString().slice(0, 10)
+}
+
+function isFutureDepartureDate(value) {
+  const dateKey = normalizeDepartureDateKey(value)
+
+  return dateKey
+    ? new Date(`${dateKey}T00:00:00.000Z`).getTime() > Date.now()
+    : false
+}
+
+function getPositiveCapacity(value) {
+  const parsed = Number(value)
+
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
+function getScheduleAvailableSlots(scheduleItem = {}, fallbackCapacity = 0) {
+  for (const key of [
+    'available_slots',
+    'availableSlots',
+    'slots_available',
+    'slotsAvailable',
+    'available_quantity',
+    'availableQuantity',
+    'available_seats',
+    'availableSeats',
+    'remaining_slots',
+    'remainingSlots',
+    'remaining_quantity',
+    'remainingQuantity',
+    'slots',
+  ]) {
+    const value = Number(scheduleItem?.[key])
+
+    if (Number.isFinite(value) && value >= 0) {
+      return value
+    }
+  }
+
+  for (const key of [
+    'total_slots',
+    'totalSlots',
+    'max_slots',
+    'maxSlots',
+    'capacity',
+  ]) {
+    const value = getPositiveCapacity(scheduleItem?.[key])
+
+    if (value != null) {
+      return value
+    }
+  }
+
+  return getPositiveCapacity(fallbackCapacity) ?? 0
 }
 
 function normalizeDepartureDates(details = {}) {
   if (Array.isArray(details.departure_dates) && details.departure_dates.length) {
     return details.departure_dates
-      .map((value) => String(value ?? '').trim())
+      .map((value) => normalizeDepartureDateKey(String(value ?? '').trim()))
+      .filter(isFutureDepartureDate)
       .filter(Boolean)
   }
 
@@ -180,9 +237,9 @@ function normalizeDepartureDates(details = {}) {
   const seenDates = new Set()
 
   return details.departure_schedule
-    .map((scheduleItem) =>
-      formatDepartureDate(scheduleItem?.date ?? scheduleItem?.departure_at ?? ''),
-    )
+    .filter((scheduleItem) => getScheduleAvailableSlots(scheduleItem, details.max_group_size) > 0)
+    .map((scheduleItem) => normalizeDepartureDateKey(scheduleItem?.date ?? scheduleItem?.departure_at ?? ''))
+    .filter(isFutureDepartureDate)
     .filter((value) => {
       if (!value || seenDates.has(value)) {
         return false

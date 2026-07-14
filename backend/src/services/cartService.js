@@ -827,20 +827,54 @@ const resolvePublicPriceAndCurrency = (service) => ({
       : Number(service.sale_price),
 });
 
-const extractAvailableSlotsFromSchedule = (scheduleItem) => {
+const getNonNegativeNumber = (value) => {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
+const extractAvailableSlotsFromSchedule = (scheduleItem, fallbackCapacity = 0) => {
   if (!scheduleItem || typeof scheduleItem !== 'object') {
-    return 0;
+    return getNonNegativeNumber(fallbackCapacity) ?? 0;
   }
 
-  for (const key of ['available_slots', 'availableSlots', 'slots_available']) {
-    const value = Number(scheduleItem[key]);
+  for (const key of [
+    'available_slots',
+    'availableSlots',
+    'slots_available',
+    'slotsAvailable',
+    'available_quantity',
+    'availableQuantity',
+    'available_seats',
+    'availableSeats',
+    'remaining_slots',
+    'remainingSlots',
+    'remaining_quantity',
+    'remainingQuantity',
+    'slots',
+  ]) {
+    const value = getNonNegativeNumber(scheduleItem[key]);
 
-    if (Number.isFinite(value) && value >= 0) {
+    if (value != null) {
       return value;
     }
   }
 
-  return 0;
+  for (const key of [
+    'total_slots',
+    'totalSlots',
+    'max_slots',
+    'maxSlots',
+    'capacity',
+  ]) {
+    const value = getNonNegativeNumber(scheduleItem[key]);
+
+    if (value != null) {
+      return value;
+    }
+  }
+
+  return getNonNegativeNumber(fallbackCapacity) ?? 0;
 };
 
 const normalizeScheduleDateValue = (value) => {
@@ -960,7 +994,10 @@ const resolveAvailability = async (
         throw createCartItemNotAvailableError('Tour departure is not available');
       }
 
-      const availableQuantity = extractAvailableSlotsFromSchedule(matchedSchedule);
+      const availableQuantity = extractAvailableSlotsFromSchedule(
+        matchedSchedule,
+        detail.max_group_size,
+      );
 
       if (quantity > availableQuantity) {
         throw createCartItemNotAvailableError('Requested quantity exceeds available tour slots');
@@ -990,7 +1027,10 @@ const resolveAvailability = async (
     }
 
     const availableQuantity = futureSchedules.reduce(
-      (max, item) => Math.max(max, extractAvailableSlotsFromSchedule(item)),
+      (max, item) => Math.max(
+        max,
+        extractAvailableSlotsFromSchedule(item, detail.max_group_size),
+      ),
       0,
     );
 

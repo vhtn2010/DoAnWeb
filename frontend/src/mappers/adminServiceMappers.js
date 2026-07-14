@@ -656,6 +656,11 @@ export function normalizeServiceFormValues(formValues) {
     currency: formValues.currency.trim() || 'VND',
     status: formValues.status || SERVICE_STATUSES.draft,
     cancellation_policy: formValues.cancellation_policy.trim(),
+    gallery_image_urls: Array.isArray(formValues.gallery_image_urls)
+      ? formValues.gallery_image_urls
+          .map((imageUrl) => String(imageUrl ?? '').trim())
+          .filter(Boolean)
+      : [],
     image_url: formValues.image_url.trim(),
     details: normalizeServiceDetails(formValues.service_type, formValues.details, basePrice),
   }

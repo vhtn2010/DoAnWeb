@@ -20,6 +20,10 @@ const migrationMap = [
     source: '002_settings_store.up.sql',
     target: '20260704163000_settings_store.sql',
   },
+  {
+    source: '003_booking_pricing_breakdown.up.sql',
+    target: '20260713180000_booking_pricing_breakdown.sql',
+  },
 ];
 
 fs.mkdirSync(supabaseMigrationsDir, { recursive: true });

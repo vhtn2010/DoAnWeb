@@ -1401,22 +1401,56 @@ const resolvePublicPriceAndCurrency = (service) => ({
   unitPrice: toPublicPrice(service),
 });
 
-const extractAvailableSlotsFromSchedule = (scheduleItem) => {
+const getNonNegativeNumber = (value) => {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
+const extractAvailableSlotsFromSchedule = (scheduleItem, fallbackCapacity = 0) => {
   if (!scheduleItem || typeof scheduleItem !== 'object') {
-    return 0;
+    return getNonNegativeNumber(fallbackCapacity) ?? 0;
   }
 
-  const slotKeys = ['available_slots', 'availableSlots', 'slots_available'];
+  const slotKeys = [
+    'available_slots',
+    'availableSlots',
+    'slots_available',
+    'slotsAvailable',
+    'available_quantity',
+    'availableQuantity',
+    'available_seats',
+    'availableSeats',
+    'remaining_slots',
+    'remainingSlots',
+    'remaining_quantity',
+    'remainingQuantity',
+    'slots',
+  ];
 
   for (const key of slotKeys) {
-    const value = Number(scheduleItem[key]);
+    const value = getNonNegativeNumber(scheduleItem[key]);
 
-    if (Number.isFinite(value) && value >= 0) {
+    if (value != null) {
       return value;
     }
   }
 
-  return 0;
+  for (const key of [
+    'total_slots',
+    'totalSlots',
+    'max_slots',
+    'maxSlots',
+    'capacity',
+  ]) {
+    const value = getNonNegativeNumber(scheduleItem[key]);
+
+    if (value != null) {
+      return value;
+    }
+  }
+
+  return getNonNegativeNumber(fallbackCapacity) ?? 0;
 };
 
 const normalizeScheduleDateValue = (value) => {
@@ -1850,6 +1884,7 @@ const createLookupService = ({
 
         const availableQuantity = extractAvailableSlotsFromSchedule(
           matchedSchedule,
+          detail.max_group_size,
         );
 
         return buildSuccessfulAvailability({
@@ -1886,7 +1921,10 @@ const createLookupService = ({
       }
 
       const availableQuantity = futureSchedules.reduce(
-        (max, item) => Math.max(max, extractAvailableSlotsFromSchedule(item)),
+        (max, item) => Math.max(
+          max,
+          extractAvailableSlotsFromSchedule(item, detail.max_group_size),
+        ),
         0,
       );
 

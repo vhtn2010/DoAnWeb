@@ -1579,6 +1579,43 @@ test('lookupService.getServiceAvailability returns tour availability for matchin
   });
 });
 
+test('lookupService.getServiceAvailability uses tour max group size when slot field is missing', async () => {
+  const service = lookupService.createLookupService({
+    repository: {
+      getPublicServiceById: async (serviceId) => ({
+        base_price: '3500000',
+        currency: 'VND',
+        id: serviceId,
+        metadata: null,
+        sale_price: '3200000',
+        service_type: 'tour',
+        slug: 'tour-da-lat',
+        title: 'Tour Da Lat',
+      }),
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            date: '2099-07-20',
+          },
+        ],
+        max_group_size: 8,
+      }),
+    },
+  });
+
+  const result = await service.getServiceAvailability({
+    body: {
+      quantity: 2,
+      service_type: 'tour',
+      start_at: '2099-07-20T07:00:00.000Z',
+    },
+    service_id: '11111111-1111-4111-8111-111111111111',
+  });
+
+  assert.equal(result.available, true);
+  assert.equal(result.available_quantity, 8);
+});
+
 test('lookupService.getServiceAvailability validates service_type mismatch and quantity rules', async () => {
   const service = lookupService.createLookupService({
     repository: {

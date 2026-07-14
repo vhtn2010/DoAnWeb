@@ -298,6 +298,72 @@ test('addCartItem creates active cart, inserts item, and returns fresh summary',
   assert.equal(calls.find((entry) => entry.method === 'insertCartItem').payload.unitPriceSnapshot, 2990000);
 });
 
+test('addCartItem accepts tour max group size when available slot field is missing', async () => {
+  const fixedNow = new Date('2026-07-01T10:00:00.000Z');
+  const service = createCartService({
+    now: () => fixedNow,
+    repository: {
+      createActiveCart: async () => ({
+        created_at: fixedNow,
+        id: 'cart-new',
+        status: 'active',
+        updated_at: fixedNow,
+      }),
+      findActiveCartsByUser: async () => [],
+      getServiceById: async (queryExecutor, serviceId) => ({
+        base_price: '3290000.00',
+        currency: 'VND',
+        deleted_at: null,
+        id: serviceId,
+        metadata: null,
+        sale_price: '2990000.00',
+        service_type: 'tour',
+        status: 'active',
+        title: 'Ha Long 3N2D',
+      }),
+      getTourDetail: async () => ({
+        departure_schedule: [
+          {
+            date: '2026-07-20',
+          },
+        ],
+        max_group_size: 12,
+      }),
+      insertCartItem: async () => ({
+        id: 'item-new',
+      }),
+      listCartItemRecords: async () => [],
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-new',
+          quantity: 2,
+          serviceId: '11111111-1111-4111-8111-111111111111',
+          startAt: '2026-07-20T07:00:00.000Z',
+        }),
+      ],
+      touchCart: async () => ({
+        created_at: fixedNow,
+        id: 'cart-new',
+        status: 'active',
+        updated_at: fixedNow,
+      }),
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  const result = await service.addCartItem({
+    payload: {
+      quantity: 2,
+      service_id: '11111111-1111-4111-8111-111111111111',
+      service_type: 'tour',
+      start_at: '2026-07-20T07:00:00.000Z',
+    },
+    userId: 'user-2',
+  });
+
+  assert.equal(result.cart_item_id, 'item-new');
+});
+
 test('addCartItem merges duplicate items and updates quantity with current snapshot', async () => {
   const calls = [];
   const serviceId = '22222222-2222-4222-8222-222222222222';
