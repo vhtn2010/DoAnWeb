@@ -130,3 +130,30 @@ export async function uploadSupportReplyImageAsset(file) {
     },
   }
 }
+
+export async function uploadRefundEvidenceAsset(file) {
+  const signatureResponse = await createUploadSignature({
+    folder: 'refunds',
+    resource_type: 'image',
+  })
+
+  const uploadedAsset = await uploadSignedAsset({
+    file,
+    signature: signatureResponse.data,
+  })
+
+  const completeResponse = await completeUpload({
+    asset_url: uploadedAsset.secure_url,
+    public_id: uploadedAsset.public_id,
+    purpose: 'refund_evidence',
+    resource_type: 'image',
+  })
+
+  return {
+    ...completeResponse,
+    data: {
+      ...completeResponse.data,
+      original_filename: file.name,
+    },
+  }
+}

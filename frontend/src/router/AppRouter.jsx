@@ -20,6 +20,7 @@ import PaymentConfirmationPage from '../pages/payment/PaymentConfirmationPage.js
 import PaymentTransferPage from '../pages/payment/PaymentTransferPage.jsx'
 import PaymentSuccessPage from '../pages/payment/PaymentSuccessPage.jsx'
 import DepartureRemindersPage from '../pages/profile/DepartureRemindersPage.jsx'
+import CustomerRefundRequestPage from '../pages/profile/CustomerRefundRequestPage.jsx'
 import CustomerTripDetailPage from '../pages/profile/CustomerTripDetailPage.jsx'
 import FavoritesPage from '../pages/profile/FavoritesPage.jsx'
 import MyVouchersPage from '../pages/profile/MyVouchersPage.jsx'
@@ -195,6 +196,18 @@ function AppRouter() {
                 title="Vui lòng đăng nhập để xem chuyến đi của bạn"
               >
                 <CustomerTripDetailPage />
+              </CustomerOnlyRoute>
+            }
+          />
+          <Route
+            path="/profile/trips/:bookingCode/refund-request"
+            element={
+              <CustomerOnlyRoute
+                description="Đăng nhập để gửi yêu cầu hoàn tiền, cung cấp lý do và minh chứng liên quan đến đơn hàng của bạn."
+                eyebrow="Hoàn tiền"
+                title="Vui lòng đăng nhập để gửi yêu cầu hoàn tiền"
+              >
+                <CustomerRefundRequestPage />
               </CustomerOnlyRoute>
             }
           />

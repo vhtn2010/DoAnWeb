@@ -33,6 +33,11 @@ const PERMISSION_GROUPS = Object.freeze({
     'report.read',
     'dashboard.read',
   ]),
+  refunds: Object.freeze([
+    'refund.read_all',
+    'refund.process',
+    'refund.approve',
+  ]),
   services: Object.freeze([
     'service.update',
     'service.create',
@@ -53,6 +58,11 @@ const FOLDER_POLICIES = Object.freeze({
   payments: Object.freeze({
     resourceTypes: Object.freeze(['image', 'raw']),
     resolvedSegment: 'payments',
+    scope: 'self',
+  }),
+  refunds: Object.freeze({
+    resourceTypes: Object.freeze(['image']),
+    resolvedSegment: 'refunds',
     scope: 'self',
   }),
   reports: Object.freeze({
@@ -229,6 +239,24 @@ const ensureRoleScope = ({
     throw buildForbiddenError();
   }
 
+  if (folder === 'refunds') {
+    if (roleCode === 'customer') {
+      return;
+    }
+
+    if (
+      ['staff', 'admin', 'system_admin'].includes(roleCode) &&
+      (
+        permissionCodes.some((code) => PERMISSION_GROUPS.refunds.includes(code)) ||
+        ['admin', 'system_admin'].includes(roleCode)
+      )
+    ) {
+      return;
+    }
+
+    throw buildForbiddenError();
+  }
+
   if (folder === 'support') {
     if (
       roleCode === 'staff' &&
@@ -284,7 +312,8 @@ const resolvePermissionCodes = async ({
 }) => {
   if (
     folder === 'avatar' ||
-    (folder === 'payments' && auth.roleCode === 'customer')
+    ((folder === 'payments' || folder === 'refunds') &&
+      auth.roleCode === 'customer')
   ) {
     return [];
   }

@@ -44,6 +44,14 @@ const STATUS_COPY = Object.freeze({
   },
 })
 
+const REFUND_REQUESTABLE_STATUSES = new Set([
+  'paid',
+  'confirmed',
+  'in_progress',
+  'completed',
+  'partially_refunded',
+])
+
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   day: '2-digit',
   month: '2-digit',
@@ -760,6 +768,10 @@ function CustomerTripDetailPage() {
     () => buildTripViewModel(booking, bookingItems, statusHistory),
     [booking, bookingItems, statusHistory],
   )
+  const canRequestRefund = REFUND_REQUESTABLE_STATUSES.has(
+    booking?.booking_status ?? booking?.status,
+  )
+
   function goBackToOrders() {
     navigate(buildPublicAuthPath('/profile/orders', isCustomer))
   }
@@ -774,6 +786,10 @@ function CustomerTripDetailPage() {
 
   function goTravelHandbook() {
     navigate(buildPublicAuthPath('/travel-handbook', isCustomer))
+  }
+
+  function goRefundRequest() {
+    navigate(buildPublicAuthPath(`/profile/trips/${bookingCode}/refund-request`, isCustomer))
   }
 
   async function downloadSummary() {
@@ -859,6 +875,15 @@ function CustomerTripDetailPage() {
                     <TripIcon name="phone" />
                     Cần hỗ trợ
                   </button>
+                  {canRequestRefund ? (
+                    <button
+                      className="customer-trip-hero__refund-button"
+                      type="button"
+                      onClick={goRefundRequest}
+                    >
+                      Yêu cầu hoàn tiền
+                    </button>
+                  ) : null}
                 </div>
 
                 {feedback ? (

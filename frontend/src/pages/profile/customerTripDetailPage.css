@@ -222,6 +222,15 @@
   box-shadow: 0 10px 20px rgba(214, 40, 40, 0.16);
 }
 
+.customer-trip-hero__actions .customer-trip-hero__refund-button {
+  min-height: 28px;
+  border-color: rgba(111, 93, 88, 0.18);
+  color: #6f5d58;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+  font-size: 0.66rem;
+}
+
 .customer-trip-hero__actions button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
