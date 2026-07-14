@@ -569,6 +569,136 @@ test('adminServiceCrudService.createService creates a draft service with generat
   });
 });
 
+test('adminServiceCrudService.createService normalizes multi-action tour itinerary before saving', async () => {
+  const service = adminServiceCrudService.createAdminServiceCrudService({
+    catalogService: {
+      getServiceDetail: async ({ service_id: serviceId }) => ({
+        id: serviceId,
+        status: 'draft',
+      }),
+    },
+    repository: {
+      createService: async ({ actorUserId, detailPayload, servicePayload }) => {
+        assert.equal(actorUserId, 'staff-2');
+        assert.equal(servicePayload.service_type, 'tour');
+        assert.equal(servicePayload.slug, 'tour-ha-noi-ha-long');
+        assert.deepEqual(detailPayload, {
+          departure_location: 'Ho Chi Minh',
+          departure_schedule: [
+            {
+              available_slots: 20,
+              date: '2026-08-20',
+            },
+          ],
+          destination_location: 'Ha Long',
+          duration_days: 3,
+          duration_nights: 2,
+          excluded_services: 'Ve tham quan tu tuc',
+          included_services: 'Xe dua don, an sang',
+          itinerary: [
+            {
+              actions: [
+                {
+                  description: 'Tap trung tai cong 1',
+                  time: '08:00 AM',
+                  title: 'Don khach',
+                },
+                {
+                  description: 'Khoi hanh di Ha Noi',
+                  time: '10:30',
+                  title: 'Khoi hanh',
+                },
+              ],
+              day_number: 1,
+              summary: 'Khoi dong hanh trinh',
+              title: 'Ngay 1',
+            },
+            {
+              actions: [
+                {
+                  description: null,
+                  time: null,
+                  title: 'Tham quan pho co',
+                },
+              ],
+              day_number: 2,
+              summary: null,
+              title: null,
+            },
+          ],
+          max_group_size: 25,
+          terms: 'Mang theo CCCD',
+          transport_type: 'bus',
+        });
+
+        return {
+          id: '66666666-6666-4666-8666-666666666666',
+        };
+      },
+      getServiceByCode: async () => null,
+      getServiceBySlug: async () => null,
+    },
+  });
+
+  const result = await service.createService({
+    auth: {
+      role: 'staff',
+      userId: 'staff-2',
+    },
+    body: {
+      base_price: 4200000,
+      details: {
+        departure_location: 'Ho Chi Minh',
+        departure_schedule: [
+          {
+            available_slots: 20,
+            date: '2026-08-20',
+          },
+        ],
+        destination_location: 'Ha Long',
+        duration_days: 3,
+        duration_nights: 2,
+        excluded_services: 'Ve tham quan tu tuc',
+        included_services: 'Xe dua don, an sang',
+        itinerary: [
+          {
+            actions: [
+              {
+                description: 'Tap trung tai cong 1',
+                time: '08:00 AM',
+                title: 'Don khach',
+              },
+              {
+                description: 'Khoi hanh di Ha Noi',
+                time: '10:30',
+                title: 'Khoi hanh',
+              },
+            ],
+            summary: 'Khoi dong hanh trinh',
+            title: 'Ngay 1',
+          },
+          {
+            activities: ['Tham quan pho co'],
+          },
+          {
+            title: '   ',
+          },
+        ],
+        max_group_size: 25,
+        terms: 'Mang theo CCCD',
+        transport_type: 'bus',
+      },
+      service_type: 'tour',
+      title: 'Tour Ha Noi Ha Long',
+    },
+  });
+
+  assert.deepEqual(result, {
+    id: '66666666-6666-4666-8666-666666666666',
+    status: 'draft',
+  });
+});
+
 test('adminServiceCrudService rejects service_type=room on create', async () => {
   const service = adminServiceCrudService.createAdminServiceCrudService({
     repository: {
@@ -1044,7 +1174,7 @@ test('POST /api/admin/services returns 201 with created service detail', async (
 
     assert.equal(response.statusCode, 201);
     assert.equal(response.body.success, true);
-    assert.equal(response.body.message, 'Admin service created successfully');
+    assert.equal(response.body.message, 'Tạo dịch vụ thành công.');
     assert.equal(response.body.data.status, 'draft');
   } finally {
     adminServiceCrudService.createService = originalCreateService;
@@ -1106,7 +1236,7 @@ test('PATCH /api/admin/services/{service_id} returns updated service detail', as
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.success, true);
-    assert.equal(response.body.message, 'Admin service updated successfully');
+    assert.equal(response.body.message, 'Cập nhật dịch vụ thành công.');
     assert.equal(response.body.data.title, 'Tour Da Nang Updated');
   } finally {
     adminServiceCrudService.updateService = originalUpdateService;
@@ -1198,7 +1328,7 @@ test('DELETE /api/admin/services/{service_id} returns soft delete result for adm
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.success, true);
-    assert.equal(response.body.message, 'Admin service deleted successfully');
+    assert.equal(response.body.message, 'Xóa dịch vụ thành công.');
     assert.equal(response.body.data.status, 'deleted');
   } finally {
     adminServiceCrudService.deleteService = originalDeleteService;

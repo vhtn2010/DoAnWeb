@@ -125,7 +125,6 @@ function AdminServiceTypeFields({ details, errors, onDetailChange, serviceType }
         <SelectInput error={errors['details.transport_type']} label="transport_type" name="transport_type" options={ADMIN_TRANSPORT_TYPE_OPTIONS} value={details.transport_type} onChange={onDetailChange} />
         <TextInput error={errors['details.max_group_size']} label="max_group_size" name="max_group_size" type="number" value={details.max_group_size} onChange={onDetailChange} />
         <TextArea error={errors['details.departure_schedule']} label="departure_schedule" name="departure_schedule" rows={4} value={details.departure_schedule} onChange={onDetailChange} />
-        <TextArea error={errors['details.itinerary']} label="itinerary" name="itinerary" rows={5} value={details.itinerary} onChange={onDetailChange} />
         <TextArea error={errors['details.included_services']} label="included_services" name="included_services" rows={3} value={details.included_services} onChange={onDetailChange} />
         <TextArea error={errors['details.excluded_services']} label="excluded_services" name="excluded_services" rows={3} value={details.excluded_services} onChange={onDetailChange} />
         <TextArea error={errors['details.terms']} label="terms" name="terms" rows={4} value={details.terms} onChange={onDetailChange} />

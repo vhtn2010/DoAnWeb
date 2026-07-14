@@ -354,6 +354,160 @@ test('bookingService.getMyBookingItems returns snapshot-based items without inte
   assert.deepEqual(result[0].traveller_info, [{ full_name: 'Traveller 1' }]);
 });
 
+test('bookingService.getMyBookingItems fills missing snapshot display data from service id', async () => {
+  const service = bookingService.createBookingService({
+    repository: {
+      getBookingByIdAndUser: async () => ({
+        id: BOOKING_ID,
+      }),
+      getPublicServiceById: async (serviceId) => ({
+        base_price: '2990000',
+        cancellation_policy: 'Free cancellation',
+        currency: 'VND',
+        description: 'Tour description',
+        id: serviceId,
+        location_text: 'Da Lat',
+        primary_image: 'https://images.example.com/tour-da-lat.jpg',
+        sale_price: '2990000',
+        service_type: 'tour',
+        short_description: 'Tour short',
+        slug: 'uat-tour-20260704',
+        title: 'UAT Tour 20260704',
+      }),
+      getTourDetail: async () => ({
+        departure_location: 'TP HCM',
+        departure_schedule: [{ date: '2026-08-20', available_quantity: 12 }],
+        destination_location: 'Da Lat',
+        duration_days: 4,
+        duration_nights: 3,
+        included_services: 'Khach san 5*, ve may bay',
+        itinerary: [{ day: 1, title: 'Khoi hanh' }],
+        transport_type: 'flight',
+      }),
+      listBookingItemsByBookingId: async () => [
+        {
+          end_at: '2026-08-23T18:00:00.000Z',
+          id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          quantity: 2,
+          reference_id: null,
+          service_id: '11111111-1111-4111-8111-111111111111',
+          service_snapshot: {
+            id: '11111111-1111-4111-8111-111111111111',
+            service_type: 'tour',
+            title: 'UAT Tour 20260704',
+          },
+          service_type: 'tour',
+          start_at: '2026-08-20T08:00:00.000Z',
+          status: 'pending',
+          title_snapshot: 'UAT Tour 20260704',
+          total_amount: '5980000',
+          traveller_info: null,
+          unit_price: '2990000',
+        },
+      ],
+    },
+  });
+
+  const result = await service.getMyBookingItems({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    bookingId: BOOKING_ID,
+  });
+
+  assert.equal(result[0].service_snapshot.image_url, 'https://images.example.com/tour-da-lat.jpg');
+  assert.equal(result[0].service_snapshot.primary_image, 'https://images.example.com/tour-da-lat.jpg');
+  assert.equal(result[0].service_snapshot.details.destination_location, 'Da Lat');
+  assert.equal(result[0].service_snapshot.details.duration_days, 4);
+});
+
+test('bookingService.getMyBookingItems prefers current service display data over stale snapshot data', async () => {
+  const service = bookingService.createBookingService({
+    repository: {
+      getBookingByIdAndUser: async () => ({
+        id: BOOKING_ID,
+      }),
+      getPublicServiceById: async (serviceId) => ({
+        base_price: '2990000',
+        cancellation_policy: 'Free cancellation',
+        currency: 'VND',
+        description: 'Current admin description',
+        id: serviceId,
+        location_text: 'Da Lat',
+        primary_image: 'https://images.example.com/current-tour.jpg',
+        provider_name: 'Net Viet Travel',
+        sale_price: '2990000',
+        service_type: 'tour',
+        short_description: 'Current short description',
+        slug: 'uat-tour-20260704',
+        title: 'UAT active tour',
+      }),
+      getTourDetail: async () => ({
+        departure_location: 'TP HCM',
+        departure_schedule: [{ date: '2026-08-20', available_quantity: 12 }],
+        destination_location: 'Da Lat',
+        duration_days: 3,
+        duration_nights: 2,
+        excluded_services: 'Chi phi ca nhan',
+        included_services: 'Xe, khach san, an sang',
+        itinerary: [{ day: 1, title: 'Khoi hanh va tham quan' }],
+        transport_type: 'bus',
+      }),
+      listBookingItemsByBookingId: async () => [
+        {
+          end_at: '2026-08-22T18:00:00.000Z',
+          id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          quantity: 2,
+          reference_id: null,
+          service_id: '11111111-1111-4111-8111-111111111111',
+          service_snapshot: {
+            description: 'Outdated description',
+            details: {
+              duration_days: 4,
+              duration_nights: 3,
+              itinerary: [{ day: 1, title: 'Old itinerary' }],
+              transport_type: 'flight',
+            },
+            id: '11111111-1111-4111-8111-111111111111',
+            image_url: 'https://images.example.com/outdated-tour.jpg',
+            location_text: 'Old location',
+            primary_image: 'https://images.example.com/outdated-tour.jpg',
+            service_type: 'tour',
+            slug: 'uat-tour-20260704',
+            title: 'Outdated tour title',
+          },
+          service_type: 'tour',
+          start_at: '2026-08-20T08:00:00.000Z',
+          status: 'pending',
+          title_snapshot: 'Outdated tour title',
+          total_amount: '5980000',
+          traveller_info: null,
+          unit_price: '2990000',
+        },
+      ],
+    },
+  });
+
+  const result = await service.getMyBookingItems({
+    auth: {
+      role: 'customer',
+      userId: CUSTOMER_ID,
+    },
+    bookingId: BOOKING_ID,
+  });
+
+  assert.equal(result[0].service_snapshot.title, 'UAT active tour');
+  assert.equal(result[0].service_snapshot.image_url, 'https://images.example.com/current-tour.jpg');
+  assert.equal(result[0].service_snapshot.location_text, 'Da Lat');
+  assert.equal(result[0].service_snapshot.details.duration_days, 3);
+  assert.equal(result[0].service_snapshot.details.duration_nights, 2);
+  assert.equal(result[0].service_snapshot.details.transport_type, 'bus');
+  assert.deepEqual(result[0].service_snapshot.details.itinerary, [
+    { day: 1, title: 'Khoi hanh va tham quan' },
+  ]);
+});
+
 test('bookingService.getMyBookingDetail returns 404 for missing booking and validates UUID', async () => {
   const service = bookingService.createBookingService({
     repository: {

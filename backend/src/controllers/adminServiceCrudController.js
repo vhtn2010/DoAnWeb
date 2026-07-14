@@ -8,7 +8,7 @@ const createAdminService = async (req, res) => {
 
   res.success({
     data,
-    message: 'Admin service created successfully',
+    message: 'Tạo dịch vụ thành công.',
     statusCode: 201,
   });
 };
@@ -22,7 +22,7 @@ const updateAdminService = async (req, res) => {
 
   res.success({
     data,
-    message: 'Admin service updated successfully',
+    message: 'Cập nhật dịch vụ thành công.',
   });
 };
 
@@ -35,7 +35,7 @@ const deleteAdminService = async (req, res) => {
 
   res.success({
     data,
-    message: 'Admin service deleted successfully',
+    message: 'Xóa dịch vụ thành công.',
   });
 };
 

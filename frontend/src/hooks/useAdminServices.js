@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
   ADMIN_SERVICE_ACTION_META,
@@ -62,6 +62,112 @@ function createInitialPaginationState() {
     total_pages: 1,
     has_next: false,
   }
+}
+
+function mapApiValidationDetails(details = []) {
+  if (!Array.isArray(details)) {
+    return {}
+  }
+
+  return details.reduce((result, item) => {
+    const field = item?.field
+    const message = translateAdminServiceMessage(item?.message, { field })
+
+    if (!field || !message) {
+      return result
+    }
+
+    result[field] = message
+    return result
+  }, {})
+}
+
+function translateAdminServiceMessage(message, { field = '' } = {}) {
+  const normalizedMessage = String(message ?? '').trim()
+
+  if (!normalizedMessage) {
+    return 'Không thể lưu dịch vụ lúc này.'
+  }
+
+  const lowerMessage = normalizedMessage.toLowerCase()
+
+  if (lowerMessage.includes('invalid input syntax for type json')) {
+    return 'Không thể lưu dịch vụ vì dữ liệu lịch trình hoặc tiện ích chưa đúng định dạng.'
+  }
+
+  if (normalizedMessage === 'Admin service created successfully') {
+    return 'Tạo dịch vụ thành công.'
+  }
+
+  if (normalizedMessage === 'Admin service updated successfully') {
+    return 'Cập nhật dịch vụ thành công.'
+  }
+
+  if (normalizedMessage === 'Admin service deleted successfully') {
+    return 'Xóa dịch vụ thành công.'
+  }
+
+  if (lowerMessage.endsWith('is required')) {
+    return 'Trường này là bắt buộc.'
+  }
+
+  if (lowerMessage.includes('must be an array')) {
+    return 'Dữ liệu phải ở dạng danh sách.'
+  }
+
+  if (lowerMessage.includes('must be an object')) {
+    return 'Dữ liệu phải ở dạng đối tượng hợp lệ.'
+  }
+
+  if (lowerMessage.includes('must be a string')) {
+    return 'Dữ liệu phải ở dạng văn bản.'
+  }
+
+  if (lowerMessage.includes('must be a valid time')) {
+    return 'Thời gian không hợp lệ.'
+  }
+
+  if (lowerMessage.includes('must be a valid iso 8601 datetime')) {
+    return 'Ngày giờ không hợp lệ.'
+  }
+
+  if (lowerMessage.includes('must be a number greater than or equal to 0')) {
+    return 'Giá trị phải là số lớn hơn hoặc bằng 0.'
+  }
+
+  if (lowerMessage.includes('must be an integer')) {
+    return 'Giá trị phải là số nguyên hợp lệ.'
+  }
+
+  if (lowerMessage.includes('contains unsupported characters')) {
+    return 'Dữ liệu chứa ký tự không được hỗ trợ.'
+  }
+
+  if (lowerMessage.includes('already exists')) {
+    if (field === 'slug') {
+      return 'Slug này đã tồn tại.'
+    }
+
+    if (field === 'service_code') {
+      return 'Mã dịch vụ này đã tồn tại.'
+    }
+
+    return 'Dữ liệu này đã tồn tại trong hệ thống.'
+  }
+
+  if (lowerMessage.includes('cannot be updated through this endpoint')) {
+    return 'Trường này không thể cập nhật từ màn hình hiện tại.'
+  }
+
+  if (lowerMessage === 'no updatable fields were provided') {
+    return 'Chưa có thông tin nào thay đổi để cập nhật.'
+  }
+
+  if (lowerMessage === 'service not found') {
+    return 'Không tìm thấy dịch vụ cần cập nhật.'
+  }
+
+  return normalizedMessage
 }
 
 function getVisibilityNote(service, filters) {
@@ -448,25 +554,34 @@ export default function useAdminServices() {
         : await createAdminService(payload, requestOptions)
 
       if (!response.success || !response.data) {
-        setError(response.message || 'Không thể lưu dịch vụ lúc này.')
-        setFeedback(createFeedbackState('error', response.message || 'Không thể lưu dịch vụ lúc này.'))
-        return
+        const nextMessage = translateAdminServiceMessage(response.message)
+        setError(nextMessage)
+        setFeedback(createFeedbackState('error', nextMessage))
+        return {
+          success: false,
+          message: nextMessage,
+        }
       }
 
       setSelectedService(response.data)
+      const successMessage = translateAdminServiceMessage(response.message)
       const imageWarning = response.data.image_upload_error
-        ? ` Dịch vụ đã lưu, nhưng ảnh bìa chưa được gắn: ${response.data.image_upload_error}`
+        ? ` Dịch vụ đã lưu, nhưng ảnh bìa chưa được gắn: ${translateAdminServiceMessage(response.data.image_upload_error)}`
         : ''
       setFeedback(
         createFeedbackState(
           response.data.image_upload_error ? 'warning' : 'success',
-          `${response.message} Mã dịch vụ: ${response.data.service_code}.${getVisibilityNote(
+          `${successMessage} Mã dịch vụ: ${response.data.service_code}.${getVisibilityNote(
             response.data,
             filters,
           )}${imageWarning}`,
         ),
       )
-      closeModal('form')
+      setFormModalState({
+        isOpen: true,
+        mode: 'edit',
+        service: response.data,
+      })
 
       const nextPage = isEditMode ? currentPage : 1
       if (!isEditMode && currentPage !== 1) {
@@ -477,10 +592,21 @@ export default function useAdminServices() {
         nextPage,
         nextSort: sort,
       })
+      return {
+        success: true,
+        data: response.data,
+        message: successMessage,
+      }
     } catch (saveError) {
-      const nextMessage = saveError?.message ?? 'Không thể lưu dịch vụ lúc này.'
+      const nextMessage = translateAdminServiceMessage(saveError?.message)
+      const fieldErrors = mapApiValidationDetails(saveError?.details)
       setError(nextMessage)
       setFeedback(createFeedbackState('error', nextMessage))
+      return {
+        success: false,
+        fieldErrors,
+        message: nextMessage,
+      }
     } finally {
       setLoading(false)
     }
@@ -629,3 +755,6 @@ export default function useAdminServices() {
     resultRange,
   }
 }
+
+
+

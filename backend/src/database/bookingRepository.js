@@ -324,8 +324,16 @@ const createBookingRepository = ({
           s.status,
           s.cancellation_policy,
           s.metadata,
+          image.image_url AS primary_image,
           s.created_at
         FROM services s
+        LEFT JOIN LATERAL (
+          SELECT si.image_url
+          FROM service_images si
+          WHERE si.service_id = s.id
+          ORDER BY si.is_primary DESC, si.sort_order ASC, si.created_at ASC, si.id ASC
+          LIMIT 1
+        ) image ON TRUE
         WHERE s.id = $1
           AND s.status = 'active'
           AND s.deleted_at IS NULL
@@ -342,8 +350,39 @@ const createBookingRepository = ({
       `
         SELECT
           service_id,
-          departure_schedule
+          departure_location,
+          destination_location,
+          duration_days,
+          duration_nights,
+          transport_type,
+          max_group_size,
+          departure_schedule,
+          itinerary,
+          included_services,
+          excluded_services,
+          terms
         FROM tour_details
+        WHERE service_id = $1
+        LIMIT 1
+      `,
+      [serviceId],
+    );
+
+    return result.rows[0] || null;
+  };
+
+  const getHotelDetail = async (serviceId) => {
+    const result = await queryImpl(
+      `
+        SELECT
+          service_id,
+          star_rating,
+          address,
+          checkin_time,
+          checkout_time,
+          amenities,
+          hotel_policy
+        FROM hotel_details
         WHERE service_id = $1
         LIMIT 1
       `,
@@ -967,6 +1006,7 @@ const createBookingRepository = ({
     getCartById,
     getFlightDetailById,
     getPublicServiceById,
+    getHotelDetail,
     getRoomTypeById,
     getTourDetail,
     getTrainDetailById,

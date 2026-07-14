@@ -15803,6 +15803,12 @@ select {
   transform: translateY(-1px);
 }
 
+.admin-service-modal__close:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .admin-service-modal__body {
   min-height: 0;
   overflow-y: auto;
@@ -15846,6 +15852,67 @@ select {
 
 .admin-service-modal__error-summary strong {
   color: #b91c1c;
+}
+
+.admin-service-modal__error-summary--success {
+  background: rgba(240, 253, 244, 0.98);
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.admin-service-modal__error-summary--success strong,
+.admin-service-modal__error-summary--success p {
+  color: #166534;
+}
+
+.admin-service-modal__toast {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 70;
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.admin-service-modal__toast strong,
+.admin-service-modal__toast p {
+  margin: 0;
+}
+
+.admin-service-modal__toast strong {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.admin-service-modal__toast p {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.admin-service-modal__toast--error {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(254, 242, 242, 0.98);
+}
+
+.admin-service-modal__toast--error strong,
+.admin-service-modal__toast--error p {
+  color: #b91c1c;
+}
+
+.admin-service-modal__toast--success {
+  border-color: rgba(34, 197, 94, 0.24);
+  background: rgba(240, 253, 244, 0.98);
+}
+
+.admin-service-modal__toast--success strong,
+.admin-service-modal__toast--success p {
+  color: #166534;
 }
 
 .admin-service-modal__section {
@@ -16188,6 +16255,35 @@ select {
   gap: 12px;
 }
 
+.admin-service-modal__side-actions--footer {
+  width: min(100%, 460px);
+  margin-left: auto;
+  padding-top: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-service-modal__side-actions--footer .admin-service-modal__button {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 14px;
+  font-size: 0.94rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.admin-service-modal__side-actions--footer .admin-service-modal__button--secondary {
+  border: 1.5px solid #d51130;
+  background: #fff;
+  color: #d51130;
+}
+
+.admin-service-modal__side-actions--footer .admin-service-modal__button--primary {
+  background: #d51130;
+  color: #fff;
+  box-shadow: none;
+}
+
 .admin-service-modal__timeline-section {
   position: relative;
 }
@@ -16275,6 +16371,118 @@ select {
   background: #f3f4f5;
 }
 
+.admin-service-modal__day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-service-modal__day-title,
+.admin-service-modal__day-note {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #191c1d;
+  font: inherit;
+}
+
+.admin-service-modal__day-title {
+  min-height: 42px;
+  padding: 10px 16px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.admin-service-modal__day-note {
+  min-height: 68px;
+  padding: 10px 16px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.admin-service-modal__action-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-service-modal__action-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(92, 64, 61, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.admin-service-modal__action-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-service-modal__action-order {
+  color: #5c403d;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  text-transform: uppercase;
+}
+
+.admin-service-modal__ghost-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(200, 16, 46, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: #5c403d;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-service-modal__ghost-action:hover,
+.admin-service-modal__ghost-action:focus-visible {
+  outline: none;
+  border-color: rgba(200, 16, 46, 0.42);
+  color: #c8102e;
+  transform: translateY(-1px);
+}
+
+.admin-service-modal__ghost-action--danger {
+  border-color: rgba(200, 16, 46, 0.14);
+  color: #8a3b32;
+}
+
+.admin-service-modal__ghost-action-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-service-modal__ghost-action-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .admin-service-modal__day-card--empty {
   border-color: #e5bdb9;
   background: #fff;
@@ -16330,9 +16538,11 @@ select {
 }
 
 .admin-service-modal__footer {
-  padding-top: 0;
+  padding: 18px 32px 24px;
   border-top: none;
   background: #f8f9fa;
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
@@ -16359,6 +16569,13 @@ select {
 .admin-service-modal__button:focus-visible {
   outline: none;
   transform: translateY(-1px);
+}
+
+.admin-service-modal__button:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .admin-service-modal__button--ghost {

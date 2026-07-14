@@ -84,14 +84,14 @@
 
 .customer-trip-hero {
   display: grid;
-  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+  grid-template-columns: minmax(220px, 0.76fr) minmax(0, 1.24fr);
   gap: 0;
   overflow: hidden;
-  border-radius: 34px;
+  border-radius: 24px;
 }
 
 .customer-trip-hero__media {
-  min-height: 420px;
+  min-height: 240px;
   background: #fff4ef;
 }
 
@@ -105,18 +105,18 @@
 .customer-trip-hero__content {
   display: grid;
   align-content: center;
-  gap: 16px;
-  padding: 38px;
+  gap: 9px;
+  padding: 22px 28px;
 }
 
 .customer-trip-status {
   width: max-content;
-  min-height: 34px;
+  min-height: 26px;
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 0 14px;
-  font-size: 0.8rem;
+  padding: 0 10px;
+  font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -155,55 +155,59 @@
   text-transform: uppercase;
 }
 
+.customer-trip-hero__eyebrow {
+  font-size: 0.68rem;
+}
+
 .customer-trip-hero h1 {
   margin: 0;
   color: #241716;
-  font-size: clamp(2.2rem, 5vw, 4.2rem);
+  font-size: clamp(1.55rem, 3vw, 2.65rem);
   font-weight: 900;
   letter-spacing: 0;
-  line-height: 1.02;
+  line-height: 1.05;
 }
 
 .customer-trip-hero__content > p:not(.customer-trip-hero__eyebrow):not(.customer-trip-feedback) {
-  max-width: 760px;
+  max-width: 620px;
   margin: 0;
   color: #6f5d58;
-  font-size: 1.02rem;
+  font-size: 0.84rem;
   font-weight: 650;
-  line-height: 1.7;
+  line-height: 1.45;
 }
 
 .customer-trip-hero__facts,
 .customer-trip-hero__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 7px;
 }
 
 .customer-trip-hero__facts span {
-  min-height: 38px;
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 0 14px;
+  padding: 0 10px;
   color: #6f5d58;
   background: #fff7f4;
-  font-size: 0.9rem;
+  font-size: 0.76rem;
   font-weight: 800;
 }
 
 .customer-trip-hero__actions button {
-  min-height: 48px;
+  min-height: 34px;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   border: 1px solid rgba(214, 40, 40, 0.18);
   border-radius: 999px;
-  padding: 0 18px;
+  padding: 0 12px;
   color: #7a2f2f;
   background: rgba(255, 255, 255, 0.86);
   cursor: pointer;
-  font-size: 0.92rem;
+  font-size: 0.78rem;
   font-weight: 900;
 }
 
@@ -211,7 +215,7 @@
   border: 0;
   color: #fff;
   background: #d62828;
-  box-shadow: 0 14px 28px rgba(214, 40, 40, 0.18);
+  box-shadow: 0 10px 20px rgba(214, 40, 40, 0.16);
 }
 
 .customer-trip-hero__actions button:disabled {
@@ -220,16 +224,17 @@
 }
 
 .customer-trip-hero__actions svg {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
 }
 
 .customer-trip-feedback {
   margin: 0;
-  border-radius: 16px;
-  padding: 12px 14px;
+  border-radius: 12px;
+  padding: 8px 10px;
   color: #0f5f4d;
   background: #edf9f4;
+  font-size: 0.78rem;
   font-weight: 750;
 }
 
@@ -690,6 +695,103 @@
   line-height: 1.6;
 }
 
+.customer-trip-shortcuts {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.customer-trip-shortcuts__stack {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 14px;
+}
+
+.customer-trip-shortcut-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: start;
+  border: 1px solid rgba(233, 214, 205, 0.92);
+  border-radius: 22px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(244, 197, 66, 0.14), transparent 38%),
+    rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 36px rgba(116, 84, 77, 0.08);
+}
+
+.customer-trip-shortcut-card--support {
+  background:
+    radial-gradient(circle at top right, rgba(214, 40, 40, 0.12), transparent 38%),
+    rgba(255, 255, 255, 0.9);
+}
+
+.customer-trip-shortcut-card__icon {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  color: #b7062f;
+  background: #fff4ef;
+}
+
+.customer-trip-shortcut-card__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.customer-trip-shortcut-card__copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.customer-trip-shortcut-card__copy p,
+.customer-trip-shortcut-card__copy strong,
+.customer-trip-shortcut-card__copy span {
+  margin: 0;
+}
+
+.customer-trip-shortcut-card__copy p {
+  color: #d62828;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.customer-trip-shortcut-card__copy strong {
+  color: #241716;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.customer-trip-shortcut-card__copy span {
+  color: #6f5d58;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.customer-trip-shortcut-card button {
+  grid-column: 2;
+  width: max-content;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(214, 40, 40, 0.18);
+  border-radius: 999px;
+  padding: 0 14px;
+  color: #7a2f2f;
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
 @media (max-width: 980px) {
   .customer-trip-hero,
   .customer-trip-layout,
@@ -700,14 +802,21 @@
   }
 
   .customer-trip-hero__media {
-    min-height: 300px;
+    min-height: 220px;
   }
 }
 
 @media (max-width: 640px) {
-  .customer-trip-hero__content,
+  .customer-trip-hero__content {
+    padding: 16px;
+  }
+
   .customer-trip-card {
     padding: 20px;
+  }
+
+  .customer-trip-shortcuts__stack {
+    width: 100%;
   }
 
   .customer-trip-service {

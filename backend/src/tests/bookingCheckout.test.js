@@ -287,6 +287,12 @@ test('bookingService.checkout creates a pending_payment booking from an active c
   assert.equal(createCheckoutPayload.booking.total_amount, 4825600);
   assert.equal(createCheckoutPayload.bookingItems.length, 2);
   assert.equal(createCheckoutPayload.bookingItems[0].traveller_info.length, 2);
+  assert.deepEqual(createCheckoutPayload.bookingItems[0].service_snapshot.passenger_counts, {
+    adult_count: 2,
+    child_count: 0,
+    infant_count: 0,
+    total_count: 2,
+  });
   assert.equal(result.status, 'pending_payment');
   assert.equal(result.subtotal_amount, 4800000);
   assert.equal(result.discount_amount, 480000);

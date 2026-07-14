@@ -6,6 +6,7 @@ import {
   getMyBookingStatusHistory,
 } from '../../repositories/bookingRepository.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
+import { normalizeTourService } from '../../mappers/serviceMappers.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 import { formatCurrencyVND } from '../../utils/formatCurrency.js'
 import './customerTripDetailPage.css'
@@ -147,9 +148,15 @@ function getPrimaryImage(item = {}) {
 function getSnapshotDetails(snapshot = {}) {
   const safeSnapshot = normalizeObject(snapshot)
   const details = normalizeObject(safeSnapshot.details)
+  const flight = normalizeObject(safeSnapshot.flight)
+  const roomType = normalizeObject(safeSnapshot.room_type)
+  const train = normalizeObject(safeSnapshot.train)
 
   return {
     ...safeSnapshot,
+    ...roomType,
+    ...flight,
+    ...train,
     ...details,
   }
 }
@@ -217,6 +224,72 @@ function getServiceTypeLabel(type = '') {
   return labels[type] ?? 'Dịch vụ'
 }
 
+function getPositiveCount(...values) {
+  for (const value of values) {
+    const parsed = Number(value)
+
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed
+    }
+  }
+
+  return 0
+}
+
+function buildPassengerSummary(item = {}, snapshot = {}) {
+  const safeItem = normalizeObject(item)
+  const passengerCounts = normalizeObject(snapshot.passenger_counts)
+  const totalQuantity = getPositiveCount(passengerCounts.total_count, safeItem.quantity)
+  const childCount = getPositiveCount(
+    passengerCounts.child_count,
+    safeItem.options?.child_count,
+    safeItem.options?.children_count,
+    safeItem.options?.children,
+  )
+  const infantCount = getPositiveCount(
+    passengerCounts.infant_count,
+    safeItem.options?.infant_count,
+    safeItem.options?.infants,
+  )
+  const adultCount = getPositiveCount(
+    passengerCounts.adult_count,
+    safeItem.options?.adult_count,
+    safeItem.options?.adults,
+    totalQuantity - childCount - infantCount,
+    totalQuantity,
+  )
+  const parts = []
+
+  if (adultCount > 0) {
+    parts.push(`${adultCount} ng\u01b0\u1eddi l\u1edbn`)
+  }
+
+  if (childCount > 0) {
+    parts.push(`${childCount} tr\u1ebb em`)
+  }
+
+  if (infantCount > 0) {
+    parts.push(`${infantCount} em b\u00e9`)
+  }
+
+  return parts.length ? parts.join(' \u00b7 ') : `${Math.max(totalQuantity, 1)} ng\u01b0\u1eddi l\u1edbn`
+}
+
+function getNormalizedTourSnapshot(item = {}) {
+  const safeItem = normalizeObject(item)
+  const snapshot = normalizeObject(safeItem.service_snapshot)
+  const serviceType = safeItem.service_type ?? snapshot.service_type
+
+  if (serviceType !== 'tour') {
+    return null
+  }
+
+  return normalizeTourService({
+    ...snapshot,
+    details: getSnapshotDetails(snapshot),
+  })
+}
+
 function buildServiceItems(items = []) {
   return items.map((item, index) => {
     const safeItem = normalizeObject(item)
@@ -230,6 +303,7 @@ function buildServiceItems(items = []) {
       imageUrl: getPrimaryImage(safeItem),
       label: getServiceTypeLabel(serviceType),
       location: normalizeText(snapshot.location_text) || 'Điểm đến đang cập nhật',
+      passengersLabel: buildPassengerSummary(safeItem, snapshot),
       price: formatCurrencyVND(Number(safeItem.total_amount ?? 0)),
       quantity: Number(safeItem.quantity ?? 0) || 1,
       schedule: formatDateRange(startAt, endAt),
@@ -247,19 +321,37 @@ function buildServiceItems(items = []) {
 function buildJourneyPlan(rawItem = {}, serviceItems = []) {
   const safeItem = normalizeObject(rawItem)
   const snapshot = normalizeObject(safeItem.service_snapshot)
+  const normalizedTour = getNormalizedTourSnapshot(safeItem)
   const details = getSnapshotDetails(snapshot)
   const serviceType = safeItem.service_type ?? snapshot.service_type ?? 'tour'
-  const itinerary = normalizeItinerary(details.itinerary)
-  const includedServices = splitTextList(details.included_services)
-  const excludedServices = splitTextList(details.excluded_services)
-  const durationDays = Number(details.duration_days)
-  const durationNights = Number(details.duration_nights)
+  const resolvedDetails = normalizedTour?.details ?? details
+  const itinerary =
+    serviceType === 'tour'
+      ? Array.isArray(resolvedDetails.itinerary)
+        ? resolvedDetails.itinerary
+        : []
+      : normalizeItinerary(details.itinerary)
+  const includedServices =
+    serviceType === 'tour'
+      ? Array.isArray(resolvedDetails.included_services)
+        ? resolvedDetails.included_services
+        : []
+      : splitTextList(details.included_services)
+  const excludedServices =
+    serviceType === 'tour'
+      ? Array.isArray(resolvedDetails.excluded_services)
+        ? resolvedDetails.excluded_services
+        : []
+      : splitTextList(details.excluded_services)
+  const durationDays = Number(resolvedDetails.duration_days)
+  const durationNights = Number(resolvedDetails.duration_nights)
   const durationLabel =
-    Number.isFinite(durationDays) && durationDays > 0
+    normalizedTour?.duration_text ||
+    (Number.isFinite(durationDays) && durationDays > 0
       ? `${durationDays} ngày ${Math.max(Number(durationNights) || durationDays - 1, 0)} đêm`
-      : getDurationLabel(safeItem.start_at, safeItem.end_at)
+      : getDurationLabel(safeItem.start_at, safeItem.end_at))
   const locationLabel =
-    normalizeText(details.destination_location) ||
+    normalizeText(resolvedDetails.destination_location) ||
     normalizeText(snapshot.location_text) ||
     'Đang cập nhật'
 
@@ -267,8 +359,8 @@ function buildJourneyPlan(rawItem = {}, serviceItems = []) {
     return {
       detailCards: [
         ['Thời gian', durationLabel],
-        ['Phương tiện', getTransportLabel(details.transport_type)],
-        ['Loại tour', normalizeText(details.tour_operator) || 'Net Viet Travel'],
+        ['Phương tiện', normalizedTour?.transport_text || getTransportLabel(resolvedDetails.transport_type)],
+        ['Loại tour', normalizeText(normalizedTour?.tour_type) || normalizeText(snapshot.provider_name) || 'Net Viet Travel'],
       ],
       excludedServices,
       includedServices,
@@ -353,6 +445,10 @@ function buildTripViewModel(booking, items = [], statusHistory = []) {
   const serviceItems = buildServiceItems(items)
   const primaryItem = serviceItems[0] ?? {}
   const rawPrimaryItem = normalizeObject(items[0])
+  const primarySnapshot = normalizeObject(rawPrimaryItem.service_snapshot)
+  const normalizedTour = getNormalizedTourSnapshot(rawPrimaryItem)
+  const primaryDetails = normalizedTour?.details ?? getSnapshotDetails(primarySnapshot)
+  const journeyPlan = buildJourneyPlan(rawPrimaryItem, serviceItems)
   const status = booking?.booking_status ?? booking?.status ?? 'confirmed'
   const statusCopy = STATUS_COPY[status] ?? {
     label: String(status).replace(/_/g, ' ').toUpperCase(),
@@ -367,13 +463,15 @@ function buildTripViewModel(booking, items = [], statusHistory = []) {
     contactName: booking?.contact_name ?? 'Đang cập nhật',
     contactPhone: booking?.contact_phone ?? 'Đang cập nhật',
     destination:
-      normalizeText(rawPrimaryItem.service_snapshot?.location_text) ||
+      normalizeText(primaryDetails.destination_location) ||
+      normalizeText(primarySnapshot.location_text) ||
       primaryItem.location ||
       'Điểm đến đang cập nhật',
-    duration: getDurationLabel(rawPrimaryItem.start_at, rawPrimaryItem.end_at),
+    duration: normalizedTour?.duration_text || getDurationLabel(rawPrimaryItem.start_at, rawPrimaryItem.end_at),
     endDate: formatDate(rawPrimaryItem.end_at),
     heroImage: primaryItem.imageUrl ?? FALLBACK_TRIP_IMAGE,
-    journeyPlan: buildJourneyPlan(rawPrimaryItem, serviceItems),
+    journeyPlan,
+    passengersLabel: primaryItem.passengersLabel ?? '',
     reminders: [
       'Kiểm tra căn cước, hộ chiếu hoặc giấy tờ tùy thân theo yêu cầu của từng dịch vụ.',
       'Có mặt sớm hơn giờ hẹn để làm thủ tục, nhận vé hoặc gặp hướng dẫn viên.',
@@ -675,6 +773,10 @@ function CustomerTripDetailPage() {
     })
   }
 
+  function goTravelHandbook() {
+    navigate(buildPublicAuthPath('/travel-handbook', isCustomer))
+  }
+
   async function downloadSummary() {
     if (!booking?.id) {
       return
@@ -746,6 +848,7 @@ function CustomerTripDetailPage() {
                   <span>{viewModel.startDate}</span>
                   <span>{viewModel.duration}</span>
                   <span>{viewModel.destination}</span>
+                  {viewModel.passengersLabel ? <span>{viewModel.passengersLabel}</span> : null}
                 </div>
 
                 <div className="customer-trip-hero__actions">
@@ -804,7 +907,7 @@ function CustomerTripDetailPage() {
                           <span>{item.label}</span>
                           <h3>{item.title}</h3>
                           <p>{item.location}</p>
-                          <small>{item.schedule} • {item.quantity} lượt dịch vụ</small>
+                          <small>{item.schedule} • {item.passengersLabel}</small>
                         </div>
                         <strong>{item.price}</strong>
                       </article>
@@ -879,6 +982,38 @@ function CustomerTripDetailPage() {
                   Trạng thái mới nhất của đơn sẽ được cập nhật tại đây khi hệ thống có thay đổi.
                 </p>
               )}
+            </section>
+
+            <section className="customer-trip-shortcuts" aria-label="Tiện ích chuyến đi">
+              <div className="customer-trip-shortcuts__stack">
+                <article className="customer-trip-shortcut-card">
+                  <span className="customer-trip-shortcut-card__icon">
+                    <TripIcon name="box" />
+                  </span>
+                  <div className="customer-trip-shortcut-card__copy">
+                    <p>Cẩm nang du lịch</p>
+                    <strong>Chuẩn bị nhanh trước ngày khởi hành</strong>
+                    <span>Xem checklist hành lý, giấy tờ và mẹo đi tour.</span>
+                  </div>
+                  <button type="button" onClick={goTravelHandbook}>
+                    Mở cẩm nang
+                  </button>
+                </article>
+
+                <article className="customer-trip-shortcut-card customer-trip-shortcut-card--support">
+                  <span className="customer-trip-shortcut-card__icon">
+                    <TripIcon name="phone" />
+                  </span>
+                  <div className="customer-trip-shortcut-card__copy">
+                    <p>Liên hệ hỗ trợ</p>
+                    <strong>Cần trợ giúp cho đơn này</strong>
+                    <span>Kết nối nhanh với đội chăm sóc khách hàng của Nét Việt.</span>
+                  </div>
+                  <button type="button" onClick={goSupport}>
+                    Mở hỗ trợ
+                  </button>
+                </article>
+              </div>
             </section>
           </>
         ) : null}

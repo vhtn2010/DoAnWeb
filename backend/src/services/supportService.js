@@ -720,23 +720,23 @@ const buildSupportManualEmailContent = ({
 
   return {
     html: renderEmailLayout({
-      badge: 'Ho tro khach hang',
+      badge: 'Hỗ trợ khách hàng',
       body: [
         renderEmailSection({
-          title: 'Thong tin yeu cau',
+          title: 'Thông tin yêu cầu',
           children: renderEmailInfoRows([
             {
               label: 'Ticket',
               value: ticket.ticket_code || ticket.id,
             },
             {
-              label: 'Chu de',
+               label: 'Chủ đề',
               value: subject,
             },
           ]),
         }),
         renderEmailSection({
-          title: 'Noi dung tu doi ngu ho tro',
+          title: 'Nội dung từ đội ngũ hỗ trợ',
           children: [
             '<div style="padding:16px;border:1px solid #d1d5db;border-radius:12px;background:#ffffff;color:#1f2937;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.7;">',
             escapedMessage,
@@ -745,26 +745,26 @@ const buildSupportManualEmailContent = ({
         }),
       ].join(''),
       footerNote:
-        'Neu can them ho tro, vui long phan hoi qua kenh cham soc khach hang cua chung toi.',
-      greeting: `Xin chao ${customerName},`,
+        'Nếu cần thêm hỗ trợ, vui lòng phản hồi qua kênh chăm sóc khách hàng của chúng tôi.',
+      greeting: `Xin chào ${customerName},`,
       intro: [
-        'Day la email ho tro thu cong tu doi ngu Net Viet Travel.',
-        `Ticket ${ticketCode} dang duoc theo doi boi bo phan cham soc khach hang.`,
+        'Đây là email hỗ trợ thủ công từ đội ngũ Net Viet Travel.',
+        `Ticket ${ticketCode} đang được theo dõi bởi bộ phận chăm sóc khách hàng.`,
       ],
-      preheader: `Cap nhat ho tro cho ticket ${ticketCode}.`,
+      preheader: `Cập nhật hỗ trợ cho ticket ${ticketCode}.`,
       title: subject,
     }),
     subject,
     text: [
-      `Xin chao ${customerName},`,
+      `Xin chào ${customerName},`,
       '',
-      'Day la email ho tro thu cong tu doi ngu Net Viet Travel.',
+      'Đây là email hỗ trợ thủ công từ đội ngũ Net Viet Travel.',
       `Ticket: ${ticket.ticket_code || ticket.id}`,
-      `Chu de: ${subject}`,
+      `Chủ đề: ${subject}`,
       '',
       message,
       '',
-      'Neu can them ho tro, vui long phan hoi qua kenh cham soc khach hang cua chung toi.',
+      'Nếu cần thêm hỗ trợ, vui lòng phản hồi qua kênh chăm sóc khách hàng của chúng tôi.',
     ].join('\n'),
   };
 };

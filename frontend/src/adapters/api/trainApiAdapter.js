@@ -286,7 +286,7 @@ function mapServiceDetailToTrain(service = {}) {
     service_id: service.id ?? '',
     service_code: service.service_code ?? '',
     service_type: SERVICE_TYPES.train,
-    title: service.title ?? 'Chuyến tàu dang cap nhat',
+    title: service.title ?? 'Chuyến tàu đang cập nhật',
     slug: service.slug ?? '',
     short_description: service.short_description ?? '',
     description: service.description ?? '',
@@ -647,7 +647,7 @@ export async function buildTrainSelectionPayload(
   if (!train.reference_id) {
     return {
       success: false,
-      message: 'Chuyến tàu hien chua co ma cho de dat ve.',
+      message: 'Chuyến tàu hiện chưa có mã chỗ để đặt vé.',
       data: null,
     }
   }

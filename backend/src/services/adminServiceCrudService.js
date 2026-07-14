@@ -19,6 +19,7 @@ const AppError = require('../utils/AppError');
 
 const DEFAULT_CURRENCY = 'VND';
 const DANGEROUS_TEXT_PATTERN = /[\u0000-\u001F\u007F<>]/;
+const DANGEROUS_MULTILINE_TEXT_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F<>]/;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SERVICE_CODE_PATTERN = /^[A-Z0-9-]+$/;
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
@@ -163,6 +164,48 @@ const parseOptionalString = ({
   }
 
   if (DANGEROUS_TEXT_PATTERN.test(normalized)) {
+    throw buildValidationError(field, `${field} contains unsupported characters`);
+  }
+
+  return normalized;
+};
+
+const normalizeMultilineWhitespace = (value) =>
+  value
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.trim().replace(/\s+/g, ' '))
+    .join('\n')
+    .trim();
+
+const parseOptionalMultilineString = ({
+  field,
+  maxLength = 1000,
+  value,
+}) => {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    throw buildValidationError(field, `${field} must be a string`);
+  }
+
+  const normalized = normalizeMultilineWhitespace(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > maxLength) {
+    throw buildValidationError(
+      field,
+      `${field} must be at most ${maxLength} characters long`,
+    );
+  }
+
+  if (DANGEROUS_MULTILINE_TEXT_PATTERN.test(normalized)) {
     throw buildValidationError(field, `${field} contains unsupported characters`);
   }
 
@@ -378,6 +421,213 @@ const parseOptionalArray = ({
   }
 
   return value;
+};
+
+const splitMultilineText = (value) => {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .replace(/\r/g, '\n')
+    .split(/\n+|•\s*|●\s*|▪\s*|◦\s*|;\s*/g)
+    .map((item) => normalizeWhitespace(String(item)))
+    .filter(Boolean);
+};
+
+const normalizeLegacyTourActionSource = (value) => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return splitMultilineText(value);
+};
+
+const parseOptionalTourActionTime = ({
+  field,
+  value,
+}) =>
+  parseOptionalString({
+    field,
+    maxLength: 60,
+    value,
+  });
+
+const parseTourAction = ({
+  action,
+  dayIndex,
+  fieldPrefix,
+  index,
+}) => {
+  if (typeof action === 'string') {
+    const title = parseOptionalString({
+      field: `${fieldPrefix}[${index}].title`,
+      maxLength: 255,
+      value: action,
+    });
+
+    return title
+      ? {
+          description: null,
+          time: null,
+          title,
+        }
+      : null;
+  }
+
+  if (!action || typeof action !== 'object' || Array.isArray(action)) {
+    throw buildValidationError(
+      `${fieldPrefix}[${index}]`,
+      `${fieldPrefix}[${index}] must be an object`,
+    );
+  }
+
+  const title = parseOptionalString({
+    field: `${fieldPrefix}[${index}].title`,
+    maxLength: 255,
+    value: action.title ?? action.label ?? action.name ?? null,
+  });
+  const description = parseOptionalMultilineString({
+    field: `${fieldPrefix}[${index}].description`,
+    maxLength: 10000,
+    value: action.description ?? action.summary ?? null,
+  });
+  const time = parseOptionalTourActionTime({
+    field: `${fieldPrefix}[${index}].time`,
+    value: action.time ?? null,
+  });
+
+  if (!title && !description && !time) {
+    return null;
+  }
+
+  return {
+    description,
+    time,
+    title: title || description || `Hoat dong ${dayIndex + 1}.${index + 1}`,
+  };
+};
+
+const buildLegacyTourDayActions = ({
+  day,
+  dayIndex,
+  fieldPrefix,
+}) => {
+  const legacyActions = Array.isArray(day.actions) && day.actions.length
+    ? day.actions
+    : normalizeLegacyTourActionSource(day.activities ?? day.highlights);
+
+  if (legacyActions.length > 0) {
+    return legacyActions
+      .map((action, actionIndex) =>
+        parseTourAction({
+          action,
+          dayIndex,
+          fieldPrefix,
+          index: actionIndex,
+        }),
+      )
+      .filter(Boolean);
+  }
+
+  const fallbackTitle = parseOptionalString({
+    field: `${fieldPrefix}.__fallback_title`,
+    maxLength: 255,
+    value: day.title ?? null,
+  });
+  const fallbackDescription = parseOptionalMultilineString({
+    field: `${fieldPrefix}.__fallback_description`,
+    maxLength: 10000,
+    value: day.summary ?? day.description ?? null,
+  });
+
+  if (!fallbackTitle && !fallbackDescription) {
+    return [];
+  }
+
+  return [
+    {
+      description: fallbackDescription,
+      time: null,
+      title: fallbackTitle || fallbackDescription || `Hoat dong ${dayIndex + 1}.1`,
+    },
+  ];
+};
+
+const parseTourItinerary = ({
+  field,
+  value,
+}) => {
+  if (value == null) {
+    return null;
+  }
+
+  if (!Array.isArray(value)) {
+    throw buildValidationError(field, `${field} must be an array`);
+  }
+
+  return value
+    .map((day, dayIndex) => {
+      if (typeof day === 'string') {
+        const title = parseOptionalString({
+          field: `${field}[${dayIndex}]`,
+          maxLength: 255,
+          value: day,
+        });
+
+        if (!title) {
+          return null;
+        }
+
+        return {
+          actions: [
+            {
+              description: null,
+              time: null,
+              title,
+            },
+          ],
+          day_number: dayIndex + 1,
+          summary: null,
+          title: null,
+        };
+      }
+
+      if (!day || typeof day !== 'object' || Array.isArray(day)) {
+        throw buildValidationError(
+          `${field}[${dayIndex}]`,
+          `${field}[${dayIndex}] must be an object`,
+        );
+      }
+
+      const actions = buildLegacyTourDayActions({
+        day,
+        dayIndex,
+        fieldPrefix: `${field}[${dayIndex}].actions`,
+      });
+      const title = parseOptionalString({
+        field: `${field}[${dayIndex}].title`,
+        maxLength: 255,
+        value: day.title ?? null,
+      });
+      const summary = parseOptionalMultilineString({
+        field: `${field}[${dayIndex}].summary`,
+        maxLength: 10000,
+        value: day.summary ?? day.description ?? null,
+      });
+
+      if (!title && !summary && actions.length === 0) {
+        return null;
+      }
+
+      return {
+        actions,
+        day_number: dayIndex + 1,
+        summary,
+        title,
+      };
+    })
+    .filter(Boolean);
 };
 
 const parseOptionalUuid = ({
@@ -715,7 +965,9 @@ const parseTourDetails = ({
     included_services: details.included_services != null
       ? parseOptionalString({ field: 'details.included_services', maxLength: 10000, value: details.included_services })
       : current.included_services,
-    itinerary: details.itinerary != null ? details.itinerary : current.itinerary ?? null,
+    itinerary: details.itinerary != null
+      ? parseTourItinerary({ field: 'details.itinerary', value: details.itinerary })
+      : current.itinerary ?? null,
     departure_schedule: details.departure_schedule != null ? details.departure_schedule : current.departure_schedule ?? null,
     max_group_size: details.max_group_size != null
       ? parseOptionalInteger({ field: 'details.max_group_size', min: 1, value: details.max_group_size })

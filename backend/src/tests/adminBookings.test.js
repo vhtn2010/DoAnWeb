@@ -1983,7 +1983,7 @@ test('adminBookingService.resendBookingConfirmationEmail sends a confirmation em
     bookingId: BOOKING_ID,
     bookingStatus: BOOKING_STATUS.CONFIRMED,
     createdAt: fixedNow,
-    subject: 'Booking BK202607010015 - Gui lai email xac nhan',
+    subject: 'Booking BK202607010015 - Gửi lại email xác nhận',
     templateCode: 'BOOKING_CONFIRMATION_RESEND',
     toEmail: 'customer@example.com',
     userId: 'user-1',
@@ -1992,7 +1992,7 @@ test('adminBookingService.resendBookingConfirmationEmail sends a confirmation em
   assert.equal(emailPayload.to.name, 'Nguyen Van A');
   assert.match(emailPayload.subject, /BK202607010015/);
   assert.match(emailPayload.text, /Tour Da Nang/);
-  assert.match(emailPayload.html, /Tong thanh toan/);
+  assert.match(emailPayload.html, /Tổng thanh toán/);
   assert.deepEqual(sentPayload, {
     emailLogId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
     messageId: 'sendgrid-message-1',

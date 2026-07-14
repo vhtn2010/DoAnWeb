@@ -647,6 +647,7 @@ const sanitizeBookingDetailItem = (item) => ({
   reference_id: item.reference_id,
   service_id: item.service_id,
   service_type: item.service_type,
+  service_snapshot: sanitizeServiceSnapshot(item.service_snapshot),
   start_at: item.start_at,
   status: item.status,
   title: item.title_snapshot,
@@ -790,6 +791,132 @@ const sanitizeSnapshotTrain = (train) => {
   };
 };
 
+const getPositiveIntegerCount = (...values) => {
+  for (const value of values) {
+    const parsed = Number(value);
+
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return 0;
+};
+
+const buildPassengerCounts = (cartItem) => {
+  const options =
+    cartItem?.options && typeof cartItem.options === 'object' && !Array.isArray(cartItem.options)
+      ? cartItem.options
+      : {};
+  const childCount = getPositiveIntegerCount(
+    options.child_count,
+    options.children_count,
+    options.children,
+  );
+  const infantCount = getPositiveIntegerCount(
+    options.infant_count,
+    options.infants,
+  );
+  const adultCount = getPositiveIntegerCount(
+    options.adult_count,
+    options.adults,
+    options.guest_count,
+    Number(cartItem?.quantity) - childCount - infantCount,
+    cartItem?.quantity,
+  );
+
+  return {
+    adult_count: adultCount,
+    child_count: childCount,
+    infant_count: infantCount,
+    total_count: Math.max(adultCount + childCount + infantCount, Number(cartItem?.quantity) || 0),
+  };
+};
+
+const sanitizePassengerCounts = (passengerCounts) => {
+  if (
+    !passengerCounts ||
+    typeof passengerCounts !== 'object' ||
+    Array.isArray(passengerCounts)
+  ) {
+    return null;
+  }
+
+  const adultCount = getPositiveIntegerCount(passengerCounts.adult_count);
+  const childCount = getPositiveIntegerCount(passengerCounts.child_count);
+  const infantCount = getPositiveIntegerCount(passengerCounts.infant_count);
+  const totalCount = getPositiveIntegerCount(
+    passengerCounts.total_count,
+    adultCount + childCount + infantCount,
+  );
+
+  if (totalCount === 0) {
+    return null;
+  }
+
+  return {
+    adult_count: adultCount,
+    child_count: childCount,
+    infant_count: infantCount,
+    total_count: totalCount,
+  };
+};
+
+const sanitizeSnapshotDetails = (details) => {
+  if (!details || typeof details !== 'object' || Array.isArray(details)) {
+    return null;
+  }
+
+  const sanitized = {};
+  const passthroughKeys = [
+    'address',
+    'airline_name',
+    'amenities',
+    'arrival_airport',
+    'arrival_at',
+    'arrival_station',
+    'cabin_class',
+    'checkin_time',
+    'checkout_time',
+    'departure_airport',
+    'departure_at',
+    'departure_location',
+    'departure_schedule',
+    'departure_station',
+    'destination_location',
+    'excluded_services',
+    'flight_number',
+    'hotel_policy',
+    'included_services',
+    'itinerary',
+    'seat_class',
+    'terms',
+    'train_number',
+    'transport_type',
+  ];
+  const numericKeys = [
+    'duration_days',
+    'duration_nights',
+    'max_group_size',
+    'star_rating',
+    'fare_price',
+  ];
+
+  for (const key of passthroughKeys) {
+    if (details[key] !== undefined) {
+      sanitized[key] = details[key] ?? null;
+    }
+  }
+
+  for (const key of numericKeys) {
+    if (details[key] !== undefined) {
+      sanitized[key] = details[key] == null ? null : Number(details[key]);
+    }
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+};
+
 const sanitizeServiceSnapshot = (snapshot) => {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     return null;
@@ -804,7 +931,9 @@ const sanitizeServiceSnapshot = (snapshot) => {
     currency: snapshot.currency || DEFAULT_CURRENCY,
     description: snapshot.description || null,
     id: snapshot.id || null,
+    image_url: snapshot.image_url || snapshot.primary_image || null,
     location_text: snapshot.location_text || null,
+    primary_image: snapshot.primary_image || snapshot.image_url || null,
     public_price:
       snapshot.public_price == null
         ? null
@@ -823,6 +952,8 @@ const sanitizeServiceSnapshot = (snapshot) => {
   const roomType = sanitizeSnapshotRoomType(snapshot.room_type);
   const flight = sanitizeSnapshotFlight(snapshot.flight);
   const train = sanitizeSnapshotTrain(snapshot.train);
+  const details = sanitizeSnapshotDetails(snapshot.details);
+  const passengerCounts = sanitizePassengerCounts(snapshot.passenger_counts);
 
   if (roomType) {
     sanitized.room_type = roomType;
@@ -834,6 +965,14 @@ const sanitizeServiceSnapshot = (snapshot) => {
 
   if (train) {
     sanitized.train = train;
+  }
+
+  if (details) {
+    sanitized.details = details;
+  }
+
+  if (passengerCounts) {
+    sanitized.passenger_counts = passengerCounts;
   }
 
   return sanitized;
@@ -1128,6 +1267,7 @@ const buildServiceSnapshot = ({
   cartItem,
   detail,
   service,
+  serviceDetail,
   unitPrice,
 }) => {
   const snapshot = {
@@ -1136,7 +1276,10 @@ const buildServiceSnapshot = ({
     currency: service.currency || DEFAULT_CURRENCY,
     description: service.description || null,
     id: service.id,
+    image_url: service.primary_image || null,
     location_text: service.location_text || null,
+    passenger_counts: buildPassengerCounts(cartItem),
+    primary_image: service.primary_image || null,
     provider_name: service.provider_name || null,
     public_price: roundMoney(unitPrice),
     reference_id: cartItem.reference_id || null,
@@ -1147,6 +1290,37 @@ const buildServiceSnapshot = ({
     slug: service.slug,
     title: service.title,
   };
+
+  if (service.service_type === SERVICE_TYPE.TOUR && serviceDetail) {
+    snapshot.details = {
+      departure_location: serviceDetail.departure_location || null,
+      departure_schedule: serviceDetail.departure_schedule || null,
+      destination_location: serviceDetail.destination_location || null,
+      duration_days:
+        serviceDetail.duration_days == null ? null : Number(serviceDetail.duration_days),
+      duration_nights:
+        serviceDetail.duration_nights == null ? null : Number(serviceDetail.duration_nights),
+      excluded_services: serviceDetail.excluded_services || null,
+      included_services: serviceDetail.included_services || null,
+      itinerary: serviceDetail.itinerary || null,
+      max_group_size:
+        serviceDetail.max_group_size == null ? null : Number(serviceDetail.max_group_size),
+      terms: serviceDetail.terms || null,
+      transport_type: serviceDetail.transport_type || null,
+    };
+  }
+
+  if (service.service_type === SERVICE_TYPE.HOTEL && serviceDetail) {
+    snapshot.details = {
+      address: serviceDetail.address || null,
+      amenities: serviceDetail.amenities || null,
+      checkin_time: serviceDetail.checkin_time || null,
+      checkout_time: serviceDetail.checkout_time || null,
+      hotel_policy: serviceDetail.hotel_policy || null,
+      star_rating:
+        serviceDetail.star_rating == null ? null : Number(serviceDetail.star_rating),
+    };
+  }
 
   if (service.service_type === SERVICE_TYPE.HOTEL && detail) {
     snapshot.room_type = {
@@ -1172,6 +1346,7 @@ const buildServiceSnapshot = ({
       flight_number: detail.flight_number,
       id: detail.id,
     };
+    snapshot.details = { ...snapshot.flight };
   }
 
   if (service.service_type === SERVICE_TYPE.TRAIN && detail) {
@@ -1185,10 +1360,161 @@ const buildServiceSnapshot = ({
       seat_class: detail.seat_class,
       train_number: detail.train_number,
     };
+    snapshot.details = { ...snapshot.train };
   }
 
   return snapshot;
 };
+
+const mergeSnapshotWithCurrentService = (snapshot, fallbackSnapshot) => {
+  if (!fallbackSnapshot) {
+    return snapshot || null;
+  }
+
+  const currentSnapshot =
+    snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)
+      ? snapshot
+      : {};
+  const merged = {
+    ...currentSnapshot,
+  };
+  const liveDisplayKeys = [
+    'cancellation_policy',
+    'description',
+    'id',
+    'image_url',
+    'location_text',
+    'primary_image',
+    'provider_name',
+    'service_code',
+    'service_type',
+    'short_description',
+    'slug',
+    'title',
+  ];
+
+  for (const key of liveDisplayKeys) {
+    if (fallbackSnapshot[key] != null && fallbackSnapshot[key] !== '') {
+      merged[key] = fallbackSnapshot[key];
+    }
+  }
+
+  if (fallbackSnapshot.details || currentSnapshot.details) {
+    merged.details = {
+      ...(currentSnapshot.details || {}),
+      ...(fallbackSnapshot.details || {}),
+    };
+  }
+
+  if (fallbackSnapshot.flight || currentSnapshot.flight) {
+    merged.flight = {
+      ...(currentSnapshot.flight || {}),
+      ...(fallbackSnapshot.flight || {}),
+    };
+  }
+
+  if (fallbackSnapshot.train || currentSnapshot.train) {
+    merged.train = {
+      ...(currentSnapshot.train || {}),
+      ...(fallbackSnapshot.train || {}),
+    };
+  }
+
+  if (fallbackSnapshot.room_type || currentSnapshot.room_type) {
+    merged.room_type = {
+      ...(currentSnapshot.room_type || {}),
+      ...(fallbackSnapshot.room_type || {}),
+    };
+  }
+
+  if (!merged.passenger_counts && fallbackSnapshot.passenger_counts) {
+    merged.passenger_counts = fallbackSnapshot.passenger_counts;
+  }
+
+  return merged;
+};
+
+const buildCurrentServiceSnapshotPatch = async ({
+  item,
+  repository,
+}) => {
+  if (!item.service_id || typeof repository.getPublicServiceById !== 'function') {
+    return null;
+  }
+
+  const service = await repository.getPublicServiceById(item.service_id);
+
+  if (!service) {
+    return null;
+  }
+
+  let detail = null;
+  let serviceDetail = null;
+
+  if (service.service_type === SERVICE_TYPE.TOUR) {
+    serviceDetail =
+      typeof repository.getTourDetail === 'function'
+        ? await repository.getTourDetail(service.id)
+        : null;
+  } else if (service.service_type === SERVICE_TYPE.HOTEL) {
+    serviceDetail =
+      typeof repository.getHotelDetail === 'function'
+        ? await repository.getHotelDetail(service.id)
+        : null;
+
+    if (item.reference_id && typeof repository.getRoomTypeById === 'function') {
+      detail = await repository.getRoomTypeById(item.reference_id);
+    }
+  } else if (service.service_type === SERVICE_TYPE.FLIGHT) {
+    detail =
+      item.reference_id && typeof repository.getFlightDetailById === 'function'
+        ? await repository.getFlightDetailById(item.reference_id)
+        : null;
+    serviceDetail = detail;
+  } else if (service.service_type === SERVICE_TYPE.TRAIN) {
+    detail =
+      item.reference_id && typeof repository.getTrainDetailById === 'function'
+        ? await repository.getTrainDetailById(item.reference_id)
+        : null;
+    serviceDetail = detail;
+  }
+
+  return buildServiceSnapshot({
+    cartItem: {
+      quantity: item.quantity,
+      reference_id: item.reference_id,
+    },
+    detail,
+    service,
+    serviceDetail,
+    unitPrice: item.unit_price || service.sale_price || service.base_price || 0,
+  });
+};
+
+const enrichBookingItemsWithCurrentServiceData = async ({
+  items,
+  repository,
+}) =>
+  Promise.all(
+    items.map(async (item) => {
+      if (!item.service_id) {
+        return item;
+      }
+
+      const fallbackSnapshot = await buildCurrentServiceSnapshotPatch({
+        item,
+        repository,
+      }).catch(() => null);
+
+      return {
+        ...item,
+        service_snapshot: mergeSnapshotWithCurrentService(
+          item.service_snapshot,
+          fallbackSnapshot,
+        ),
+      };
+    }),
+  );
 
 const validateVoucher = async ({
   repository,
@@ -1441,13 +1767,30 @@ const createBookingService = ({
       }
 
       let detail = null;
+      let serviceDetail = null;
 
-      if (service.service_type === SERVICE_TYPE.HOTEL && cartItem.reference_id) {
-        detail = await repository.getRoomTypeById(cartItem.reference_id);
+      if (service.service_type === SERVICE_TYPE.TOUR) {
+        if (typeof repository.getTourDetail === 'function') {
+          serviceDetail = await repository.getTourDetail(cartItem.service_id);
+        }
+      } else if (service.service_type === SERVICE_TYPE.HOTEL) {
+        if (typeof repository.getHotelDetail === 'function') {
+          serviceDetail = await repository.getHotelDetail(cartItem.service_id);
+        }
+
+        if (cartItem.reference_id) {
+          detail = await repository.getRoomTypeById(cartItem.reference_id);
+        }
       } else if (service.service_type === SERVICE_TYPE.FLIGHT && cartItem.reference_id) {
         detail = await repository.getFlightDetailById(cartItem.reference_id);
+        serviceDetail = detail;
       } else if (service.service_type === SERVICE_TYPE.TRAIN && cartItem.reference_id) {
         detail = await repository.getTrainDetailById(cartItem.reference_id);
+        serviceDetail = detail;
+      }
+
+      if (service.service_type === SERVICE_TYPE.HOTEL && cartItem.reference_id && !detail) {
+        detail = await repository.getRoomTypeById(cartItem.reference_id);
       }
 
       const unitPrice = roundMoney(availabilityResult.unit_price);
@@ -1469,6 +1812,7 @@ const createBookingService = ({
         cartItem,
         detail,
         service,
+        serviceDetail,
         unitPrice,
       });
       serviceSnapshot.pricing = itemPricing;
@@ -1583,9 +1927,14 @@ const createBookingService = ({
       repository.listBookingRefundsByBookingId(parsedBookingId),
     ]);
 
+    const enrichedItems = await enrichBookingItemsWithCurrentServiceData({
+      items,
+      repository,
+    });
+
     return sanitizeBookingDetail({
       booking,
-      items,
+      items: enrichedItems,
       payments,
       refunds,
     });
@@ -1608,8 +1957,12 @@ const createBookingService = ({
     }
 
     const items = await repository.listBookingItemsByBookingId(parsedBookingId);
+    const enrichedItems = await enrichBookingItemsWithCurrentServiceData({
+      items,
+      repository,
+    });
 
-    return items.map(sanitizeBookingItemSnapshot);
+    return enrichedItems.map(sanitizeBookingItemSnapshot);
   };
 
   const getMyBookingStatusHistory = async ({

@@ -94,9 +94,9 @@ function mapRecentBooking(booking = {}) {
       booking.customer?.full_name ||
       booking.contact_name ||
       booking.contact_email ||
-      'Khach hang',
+      'Khách hàng',
     id: booking.id,
-    service_title: booking.booking_code || `${Number(booking.item_count || 0)} dich vu`,
+    service_title: booking.booking_code || `${Number(booking.item_count || 0)} dịch vụ`,
     status: booking.status,
     total_amount: Number(booking.total_amount || 0),
   }
