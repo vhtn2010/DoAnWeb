@@ -2,6 +2,17 @@ function formatCurrency(value) {
   return `${new Intl.NumberFormat('vi-VN').format(value)}đ`
 }
 
+function formatDepartureOptionLabel(value) {
+  const normalizedValue = String(value ?? '').trim()
+  const isoDateMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+
+  if (isoDateMatch) {
+    return `${isoDateMatch[3]}/${isoDateMatch[2]}/${isoDateMatch[1]}`
+  }
+
+  return normalizedValue
+}
+
 export default function ServiceDetailBookingPanelV2({
   adultCount,
   adultTotal,
@@ -49,7 +60,7 @@ export default function ServiceDetailBookingPanelV2({
               {departureOptions.length ? (
                 departureOptions.map((dateOption) => (
                   <option key={dateOption} value={dateOption}>
-                    {dateOption}
+                    {formatDepartureOptionLabel(dateOption)}
                   </option>
                 ))
               ) : (

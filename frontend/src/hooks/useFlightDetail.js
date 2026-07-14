@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useAddToCartToast } from '../components/public/feedback/addToCartToastContext.js'
 import { mapFlightDetailResponseToView } from '../mappers/flightMappers.js'
 import { addCartItem } from '../repositories/cartRepository.js'
 import {
@@ -88,6 +89,7 @@ export default function useFlightDetail() {
   const [searchParams] = useSearchParams()
   const referenceId = searchParams.get('reference_id') ?? ''
   const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { showAddToCartToast } = useAddToCartToast()
   const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
   const [flight, setFlight] = useState(null)
@@ -299,7 +301,8 @@ export default function useFlightDetail() {
       authState,
       previewItem: result.cartItem,
     })
-    setFeedback(createFeedbackState('success', 'Vé máy bay đã được thêm vào giỏ hàng của bạn.'))
+    setFeedback(createFeedbackState())
+    showAddToCartToast()
   }
 
   async function bookNowAction() {

@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import AdminTourItinerarySection from './AdminTourItinerarySection.jsx'
 import AdminServiceTypeFields from './AdminServiceTypeFields.jsx'
+import { uploadServiceImageAsset } from '../../../adapters/api/uploadApiAdapter.js'
 import {
   ADMIN_SERVICE_FORM_STATUS_OPTIONS,
   ADMIN_SERVICE_FORM_TYPE_OPTIONS,
@@ -40,6 +41,12 @@ const fieldLabels = {
 }
 
 const sampleAmenities = ['Khách sạn 5*', 'Vé máy bay']
+
+const acceptedServiceImageTypes = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+])
 
 const serviceTypeLabels = Object.freeze({
   combo: 'Combo',
@@ -111,6 +118,23 @@ function cx(...classNames) {
 
 function formatFieldLabel(fieldName) {
   return fieldLabels[fieldName] ?? fieldName
+}
+
+function getSecondaryServiceImages(service) {
+  if (!Array.isArray(service?.images)) {
+    return ['', '']
+  }
+
+  const secondaryImageUrls = service.images
+    .filter((image) => image && !image.is_primary)
+    .map((image) => image.image_url)
+    .filter(Boolean)
+    .slice(0, 2)
+
+  return [
+    secondaryImageUrls[0] ?? '',
+    secondaryImageUrls[1] ?? '',
+  ]
 }
 
 function getStatusTone(status) {
@@ -194,11 +218,18 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
   const [formValues, setFormValues] = useState(() => getInitialServiceFormValues(service))
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [mediaFeedback, setMediaFeedback] = useState('')
+  const [mediaFeedbackTone, setMediaFeedbackTone] = useState('success')
+  const [thumbImageUrls, setThumbImageUrls] = useState(() => getSecondaryServiceImages(service))
+  const [uploadingSlot, setUploadingSlot] = useState('')
   const [slugTouched, setSlugTouched] = useState(mode === 'edit')
   const [submitTone, setSubmitTone] = useState('error')
   const [submitMessage, setSubmitMessage] = useState('')
   const titleId = useId()
   const descriptionId = useId()
+  const coverImageInputId = useId()
+  const firstThumbInputId = useId()
+  const secondThumbInputId = useId()
 
   const handleRequestClose = () => {
     if (isSubmitting) {
@@ -212,6 +243,10 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     setFormValues(getInitialServiceFormValues(service))
     setErrors({})
     setIsSubmitting(false)
+    setMediaFeedback('')
+    setMediaFeedbackTone('success')
+    setThumbImageUrls(getSecondaryServiceImages(service))
+    setUploadingSlot('')
     setSlugTouched(mode === 'edit')
     setSubmitTone('error')
     setSubmitMessage('')
@@ -318,6 +353,57 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     }))
   }
 
+  const handleImageFileChange = async (event, slot) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) {
+      return
+    }
+
+    if (!acceptedServiceImageTypes.has(file.type)) {
+      setMediaFeedback('Vui lòng chọn ảnh JPG, PNG hoặc WEBP.')
+      setMediaFeedbackTone('error')
+      return
+    }
+
+    setMediaFeedback('')
+    setMediaFeedbackTone('success')
+    setUploadingSlot(slot)
+
+    try {
+      const response = await uploadServiceImageAsset(file)
+      const nextImageUrl = response?.data?.asset_url
+
+      if (!nextImageUrl) {
+        throw new Error('Không nhận được đường dẫn ảnh sau khi tải lên.')
+      }
+
+      if (slot === 'cover') {
+        setFormValues((currentValues) => ({
+          ...currentValues,
+          image_url: nextImageUrl,
+        }))
+      } else {
+        const thumbIndex = Number(slot.replace('thumb-', ''))
+
+        setThumbImageUrls((currentImageUrls) =>
+          currentImageUrls.map((imageUrl, index) =>
+            index === thumbIndex ? nextImageUrl : imageUrl,
+          ),
+        )
+      }
+
+      setMediaFeedback(`Đã tải ảnh "${file.name}" lên thành công.`)
+      setMediaFeedbackTone('success')
+    } catch (error) {
+      setMediaFeedback(error?.message || 'Không thể tải ảnh lên lúc này.')
+      setMediaFeedbackTone('error')
+    } finally {
+      setUploadingSlot('')
+    }
+  }
+
   const handleSubmit = async (submitIntent) => {
     if (isSubmitting) {
       return
@@ -338,7 +424,13 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     setIsSubmitting(true)
 
     try {
-      const result = await onSave(formValues, submitIntent)
+      const result = await onSave(
+        {
+          ...formValues,
+          gallery_image_urls: thumbImageUrls.filter(Boolean),
+        },
+        submitIntent,
+      )
 
       if (result?.success) {
         if (result?.data) {
@@ -635,7 +727,13 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
               <section className="admin-service-modal__media-card" aria-label="Hình ảnh dịch vụ">
                 <SectionTitle icon={<ImageIcon />}>Hình ảnh Dịch vụ</SectionTitle>
 
-                <div className="admin-service-modal__media-preview">
+                <label
+                  className={cx(
+                    'admin-service-modal__media-preview',
+                    uploadingSlot && 'admin-service-modal__media-upload--disabled',
+                  )}
+                  htmlFor={coverImageInputId}
+                >
                   {formValues.image_url ? (
                     <img
                       alt={formValues.title || 'Ảnh bìa dịch vụ'}
@@ -648,16 +746,74 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                       Tải ảnh bìa chính
                     </span>
                   )}
-                </div>
+                  <input
+                    accept="image/jpeg,image/png,image/webp"
+                    className="admin-service-modal__file-input"
+                    disabled={isSubmitting || Boolean(uploadingSlot)}
+                    id={coverImageInputId}
+                    type="file"
+                    onChange={(event) => handleImageFileChange(event, 'cover')}
+                  />
+                  {uploadingSlot === 'cover' ? (
+                    <span className="admin-service-modal__uploading" role="status">
+                      Đang tải ảnh...
+                    </span>
+                  ) : null}
+                </label>
 
-                <div className="admin-service-modal__thumb-grid" aria-hidden="true">
-                  <div className="admin-service-modal__thumb-placeholder">+</div>
-                  <div className="admin-service-modal__thumb-placeholder">+</div>
+                <div className="admin-service-modal__thumb-grid">
+                  {[
+                    { id: firstThumbInputId, slot: 'thumb-0' },
+                    { id: secondThumbInputId, slot: 'thumb-1' },
+                  ].map((thumb, index) => (
+                    <label
+                      className={cx(
+                        thumbImageUrls[index]
+                          ? 'admin-service-modal__thumb-preview'
+                          : 'admin-service-modal__thumb-placeholder',
+                        uploadingSlot && 'admin-service-modal__media-upload--disabled',
+                      )}
+                      htmlFor={thumb.id}
+                      key={thumb.slot}
+                    >
+                      {thumbImageUrls[index] ? (
+                        <img
+                          alt={`Ảnh phụ dịch vụ ${index + 1}`}
+                          className="admin-service-modal__preview-image"
+                          src={thumbImageUrls[index]}
+                        />
+                      ) : (
+                        '+'
+                      )}
+                      <input
+                        accept="image/jpeg,image/png,image/webp"
+                        className="admin-service-modal__file-input"
+                        disabled={isSubmitting || Boolean(uploadingSlot)}
+                        id={thumb.id}
+                        type="file"
+                        onChange={(event) => handleImageFileChange(event, thumb.slot)}
+                      />
+                      {uploadingSlot === thumb.slot ? (
+                        <span className="admin-service-modal__uploading admin-service-modal__uploading--thumb" role="status">
+                          Đang tải...
+                        </span>
+                      ) : null}
+                    </label>
+                  ))}
                 </div>
 
                 <p className="admin-service-modal__media-note">
                   Khuyến nghị: Sử dụng ảnh có độ phân giải tối thiểu 1200x800px. Hỗ trợ định dạng JPG, PNG, WEBP.
                 </p>
+
+                {mediaFeedback ? (
+                  <p
+                    className={`admin-service-modal__media-feedback admin-service-modal__media-feedback--${mediaFeedbackTone}`}
+                    role={mediaFeedbackTone === 'error' ? 'alert' : 'status'}
+                  >
+                    {mediaFeedback}
+                  </p>
+                ) : null}
 
                 <FieldShell error={errors.image_url} label={formatFieldLabel('image_url')}>
                   <input

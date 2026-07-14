@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
+import { useAddToCartToast } from '../components/public/feedback/addToCartToastContext.js'
 import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
 import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
 import { getHotelDetailBySlug, getHotelRooms } from '../repositories/hotelRepository.js'
@@ -157,6 +158,7 @@ export default function useHotelDetail() {
   const { slug } = useParams()
   const { openLoginRequiredModal } = usePublicAccessGate()
   const { authState, currentUser, isAuthenticatedCustomer, isCustomer } = usePublicSession()
+  const { showAddToCartToast } = useAddToCartToast()
   const { hasFavorite, toggleFavorite } = useFavorites({ currentUser })
 
   const [hotel, setHotel] = useState(null)
@@ -337,7 +339,7 @@ export default function useHotelDetail() {
     setAvailability(createAvailabilityState())
   }
 
-  async function checkAvailabilityForRoom(roomIdOverride) {
+  async function checkAvailabilityForRoom(roomIdOverride, { shouldShowAvailableMessage = true } = {}) {
     const nextRoom = resolveRoom(roomIdOverride)
 
     if (!hotel || !nextRoom) {
@@ -379,12 +381,18 @@ export default function useHotelDetail() {
       ? `Còn ${response.data?.available_quantity ?? 0} phòng khả dụng cho lựa chọn hiện tại.`
       : 'Lựa chọn hiện tại chưa khả dụng. Vui lòng đổi ngày hoặc số khách.'
 
-    setAvailability({
+    const nextAvailability = {
       checked: true,
       data: response.data,
       isAvailable,
       message: nextMessage,
-    })
+    }
+
+    setAvailability(
+      shouldShowAvailableMessage || !isAvailable
+        ? nextAvailability
+        : createAvailabilityState(),
+    )
 
     if (!isAvailable) {
       setFeedback(createFeedbackState('error', nextMessage))
@@ -393,7 +401,7 @@ export default function useHotelDetail() {
     return response
   }
 
-  async function addSelectedRoomToCart({ roomIdOverride } = {}) {
+  async function addSelectedRoomToCart({ roomIdOverride, shouldShowCartToast = false } = {}) {
     const nextRoom = resolveRoom(roomIdOverride)
 
     if (!hotel || !nextRoom) {
@@ -407,7 +415,9 @@ export default function useHotelDetail() {
       setSelectedRoomId(nextRoom.id)
     }
 
-    const availabilityResponse = await checkAvailabilityForRoom(nextRoom.id)
+    const availabilityResponse = await checkAvailabilityForRoom(nextRoom.id, {
+      shouldShowAvailableMessage: false,
+    })
 
     if (!availabilityResponse.success || !availabilityResponse.data?.is_available) {
       return {
@@ -448,7 +458,9 @@ export default function useHotelDetail() {
         authState,
         previewItem: cartItem,
       })
-      setFeedback(createFeedbackState('success', 'Phòng đã được thêm vào giỏ hàng của bạn.'))
+      if (shouldShowCartToast) {
+        showAddToCartToast()
+      }
       return {
         cartItem,
         payload,
@@ -460,12 +472,9 @@ export default function useHotelDetail() {
       authState,
       item: cartItem,
     })
-    setFeedback(
-      createFeedbackState(
-        'success',
-        'Phòng đã được thêm vào giỏ hàng xem trước. Đăng nhập để đồng bộ với tài khoản của bạn.',
-      ),
-    )
+    if (shouldShowCartToast) {
+      showAddToCartToast()
+    }
 
     return {
       cartItem,
@@ -484,7 +493,10 @@ export default function useHotelDetail() {
       return
     }
 
-    const result = await addSelectedRoomToCart({ roomIdOverride })
+    const result = await addSelectedRoomToCart({
+      roomIdOverride,
+      shouldShowCartToast: true,
+    })
 
     if (!result.success) {
       return

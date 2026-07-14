@@ -367,6 +367,73 @@ select {
   box-shadow: 0 8px 18px rgba(214, 40, 40, 0.22);
 }
 
+.public-add-cart-toast {
+  position: fixed;
+  top: clamp(20px, 3vw, 40px);
+  left: 50%;
+  z-index: 1200;
+  overflow: hidden;
+  width: min(576px, calc(100vw - 32px));
+  padding: 22px 26px 20px;
+  border: 2px solid rgba(74, 222, 128, 0.48);
+  border-radius: 30px;
+  background: rgba(240, 253, 244, 0.99);
+  box-shadow:
+    0 30px 74px rgba(15, 23, 42, 0.25),
+    0 12px 28px rgba(15, 23, 42, 0.14);
+  color: #166534;
+  transform: translateX(-50%);
+  backdrop-filter: blur(18px);
+}
+
+.public-add-cart-toast strong,
+.public-add-cart-toast p {
+  margin: 0;
+}
+
+.public-add-cart-toast strong {
+  display: block;
+  font-size: clamp(1rem, 2vw, 1.16rem);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.public-add-cart-toast p {
+  margin-top: 6px;
+  font-size: clamp(0.95rem, 1.6vw, 1.05rem);
+  line-height: 1.5;
+}
+
+.public-add-cart-toast__progress {
+  margin-top: 18px;
+  height: 10px;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.22);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.public-add-cart-toast__progress-bar {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e 0%, #86efac 100%);
+  transform-origin: left center;
+  animation: public-add-cart-toast-countdown 15s linear forwards;
+}
+
+@keyframes public-add-cart-toast-countdown {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
 .public-footer {
   margin-top: 48px;
   background: #d62828;
@@ -1601,6 +1668,8 @@ select {
   width: min(100%, 820px);
   aspect-ratio: 1536 / 1024;
   isolation: isolate;
+  transform: scaleY(0.965);
+  transform-origin: center center;
   animation: home-art-rise 920ms 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -1618,7 +1687,7 @@ select {
 .home-hero__layer--base {
   z-index: 1;
   filter: drop-shadow(0 26px 30px rgba(87, 38, 32, 0.12));
-  animation: home-hero-base-float 12s ease-in-out infinite;
+  animation: home-hero-base-float 7s ease-in-out infinite;
 }
 
 .home-hero__layer--birds-left {
@@ -1663,7 +1732,7 @@ select {
 .home-hero__layer--firework {
   z-index: 5;
   opacity: 0.86;
-  animation: home-hero-spark-float 6.8s -1.2s ease-in-out infinite;
+  animation: home-hero-firework-soft-float 8.6s -1.2s ease-in-out infinite;
 }
 
 .home-hero__layer--plane {
@@ -1679,7 +1748,7 @@ select {
 .home-hero__layer--star {
   z-index: 10;
   opacity: 0.86;
-  animation: home-hero-spark-float 5.2s -2.4s ease-in-out infinite;
+  animation: home-hero-star-soft-float 7.8s -2.4s ease-in-out infinite;
 }
 
 .home-search-card {
@@ -2708,8 +2777,9 @@ select {
 }
 
 @keyframes home-hero-base-float {
-  0%, 100% { translate: -4px -8px; rotate: -0.22deg; }
-  50% { translate: 5px 9px; rotate: 0.22deg; }
+  0%, 100% { translate: -2px -3px; rotate: -0.08deg; }
+  35% { translate: 2px 3px; rotate: 0.1deg; }
+  70% { translate: -1px 2px; rotate: -0.06deg; }
 }
 
 @keyframes home-hero-plane-float {
@@ -2730,6 +2800,16 @@ select {
 @keyframes home-hero-spark-float {
   0%, 100% { opacity: 0.74; translate: 0 -8px; rotate: -5deg; }
   50% { opacity: 1; translate: 0 11px; rotate: 5deg; }
+}
+
+@keyframes home-hero-firework-soft-float {
+  0%, 100% { opacity: 0.8; translate: 0 -3px; rotate: -1.2deg; }
+  50% { opacity: 0.95; translate: 0 4px; rotate: 1.2deg; }
+}
+
+@keyframes home-hero-star-soft-float {
+  0%, 100% { opacity: 0.78; translate: 0 -3px; scale: 0.99; }
+  50% { opacity: 0.96; translate: 0 4px; scale: 1.01; }
 }
 
 @keyframes home-hero-birds-left-float {
@@ -2809,7 +2889,8 @@ select {
   .home-offer-card__outline rect,
   .home-values__media-ring,
   .home-values__media-accent,
-  .home-values__icon-svg {
+  .home-values__icon-svg,
+  .public-add-cart-toast__progress-bar {
     animation: none !important;
   }
 
@@ -16515,6 +16596,7 @@ select {
 }
 
 .admin-service-modal__media-preview {
+  position: relative;
   aspect-ratio: 222 / 125;
   display: grid;
   place-items: center;
@@ -16522,6 +16604,38 @@ select {
   font-size: 0.86rem;
   font-weight: 800;
   text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.admin-service-modal__media-preview:hover,
+.admin-service-modal__media-preview:focus-within,
+.admin-service-modal__thumb-preview:hover,
+.admin-service-modal__thumb-preview:focus-within,
+.admin-service-modal__thumb-placeholder:hover,
+.admin-service-modal__thumb-placeholder:focus-within {
+  border-color: rgba(214, 40, 40, 0.34);
+  background: rgba(255, 245, 245, 0.72);
+  box-shadow: 0 14px 30px rgba(92, 64, 61, 0.1);
+  transform: translateY(-1px);
+}
+
+.admin-service-modal__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-service-modal__media-upload--disabled {
+  cursor: wait;
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 .admin-service-modal__upload-placeholder {
@@ -16554,6 +16668,13 @@ select {
 .admin-service-modal__thumb-preview,
 .admin-service-modal__thumb-placeholder {
   aspect-ratio: 1;
+  position: relative;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background-color 160ms ease;
 }
 
 .admin-service-modal__thumb-placeholder {
@@ -16564,12 +16685,45 @@ select {
   font-weight: 800;
 }
 
+.admin-service-modal__uploading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #5c403d;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+
+.admin-service-modal__uploading--thumb {
+  font-size: 0.74rem;
+}
+
 .admin-service-modal__media-note {
   margin: 0;
   color: #5c403d;
   font-size: 12px;
   font-weight: 400;
   line-height: 19.5px;
+}
+
+.admin-service-modal__media-feedback {
+  margin: -4px 0 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.admin-service-modal__media-feedback--success {
+  color: #166534;
+}
+
+.admin-service-modal__media-feedback--error {
+  color: #b91c1c;
 }
 
 .admin-service-modal__side-actions {
