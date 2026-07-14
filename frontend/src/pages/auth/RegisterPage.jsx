@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import useRegisterForm from '../../hooks/useRegisterForm.js'
 import './authTemplate.css'
@@ -12,7 +13,48 @@ function buildVerifyEmailLink(email = '') {
   return `/verify-email?email=${encodeURIComponent(normalizedEmail)}`
 }
 
+function EyeIcon({ visible }) {
+  if (visible) {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path
+          d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        />
+        <circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M3 3 21 21M10.7 6A10.3 10.3 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a15.7 15.7 0 0 1-4 4.7M14.5 14.7A3 3 0 0 1 9.3 9.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M6.8 6.8A15.9 15.9 0 0 0 2.5 12S6 18.5 12 18.5c1.8 0 3.3-.6 4.5-1.4"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
 function RegisterPage() {
+  const [showPassword, setShowPassword] = useState(() => false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(() => false)
   const {
     errors,
     feedbackMessage,
@@ -83,37 +125,61 @@ function RegisterPage() {
 
           <label className="auth-template-form__field" htmlFor="register-password">
             <span className="auth-template-form__label">Mật khẩu</span>
-            <input
-              autoComplete="new-password"
-              aria-invalid={Boolean(errors.password)}
-              className={`auth-template-form__input${
-                errors.password ? ' auth-template-form__input--error' : ''
+            <div
+              className={`auth-template-form__control${
+                errors.password ? ' auth-template-form__control--error' : ''
               }`}
-              id="register-password"
-              name="password"
-              placeholder="Nhập mật khẩu"
-              type="password"
-              value={formValues.password}
-              onChange={handleFieldChange}
-            />
+            >
+              <input
+                autoComplete="new-password"
+                aria-invalid={Boolean(errors.password)}
+                className="auth-template-form__input auth-template-form__input--password"
+                id="register-password"
+                name="password"
+                placeholder="Nhập mật khẩu"
+                type={showPassword ? 'text' : 'password'}
+                value={formValues.password}
+                onChange={handleFieldChange}
+              />
+              <button
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                className="auth-template-form__toggle"
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                <EyeIcon visible={showPassword} />
+              </button>
+            </div>
             {errors.password ? <p className="auth-form__field-error">{errors.password}</p> : null}
           </label>
 
           <label className="auth-template-form__field" htmlFor="register-password-confirm">
             <span className="auth-template-form__label">Nhập lại mật khẩu</span>
-            <input
-              autoComplete="new-password"
-              aria-invalid={Boolean(errors.confirm_password)}
-              className={`auth-template-form__input${
-                errors.confirm_password ? ' auth-template-form__input--error' : ''
+            <div
+              className={`auth-template-form__control${
+                errors.confirm_password ? ' auth-template-form__control--error' : ''
               }`}
-              id="register-password-confirm"
-              name="confirm_password"
-              placeholder="Nhập lại mật khẩu"
-              type="password"
-              value={formValues.confirm_password}
-              onChange={handleFieldChange}
-            />
+            >
+              <input
+                autoComplete="new-password"
+                aria-invalid={Boolean(errors.confirm_password)}
+                className="auth-template-form__input auth-template-form__input--password"
+                id="register-password-confirm"
+                name="confirm_password"
+                placeholder="Nhập lại mật khẩu"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={formValues.confirm_password}
+                onChange={handleFieldChange}
+              />
+              <button
+                aria-label={showConfirmPassword ? 'Ẩn nhập lại mật khẩu' : 'Hiện nhập lại mật khẩu'}
+                className="auth-template-form__toggle"
+                type="button"
+                onClick={() => setShowConfirmPassword((value) => !value)}
+              >
+                <EyeIcon visible={showConfirmPassword} />
+              </button>
+            </div>
             {errors.confirm_password ? (
               <p className="auth-form__field-error">{errors.confirm_password}</p>
             ) : null}

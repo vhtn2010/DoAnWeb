@@ -52,6 +52,71 @@ const REFUND_REQUESTABLE_STATUSES = new Set([
   'partially_refunded',
 ])
 
+const PAYMENT_SUCCESS_STATUSES = new Set(['success', 'reconciled', 'paid'])
+
+const BOOKING_TIMELINE_COPY = Object.freeze({
+  cancelled: {
+    description: 'Đơn hàng đã được hủy theo yêu cầu hoặc do quá hạn xử lý.',
+    label: 'Đơn đã hủy',
+    tone: 'danger',
+  },
+  completed: {
+    description: 'Dịch vụ đã hoàn tất. Thông tin đơn vẫn được lưu để bạn tra cứu khi cần.',
+    label: 'Chuyến đi đã hoàn thành',
+    tone: 'success',
+  },
+  confirmed: {
+    description: 'Nét Việt đã xác nhận đơn và đồng bộ thông tin vận hành cho chuyến đi.',
+    label: 'Đơn đã được xác nhận',
+    tone: 'success',
+  },
+  expired: {
+    description: 'Đơn đã quá hạn thanh toán hoặc quá hạn xử lý.',
+    label: 'Đơn đã hết hạn',
+    tone: 'danger',
+  },
+  in_progress: {
+    description: 'Bạn đang trong thời gian sử dụng dịch vụ đã đặt.',
+    label: 'Chuyến đi đang diễn ra',
+    tone: 'info',
+  },
+  paid: {
+    description: 'Thanh toán đã được ghi nhận và đơn đã sẵn sàng để xác nhận vận hành.',
+    label: 'Thanh toán đã xác thực',
+    tone: 'success',
+  },
+  partially_refunded: {
+    description: 'Một phần giá trị đơn đã được hoàn theo chính sách.',
+    label: 'Đã hoàn tiền một phần',
+    tone: 'warning',
+  },
+  payment_processing: {
+    description: 'Hệ thống đã nhận chứng từ và đang chờ đối soát thanh toán.',
+    label: 'Đang xác thực thanh toán',
+    tone: 'warning',
+  },
+  pending_payment: {
+    description: 'Yêu cầu thanh toán đã được tạo. Vui lòng hoàn tất thanh toán theo hướng dẫn.',
+    label: 'Đã gửi yêu cầu thanh toán',
+    tone: 'warning',
+  },
+  refunded: {
+    description: 'Đơn đã được hoàn tiền thành công.',
+    label: 'Đã hoàn tiền',
+    tone: 'success',
+  },
+})
+
+const PAYMENT_METHOD_LABELS = Object.freeze({
+  bank_transfer: 'chuyển khoản ngân hàng',
+  cash_at_office: 'thanh toán trực tiếp tại văn phòng',
+  manual_bank_transfer: 'chuyển khoản ngân hàng',
+  qr: 'quét mã QR',
+  staff_collect: 'nhân viên hỗ trợ thu tiền',
+})
+
+const HIDDEN_TIMELINE_STATUSES = new Set(['created', 'draft', 'pending'])
+
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   day: '2-digit',
   month: '2-digit',
@@ -101,6 +166,11 @@ function formatDate(value) {
 function formatDateTime(value) {
   const date = parseDate(value)
   return date ? dateTimeFormatter.format(date) : 'Đang cập nhật'
+}
+
+function getEventTime(value) {
+  const date = parseDate(value)
+  return date ? date.getTime() : 0
 }
 
 function formatDateRange(startAt, endAt) {
@@ -230,6 +300,110 @@ function getServiceTypeLabel(type = '') {
   }
 
   return labels[type] ?? 'Dịch vụ'
+}
+
+function getReadableStatus(status = '') {
+  return String(status || '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getPaymentMethodLabel(method = '') {
+  return PAYMENT_METHOD_LABELS[method] ?? (getReadableStatus(method) || 'phương thức đã chọn')
+}
+
+function getTimelineStatusCopy(status = '') {
+  return BOOKING_TIMELINE_COPY[status] ?? {
+    description: 'Hệ thống đã cập nhật trạng thái mới cho đơn hàng.',
+    label: getReadableStatus(status) || 'Cập nhật trạng thái',
+    tone: 'neutral',
+  }
+}
+
+function pushTimelineEvent(events, event = {}) {
+  if (!event.time) {
+    return
+  }
+
+  const key = event.key ?? `${event.label}-${event.time}`
+
+  if (events.some((item) => item.key === key)) {
+    return
+  }
+
+  events.push({
+    description: event.description ?? '',
+    id: key,
+    key,
+    label: event.label,
+    sortTime: getEventTime(event.time),
+    time: formatDateTime(event.time),
+    tone: event.tone ?? 'neutral',
+  })
+}
+
+function buildTimelineEvents(booking = {}, statusHistory = []) {
+  const events = []
+  const safeBooking = normalizeObject(booking)
+  const payments = Array.isArray(safeBooking.payments) ? safeBooking.payments : []
+  const sortedPayments = [...payments].sort(
+    (left, right) => getEventTime(left.created_at) - getEventTime(right.created_at),
+  )
+  const latestPayment = sortedPayments[sortedPayments.length - 1]
+  const verifiedPayment =
+    sortedPayments.find((payment) => PAYMENT_SUCCESS_STATUSES.has(payment.status)) ?? latestPayment
+
+  pushTimelineEvent(events, {
+    description: 'Hệ thống đã ghi nhận lựa chọn dịch vụ và thông tin liên hệ của bạn.',
+    key: 'booking-created',
+    label: 'Đã tạo đơn hàng',
+    time: safeBooking.created_at,
+    tone: 'info',
+  })
+
+  if (latestPayment?.created_at) {
+    pushTimelineEvent(events, {
+      description: `Mã giao dịch ${latestPayment.payment_code || 'đang tạo'} qua ${getPaymentMethodLabel(latestPayment.payment_method)}.`,
+      key: `payment-request-${latestPayment.id ?? latestPayment.payment_code}`,
+      label: 'Đã gửi yêu cầu thanh toán',
+      time: latestPayment.created_at,
+      tone: 'warning',
+    })
+  }
+
+  statusHistory.forEach((entry) => {
+    if (HIDDEN_TIMELINE_STATUSES.has(entry.status) || !BOOKING_TIMELINE_COPY[entry.status]) {
+      return
+    }
+
+    const copy = getTimelineStatusCopy(entry.status)
+    const time = entry.changed_at ?? entry.created_at
+
+    pushTimelineEvent(events, {
+      description: copy.description,
+      key: `status-${entry.status}-${time}`,
+      label: copy.label,
+      time,
+      tone: copy.tone,
+    })
+  })
+
+  const currentStatus = safeBooking.booking_status ?? safeBooking.status
+  const currentCopy = getTimelineStatusCopy(currentStatus)
+  const hasCurrentStatus = events.some((event) => event.label === currentCopy.label)
+
+  if (currentStatus && !hasCurrentStatus) {
+    pushTimelineEvent(events, {
+      description: currentCopy.description,
+      key: `current-status-${currentStatus}`,
+      label: currentCopy.label,
+      time: safeBooking.updated_at || verifiedPayment?.paid_at || latestPayment?.created_at || safeBooking.created_at,
+      tone: currentCopy.tone,
+    })
+  }
+
+  return events.sort((left, right) => left.sortTime - right.sortTime)
 }
 
 function getPositiveCount(...values) {
@@ -456,7 +630,22 @@ function buildTripViewModel(booking, items = [], statusHistory = []) {
   const primarySnapshot = normalizeObject(rawPrimaryItem.service_snapshot)
   const normalizedTour = getNormalizedTourSnapshot(rawPrimaryItem)
   const primaryDetails = normalizedTour?.details ?? getSnapshotDetails(primarySnapshot)
-  const journeyPlan = buildJourneyPlan(rawPrimaryItem, serviceItems)
+  const journeyPlans = items
+    .map((item, index) => {
+      const serviceItem = serviceItems[index]
+      const plan = buildJourneyPlan(item, serviceItems)
+
+      return plan
+        ? {
+            ...plan,
+            id: serviceItem?.id ?? `journey-plan-${index}`,
+            serviceLabel: serviceItem?.label ?? getServiceTypeLabel(item?.service_type),
+            serviceTitle: serviceItem?.title ?? '',
+          }
+        : null
+    })
+    .filter(Boolean)
+  const journeyPlan = journeyPlans[0] ?? buildJourneyPlan(rawPrimaryItem, serviceItems)
   const status = booking?.booking_status ?? booking?.status ?? 'confirmed'
   const statusCopy = STATUS_COPY[status] ?? {
     label: String(status).replace(/_/g, ' ').toUpperCase(),
@@ -479,6 +668,7 @@ function buildTripViewModel(booking, items = [], statusHistory = []) {
     endDate: formatDate(rawPrimaryItem.end_at),
     heroImage: primaryItem.imageUrl ?? FALLBACK_TRIP_IMAGE,
     journeyPlan,
+    journeyPlans,
     passengersLabel: primaryItem.passengersLabel ?? '',
     reminders: [
       'Kiểm tra căn cước, hộ chiếu hoặc giấy tờ tùy thân theo yêu cầu của từng dịch vụ.',
@@ -488,11 +678,7 @@ function buildTripViewModel(booking, items = [], statusHistory = []) {
     serviceItems,
     startDate: formatDate(rawPrimaryItem.start_at),
     statusCopy,
-    statusHistory: statusHistory.slice(0, 4).map((entry) => ({
-      id: entry.id ?? `${entry.status}-${entry.changed_at}`,
-      label: STATUS_COPY[entry.status]?.label ?? String(entry.status ?? '').replace(/_/g, ' '),
-      time: formatDateTime(entry.changed_at ?? entry.created_at),
-    })),
+    statusHistory: buildTimelineEvents(booking, statusHistory),
     title: primaryItem.title ?? booking?.booking_code ?? 'Hành trình của bạn',
     totalAmount: formatCurrencyVND(Number(booking?.total_amount ?? 0)),
   }
@@ -555,6 +741,17 @@ function TripIcon({ name }) {
     return (
       <svg {...commonProps}>
         <path d="M22 16.92v2a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 3.18 2 2 0 0 1 4.11 1h2a2 2 0 0 1 2 1.72c.12.9.32 1.77.59 2.61a2 2 0 0 1-.45 2.11L7.4 8.29a16 16 0 0 0 6.31 6.31l.85-.85a2 2 0 0 1 2.11-.45c.84.27 1.71.47 2.61.59A2 2 0 0 1 22 16.92Z" />
+      </svg>
+    )
+  }
+
+  if (name === 'headset') {
+    return (
+      <svg {...commonProps}>
+        <path d="M4 13a8 8 0 0 1 16 0" />
+        <path d="M4 13v3a2 2 0 0 0 2 2h1v-7H6a2 2 0 0 0-2 2Z" />
+        <path d="M20 13v3a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2Z" />
+        <path d="M17 18a4 4 0 0 1-4 3h-2" />
       </svg>
     )
   }
@@ -676,6 +873,13 @@ function JourneyPlanSection({ plan }) {
         <h2>{plan.title}</h2>
       </div>
 
+      {plan.serviceTitle ? (
+        <div className="customer-trip-plan__service">
+          <span>{plan.serviceLabel}</span>
+          <strong>{plan.serviceTitle}</strong>
+        </div>
+      ) : null}
+
       <JourneyInfoStrip items={plan.detailCards} />
 
       {plan.kind === 'tour' ? (
@@ -708,6 +912,7 @@ function CustomerTripDetailPage() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [downloadLoading, setDownloadLoading] = useState(false)
+  const [selectedJourneyPlanId, setSelectedJourneyPlanId] = useState('')
 
   useEffect(() => {
     let isActive = true
@@ -771,6 +976,22 @@ function CustomerTripDetailPage() {
   const canRequestRefund = REFUND_REQUESTABLE_STATUSES.has(
     booking?.booking_status ?? booking?.status,
   )
+  const selectedJourneyPlan =
+    viewModel.journeyPlans.find((plan) => plan.id === selectedJourneyPlanId) ??
+    viewModel.journeyPlans[0] ??
+    viewModel.journeyPlan
+
+  useEffect(() => {
+    if (!viewModel.journeyPlans.length) {
+      return
+    }
+
+    const hasSelectedPlan = viewModel.journeyPlans.some((plan) => plan.id === selectedJourneyPlanId)
+
+    if (!hasSelectedPlan) {
+      setSelectedJourneyPlanId(viewModel.journeyPlans[0].id)
+    }
+  }, [selectedJourneyPlanId, viewModel.journeyPlans])
 
   function goBackToOrders() {
     navigate(buildPublicAuthPath('/profile/orders', isCustomer))
@@ -875,7 +1096,16 @@ function CustomerTripDetailPage() {
                     <TripIcon name="phone" />
                     Cần hỗ trợ
                   </button>
-                  {canRequestRefund ? (
+                </div>
+
+                {feedback ? (
+                  <p className="customer-trip-feedback" role="status">
+                    {feedback}
+                  </p>
+                ) : null}
+
+                {canRequestRefund ? (
+                  <div className="customer-trip-hero__refund-slot">
                     <button
                       className="customer-trip-hero__refund-button"
                       type="button"
@@ -883,13 +1113,7 @@ function CustomerTripDetailPage() {
                     >
                       Yêu cầu hoàn tiền
                     </button>
-                  ) : null}
-                </div>
-
-                {feedback ? (
-                  <p className="customer-trip-feedback" role="status">
-                    {feedback}
-                  </p>
+                  </div>
                 ) : null}
               </div>
             </section>
@@ -915,7 +1139,7 @@ function CustomerTripDetailPage() {
 
             <div className="customer-trip-layout">
               <section className="customer-trip-card customer-trip-card--wide">
-                <JourneyPlanSection plan={viewModel.journeyPlan} />
+                <JourneyPlanSection plan={selectedJourneyPlan} />
 
                 <div className="customer-trip-section-head customer-trip-section-head--compact">
                   <p>Dịch vụ trong đơn</p>
@@ -925,7 +1149,15 @@ function CustomerTripDetailPage() {
                 <div className="customer-trip-service-list">
                   {viewModel.serviceItems.length ? (
                     viewModel.serviceItems.map((item) => (
-                      <article className="customer-trip-service" key={item.id}>
+                      <button
+                        aria-pressed={selectedJourneyPlan?.id === item.id}
+                        className={`customer-trip-service${
+                          selectedJourneyPlan?.id === item.id ? ' customer-trip-service--selected' : ''
+                        }`}
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSelectedJourneyPlanId(item.id)}
+                      >
                         <img alt={item.title} src={item.imageUrl} />
                         <div>
                           <span>{item.label}</span>
@@ -934,7 +1166,7 @@ function CustomerTripDetailPage() {
                           <small>{item.schedule} • {item.passengersLabel}</small>
                         </div>
                         <strong>{item.price}</strong>
-                      </article>
+                      </button>
                     ))
                   ) : (
                     <p className="customer-trip-empty">
@@ -992,11 +1224,11 @@ function CustomerTripDetailPage() {
               {viewModel.statusHistory.length ? (
                 <div className="customer-trip-timeline__list">
                   {viewModel.statusHistory.map((item) => (
-                    <article key={item.id}>
+                    <article className={`customer-trip-timeline__event customer-trip-timeline__event--${item.tone}`} key={item.id}>
                       <span aria-hidden="true" />
                       <div>
+                        <time>{item.time}</time>
                         <strong>{item.label}</strong>
-                        <small>{item.time}</small>
                       </div>
                     </article>
                   ))}
@@ -1010,33 +1242,29 @@ function CustomerTripDetailPage() {
 
             <section className="customer-trip-shortcuts" aria-label="Tiện ích chuyến đi">
               <div className="customer-trip-shortcuts__stack">
-                <article className="customer-trip-shortcut-card">
+                <button className="customer-trip-shortcut-card" type="button" onClick={goTravelHandbook}>
                   <span className="customer-trip-shortcut-card__icon">
                     <TripIcon name="box" />
                   </span>
-                  <div className="customer-trip-shortcut-card__copy">
-                    <p>Cẩm nang du lịch</p>
-                    <strong>Chuẩn bị nhanh trước ngày khởi hành</strong>
+                  <span className="customer-trip-shortcut-card__copy">
+                    <span className="customer-trip-shortcut-card__eyebrow">Cẩm nang du lịch</span>
                     <span>Xem checklist hành lý, giấy tờ và mẹo đi tour.</span>
-                  </div>
-                  <button type="button" onClick={goTravelHandbook}>
-                    Mở cẩm nang
-                  </button>
-                </article>
-
-                <article className="customer-trip-shortcut-card customer-trip-shortcut-card--support">
-                  <span className="customer-trip-shortcut-card__icon">
-                    <TripIcon name="phone" />
                   </span>
-                  <div className="customer-trip-shortcut-card__copy">
-                    <p>Liên hệ hỗ trợ</p>
-                    <strong>Cần trợ giúp cho đơn này</strong>
+                </button>
+
+                <button
+                  className="customer-trip-shortcut-card customer-trip-shortcut-card--support"
+                  type="button"
+                  onClick={goSupport}
+                >
+                  <span className="customer-trip-shortcut-card__icon">
+                    <TripIcon name="headset" />
+                  </span>
+                  <span className="customer-trip-shortcut-card__copy">
+                    <span className="customer-trip-shortcut-card__eyebrow">Liên hệ hỗ trợ</span>
                     <span>Kết nối nhanh với đội chăm sóc khách hàng của Nét Việt.</span>
-                  </div>
-                  <button type="button" onClick={goSupport}>
-                    Mở hỗ trợ
-                  </button>
-                </article>
+                  </span>
+                </button>
               </div>
             </section>
           </>

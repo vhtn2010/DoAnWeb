@@ -32,6 +32,8 @@ lerna-debug.log*
 # Local agent/editor metadata
 .agents/
 .codex/
+.compare/
+templateUI/
 .vscode/
 .idea/
 
