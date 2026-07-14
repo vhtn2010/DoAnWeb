@@ -198,6 +198,9 @@ export default function useCheckout() {
     return {
       ...checkoutDraft.summary,
       has_baggage_fee: checkoutDraft.summary.baggage_fee_amount > 0,
+      has_vat: checkoutDraft.summary.vat_amount > 0,
+      has_service_fee: checkoutDraft.summary.service_fee_amount > 0,
+      has_discount: checkoutDraft.summary.discount_amount > 0,
       subtotal_amount: formatCurrencyVND(checkoutDraft.summary.subtotal_amount),
       vat_amount: formatCurrencyVND(checkoutDraft.summary.vat_amount),
       service_fee_amount: formatCurrencyVND(checkoutDraft.summary.service_fee_amount),

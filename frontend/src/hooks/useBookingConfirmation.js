@@ -56,14 +56,15 @@ function normalizeBookingItems(items = []) {
     return {
       ...item,
       id: item.id,
-      image_url: serviceSnapshot.image_url ?? FALLBACK_SERVICE_IMAGE_URL,
+      image_url: serviceSnapshot.image_url ?? item.image_url ?? FALLBACK_SERVICE_IMAGE_URL,
       options: {
         duration_label: item.options?.duration_label,
-        location_text: serviceSnapshot.location_text ?? '',
+        location_text: serviceSnapshot.location_text ?? item.options?.location_text ?? '',
         schedule_label: item.options?.schedule_label,
       },
       service_title:
         serviceSnapshot.title ??
+        item.service_title ??
         item.title_snapshot ??
         item.title ??
         'Dịch vụ đang được cập nhật',

@@ -783,12 +783,16 @@ export default function useCart() {
     () => ({
       ...effectiveSummary,
       discount_amount: formatCurrencyVND(effectiveSummary.discount_amount),
+      discount_amount_value: Number(effectiveSummary.discount_amount) || 0,
       service_fee_amount: formatCurrencyVND(effectiveSummary.service_fee_amount),
+      service_fee_amount_value: Number(effectiveSummary.service_fee_amount) || 0,
       subtotal_amount: formatCurrencyVND(effectiveSummary.subtotal_amount),
       surcharge_amount: formatCurrencyVND(effectiveSummary.surcharge_amount),
+      surcharge_amount_value: Number(effectiveSummary.surcharge_amount) || 0,
       tax_and_fee_amount: formatCurrencyVND(effectiveSummary.tax_and_fee_amount),
       total_amount: formatCurrencyVND(effectiveSummary.total_amount),
       vat_amount: formatCurrencyVND(effectiveSummary.vat_amount),
+      vat_amount_value: Number(effectiveSummary.vat_amount) || 0,
     }),
     [effectiveSummary],
   )

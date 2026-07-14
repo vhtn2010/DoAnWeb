@@ -242,10 +242,30 @@ function CartSummaryCard({
             <span>Tạm tính</span>
             <strong>{summary.subtotal_amount}</strong>
           </div>
-          <div className="cart-summary-card__row">
-            <span>Giảm giá</span>
-            <strong>{summary.discount_amount}</strong>
-          </div>
+          {summary.discount_amount_value > 0 ? (
+            <div className="cart-summary-card__row">
+              <span>Giảm giá</span>
+              <strong>-{summary.discount_amount}</strong>
+            </div>
+          ) : null}
+          {summary.vat_amount_value > 0 ? (
+            <div className="cart-summary-card__row">
+              <span>Thuế VAT (8%)</span>
+              <strong>{summary.vat_amount}</strong>
+            </div>
+          ) : null}
+          {summary.service_fee_amount_value > 0 ? (
+            <div className="cart-summary-card__row">
+              <span>Phí dịch vụ</span>
+              <strong>{summary.service_fee_amount}</strong>
+            </div>
+          ) : null}
+          {summary.surcharge_amount_value > 0 ? (
+            <div className="cart-summary-card__row">
+              <span>Phụ thu</span>
+              <strong>{summary.surcharge_amount}</strong>
+            </div>
+          ) : null}
         </div>
 
         <div className="cart-summary-card__details">

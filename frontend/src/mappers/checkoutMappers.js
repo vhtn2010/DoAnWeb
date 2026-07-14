@@ -14,6 +14,7 @@ import {
 import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
+import { VAT_RATE, calculateItemPricing, roundMoney } from '../utils/pricing.js'
 
 function normalizeAuthState(authState = ROLES.guest) {
   return authState === ROLES.customer ? ROLES.customer : ROLES.guest
@@ -183,7 +184,6 @@ export function calculateCheckoutSummary(payload = {}) {
     payload.service_fee_amount,
     payload.serviceFeeAmount,
   )
-  const vatAmount = resolveNumber(payload.vat_amount, payload.vatAmount)
   const baggageFeeAmount = resolveNumber(
     payload.baggage_fee_amount,
     payload.baggageFeeAmount,
@@ -192,16 +192,14 @@ export function calculateCheckoutSummary(payload = {}) {
   const surchargeAmount = hasResolvableNumber(payload.surcharge_amount, payload.surchargeAmount)
     ? resolveNumber(payload.surcharge_amount, payload.surchargeAmount)
     : baggageFeeAmount
-  const taxAndFeeAmount = resolveNumber(
-    payload.tax_and_fee_amount,
-    payload.taxAndFeeAmount,
-    vatAmount + serviceFeeAmount + surchargeAmount,
-    CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
+  const discountAmount = Math.min(
+    Math.max(resolveNumber(payload.discount_amount, payload.discountAmount), 0),
+    subtotalAmount,
   )
-  const discountAmount = resolveNumber(
-    payload.discount_amount,
-    payload.discountAmount,
-  )
+  // VAT luôn tính trên (tạm tính − giảm giá) giống giỏ hàng, không tin VAT truyền vào,
+  // để khi áp voucher tại checkout thuế được tính lại đúng trên phần đã giảm.
+  const vatAmount = roundMoney(Math.max(subtotalAmount - discountAmount, 0) * VAT_RATE)
+  const taxAndFeeAmount = vatAmount + serviceFeeAmount + surchargeAmount
 
   return {
     subtotal_amount: subtotalAmount,
@@ -282,7 +280,12 @@ function normalizeSelectedCartItemIds(selectedCartItemIds = [], cartItems = []) 
 
 function calculateSubtotalFromItems(selectedCartItems = []) {
   return selectedCartItems.reduce(
-    (totalAmount, cartItem) => totalAmount + cartItem.unit_price_snapshot * cartItem.quantity,
+    (totalAmount, cartItem) =>
+      totalAmount +
+      resolveNumber(
+        calculateItemPricing(cartItem).subtotal_amount,
+        resolveNumber(cartItem.unit_price_snapshot) * resolveNumber(cartItem.quantity, 1),
+      ),
     0,
   )
 }

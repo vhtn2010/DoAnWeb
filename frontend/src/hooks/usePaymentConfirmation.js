@@ -209,9 +209,12 @@ function normalizeBookingItems(items = []) {
     return {
       ...item,
       image_url:
-        snapshot.image_url ?? '/assets/template/service/detail/ha-long-gallery-main.png',
+        snapshot.image_url ??
+        item.image_url ??
+        '/assets/template/service/detail/ha-long-gallery-main.png',
       service_title:
         snapshot.title ??
+        item.service_title ??
         item.title_snapshot ??
         item.title ??
         'Dịch vụ đang được cập nhật',
