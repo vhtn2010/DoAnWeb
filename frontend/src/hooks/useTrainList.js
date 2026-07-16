@@ -49,6 +49,10 @@ function parseArraySearchParam(searchParams, key) {
     .filter(Boolean)
 }
 
+function pickSingleFilterValue(value = []) {
+  return Array.isArray(value) && value.length ? [value[0]] : []
+}
+
 function createFeedbackState(tone = 'info', message = '') {
   return {
     tone,
@@ -74,9 +78,11 @@ function createInitialSearchState(searchParams) {
 
 function createInitialFilterState(searchParams) {
   return {
-    train_types: parseArraySearchParam(searchParams, 'types'),
-    price_ranges: parseArraySearchParam(searchParams, 'prices'),
-    departure_windows: parseArraySearchParam(searchParams, 'departure_windows'),
+    train_types: pickSingleFilterValue(parseArraySearchParam(searchParams, 'types')),
+    price_ranges: pickSingleFilterValue(parseArraySearchParam(searchParams, 'prices')),
+    departure_windows: pickSingleFilterValue(
+      parseArraySearchParam(searchParams, 'departure_windows'),
+    ),
   }
 }
 
@@ -312,17 +318,18 @@ export default function useTrainList() {
   function setFilter(filterKey, value) {
     setDraftFilters((currentFilters) => ({
       ...currentFilters,
-      [filterKey]: currentFilters[filterKey].includes(value)
-        ? currentFilters[filterKey].filter((item) => item !== value)
-        : [...currentFilters[filterKey], value],
+      [filterKey]:
+        currentFilters[filterKey].length === 1 && currentFilters[filterKey][0] === value
+          ? []
+          : [value],
     }))
   }
 
   function applyFilters() {
     const nextFilters = {
-      train_types: [...draftFilters.train_types],
-      price_ranges: [...draftFilters.price_ranges],
-      departure_windows: [...draftFilters.departure_windows],
+      train_types: pickSingleFilterValue(draftFilters.train_types),
+      price_ranges: pickSingleFilterValue(draftFilters.price_ranges),
+      departure_windows: pickSingleFilterValue(draftFilters.departure_windows),
     }
 
     setAppliedFilters(nextFilters)

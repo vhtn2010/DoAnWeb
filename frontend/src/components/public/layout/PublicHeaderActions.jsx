@@ -22,6 +22,7 @@ function ProfilePlaceholderIcon() {
 }
 
 function PublicHeaderActions({
+  cartItemCount = 0,
   customerCartPath,
   currentUser,
   customerProfilePath,
@@ -86,7 +87,12 @@ function PublicHeaderActions({
               />
             </PublicHeaderIconAction>
 
-            <PublicHeaderIconAction label="Giỏ hàng" to={customerCartPath}>
+            <PublicHeaderIconAction
+              badgeCount={cartItemCount}
+              isActive={isCartPreview}
+              label={cartItemCount ? `Giỏ hàng (${cartItemCount})` : 'Giỏ hàng'}
+              to={customerCartPath}
+            >
               <path
                 d="M3.75 5.4h2.1l1.34 8.1h9.04a1.2 1.2 0 0 0 1.15-.85l1.7-5.55H7.08"
                 stroke="currentColor"

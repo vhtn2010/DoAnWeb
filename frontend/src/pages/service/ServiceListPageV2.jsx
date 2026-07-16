@@ -83,7 +83,9 @@ function ServiceListPageV2() {
           formatMonthLabel={homeSearch.formatMonthLabel}
           getMonthDays={homeSearch.getMonthDays}
           handleDateFieldToggle={homeSearch.handleDateFieldToggle}
+          handleDateClear={homeSearch.handleDateClear}
           handleDateSelect={homeSearch.handleDateSelect}
+          handleFieldClear={homeSearch.handleFieldClear}
           handleFieldSelect={homeSearch.handleFieldSelect}
           handleFilterSelect={homeSearch.handleFilterSelect}
           handleRetry={homeSearch.handleRetry}

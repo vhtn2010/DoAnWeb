@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 function ShortcutIcon({ icon }) {
   if (icon === 'ticket') {
     return (
@@ -158,25 +160,41 @@ function ProfileShortcutPanel({
       </header>
 
       <div className="profile-shortcut-panel__grid">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            className="profile-shortcut-card"
-            type="button"
-            onClick={() => onOpenItem(item)}
-          >
-            <span className="profile-shortcut-card__icon" aria-hidden="true">
-              <ShortcutIcon icon={item.icon} />
-            </span>
+        {items.map((item) => {
+          const cardContent = (
+            <>
+              <span className="profile-shortcut-card__icon" aria-hidden="true">
+                <ShortcutIcon icon={item.icon} />
+              </span>
 
-            <span className="profile-shortcut-card__copy">
-              <strong>{item.title}</strong>
-              <small>{item.description}</small>
-            </span>
+              <span className="profile-shortcut-card__copy">
+                <strong>{item.title}</strong>
+                <small>{item.description}</small>
+              </span>
 
-            <span className="profile-shortcut-card__action">{item.action_label}</span>
-          </button>
-        ))}
+              <span className="profile-shortcut-card__action">{item.action_label}</span>
+            </>
+          )
+
+          if (item.detail_path) {
+            return (
+              <Link className="profile-shortcut-card" key={item.id} to={item.detail_path}>
+                {cardContent}
+              </Link>
+            )
+          }
+
+          return (
+            <button
+              key={item.id}
+              className="profile-shortcut-card"
+              type="button"
+              onClick={() => onOpenItem(item)}
+            >
+              {cardContent}
+            </button>
+          )
+        })}
       </div>
     </section>
   )

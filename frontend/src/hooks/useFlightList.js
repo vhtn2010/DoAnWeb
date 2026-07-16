@@ -52,6 +52,10 @@ function parseArraySearchParam(searchParams, key) {
     .filter(Boolean)
 }
 
+function pickSingleFilterValue(value = []) {
+  return Array.isArray(value) && value.length ? [value[0]] : []
+}
+
 function createInitialSearchState(searchParams) {
   return {
     trip_type: searchParams.get('trip_type') ?? DEFAULT_FLIGHT_SEARCH_STATE.trip_type,
@@ -71,10 +75,12 @@ function createInitialSearchState(searchParams) {
 
 function createInitialFilterState(searchParams) {
   return {
-    airline_codes: parseArraySearchParam(searchParams, 'airlines'),
-    price_ranges: parseArraySearchParam(searchParams, 'prices'),
-    departure_windows: parseArraySearchParam(searchParams, 'departure_windows'),
-    stop_counts: parseArraySearchParam(searchParams, 'stops'),
+    airline_codes: pickSingleFilterValue(parseArraySearchParam(searchParams, 'airlines')),
+    price_ranges: pickSingleFilterValue(parseArraySearchParam(searchParams, 'prices')),
+    departure_windows: pickSingleFilterValue(
+      parseArraySearchParam(searchParams, 'departure_windows'),
+    ),
+    stop_counts: pickSingleFilterValue(parseArraySearchParam(searchParams, 'stops')),
   }
 }
 
@@ -344,18 +350,19 @@ export default function useFlightList() {
   function setFilter(filterKey, value) {
     setDraftFilters((currentFilters) => ({
       ...currentFilters,
-      [filterKey]: currentFilters[filterKey].includes(value)
-        ? currentFilters[filterKey].filter((item) => item !== value)
-        : [...currentFilters[filterKey], value],
+      [filterKey]:
+        currentFilters[filterKey].length === 1 && currentFilters[filterKey][0] === value
+          ? []
+          : [value],
     }))
   }
 
   function applyFilters() {
     const nextFilters = {
-      airline_codes: [...draftFilters.airline_codes],
-      price_ranges: [...draftFilters.price_ranges],
-      departure_windows: [...draftFilters.departure_windows],
-      stop_counts: [...draftFilters.stop_counts],
+      airline_codes: pickSingleFilterValue(draftFilters.airline_codes),
+      price_ranges: pickSingleFilterValue(draftFilters.price_ranges),
+      departure_windows: pickSingleFilterValue(draftFilters.departure_windows),
+      stop_counts: pickSingleFilterValue(draftFilters.stop_counts),
     }
 
     setAppliedFilters(nextFilters)

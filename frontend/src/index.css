@@ -356,21 +356,22 @@ select {
 
 .public-header__icon-badge {
   position: absolute;
-  top: -4px;
-  right: -2px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+  top: -9px;
+  right: -10px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
   border-radius: 999px;
   background: #d62828;
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   line-height: 1;
-  box-shadow: 0 8px 18px rgba(214, 40, 40, 0.22);
+  z-index: 1;
+  box-shadow: 0 6px 14px rgba(214, 40, 40, 0.22);
 }
 
 .public-add-cart-toast {
@@ -1933,6 +1934,45 @@ select {
   height: 16px;
   color: var(--color-brand-primary);
   transition: transform 160ms ease;
+}
+
+.home-search-card__field-button--clearable {
+  padding-right: 50px;
+}
+
+.home-search-card__clear-button {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(214, 40, 40, 0.1);
+  color: var(--color-brand-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.home-search-card__clear-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.home-search-card__clear-button:hover,
+.home-search-card__clear-button:focus-visible {
+  outline: none;
+  background: var(--color-brand-primary);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(214, 40, 40, 0.18);
 }
 
 .home-search-card__chevron--open {
@@ -18981,6 +19021,50 @@ select {
   font-size: 0.98rem;
   font-weight: 800;
   line-height: 1.38;
+}
+
+.hotel-search-bar__value--placeholder {
+  color: rgba(107, 114, 128, 0.72);
+  font-weight: 700;
+}
+
+.hotel-search-bar__field-button--clearable {
+  padding-right: 50px;
+}
+
+.hotel-search-bar__clear-button {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(200, 16, 46, 0.1);
+  color: var(--color-brand-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.hotel-search-bar__clear-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.hotel-search-bar__clear-button:hover,
+.hotel-search-bar__clear-button:focus-visible {
+  outline: none;
+  background: var(--color-brand-primary);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(200, 16, 46, 0.18);
 }
 
 .hotel-search-bar__button {

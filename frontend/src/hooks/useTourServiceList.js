@@ -44,6 +44,10 @@ function createEmptyFilters() {
   }
 }
 
+function pickSingleFilterValue(value = []) {
+  return Array.isArray(value) && value.length ? [value[0]] : []
+}
+
 function humanizeQueryValue(value) {
   return value
     .split('-')
@@ -55,10 +59,23 @@ function humanizeQueryValue(value) {
 function buildFiltersFromSearchParams(searchParams) {
   const nextFilters = createEmptyFilters()
   const locationValue = searchParams.get('location') ?? searchParams.get('to') ?? ''
+  const selectedPrices = searchParams.get('prices')
+  const selectedDurations = searchParams.get('durations')
+  const selectedCategories = searchParams.get('categories')
 
   if (locationValue) {
     nextFilters.keyword = humanizeQueryValue(locationValue)
   }
+
+  nextFilters.prices = pickSingleFilterValue(
+    selectedPrices ? selectedPrices.split(',').map((item) => item.trim()).filter(Boolean) : [],
+  )
+  nextFilters.durations = pickSingleFilterValue(
+    selectedDurations ? selectedDurations.split(',').map((item) => item.trim()).filter(Boolean) : [],
+  )
+  nextFilters.categories = pickSingleFilterValue(
+    selectedCategories ? selectedCategories.split(',').map((item) => item.trim()).filter(Boolean) : [],
+  )
 
   return nextFilters
 }
@@ -473,9 +490,10 @@ export default function useTourServiceList() {
   function handleToggleValue(filterKey, value) {
     setDraftFilters((currentFilters) => ({
       ...currentFilters,
-      [filterKey]: currentFilters[filterKey].includes(value)
-        ? currentFilters[filterKey].filter((item) => item !== value)
-        : [...currentFilters[filterKey], value],
+      [filterKey]:
+        currentFilters[filterKey].length === 1 && currentFilters[filterKey][0] === value
+          ? []
+          : [value],
     }))
   }
 
@@ -489,9 +507,9 @@ export default function useTourServiceList() {
   function handleApplyFilters() {
     const nextFilters = {
       ...draftFilters,
-      prices: [...draftFilters.prices],
-      durations: [...draftFilters.durations],
-      categories: [...draftFilters.categories],
+      prices: pickSingleFilterValue(draftFilters.prices),
+      durations: pickSingleFilterValue(draftFilters.durations),
+      categories: pickSingleFilterValue(draftFilters.categories),
     }
 
     setAppliedFilters(nextFilters)

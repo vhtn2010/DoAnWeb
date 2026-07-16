@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import useFavorites from '../../hooks/useFavorites.js'
+import { getActiveCart } from '../../repositories/cartRepository.js'
 import { getUnreadNotificationCount } from '../../repositories/notificationRepository.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 import {
@@ -13,6 +14,7 @@ function PublicHeader({ publicSession }) {
   const location = useLocation()
   const isCustomer = Boolean(publicSession?.isCustomer)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [cartItemCount, setCartItemCount] = useState(0)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const { favoriteCount } = useFavorites({
     currentUser: publicSession?.currentUser ?? null,
@@ -74,6 +76,41 @@ function PublicHeader({ publicSession }) {
     }
   }, [isCustomer, location.pathname, publicSession?.currentUser?.id])
 
+  useEffect(() => {
+    let isMounted = true
+
+    if (!isCustomer) {
+      setCartItemCount(0)
+      return () => {
+        isMounted = false
+      }
+    }
+
+    async function loadCartItemCount() {
+      try {
+        const response = await getActiveCart({
+          authState: publicSession?.authState,
+        })
+
+        if (!isMounted) {
+          return
+        }
+
+        setCartItemCount(Array.isArray(response.data?.cart_items) ? response.data.cart_items.length : 0)
+      } catch {
+        if (isMounted) {
+          setCartItemCount(0)
+        }
+      }
+    }
+
+    loadCartItemCount()
+
+    return () => {
+      isMounted = false
+    }
+  }, [isCustomer, location.pathname, publicSession?.authState, publicSession?.currentUser?.id])
+
   return (
     <header className="public-header">
       <div className={`public-header__shell${isMobileMenuOpen ? ' public-header__shell--menu-open' : ''}`}>
@@ -100,6 +137,7 @@ function PublicHeader({ publicSession }) {
         />
         <PublicHeaderActions
           customerCartPath={customerCartPath}
+          cartItemCount={cartItemCount}
           currentUser={publicSession?.currentUser ?? null}
           customerProfilePath={customerProfilePath}
           favoriteCount={favoriteCount}

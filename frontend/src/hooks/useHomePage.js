@@ -6,6 +6,7 @@ import {
   HOME_SORT_OPTIONS,
   HOME_WEEKDAY_LABELS,
 } from '../constants/homeFigma.js'
+import { vietnamProvinceOptions } from '../data/vietnamProvinces.js'
 import usePublicSession from './usePublicSession.js'
 import {
   addMonths,
@@ -119,6 +120,15 @@ export default function useHomePage() {
     setOpenMenu(null)
   }
 
+  function handleFieldClear(fieldKey) {
+    setSearchState((currentState) => ({
+      ...currentState,
+      [fieldKey]: '',
+    }))
+    setFeedbackMessage('')
+    setOpenMenu(null)
+  }
+
   function handleDateFieldToggle() {
     if (openMenu === 'date') {
       setOpenMenu(null)
@@ -164,6 +174,20 @@ export default function useHomePage() {
       ...currentState,
       startDate: nextSelection.startDate,
       endDate: nextSelection.endDate,
+    }))
+    setFeedbackMessage('')
+    setOpenMenu(null)
+  }
+
+  function handleDateClear() {
+    setCalendarSelection({
+      startDate: null,
+      endDate: null,
+    })
+    setSearchState((currentState) => ({
+      ...currentState,
+      startDate: null,
+      endDate: null,
     }))
     setFeedbackMessage('')
     setOpenMenu(null)
@@ -231,9 +255,12 @@ export default function useHomePage() {
   const visibleMonths = [visibleMonth, addMonths(visibleMonth, 1)]
   const serviceListPath = buildPublicAuthPath('/services', isCustomer)
   const heroCtaPath = buildPublicAuthPath(homeData.hero.cta_path, isCustomer)
+  const provinceOptions = Array.from(
+    new Set([...vietnamProvinceOptions, ...(homeData.provinces ?? [])]),
+  )
   const searchFieldOptions = HOME_SEARCH_FIELD_OPTIONS.map((field) => ({
     ...field,
-    options: homeData.provinces,
+    options: provinceOptions,
   }))
 
   return {
@@ -251,7 +278,9 @@ export default function useHomePage() {
     featuredServices: homeData.featuredServices,
     getMonthDays,
     handleDateFieldToggle,
+    handleDateClear,
     handleDateSelect,
+    handleFieldClear,
     handleFieldSelect,
     handleFilterSelect,
     handleRetry,
@@ -270,7 +299,7 @@ export default function useHomePage() {
     showPreviousMonth,
     sortOptions: HOME_SORT_OPTIONS,
     toggleMenu,
-    provinceOptions: homeData.provinces,
+    provinceOptions,
     valueProps: homeData.valueProps,
     visibleMonths,
     weekdayLabels: HOME_WEEKDAY_LABELS,

@@ -118,6 +118,14 @@ function CalendarIcon() {
   )
 }
 
+function ClearIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path d="M6.75 6.75 17.25 17.25M17.25 6.75 6.75 17.25" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  )
+}
+
 function FlightDateRangePicker({ departureDate, returnDate, tripType, onChange }) {
   const [isOpen, setIsOpen] = useState(false)
   const [visibleMonth, setVisibleMonth] = useState(() => getMonthStart(departureDate))
@@ -199,6 +207,22 @@ function FlightDateRangePicker({ departureDate, returnDate, tripType, onChange }
     setIsOpen(true)
   }
 
+  function clearDepartureDate() {
+    onChange({
+      departureDate: '',
+      returnDate: '',
+    })
+    setIsOpen(false)
+  }
+
+  function clearReturnDate() {
+    onChange({
+      departureDate,
+      returnDate: '',
+    })
+    setIsOpen(false)
+  }
+
   return (
     <div className="flight-date-picker" ref={containerRef}>
       <div className="flight-search-panel__field flight-date-picker__field">
@@ -209,7 +233,7 @@ function FlightDateRangePicker({ departureDate, returnDate, tripType, onChange }
           aria-haspopup="dialog"
           className={`flight-search-panel__field-shell flight-date-picker__trigger ${
             isOpen && activeField === 'departure' ? 'flight-date-picker__trigger--open' : ''
-          }`}
+          } ${departureDate ? 'flight-date-picker__trigger--clearable' : ''}`}
           type="button"
           onClick={() => openPicker('departure')}
         >
@@ -219,6 +243,17 @@ function FlightDateRangePicker({ departureDate, returnDate, tripType, onChange }
 
           <DateValue placeholder="Chọn ngày đi" value={departureDate} />
         </button>
+
+        {departureDate ? (
+          <button
+            aria-label="Xóa ngày đi"
+            className="flight-search-panel__field-clear"
+            type="button"
+            onClick={clearDepartureDate}
+          >
+            <ClearIcon />
+          </button>
+        ) : null}
       </div>
 
       <div
@@ -233,7 +268,9 @@ function FlightDateRangePicker({ departureDate, returnDate, tripType, onChange }
           aria-haspopup="dialog"
           className={`flight-search-panel__field-shell flight-date-picker__trigger ${
             isOpen && activeField === 'return' ? 'flight-date-picker__trigger--open' : ''
-          } ${tripType === 'one_way' ? 'flight-date-picker__trigger--disabled' : ''}`}
+          } ${tripType === 'one_way' ? 'flight-date-picker__trigger--disabled' : ''} ${
+            tripType !== 'one_way' && returnDate ? 'flight-date-picker__trigger--clearable' : ''
+          }`}
           disabled={tripType === 'one_way'}
           type="button"
           onClick={() => openPicker('return')}
@@ -247,6 +284,17 @@ function FlightDateRangePicker({ departureDate, returnDate, tripType, onChange }
             value={tripType === 'one_way' ? '' : returnDate}
           />
         </button>
+
+        {tripType !== 'one_way' && returnDate ? (
+          <button
+            aria-label="Xóa ngày về"
+            className="flight-search-panel__field-clear"
+            type="button"
+            onClick={clearReturnDate}
+          >
+            <ClearIcon />
+          </button>
+        ) : null}
       </div>
 
       {isOpen ? (

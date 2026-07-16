@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import {
   DEFAULT_HOTEL_PAGE_SIZE,
-  DEFAULT_HOTEL_SEARCH_VALUES,
   DEFAULT_HOTEL_SORT,
   HOTEL_SORT_OPTIONS,
 } from '../constants/hotels.js'
@@ -35,11 +34,15 @@ function parseArraySearchParam(searchParams, key) {
     .filter(Boolean)
 }
 
+function pickSingleFilterValue(value = []) {
+  return Array.isArray(value) && value.length ? [value[0]] : []
+}
+
 function createInitialSearchState(searchParams) {
   return {
-    location: searchParams.get('location') ?? DEFAULT_HOTEL_SEARCH_VALUES.location,
-    checkin: searchParams.get('checkin') ?? DEFAULT_HOTEL_SEARCH_VALUES.checkin,
-    checkout: searchParams.get('checkout') ?? DEFAULT_HOTEL_SEARCH_VALUES.checkout,
+    location: searchParams.get('location') ?? '',
+    checkin: searchParams.get('checkin') ?? '',
+    checkout: searchParams.get('checkout') ?? '',
   }
 }
 
@@ -66,9 +69,9 @@ function createInitialAppliedSearchState(searchParams) {
 function createInitialFilterState(searchParams) {
   return {
     sidebarLocation: searchParams.get('destination') ?? '',
-    priceRanges: parseArraySearchParam(searchParams, 'prices'),
-    durations: parseArraySearchParam(searchParams, 'durations'),
-    starRatings: parseArraySearchParam(searchParams, 'stars'),
+    priceRanges: pickSingleFilterValue(parseArraySearchParam(searchParams, 'prices')),
+    durations: pickSingleFilterValue(parseArraySearchParam(searchParams, 'durations')),
+    starRatings: pickSingleFilterValue(parseArraySearchParam(searchParams, 'stars')),
   }
 }
 
@@ -263,18 +266,19 @@ export default function useHotelList() {
   function handleToggleFilter(filterKey, value) {
     setFilterDraft((currentDraft) => ({
       ...currentDraft,
-      [filterKey]: currentDraft[filterKey].includes(value)
-        ? currentDraft[filterKey].filter((currentValue) => currentValue !== value)
-        : [...currentDraft[filterKey], value],
+      [filterKey]:
+        currentDraft[filterKey].length === 1 && currentDraft[filterKey][0] === value
+          ? []
+          : [value],
     }))
   }
 
   function handleApplyFilters() {
     const nextFilters = {
       ...filterDraft,
-      priceRanges: [...filterDraft.priceRanges],
-      durations: [...filterDraft.durations],
-      starRatings: [...filterDraft.starRatings],
+      priceRanges: pickSingleFilterValue(filterDraft.priceRanges),
+      durations: pickSingleFilterValue(filterDraft.durations),
+      starRatings: pickSingleFilterValue(filterDraft.starRatings),
     }
 
     setAppliedFilters(nextFilters)
