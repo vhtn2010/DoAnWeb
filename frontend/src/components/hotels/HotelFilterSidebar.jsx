@@ -1,5 +1,4 @@
 import {
-  HOTEL_DURATION_FILTER_OPTIONS,
   HOTEL_PRICE_FILTER_OPTIONS,
   HOTEL_STAR_FILTER_OPTIONS,
 } from '../../constants/hotels.js'
@@ -66,13 +65,6 @@ function HotelFilterSidebar({ filters, onApply, onLocationChange, onToggleFilter
         selectedValues={filters.priceRanges}
         title="Mức giá"
         onToggle={(value) => onToggleFilter('priceRanges', value)}
-      />
-
-      <FilterCheckboxGroup
-        options={HOTEL_DURATION_FILTER_OPTIONS}
-        selectedValues={filters.durations}
-        title="Thời gian"
-        onToggle={(value) => onToggleFilter('durations', value)}
       />
 
       <FilterCheckboxGroup

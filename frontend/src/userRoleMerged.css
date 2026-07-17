@@ -14884,6 +14884,798 @@
   }
 }
 
+/* Figma-aligned public blog page */
+.netviet-blog-page {
+  --blog-red: #d62828;
+  --blog-gold: #ffd700;
+  --blog-ink: #000000;
+  --blog-muted: #5c403d;
+  --blog-line: #e0e0e0;
+  --blog-red-line: rgba(214, 40, 40, 0.3);
+  --blog-red-soft: rgba(214, 40, 40, 0.1);
+  --blog-gold-soft: rgba(255, 215, 0, 0.2);
+  --blog-surface: #ffffff;
+  background: #fffaf4;
+  color: var(--blog-ink);
+  font-family: "Be Vietnam Pro", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 20px 30px;
+}
+
+.netviet-blog-page a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.public-layout__main:has(.netviet-blog-page) {
+  width: 100%;
+  padding-top: 0;
+}
+
+.public-layout__content:has(.netviet-blog-page) {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.public-layout__content-shell:has(.netviet-blog-page) .public-layout__content-orb {
+  display: none;
+}
+
+.netviet-blog-hero {
+  position: relative;
+  display: block;
+  height: 600px;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.netviet-blog-hero__image,
+.netviet-blog-hero__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.netviet-blog-hero__image {
+  object-fit: cover;
+}
+
+.netviet-blog-hero__overlay {
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.12) 34%, rgba(0, 0, 0, 0.48) 100%);
+}
+
+.netviet-blog-search {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: min(100%, 632px);
+  margin: 24px auto 0;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+}
+
+.netviet-blog-search__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.netviet-blog-search__input {
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--blog-ink);
+  font: 400 16px/20px "Be Vietnam Pro", sans-serif;
+  outline: 0;
+  padding: 0 16px;
+}
+
+.netviet-blog-search__input::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
+.netviet-blog-search:focus-within {
+  box-shadow: 0 0 0 3px rgba(214, 40, 40, 0.22), 0 18px 44px rgba(0, 0, 0, 0.18);
+}
+
+.netviet-blog-search__button,
+.netviet-blog-share__button,
+.netviet-blog-local__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  background: var(--blog-red);
+  color: #ffffff;
+  font-family: "Be Vietnam Pro", sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.netviet-blog-search__button {
+  min-width: 138px;
+  min-height: 44px;
+  border-radius: 2px;
+  font-size: 14px;
+  letter-spacing: 0.28px;
+  line-height: 20px;
+  padding: 12px 24px;
+}
+
+.netviet-blog-search__button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.netviet-blog-hero__content {
+  position: relative;
+  z-index: 2;
+  max-width: 1040px;
+  margin: 189px 0 0 20px;
+  color: #ffffff;
+}
+
+.netviet-blog-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 2px;
+  background: var(--blog-red);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  line-height: 16px;
+  padding: 6px 16px;
+}
+
+.netviet-blog-hero h1 {
+  max-width: 1040px;
+  margin: 24px 0 0;
+  color: #ffffff;
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 72px;
+}
+
+.netviet-blog-hero__meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.netviet-blog-hero__meta strong {
+  color: var(--blog-red);
+}
+
+.netviet-blog-hero__meta span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--blog-red);
+}
+
+.netviet-blog-slider {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 45px;
+}
+
+.netviet-blog-slider button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.netviet-blog-slider__dots {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.netviet-blog-slider__dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.netviet-blog-slider__dots i:first-child {
+  background: var(--blog-red);
+}
+
+.netviet-blog-share,
+.netviet-blog-featured,
+.netviet-blog-latest,
+.netviet-blog-guides {
+  width: min(100%, 1240px);
+  margin-inline: auto;
+}
+
+.netviet-blog-share {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  min-height: 123px;
+  margin-top: 40px;
+  overflow: hidden;
+  border: 1px solid var(--blog-red-line);
+  border-radius: 15px;
+  background: #ffffff;
+  padding: 10px 32px 15px;
+}
+
+.netviet-blog-share::after {
+  position: absolute;
+  right: -33px;
+  top: -63px;
+  width: 128px;
+  height: 128px;
+  border-radius: 999px;
+  background: rgba(255, 215, 0, 0.05);
+  content: "";
+}
+
+.netviet-blog-share h2,
+.netviet-blog-section-title h2 {
+  margin: 0;
+  color: var(--blog-ink);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.netviet-blog-share h2 {
+  color: var(--blog-red);
+  font-size: 32px;
+  line-height: 40px;
+}
+
+.netviet-blog-share p {
+  max-width: 543px;
+  margin: 8px 0 0;
+  color: var(--blog-muted);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.netviet-blog-share__button {
+  min-height: 56px;
+  border-radius: 2px;
+  font-size: 16px;
+  letter-spacing: 1.6px;
+  line-height: 24px;
+  padding: 16px 32px;
+  white-space: nowrap;
+}
+
+.netviet-blog-share__button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.netviet-blog-featured {
+  margin-top: 40px;
+}
+
+.netviet-blog-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  gap: 24px;
+  border-left: 4px solid var(--blog-red);
+  padding-left: 16px;
+}
+
+.netviet-blog-section-title h2 {
+  font-size: 32px;
+  line-height: 40px;
+}
+
+.netviet-blog-featured .netviet-blog-section-title h2 {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.netviet-blog-section-title__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--blog-red);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.netviet-blog-section-title__link svg {
+  width: 12px;
+  height: 12px;
+}
+
+.netviet-blog-featured__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 46px;
+}
+
+.netviet-blog-featured-card {
+  display: grid;
+  gap: 8px;
+}
+
+.netviet-blog-featured-card img {
+  width: 100%;
+  aspect-ratio: 296 / 166;
+  border: 1px solid var(--blog-line);
+  object-fit: cover;
+}
+
+.netviet-blog-featured-card strong {
+  color: var(--blog-ink);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.28px;
+  line-height: 20px;
+}
+
+.netviet-blog-latest {
+  margin-top: 40px;
+}
+
+.netviet-blog-latest__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.netviet-blog-article-card {
+  overflow: hidden;
+  border: 1px solid var(--blog-red-line);
+  border-radius: 15px;
+  background: #ffffff;
+}
+
+.netviet-blog-article-card > a {
+  display: block;
+}
+
+.netviet-blog-article-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 403 / 302;
+  object-fit: cover;
+}
+
+.netviet-blog-article-card__body {
+  display: flex;
+  min-height: 285px;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.netviet-blog-article-card__category {
+  color: var(--blog-red);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 16px;
+}
+
+.netviet-blog-article-card h3 {
+  margin: 16px 0 0;
+  color: var(--blog-ink);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.netviet-blog-article-card p {
+  margin: 12px 0 0;
+  color: var(--blog-ink);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.netviet-blog-article-card__footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto;
+  border-top: 1px solid var(--blog-line);
+  padding-top: 24px;
+  color: var(--blog-ink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+}
+
+.netviet-blog-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.netviet-blog-author i {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--blog-red-soft);
+  color: var(--blog-red);
+  font-style: normal;
+}
+
+.netviet-blog-author svg {
+  width: 14px;
+  height: 14px;
+}
+
+.netviet-blog-empty {
+  margin-top: 24px;
+  border: 1px solid var(--blog-red-line);
+  border-radius: 15px;
+  background: #ffffff;
+  padding: 32px;
+}
+
+.netviet-blog-empty strong {
+  display: block;
+  color: var(--blog-ink);
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.netviet-blog-empty p {
+  margin: 8px 0 0;
+  color: var(--blog-muted);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.netviet-blog-empty button {
+  margin-top: 20px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--blog-red);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  padding: 12px 20px;
+}
+
+.netviet-blog-guides {
+  display: grid;
+  grid-template-columns: minmax(0, 818.67fr) minmax(320px, 397.33fr);
+  gap: 24px;
+  margin-top: 40px;
+}
+
+.netviet-blog-guide-list {
+  display: grid;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.netviet-blog-guide-card {
+  display: grid;
+  grid-template-columns: 192px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 146px;
+  border: 1px solid rgba(214, 40, 40, 0.15);
+  border-radius: 15px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.netviet-blog-guide-card img {
+  width: 192px;
+  height: 128px;
+  object-fit: cover;
+}
+
+.netviet-blog-guide-card span {
+  display: grid;
+  gap: 8px;
+  color: var(--blog-ink);
+}
+
+.netviet-blog-guide-card strong {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+.netviet-blog-guide-card em {
+  font-size: 16px;
+  font-style: normal;
+  line-height: 24px;
+}
+
+.netviet-blog-guide-card b {
+  color: var(--blog-red);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+}
+
+.netviet-blog-local {
+  align-self: start;
+  min-height: 440px;
+  border: 1px solid rgba(244, 197, 66, 0.2);
+  border-radius: 20px;
+  background: #ffffff;
+  padding: 24px 26px;
+}
+
+.netviet-blog-local h2 {
+  margin: 0;
+  color: var(--blog-ink);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 24px;
+}
+
+.netviet-blog-local__list {
+  display: grid;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.netviet-blog-local-item {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.netviet-blog-local-item__icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.netviet-blog-local-item__icon--red {
+  background: var(--blog-red);
+}
+
+.netviet-blog-local-item__icon--gold {
+  background: var(--blog-gold);
+  color: var(--blog-ink);
+}
+
+.netviet-blog-local-item__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.netviet-blog-local-item h3 {
+  margin: 0;
+  color: var(--blog-ink);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.netviet-blog-local-item p {
+  margin: 5px 0 0;
+  color: var(--blog-ink);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+}
+
+.netviet-blog-local__button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  letter-spacing: 0.7px;
+  line-height: 20px;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.netviet-blog-search__button:hover,
+.netviet-blog-search__button:focus-visible,
+.netviet-blog-share__button:hover,
+.netviet-blog-share__button:focus-visible,
+.netviet-blog-local__button:hover,
+.netviet-blog-local__button:focus-visible,
+.netviet-blog-empty button:hover,
+.netviet-blog-empty button:focus-visible {
+  background: #b51f1f;
+  box-shadow: 0 14px 28px rgba(214, 40, 40, 0.25);
+  transform: translateY(-1px);
+}
+
+.netviet-blog-featured-card:hover strong,
+.netviet-blog-featured-card:focus-visible strong,
+.netviet-blog-guide-card:hover strong,
+.netviet-blog-guide-card:focus-visible strong,
+.netviet-blog-section-title__link:hover,
+.netviet-blog-section-title__link:focus-visible {
+  color: var(--blog-red);
+}
+
+.netviet-blog-page :focus-visible {
+  outline: 3px solid rgba(214, 40, 40, 0.35);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1024px) {
+  .netviet-blog-hero {
+    height: 560px;
+  }
+
+  .netviet-blog-hero__content {
+    margin-top: 150px;
+  }
+
+  .netviet-blog-hero h1 {
+    font-size: 48px;
+    line-height: 56px;
+  }
+
+  .netviet-blog-share,
+  .netviet-blog-guides {
+    grid-template-columns: 1fr;
+  }
+
+  .netviet-blog-share {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .netviet-blog-featured__grid,
+  .netviet-blog-latest__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .netviet-blog-page {
+    padding-inline: 12px;
+  }
+
+  .netviet-blog-hero {
+    height: 620px;
+  }
+
+  .netviet-blog-search {
+    grid-template-columns: 1fr;
+    margin-top: 16px;
+  }
+
+  .netviet-blog-search__button {
+    width: 100%;
+  }
+
+  .netviet-blog-hero__content {
+    margin: 120px 16px 0;
+    width: calc(100% - 32px);
+    max-width: none;
+  }
+
+  .netviet-blog-hero h1 {
+    max-width: 100%;
+    font-size: 36px;
+    line-height: 44px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .netviet-blog-hero__meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .netviet-blog-hero__meta span {
+    display: none;
+  }
+
+  .netviet-blog-share {
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .netviet-blog-share h2,
+  .netviet-blog-section-title h2 {
+    font-size: 26px;
+    line-height: 34px;
+  }
+
+  .netviet-blog-share__button,
+  .netviet-blog-local__button {
+    width: 100%;
+  }
+
+  .netviet-blog-section-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .netviet-blog-featured__grid,
+  .netviet-blog-latest__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .netviet-blog-article-card__body {
+    min-height: 0;
+  }
+
+  .netviet-blog-article-card__footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .netviet-blog-guide-card {
+    grid-template-columns: 1fr;
+  }
+
+  .netviet-blog-guide-card img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 192 / 128;
+  }
+}
+
 .login-required-modal {
   position: fixed;
   inset: 0;

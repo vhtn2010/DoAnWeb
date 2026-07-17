@@ -70,7 +70,6 @@ function createInitialFilterState(searchParams) {
   return {
     sidebarLocation: searchParams.get('destination') ?? '',
     priceRanges: pickSingleFilterValue(parseArraySearchParam(searchParams, 'prices')),
-    durations: pickSingleFilterValue(parseArraySearchParam(searchParams, 'durations')),
     starRatings: pickSingleFilterValue(parseArraySearchParam(searchParams, 'stars')),
   }
 }
@@ -82,7 +81,6 @@ function buildHotelSearchParams({
   checkout = '',
   sidebarLocation = '',
   prices = [],
-  durations = [],
   stars = [],
   sort = DEFAULT_HOTEL_SORT,
   page = 1,
@@ -107,10 +105,6 @@ function buildHotelSearchParams({
 
   if (prices.length) {
     nextSearchParams.set('prices', prices.join(','))
-  }
-
-  if (durations.length) {
-    nextSearchParams.set('durations', durations.join(','))
   }
 
   if (stars.length) {
@@ -173,7 +167,6 @@ export default function useHotelList() {
           checkout: appliedSearch.checkout,
           destination: appliedFilters.sidebarLocation,
           priceRanges: appliedFilters.priceRanges,
-          durations: appliedFilters.durations,
           starRatings: appliedFilters.starRatings,
           sort: selectedSort,
           page: currentPage,
@@ -232,7 +225,6 @@ export default function useHotelList() {
         checkout: nextSearch.checkout,
         sidebarLocation: nextFilters.sidebarLocation,
         prices: nextFilters.priceRanges,
-        durations: nextFilters.durations,
         stars: nextFilters.starRatings,
         sort: nextSort,
         page: nextPage,
@@ -277,7 +269,6 @@ export default function useHotelList() {
     const nextFilters = {
       ...filterDraft,
       priceRanges: pickSingleFilterValue(filterDraft.priceRanges),
-      durations: pickSingleFilterValue(filterDraft.durations),
       starRatings: pickSingleFilterValue(filterDraft.starRatings),
     }
 
