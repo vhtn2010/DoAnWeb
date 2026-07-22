@@ -41,10 +41,27 @@ function normalizeTourCard(service = {}) {
   const resolvedSalePrice = salePrice ?? publicPrice ?? basePrice ?? 0
   const resolvedBasePrice = basePrice ?? resolvedSalePrice
   const fallbackSlug = normalizeSlug(service.slug, service.id ?? service.title ?? 'tour')
+  const rawDetails =
+    service.details && typeof service.details === 'object' && !Array.isArray(service.details)
+      ? service.details
+      : service
+
+  const normalizedDetails = {
+    departure_location: rawDetails.departure_location ?? '',
+    destination_location: rawDetails.destination_location ?? '',
+    duration_days: toNumber(rawDetails.duration_days) ?? 0,
+    duration_nights: toNumber(rawDetails.duration_nights) ?? 0,
+    max_group_size: toNumber(rawDetails.max_group_size) ?? 0,
+    departure_schedule: Array.isArray(rawDetails.departure_schedule)
+      ? rawDetails.departure_schedule
+      : [],
+    transport_type: rawDetails.transport_type ?? '',
+  }
 
   return {
     base_price: resolvedBasePrice,
     currency: service.currency ?? 'VND',
+    details: normalizedDetails,
     has_sale_price:
       salePrice != null &&
       resolvedBasePrice != null &&
@@ -122,6 +139,45 @@ export async function getTourServiceBySlug(slug) {
   const service = response.data ?? null
 
   if (!service || service.service_type !== SERVICE_TYPES.tour) {
+    return {
+      ...response,
+      data: null,
+      success: false,
+    }
+  }
+
+  let galleryImages = [service.primary_image ?? service.image_url ?? FALLBACK_TOUR_IMAGE_URL].filter(
+    Boolean,
+  )
+
+  if (service.id) {
+    try {
+      const imagesResponse = await apiGet(`/services/${service.id}/images`, {
+        query: withCacheBust(),
+      })
+      galleryImages = buildGalleryImages(service.primary_image, imagesResponse.data)
+    } catch {
+      galleryImages = buildGalleryImages(service.primary_image, [])
+    }
+  }
+
+  return {
+    ...response,
+    data: {
+      ...service,
+      gallery_images: galleryImages.length ? galleryImages : [FALLBACK_TOUR_IMAGE_URL],
+      image_url: service.primary_image ?? galleryImages[0] ?? FALLBACK_TOUR_IMAGE_URL,
+    },
+  }
+}
+
+export async function getPublicServiceBySlug(slug) {
+  const response = await apiGet(`/services/${slug}`, {
+    query: withCacheBust(),
+  })
+  const service = response.data ?? null
+
+  if (!service) {
     return {
       ...response,
       data: null,

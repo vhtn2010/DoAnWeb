@@ -269,6 +269,58 @@ test('POST /api/uploads/signature surfaces validation errors and forbidden scope
   }
 });
 
+test('POST /api/uploads/signature passes through customer support upload requests', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'customer-88',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'customer-88',
+    });
+  uploadSignatureService.createSignature = async (context) => {
+    capturedContext = context;
+
+    return {
+      api_key: 'cloud-key',
+      cloud_name: 'demo-cloud',
+      folder: 'net-viet-travel/support',
+      resource_type: 'raw',
+      signature: 'support-signed-value',
+      timestamp: 1782997500,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/uploads/signature`, {
+      body: JSON.stringify({
+        folder: 'support',
+        resource_type: 'raw',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.folder, 'net-viet-travel/support');
+    assert.equal(response.body.data.resource_type, 'raw');
+    assert.deepEqual(capturedContext.body, {
+      folder: 'support',
+      resource_type: 'raw',
+    });
+  } finally {
+    await closeServer(server);
+  }
+});
+
 test('POST /api/uploads/signature returns 429 when the signature rate limit is exceeded', async () => {
   const server = app.listen(0);
   const accessToken = createAccessToken({

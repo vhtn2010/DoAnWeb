@@ -3,6 +3,7 @@ function TrainBookingSummary({
   formatCurrency,
   onAddToCart,
   onBookNow,
+  pendingAction = '',
 }) {
   if (!bookingSummary) {
     return null
@@ -48,18 +49,22 @@ function TrainBookingSummary({
         </div>
 
         <button
+          aria-busy={pendingAction === 'booking'}
           className="train-booking-summary__button train-booking-summary__button--primary"
+          disabled={Boolean(pendingAction)}
           type="button"
           onClick={onBookNow}
         >
-          {bookingSummary.cta_primary}
+          {pendingAction === 'booking' ? 'Đang xử lý...' : bookingSummary.cta_primary}
         </button>
         <button
+          aria-busy={pendingAction === 'cart'}
           className="train-booking-summary__button train-booking-summary__button--secondary"
+          disabled={Boolean(pendingAction)}
           type="button"
           onClick={onAddToCart}
         >
-          {bookingSummary.cta_secondary}
+          {pendingAction === 'cart' ? 'Đang thêm...' : bookingSummary.cta_secondary}
         </button>
       </div>
     </section>

@@ -1,4 +1,4 @@
-import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
+﻿import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
 
 function createEmptyFilters() {
   return {
@@ -179,11 +179,12 @@ export function createHomePageViewState(payload = {}) {
       hour_label: payload.flash_sale_meta?.hour_label ?? 'GIỜ',
       minute_label: payload.flash_sale_meta?.minute_label ?? 'PHÚT',
       timer: {
-        days: payload.flash_sale_meta?.timer?.days ?? '02',
-        hours: payload.flash_sale_meta?.timer?.hours ?? '14',
-        minutes: payload.flash_sale_meta?.timer?.minutes ?? '45',
+        days: payload.flash_sale_meta?.timer?.days ?? '00',
+        hours: payload.flash_sale_meta?.timer?.hours ?? '22',
+        minutes: payload.flash_sale_meta?.timer?.minutes ?? '00',
       },
     },
     provinces: Array.isArray(payload.provinces) ? payload.provinces : [],
   }
 }
+

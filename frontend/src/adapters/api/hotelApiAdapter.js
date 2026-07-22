@@ -4,7 +4,7 @@ import {
 } from '../../constants/hotels.js'
 import { SERVICE_STATUSES } from '../../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
-import { apiGet } from '../../services/apiClient.js'
+import { apiGet, apiPost } from '../../services/apiClient.js'
 
 const MAX_HOTEL_FETCH_LIMIT = 50
 
@@ -442,4 +442,50 @@ export async function getHotelRooms(hotelServiceId) {
 
   hotelRoomCache.set(hotelServiceId, roomPromise)
   return roomPromise
+}
+
+export async function checkHotelAvailability({
+  adults = 1,
+  children = 0,
+  quantity = 1,
+  reference_id = '',
+  room_type_id = '',
+  service_id = '',
+  start_at = '',
+} = {}) {
+  const resolvedReferenceId = reference_id || room_type_id
+
+  if (!service_id || !resolvedReferenceId) {
+    return {
+      success: false,
+      message: 'Không thể kiểm tra tình trạng phòng lúc này.',
+      data: null,
+    }
+  }
+
+  const response = await apiPost(`/services/${service_id}/availability`, {
+    auth: false,
+    body: {
+      options: {
+        adults: Math.max(Number(adults) || 1, 1),
+        children: Math.max(Number(children) || 0, 0),
+      },
+      quantity: Math.max(Number(quantity) || 1, 1),
+      reference_id: resolvedReferenceId,
+      service_type: SERVICE_TYPES.hotel,
+      start_at,
+    },
+  })
+
+  return {
+    ...response,
+    data: response.data
+      ? {
+          available_quantity: toNumber(response.data.available_quantity),
+          is_available: Boolean(response.data.available),
+          selected_room_id: resolvedReferenceId,
+          unit_price: toOptionalNumber(response.data.unit_price),
+        }
+      : null,
+  }
 }

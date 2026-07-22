@@ -14,16 +14,16 @@ const DEFAULT_REVIEW_SAMPLES = Object.freeze([
     author_name: 'Net Viet Guest',
     author_initials: 'NV',
     content:
-      'H?nh tr?nh ???c s?p x?p g?n g?ng, ??i ng? h? tr? nhi?t t?nh v? tr?i nghi?m t?ng th? r?t d? ch?u.',
-    month_label: 'Gan day',
+      'Hành trình được sắp xếp gọn gàng, đội ngũ hỗ trợ nhiệt tình và trải nghiệm tổng thể rất dễ chịu.',
+    month_label: 'Gần đây',
     rating_value: 5,
   },
   {
-    author_name: 'Kh?ch h?ng th?n thi?t',
+    author_name: 'Khách hàng thân thiết',
     author_initials: 'KH',
     content:
-      'L?ch tr?nh r? r?ng, th?ng tin d? theo d?i v? c?c ?i?m d?ng ch?n t?o c?m gi?c th? th?i.',
-    month_label: 'Gan day',
+      'Lịch trình rõ ràng, thông tin dễ theo dõi và các điểm dừng chân tạo cảm giác thư thái.',
+    month_label: 'Gần đây',
     rating_value: 5,
   },
 ])
@@ -98,7 +98,7 @@ function buildDurationText(durationDays, durationNights) {
     !Number.isFinite(durationNights) ||
     durationNights < 0
   ) {
-    return '?ang c?p nh?t'
+    return 'Đang cập nhật'
   }
 
   return `${durationDays} ngày ${durationNights} đêm`
@@ -272,7 +272,7 @@ function normalizeItinerary(itinerary = []) {
         day_number: index + 1,
         highlights: summary ? [summary] : [],
         summary,
-        title: `Ng?y ${index + 1}`,
+        title: `Ngày ${index + 1}`,
       }
     }
 
@@ -307,7 +307,7 @@ function normalizeItinerary(itinerary = []) {
             return {
               description,
               time,
-              title: title || description || `Hoat dong ${index + 1}`,
+              title: title || description || `Hoạt động ${index + 1}`,
             }
           })
           .filter(Boolean)
@@ -335,7 +335,7 @@ function normalizeItinerary(itinerary = []) {
       day_number: Number.isFinite(dayNumber) && dayNumber > 0 ? dayNumber : index + 1,
       highlights,
       summary,
-      title: day?.title ?? `Ng?y ${index + 1}`,
+      title: day?.title ?? `Ngày ${index + 1}`,
     }
   })
 }
@@ -441,6 +441,6 @@ export function mapTourServiceToView(service, { detailPath } = {}) {
     sort_order: uiMeta.sortOrder ?? 999,
     tour_type: uiMeta.tourType ?? normalizedService.provider_name,
     transport_text:
-      TRANSPORT_TYPE_LABELS[details.transport_type] || details.transport_type || '?ang c?p nh?t',
+      TRANSPORT_TYPE_LABELS[details.transport_type] || details.transport_type || 'Đang cập nhật',
   }
 }

@@ -1,10 +1,50 @@
-function AmenityIcon({ item }) {
-  const normalizedItem = String(item ?? '')
+function normalizeAmenityText(value = '') {
+  return String(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
     .toLowerCase()
+}
+
+function formatAmenityLabel(item = '') {
+  const normalizedItem = normalizeAmenityText(item)
+
+  if (normalizedItem.includes('wifi')) {
+    return 'Wi-Fi'
+  }
+
+  if (
+    normalizedItem.includes('breakfast') ||
+    normalizedItem.includes('buffet sang') ||
+    normalizedItem.includes('bua sang')
+  ) {
+    return 'Bữa sáng'
+  }
+
+  if (normalizedItem.includes('ho boi') || normalizedItem.includes('pool')) {
+    return 'Hồ bơi'
+  }
+
+  if (
+    normalizedItem.includes('xe dua don') ||
+    normalizedItem.includes('airport transfer') ||
+    normalizedItem.includes('shuttle')
+  ) {
+    return 'Xe đưa đón'
+  }
+
+  if (normalizedItem.includes('nha hang') || normalizedItem.includes('restaurant')) {
+    return 'Nhà hàng'
+  }
+
+  return String(item ?? '')
+}
+
+function AmenityIcon({ item }) {
+  const normalizedItem = normalizeAmenityText(item)
 
   if (normalizedItem.includes('ho boi')) {
     return (
@@ -83,7 +123,7 @@ function HotelAmenityList({ items, title }) {
             <span className="hotel-amenity-list__icon" aria-hidden="true">
               <AmenityIcon item={item} />
             </span>
-            <span>{item}</span>
+            <span>{formatAmenityLabel(item)}</span>
           </div>
         ))}
       </div>

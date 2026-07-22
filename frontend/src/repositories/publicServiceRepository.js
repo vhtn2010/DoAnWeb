@@ -1,5 +1,6 @@
 import {
   getFeaturedTourServices as getFeaturedTourServicesWithApiAdapter,
+  getPublicServiceBySlug as getPublicServiceBySlugWithApiAdapter,
   getTourServiceCatalog as getTourServiceCatalogWithApiAdapter,
   getTourServiceBySlug as getTourServiceBySlugWithApiAdapter,
   listTourServices as listTourServicesWithApiAdapter,
@@ -7,6 +8,7 @@ import {
 
 const publicServiceAdapter = {
   getFeaturedTourServices: getFeaturedTourServicesWithApiAdapter,
+  getPublicServiceBySlug: getPublicServiceBySlugWithApiAdapter,
   getTourServiceCatalog: getTourServiceCatalogWithApiAdapter,
   getTourServiceBySlug: getTourServiceBySlugWithApiAdapter,
   listTourServices: listTourServicesWithApiAdapter,
@@ -22,6 +24,10 @@ export function getTourServiceCatalog() {
 
 export function getTourServiceBySlug(slug) {
   return publicServiceAdapter.getTourServiceBySlug(slug)
+}
+
+export function getPublicServiceBySlug(slug) {
+  return publicServiceAdapter.getPublicServiceBySlug(slug)
 }
 
 export function getFeaturedTourServices(params) {

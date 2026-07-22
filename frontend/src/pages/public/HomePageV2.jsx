@@ -20,7 +20,9 @@ function HomePageV2() {
     formatMonthLabel,
     getMonthDays,
     handleDateFieldToggle,
+    handleDateClear,
     handleDateSelect,
+    handleFieldClear,
     handleFieldSelect,
     handleFilterSelect,
     handleRetry,
@@ -68,7 +70,9 @@ function HomePageV2() {
           formatMonthLabel={formatMonthLabel}
           getMonthDays={getMonthDays}
           handleDateFieldToggle={handleDateFieldToggle}
+          handleDateClear={handleDateClear}
           handleDateSelect={handleDateSelect}
+          handleFieldClear={handleFieldClear}
           handleFieldSelect={handleFieldSelect}
           handleFilterSelect={handleFilterSelect}
           handleRetry={handleRetry}

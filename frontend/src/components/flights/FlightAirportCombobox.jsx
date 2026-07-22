@@ -23,6 +23,14 @@ function matchesAirportSearch(airport, keyword) {
     .some((value) => String(value).toLowerCase().includes(normalizedKeyword))
 }
 
+function ClearIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path d="M6.75 6.75 17.25 17.25M17.25 6.75 6.75 17.25" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  )
+}
+
 function FlightAirportCombobox({ label, onChange, options, value }) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -36,6 +44,7 @@ function FlightAirportCombobox({ label, onChange, options, value }) {
   const filteredAirports = useMemo(() => {
     return options.filter((airport) => matchesAirportSearch(airport, query))
   }, [options, query])
+  const hasSelectedValue = Boolean(value)
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -61,16 +70,22 @@ function FlightAirportCombobox({ label, onChange, options, value }) {
     setQuery('')
   }, [isOpen])
 
+  function handleClearSelection() {
+    onChange('')
+    setQuery('')
+  }
+
   return (
     <div className="flight-search-panel__field flight-airport-combobox" ref={containerRef}>
       <span className="flight-search-panel__field-label">{label}</span>
 
-      <button
+      <div className="flight-search-panel__field-control">
+        <button
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className={`flight-search-panel__field-shell flight-airport-combobox__trigger ${
           isOpen ? 'flight-airport-combobox__trigger--open' : ''
-        }`}
+        } ${hasSelectedValue ? 'flight-airport-combobox__trigger--clearable' : ''}`}
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
@@ -94,7 +109,19 @@ function FlightAirportCombobox({ label, onChange, options, value }) {
             <path d="m7 10 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
           </svg>
         </span>
-      </button>
+        </button>
+
+        {hasSelectedValue ? (
+          <button
+            aria-label={`Xóa lựa chọn ${label}`}
+            className="flight-search-panel__field-clear"
+            type="button"
+            onClick={handleClearSelection}
+          >
+            <ClearIcon />
+          </button>
+        ) : null}
+      </div>
 
       {isOpen ? (
         <div className="flight-date-popover flight-airport-menu" role="dialog">

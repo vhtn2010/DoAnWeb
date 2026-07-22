@@ -69,6 +69,7 @@ export default function ProfileDashboardContent({
         onOpenUpcomingTripSecondary={() =>
           actions.openUpcomingTripSecondary(viewModel.upcomingTrip)
         }
+        onProfileUpdated={actions.applyProfileUpdate}
         profile={profile}
         stats={heroStats}
         upcomingTrip={viewModel.upcomingTrip}
@@ -82,7 +83,7 @@ export default function ProfileDashboardContent({
 
       <div className="profile-dashboard">
         <section className="profile-dashboard__section">
-          <ProfileAccountCenter onProfileUpdated={actions.applyProfileUpdate} />
+          <ProfileAccountCenter />
         </section>
 
         <div className="profile-dashboard__utility-grid">

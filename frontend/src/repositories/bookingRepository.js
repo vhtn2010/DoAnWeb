@@ -13,20 +13,16 @@ import {
   getBookingByCode as getBookingByCodeWithMockAdapter,
   getBookingConfirmation as getBookingConfirmationWithMockAdapter,
 } from '../adapters/mock/bookingMockAdapter.js'
-import { ROLES } from '../constants/roles.js'
-import { getAuthSession } from '../services/authSession.js'
+import {
+  createCustomerAuthRequiredResponse,
+  isCustomerApiRequested,
+  shouldUseCustomerApi,
+} from '../utils/customerApiSession.js'
 
 const bookingAdapter = {
   buildPaymentRedirectPayload: buildPaymentRedirectPayloadWithMock,
   getBookingByCode: getBookingByCodeWithMockAdapter,
   getBookingConfirmation: getBookingConfirmationWithMockAdapter,
-}
-
-function shouldUseApi(authState = ROLES.guest) {
-  const session = getAuthSession()
-  const role = session.user?.role ?? session.user?.role_code ?? ''
-
-  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
 }
 
 async function findBookingByCode(bookingCode) {
@@ -63,7 +59,7 @@ async function findBookingByCode(bookingCode) {
 }
 
 export function getBookingConfirmation(params) {
-  if (shouldUseApi(params?.authState) && params?.bookingId) {
+  if (shouldUseCustomerApi(params?.authState) && params?.bookingId) {
     return Promise.all([
       getMyBookingDetailWithApiAdapter(params.bookingId),
       getMyBookingItemsWithApiAdapter(params.bookingId),
@@ -78,11 +74,15 @@ export function getBookingConfirmation(params) {
     }))
   }
 
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
+  }
+
   return bookingAdapter.getBookingConfirmation(params)
 }
 
 export async function getBookingByCode(bookingCode, params) {
-  if (shouldUseApi(params?.authState)) {
+  if (shouldUseCustomerApi(params?.authState)) {
     const booking = await findBookingByCode(bookingCode)
 
     if (!booking) {
@@ -107,6 +107,10 @@ export async function getBookingByCode(bookingCode, params) {
         payment_options: [],
       },
     }
+  }
+
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return bookingAdapter.getBookingByCode(bookingCode, params)

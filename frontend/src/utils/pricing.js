@@ -1,12 +1,9 @@
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 
 const DEFAULT_CURRENCY = 'VND'
-const VAT_RATE = 0.08
+export const VAT_RATE = 0.08
 const HOTEL_SERVICE_FEE_RATE = 0.05
 const TOUR_SERVICE_FEE_PER_BOOKING = 100000
-const FLIGHT_AIRPORT_FEE_PER_PASSENGER_SEGMENT = 100000
-const FLIGHT_SECURITY_FEE_PER_PASSENGER_SEGMENT = 20000
-const FLIGHT_AIRLINE_SURCHARGE_PER_PASSENGER_SEGMENT = 450000
 const FLIGHT_SERVICE_FEE_PER_TICKET = 50000
 const TRAIN_SERVICE_FEE_PER_TICKET = 20000
 
@@ -53,16 +50,6 @@ function getPassengerQuantity(item = {}, options = getOptions(item)) {
       positiveInteger(options.infant_count, options.infants),
     1,
   )
-}
-
-function getFlightSegmentCount(options = {}) {
-  const explicitSegments = positiveInteger(options.segment_count, options.segments)
-
-  if (explicitSegments > 0) {
-    return explicitSegments
-  }
-
-  return String(options.trip_type || '').toLowerCase() === 'round_trip' ? 2 : 1
 }
 
 function calculateHotelItemPricing(item = {}, options = getOptions(item)) {
@@ -118,23 +105,23 @@ function calculateTourItemPricing(item = {}, options = getOptions(item)) {
 function calculateFlightItemPricing(item = {}, options = getOptions(item)) {
   const passengerQuantity = getPassengerQuantity(item, options)
   const ticketQuantity = Math.max(positiveInteger(options.ticket_quantity), passengerQuantity)
-  const segmentCount = getFlightSegmentCount(options)
   const baseFare = roundMoney(
     positiveNumber(options.base_fare, item.unit_price_snapshot, item.unit_price) * passengerQuantity,
   )
-  const airportFeeAmount = FLIGHT_AIRPORT_FEE_PER_PASSENGER_SEGMENT * passengerQuantity * segmentCount
-  const securityFeeAmount = FLIGHT_SECURITY_FEE_PER_PASSENGER_SEGMENT * passengerQuantity * segmentCount
-  const airlineSurchargeAmount =
-    FLIGHT_AIRLINE_SURCHARGE_PER_PASSENGER_SEGMENT * passengerQuantity * segmentCount
+  // Phụ thu = đúng thuế + phụ thu của hạng vé mà khách đã thấy khi chọn vé, nhân theo số khách,
+  // thay vì bộ phí cố định tự tính (khiến tổng lệch với giá niêm yết trên trang chi tiết vé).
+  const taxAmount = positiveNumber(options.taxes) * passengerQuantity
+  const addOnAmount = positiveNumber(options.add_ons) * passengerQuantity
+  const surchargeAmount = roundMoney(taxAmount + addOnAmount)
 
   return {
-    airport_fee_amount: airportFeeAmount,
-    airline_surcharge_amount: airlineSurchargeAmount,
+    airport_fee_amount: 0,
+    airline_surcharge_amount: 0,
     base_amount: baseFare,
-    security_fee_amount: securityFeeAmount,
+    security_fee_amount: 0,
     service_fee_amount: FLIGHT_SERVICE_FEE_PER_TICKET * ticketQuantity,
     subtotal_amount: baseFare,
-    surcharge_amount: airportFeeAmount + securityFeeAmount + airlineSurchargeAmount,
+    surcharge_amount: surchargeAmount,
     vat_base_amount: baseFare,
   }
 }
@@ -143,7 +130,12 @@ function calculateTrainItemPricing(item = {}, options = getOptions(item)) {
   const passengerQuantity = getPassengerQuantity(item, options)
   const ticketQuantity = Math.max(positiveInteger(options.ticket_quantity), passengerQuantity)
   const ticketPrice = positiveNumber(options.ticket_price, item.unit_price_snapshot, item.unit_price)
-  const subtotalAmount = roundMoney(ticketPrice * passengerQuantity)
+  // Khi chọn nhiều ghế khác giá, selected_seat_price là tổng đúng của mọi ghế;
+  // chỉ nhân ticketPrice × số ghế khi không có tổng ghế (mọi ghế cùng giá).
+  const seatTotalPrice = positiveNumber(options.selected_seat_price)
+  const subtotalAmount = roundMoney(
+    seatTotalPrice > 0 ? seatTotalPrice : ticketPrice * passengerQuantity,
+  )
 
   return {
     airport_fee_amount: 0,

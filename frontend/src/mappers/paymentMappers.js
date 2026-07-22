@@ -389,6 +389,7 @@ export function buildPaymentConfirmationViewModel({
         Math.max(taxAndFeeAmount - baggageFeeAmount, 0),
       ),
       discount_amount: formatCurrencyVND(resolveNumber(paymentSummary?.discount_amount)),
+      discount_amount_value: resolveNumber(paymentSummary?.discount_amount),
       total_amount: formatCurrencyVND(resolveNumber(paymentSummary?.total_amount)),
       currency: paymentSummary?.currency ?? PAYMENT_DEFAULT_CURRENCY,
       voucher_code: paymentSummary?.voucher_code ?? '',

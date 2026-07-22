@@ -4,83 +4,77 @@ import {
   TRAIN_TYPE_FILTER_OPTIONS,
 } from '../../constants/trains.js'
 
-function FilterSection({ children, title }) {
+function FilterIcon() {
   return (
-    <section className="train-filter-sidebar__section">
-      <h3>{title}</h3>
-      <div className="train-filter-sidebar__checks">{children}</div>
-    </section>
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M4.5 6.25h15m-12 5.5h9m-6 5.5h3"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
+    </svg>
   )
 }
 
-function FilterCheckbox({ checked, label, onChange }) {
+function FilterCheckboxGroup({ options, selectedValues, title, onToggle }) {
   return (
-    <label className="train-filter-sidebar__check">
-      <input checked={checked} type="checkbox" onChange={onChange} />
-      <span>{label}</span>
-    </label>
+    <div className="hotel-filter-sidebar__section">
+      <h3 className="hotel-filter-sidebar__section-title">{title}</h3>
+      <div className="hotel-filter-sidebar__checks">
+        {options.map((option) => (
+          <label className="hotel-filter-sidebar__check" key={option.value}>
+            <input
+              checked={selectedValues.includes(option.value)}
+              type="checkbox"
+              onChange={() => onToggle(option.value)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
   )
 }
 
 function TrainFilterSidebar({ draftFilters, onApply, onToggle }) {
   return (
-    <aside className="train-filter-sidebar">
-      <div className="train-filter-sidebar__header">
-        <span className="train-filter-sidebar__marker" aria-hidden="true">
-          <svg fill="none" viewBox="0 0 24 24">
-            <path
-              d="M4 6.5h16M7.5 12h9M10.5 17.5h3"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeWidth="1.8"
-            />
-          </svg>
+    <aside className="hotel-filter-sidebar hotel-filter-sidebar--sticky">
+      <div className="hotel-filter-sidebar__header">
+        <span aria-hidden="true" className="hotel-filter-sidebar__icon">
+          <FilterIcon />
         </span>
-        <h2 className="train-filter-sidebar__title">Bộ lọc nâng cao</h2>
+        <h2 className="hotel-filter-sidebar__title">Bộ lọc nâng cao</h2>
       </div>
 
-      <FilterSection title="Loại tàu">
-        {TRAIN_TYPE_FILTER_OPTIONS.map((option) => (
-          <FilterCheckbox
-            checked={draftFilters.train_types.includes(option.value)}
-            key={option.value}
-            label={option.label}
-            onChange={() => onToggle('train_types', option.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCheckboxGroup
+        options={TRAIN_TYPE_FILTER_OPTIONS}
+        selectedValues={draftFilters.train_types}
+        title="Loại tàu"
+        onToggle={(value) => onToggle('train_types', value)}
+      />
 
-      <FilterSection title="Khung giờ khởi hành">
-        {TRAIN_DEPARTURE_TIME_FILTER_OPTIONS.map((option) => (
-          <FilterCheckbox
-            checked={draftFilters.departure_windows.includes(option.value)}
-            key={option.value}
-            label={option.label}
-            onChange={() => onToggle('departure_windows', option.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCheckboxGroup
+        options={TRAIN_DEPARTURE_TIME_FILTER_OPTIONS}
+        selectedValues={draftFilters.departure_windows}
+        title="Khung giờ khởi hành"
+        onToggle={(value) => onToggle('departure_windows', value)}
+      />
 
-      <FilterSection title="Mức giá">
-        {TRAIN_PRICE_FILTER_OPTIONS.map((option) => (
-          <FilterCheckbox
-            checked={draftFilters.price_ranges.includes(option.value)}
-            key={option.value}
-            label={option.label}
-            onChange={() => onToggle('price_ranges', option.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCheckboxGroup
+        options={TRAIN_PRICE_FILTER_OPTIONS}
+        selectedValues={draftFilters.price_ranges}
+        title="Mức giá"
+        onToggle={(value) => onToggle('price_ranges', value)}
+      />
 
-      <div className="train-filter-sidebar__actions">
-        <button
-          className="train-filter-sidebar__button train-filter-sidebar__button--primary"
-          type="button"
-          onClick={onApply}
-        >
-          Áp dụng bộ lọc
-        </button>
-      </div>
+      <button
+        className="hotel-filter-sidebar__apply hotel-filter-sidebar__apply--full"
+        type="button"
+        onClick={onApply}
+      >
+        Áp dụng bộ lọc
+      </button>
     </aside>
   )
 }

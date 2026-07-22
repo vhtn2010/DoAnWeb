@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { PAYMENT_STATUSES } from '../constants/bookings.js'
 import { PAYMENT_METHOD_CODES } from '../constants/payments.js'
@@ -18,6 +18,8 @@ import {
 import { updateMyBookingContact } from '../repositories/bookingRepository.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+import { createIdempotencyKey } from '../utils/idempotency.js'
+import { validatePaymentProofFile } from '../adapters/api/uploadApiAdapter.js'
 
 const SUCCESS_PAYMENT_STATUSES = new Set([
   PAYMENT_STATUSES.success,
@@ -207,9 +209,12 @@ function normalizeBookingItems(items = []) {
     return {
       ...item,
       image_url:
-        snapshot.image_url ?? '/assets/template/service/detail/ha-long-gallery-main.png',
+        snapshot.image_url ??
+        item.image_url ??
+        '/assets/template/service/detail/ha-long-gallery-main.png',
       service_title:
         snapshot.title ??
+        item.service_title ??
         item.title_snapshot ??
         item.title ??
         'Dịch vụ đang được cập nhật',
@@ -349,6 +354,26 @@ export default function usePaymentConfirmation() {
   const [submitting, setSubmitting] = useState(false)
   const [uploadingProof] = useState(false)
   const [cancellingPayment, setCancellingPayment] = useState(false)
+  const cancellingPaymentRef = useRef(false)
+  const directPaymentIntentRef = useRef(null)
+  const submittingRef = useRef(false)
+
+  function resetDirectPaymentIntent() {
+    directPaymentIntentRef.current = null
+  }
+
+  function getDirectPaymentIdempotencyKey(bookingId, paymentMethod) {
+    const intentId = `${bookingId}:${paymentMethod}`
+
+    if (!directPaymentIntentRef.current || directPaymentIntentRef.current.intentId !== intentId) {
+      directPaymentIntentRef.current = {
+        intentId,
+        key: createIdempotencyKey(`direct-payment-${bookingId}`),
+      }
+    }
+
+    return directPaymentIntentRef.current.key
+  }
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
@@ -500,6 +525,7 @@ export default function usePaymentConfirmation() {
   }
 
   function selectPaymentMethod(methodCode) {
+    resetDirectPaymentIntent()
     setSelectedPaymentMethod(methodCode)
     setFieldErrors((currentErrors) => {
       const nextErrors = { ...currentErrors }
@@ -513,6 +539,7 @@ export default function usePaymentConfirmation() {
   function updateContactField(event) {
     const { name, value } = event.target
 
+    resetDirectPaymentIntent()
     setContactForm((currentForm) => ({
       ...currentForm,
       [name]: name === 'contact_phone' ? normalizePhoneDisplay(value) : value,
@@ -527,6 +554,7 @@ export default function usePaymentConfirmation() {
   function updateProofField(event) {
     const { name, value } = event.target
 
+    resetDirectPaymentIntent()
     setProofForm((currentForm) => ({
       ...currentForm,
       [name]: value,
@@ -540,6 +568,31 @@ export default function usePaymentConfirmation() {
 
   function updateProofFile(event) {
     const nextFile = event.target.files?.[0] ?? null
+
+    resetDirectPaymentIntent()
+
+    if (!nextFile) {
+      setProofForm((currentForm) => ({
+        ...currentForm,
+        file: null,
+      }))
+      return
+    }
+
+    const validationError = validatePaymentProofFile(nextFile)
+
+    if (validationError) {
+      setProofForm((currentForm) => ({
+        ...currentForm,
+        file: null,
+      }))
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        proof_file: validationError,
+      }))
+      event.target.value = ''
+      return
+    }
 
     setProofForm((currentForm) => ({
       ...currentForm,
@@ -571,6 +624,11 @@ export default function usePaymentConfirmation() {
         bookingItems,
         payment: nextPayment,
         paymentProof: nextProof ?? null,
+        paymentProofForm: {
+          bank_transaction_code: proofForm.bank_transaction_code,
+          file: proofForm.file,
+          transfer_note: proofForm.transfer_note,
+        },
       },
     })
   }
@@ -587,10 +645,11 @@ export default function usePaymentConfirmation() {
   }
 
   async function cancelPendingPaymentAction() {
-    if (!canCancelPendingPayment || !payment?.id) {
+    if (!canCancelPendingPayment || !payment?.id || cancellingPaymentRef.current) {
       return
     }
 
+    cancellingPaymentRef.current = true
     setCancellingPayment(true)
     setFieldErrors({})
 
@@ -614,6 +673,7 @@ export default function usePaymentConfirmation() {
     } catch (cancelError) {
       setFeedback(cancelError?.message ?? 'Không thể hủy yêu cầu thanh toán lúc này.')
     } finally {
+      cancellingPaymentRef.current = false
       setCancellingPayment(false)
     }
   }
@@ -645,6 +705,10 @@ export default function usePaymentConfirmation() {
   }
 
   async function confirmPaymentAction() {
+    if (submittingRef.current) {
+      return
+    }
+
     const nextErrors = validatePaymentConfirmationForm({
       contactForm,
       selectedPaymentMethod,
@@ -673,6 +737,7 @@ export default function usePaymentConfirmation() {
       return
     }
 
+    submittingRef.current = true
     setSubmitting(true)
     setFieldErrors({})
 
@@ -699,6 +764,8 @@ export default function usePaymentConfirmation() {
         payer_name: contactForm.contact_name.trim(),
         payer_phone: contactForm.contact_phone.trim() || undefined,
         payment_method: selectedPaymentMethod,
+      }, {
+        idempotencyKey: getDirectPaymentIdempotencyKey(booking.id, selectedPaymentMethod),
       })
       const nextPayment = paymentResponse.data
 
@@ -718,6 +785,7 @@ export default function usePaymentConfirmation() {
     } catch (confirmError) {
       setFeedback(confirmError?.message ?? 'Không thể tạo yêu cầu thanh toán lúc này.')
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }

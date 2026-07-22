@@ -18,6 +18,7 @@ import {
   rejectAdminRefund,
   updateAdminRefundNote,
 } from '../repositories/adminRefundRepository.js'
+import { requestAdminConfirmation } from '../utils/adminActionConfirmation.js'
 
 function createInitialPagination() {
   return {
@@ -202,6 +203,13 @@ export default function useAdminRefunds() {
       return
     }
 
+    if (
+      action !== 'note' &&
+      !requestAdminConfirmation(`Xác nhận thao tác "${action}" cho yêu cầu ${selectedRequest.refundCode}?`)
+    ) {
+      return
+    }
+
     setActionLoading(true)
     setError('')
 
@@ -224,7 +232,6 @@ export default function useAdminRefunds() {
       } else if (action === 'success') {
         response = await markAdminRefundSuccess(selectedRequest.id, {
           note: detailNote.trim() || undefined,
-          processedAt: new Date().toISOString(),
         })
       } else if (action === 'failed') {
         response = await markAdminRefundFailed(selectedRequest.id, {

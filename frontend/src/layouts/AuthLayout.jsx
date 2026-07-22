@@ -1,4 +1,8 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { subscribeAuthEvents } from '../services/apiClient.js'
+import { getAuthSession } from '../services/authSession.js'
+import { getAuthRedirectPath } from '../utils/loginRedirect.js'
 
 const authMeta = {
   '/register': {
@@ -74,9 +78,33 @@ const styles = {
 
 function AuthLayout() {
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const [authSession, setAuthSession] = useState(() => getAuthSession())
   const isLoginPage = location.pathname === '/login'
+  const isRegisterPage = location.pathname === '/register'
+  const isRegisterShellPage = ['/register', '/verify-email'].includes(location.pathname)
   const isForgotPasswordPage = ['/forgot-password', '/reset-password'].includes(location.pathname)
-  const isRegisterPage = ['/register', '/verify-email'].includes(location.pathname)
+
+  useEffect(() => {
+    const unsubscribe = subscribeAuthEvents(() => {
+      setAuthSession(getAuthSession())
+    })
+
+    return unsubscribe
+  }, [])
+
+  if ((isLoginPage || isRegisterPage) && authSession.isAuthenticated) {
+    return (
+      <Navigate
+        replace
+        to={getAuthRedirectPath({
+          location,
+          searchParams,
+          user: authSession.user,
+        })}
+      />
+    )
+  }
 
   if (isForgotPasswordPage) {
     return (
@@ -88,8 +116,8 @@ function AuthLayout() {
     )
   }
 
-  if (isRegisterPage) {
-    const meta = authMeta[location.pathname] ?? authMeta['/forgot-password']
+  if (isRegisterShellPage) {
+    const meta = authMeta[location.pathname] ?? authMeta['/register']
 
     return (
       <div className="auth-register-shell">

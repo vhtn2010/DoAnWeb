@@ -1,5 +1,4 @@
-import { apiGet, apiPatch, apiPost } from '../../services/apiClient.js'
-import { getAccessToken } from '../../services/apiClient.js'
+import { apiGet, apiGetRaw, apiPatch, apiPost } from '../../services/apiClient.js'
 
 function normalizeParams(params = {}) {
   return Object.entries(params).reduce((result, [key, value]) => {
@@ -12,43 +11,18 @@ function normalizeParams(params = {}) {
   }, {})
 }
 
-function resolveApiBaseUrl() {
-  const configuredBaseUrl = import.meta.env.VITE_API_URL?.trim()
-
-  if (!configuredBaseUrl) {
-    return '/api'
-  }
-
-  return configuredBaseUrl.replace(/\/+$/, '')
-}
-
 async function fetchPdf(pathname) {
-  const response = await fetch(`${resolveApiBaseUrl()}${pathname}`, {
+  const response = await apiGetRaw(pathname, {
     headers: {
       Accept: 'application/pdf',
-      Authorization: `Bearer ${getAccessToken()}`,
     },
+    responseType: 'blob',
   })
 
-  if (!response.ok) {
-    let errorMessage = 'Không thể tải tệp tóm tắt đơn hàng.'
-
-    try {
-      const errorPayload = await response.json()
-      errorMessage = errorPayload?.message ?? errorMessage
-    } catch {
-      // Ignore JSON parsing errors for binary responses.
-    }
-
-    const error = new Error(errorMessage)
-    error.status = response.status
-    throw error
-  }
-
   return {
-    blob: await response.blob(),
+    blob: response.data,
     filename:
-      response.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1] ??
+      response.headers['content-disposition']?.match(/filename="?([^"]+)"?/)?.[1] ??
       'booking-summary.pdf',
   }
 }

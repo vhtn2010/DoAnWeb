@@ -57,7 +57,7 @@ function FlightSearchPanel({
 }) {
   function handleAirportChange(fieldName, nextAirportCode) {
     if (fieldName === 'from_location') {
-      if (nextAirportCode === searchState.to_location) {
+      if (nextAirportCode && nextAirportCode === searchState.to_location) {
         updateSearchField('to_location', searchState.from_location)
       }
 
@@ -65,7 +65,7 @@ function FlightSearchPanel({
       return
     }
 
-    if (nextAirportCode === searchState.from_location) {
+    if (nextAirportCode && nextAirportCode === searchState.from_location) {
       updateSearchField('from_location', searchState.to_location)
     }
 

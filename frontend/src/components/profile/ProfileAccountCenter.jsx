@@ -11,64 +11,9 @@ import {
 import {
   getCurrentProfileLogs,
   requestAccountDeactivation,
-  updateCurrentAvatar,
   updateCurrentPassword,
 } from '../../repositories/profileRepository.js'
-import { uploadAvatarAsset } from '../../adapters/api/uploadApiAdapter.js'
 import './profileAccountCenter.css'
-
-function UploadIcon() {
-  return (
-    <svg fill="none" viewBox="0 0 24 24">
-      <path
-        d="M12 15.5V4.75m0 0-4.25 4.25M12 4.75 16.25 9"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.9"
-      />
-      <path
-        d="M5.25 14.25v2.5A2.75 2.75 0 0 0 8 19.5h8a2.75 2.75 0 0 0 2.75-2.75v-2.5"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.9"
-      />
-    </svg>
-  )
-}
-
-function SwapIcon() {
-  return (
-    <svg fill="none" viewBox="0 0 24 24">
-      <path
-        d="M7.25 7.75h9.5l-2.3-2.3M16.75 16.25h-9.5l2.3 2.3"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.9"
-      />
-      <path
-        d="M16.75 7.75c1.65 0 3 1.35 3 3v.75M7.25 16.25c-1.65 0-3-1.35-3-3v-.75"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.9"
-      />
-    </svg>
-  )
-}
-
-function XIcon() {
-  return (
-    <svg fill="none" viewBox="0 0 24 24">
-      <path
-        d="M7.25 7.25 16.75 16.75M16.75 7.25 7.25 16.75"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.9"
-      />
-    </svg>
-  )
-}
 
 const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
   dateStyle: 'medium',
@@ -328,7 +273,7 @@ function createPasswordState() {
   }
 }
 
-export default function ProfileAccountCenter({ onProfileUpdated } = {}) {
+export default function ProfileAccountCenter() {
   const [passwordForm, setPasswordForm] = useState(createPasswordState)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordFeedback, setPasswordFeedback] = useState({
@@ -349,30 +294,8 @@ export default function ProfileAccountCenter({ onProfileUpdated } = {}) {
     total: 0,
     total_pages: 0,
   })
-  const [avatarFeedback, setAvatarFeedback] = useState({
-    message: '',
-    tone: 'info',
-  })
-  const [avatarFile, setAvatarFile] = useState(null)
-  const [avatarFileName, setAvatarFileName] = useState('')
-  const [avatarLoading, setAvatarLoading] = useState(false)
-  const [avatarPreview, setAvatarPreview] = useState({
-    isObjectUrl: false,
-    url: '',
-  })
   const [reloadToken, setReloadToken] = useState(0)
 
-  useEffect(() => {
-    if (!avatarPreview.isObjectUrl || !avatarPreview.url) {
-      return undefined
-    }
-
-    const previewUrl = avatarPreview.url
-
-    return () => {
-      URL.revokeObjectURL(previewUrl)
-    }
-  }, [avatarPreview])
 
   useEffect(() => {
     let isActive = true
@@ -534,88 +457,6 @@ export default function ProfileAccountCenter({ onProfileUpdated } = {}) {
     }
   }
 
-  function resetAvatarSelection() {
-    setAvatarFile(null)
-    setAvatarFileName('')
-    setAvatarPreview({
-      isObjectUrl: false,
-      url: '',
-    })
-  }
-
-  function handleAvatarChange(event) {
-    const nextFile = event.target.files?.[0]
-
-    if (!nextFile) {
-      return
-    }
-
-    if (!nextFile.type.startsWith('image/')) {
-      setAvatarFeedback({
-        message: 'Vui lòng chọn đúng tệp ảnh để cập nhật avatar.',
-        tone: 'error',
-      })
-      event.target.value = ''
-      return
-    }
-
-    setAvatarFile(nextFile)
-    setAvatarFileName(nextFile.name)
-    setAvatarPreview({
-      isObjectUrl: true,
-      url: URL.createObjectURL(nextFile),
-    })
-    setAvatarFeedback({
-      message: '',
-      tone: 'info',
-    })
-    event.target.value = ''
-  }
-
-  async function handleAvatarConfirm() {
-    if (!avatarFile) {
-      setAvatarFeedback({
-        message: 'Vui lòng chọn ảnh đại diện trước khi xác nhận.',
-        tone: 'error',
-      })
-      return
-    }
-
-    setAvatarLoading(true)
-    setAvatarFeedback({
-      message: 'Đang tải ảnh lên và cập nhật avatar...',
-      tone: 'info',
-    })
-
-    try {
-      const uploadResponse = await uploadAvatarAsset(avatarFile)
-      const avatarUrl = uploadResponse.data?.asset_url ?? uploadResponse.data?.secure_url
-
-      if (!avatarUrl) {
-        throw new Error('Không nhận được URL avatar hợp lệ sau khi tải ảnh lên.')
-      }
-
-      const response = await updateCurrentAvatar({
-        avatar_url: avatarUrl,
-      })
-
-      resetAvatarSelection()
-      setAvatarFeedback({
-        message: 'Ảnh đại diện đã được cập nhật thành công.',
-        tone: 'success',
-      })
-      onProfileUpdated?.(response?.data)
-      setReloadToken((value) => value + 1)
-    } catch (error) {
-      setAvatarFeedback({
-        message: error?.message || 'Không thể cập nhật ảnh đại diện lúc này.',
-        tone: 'error',
-      })
-    } finally {
-      setAvatarLoading(false)
-    }
-  }
-
   return (
     <section className="profile-account-center">
       <PublicSectionHeader
@@ -626,106 +467,6 @@ export default function ProfileAccountCenter({ onProfileUpdated } = {}) {
 
       <div className="profile-account-center__grid">
         <div className="profile-account-center__stack">
-          <PublicCard className="profile-account-center__card" padding="lg">
-            <PublicSectionHeader
-              actions={
-                avatarPreview.url ? null : (
-                  <label className="public-ui-button public-ui-button--ghost public-ui-button--md">
-                    <input
-                      accept="image/*"
-                      disabled={avatarLoading}
-                      hidden
-                      type="file"
-                      onChange={handleAvatarChange}
-                    />
-                    <span className="profile-account-center__avatar-action-icon" aria-hidden="true">
-                      <UploadIcon />
-                    </span>
-                    {avatarLoading ? 'Đang tải avatar...' : 'Đổi ảnh đại diện'}
-                  </label>
-                )
-              }
-              subtitle="Chọn ảnh mới, kiểm tra bản xem trước rồi bấm xác nhận để cập nhật vào hồ sơ."
-              title="Ảnh đại diện"
-            />
-
-            {avatarPreview.url ? (
-              <div className="profile-account-center__avatar-upload-shell">
-                <div className="profile-account-center__avatar-upload profile-account-center__avatar-upload--ready">
-                  <span className="profile-account-center__avatar-upload-media">
-                    <img alt="Ảnh đại diện đã chọn" src={avatarPreview.url} />
-                  </span>
-                </div>
-
-                <div className="profile-account-center__avatar-upload-status" role="status">
-                  <span>
-                    <strong>{avatarLoading ? 'Đang cập nhật ảnh đại diện' : 'Ảnh đã được chọn'}</strong>
-                    {avatarFileName ? <small>{avatarFileName}</small> : null}
-                  </span>
-
-                  <div className="profile-account-center__avatar-icon-actions" aria-label="Tùy chọn ảnh đại diện">
-                    <label
-                      aria-label="Chọn ảnh khác"
-                      className="profile-account-center__avatar-icon-button"
-                      title="Chọn ảnh khác"
-                    >
-                      <input
-                        accept="image/*"
-                        disabled={avatarLoading}
-                        hidden
-                        type="file"
-                        onChange={handleAvatarChange}
-                      />
-                      <SwapIcon />
-                    </label>
-                    <button
-                      aria-label="Hủy ảnh đã chọn"
-                      className="profile-account-center__avatar-icon-button"
-                      disabled={avatarLoading}
-                      title="Hủy"
-                      type="button"
-                      onClick={() => {
-                        resetAvatarSelection()
-                        setAvatarFeedback({
-                          message: '',
-                          tone: 'info',
-                        })
-                      }}
-                    >
-                      <XIcon />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="profile-account-center__avatar-confirm">
-                  <PublicButton
-                    disabled={!avatarFile}
-                    loading={avatarLoading}
-                    type="button"
-                    variant="primary"
-                    onClick={handleAvatarConfirm}
-                  >
-                    Xác nhận cập nhật avatar
-                  </PublicButton>
-                </div>
-              </div>
-            ) : null}
-
-            {avatarFeedback.message ? (
-              <PublicNotice
-                className="profile-account-center__feedback"
-                role="status"
-                tone={avatarFeedback.tone === 'error' ? 'info' : avatarFeedback.tone}
-              >
-                {avatarFeedback.message}
-              </PublicNotice>
-            ) : null}
-
-            <PublicNotice tone="info">
-              Ảnh chỉ được cập nhật vào tài khoản sau khi bạn bấm xác nhận.
-            </PublicNotice>
-          </PublicCard>
-
           <PublicCard className="profile-account-center__card" padding="lg">
             <PublicSectionHeader
               subtitle="Xác nhận lại bằng mật khẩu hiện tại trước khi lưu mật khẩu đăng nhập mới."
@@ -888,3 +629,4 @@ export default function ProfileAccountCenter({ onProfileUpdated } = {}) {
     </section>
   )
 }
+

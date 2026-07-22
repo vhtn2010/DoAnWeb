@@ -909,7 +909,8 @@ const findMatchingDepartureSchedule = (departureSchedule, startAt) => {
   );
 };
 
-const isFutureDate = (date) => date.getTime() > Date.now();
+const isFutureDate = (date, currentTime = new Date()) =>
+  date.getTime() > new Date(currentTime).getTime();
 
 const normalizeOptionsForEquality = (options) => stableStringify(options || null);
 
@@ -967,6 +968,7 @@ const resolveAvailability = async (
     referenceId,
     serviceType,
     startAt,
+    currentTime = new Date(),
   },
 ) => {
   if (serviceType === SERVICE_TYPE.TOUR) {
@@ -989,7 +991,10 @@ const resolveAvailability = async (
 
       if (
         !matchedSchedule ||
-        !isFutureDate(new Date(`${startAt.toISOString().slice(0, 10)}T00:00:00.000Z`))
+        !isFutureDate(
+          new Date(`${startAt.toISOString().slice(0, 10)}T00:00:00.000Z`),
+          currentTime,
+        )
       ) {
         throw createCartItemNotAvailableError('Tour departure is not available');
       }
@@ -1019,7 +1024,7 @@ const resolveAvailability = async (
         return false;
       }
 
-      return isFutureDate(new Date(`${normalizedDate}T00:00:00.000Z`));
+      return isFutureDate(new Date(`${normalizedDate}T00:00:00.000Z`), currentTime);
     });
 
     if (futureSchedules.length === 0) {
@@ -1108,7 +1113,10 @@ const resolveAvailability = async (
       throw createCartItemNotAvailableError('Flight detail is not available for this service');
     }
 
-    if (detail.status !== 'open' || !isFutureDate(new Date(detail.departure_at))) {
+    if (
+      detail.status !== 'open' ||
+      !isFutureDate(new Date(detail.departure_at), currentTime)
+    ) {
       throw createCartItemNotAvailableError('Flight is not available');
     }
 
@@ -1141,7 +1149,10 @@ const resolveAvailability = async (
       throw createCartItemNotAvailableError('Train detail is not available for this service');
     }
 
-    if (detail.status !== 'open' || !isFutureDate(new Date(detail.departure_at))) {
+    if (
+      detail.status !== 'open' ||
+      !isFutureDate(new Date(detail.departure_at), currentTime)
+    ) {
       throw createCartItemNotAvailableError('Train is not available');
     }
 
@@ -1979,6 +1990,7 @@ const createCartService = ({
                 referenceId: itemRecord.reference_id,
                 serviceType: itemRecord.service_type,
                 startAt: itemRecord.start_at ? new Date(itemRecord.start_at) : null,
+                currentTime: now(),
               },
             );
 
@@ -2202,6 +2214,7 @@ const createCartService = ({
             referenceId: input.referenceId,
             serviceType: input.serviceType,
             startAt: input.startAt,
+            currentTime: now(),
           },
         );
 
@@ -2276,6 +2289,7 @@ const createCartService = ({
         referenceId: input.referenceId,
         serviceType: input.serviceType,
         startAt: input.startAt,
+        currentTime: now(),
       });
 
       let targetItemId;
@@ -2371,6 +2385,7 @@ const createCartService = ({
         referenceId: currentItem.reference_id,
         serviceType: currentItem.service_type,
         startAt: nextStartAt ? new Date(nextStartAt) : null,
+        currentTime: now(),
       });
       const shouldRefreshPriceSnapshot =
         input.hasStartAt || input.hasEndAt || input.hasOptions;

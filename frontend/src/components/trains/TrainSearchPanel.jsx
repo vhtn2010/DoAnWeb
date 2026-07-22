@@ -61,7 +61,7 @@ function TrainSearchPanel({
 }) {
   function handleStationChange(fieldName, nextStationCode) {
     if (fieldName === 'from_station') {
-      if (nextStationCode === searchState.to_station) {
+      if (nextStationCode && nextStationCode === searchState.to_station) {
         updateSearchField('to_station', searchState.from_station)
       }
 
@@ -69,7 +69,7 @@ function TrainSearchPanel({
       return
     }
 
-    if (nextStationCode === searchState.from_station) {
+    if (nextStationCode && nextStationCode === searchState.from_station) {
       updateSearchField('from_station', searchState.to_station)
     }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 function buildHomeServiceDetailPath(service = {}) {
@@ -78,20 +78,25 @@ export default function HomeFlashSaleSection({
   formatCurrency,
 }) {
   const sectionRef = useRef(null)
-  const initialMinutes =
-    Number(flashSaleMeta.timer.days) * 24 * 60 +
-    Number(flashSaleMeta.timer.hours) * 60 +
-    Number(flashSaleMeta.timer.minutes)
-  const [remainingMinutes, setRemainingMinutes] = useState(initialMinutes)
+  const days = Number(flashSaleMeta?.timer?.days ?? 0) || 0
+  const hours = Number(flashSaleMeta?.timer?.hours ?? 0) || 0
+  const minutes = Number(flashSaleMeta?.timer?.minutes ?? 0) || 0
+  const fallbackSeconds = Number(flashSaleMeta?.timer?.seconds ?? 0) || 0
+  const initialSeconds =
+    (days * 24 * 60 * 60) +
+    (hours * 60 * 60) +
+    (minutes * 60) +
+    fallbackSeconds
+  const [remainingSeconds, setRemainingSeconds] = useState(initialSeconds)
 
   useEffect(() => {
-    setRemainingMinutes(initialMinutes)
-  }, [initialMinutes])
+    setRemainingSeconds(initialSeconds)
+  }, [initialSeconds])
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
-      setRemainingMinutes((minutes) => Math.max(0, minutes - 1))
-    }, 60000)
+      setRemainingSeconds((seconds) => Math.max(0, seconds - 1))
+    }, 1000)
     return () => window.clearInterval(timerId)
   }, [])
 
@@ -111,9 +116,9 @@ export default function HomeFlashSaleSection({
   }, [])
 
   const timer = {
-    days: String(Math.floor(remainingMinutes / 1440)).padStart(2, '0'),
-    hours: String(Math.floor((remainingMinutes % 1440) / 60)).padStart(2, '0'),
-    minutes: String(remainingMinutes % 60).padStart(2, '0'),
+    hours: String(Math.floor(remainingSeconds / 3600)).padStart(2, '0'),
+    minutes: String(Math.floor((remainingSeconds % 3600) / 60)).padStart(2, '0'),
+    seconds: String(remainingSeconds % 60).padStart(2, '0'),
   }
 
   return (
@@ -134,16 +139,16 @@ export default function HomeFlashSaleSection({
 
         <div className="home-flash-sale__timer">
           <div className="home-flash-sale__timer-unit">
-            <span className="home-flash-sale__timer-value" key={`days-${timer.days}`}>{timer.days}</span>
-            <span className="home-flash-sale__timer-label">{flashSaleMeta.day_label}</span>
+            <span className="home-flash-sale__timer-value">{timer.hours}</span>
+            <span className="home-flash-sale__timer-label">GIỜ</span>
           </div>
           <div className="home-flash-sale__timer-unit">
-            <span className="home-flash-sale__timer-value" key={`hours-${timer.hours}`}>{timer.hours}</span>
-            <span className="home-flash-sale__timer-label">{flashSaleMeta.hour_label}</span>
+            <span className="home-flash-sale__timer-value">{timer.minutes}</span>
+            <span className="home-flash-sale__timer-label">PHÚT</span>
           </div>
           <div className="home-flash-sale__timer-unit">
-            <span className="home-flash-sale__timer-value" key={`minutes-${timer.minutes}`}>{timer.minutes}</span>
-            <span className="home-flash-sale__timer-label">{flashSaleMeta.minute_label}</span>
+            <span className="home-flash-sale__timer-value">{timer.seconds}</span>
+            <span className="home-flash-sale__timer-label">GIÂY</span>
           </div>
         </div>
       </div>
@@ -161,3 +166,8 @@ export default function HomeFlashSaleSection({
     </section>
   )
 }
+
+
+
+
+

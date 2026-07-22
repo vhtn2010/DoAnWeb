@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import {
   DEFAULT_HOTEL_PAGE_SIZE,
-  DEFAULT_HOTEL_SEARCH_VALUES,
   DEFAULT_HOTEL_SORT,
   HOTEL_SORT_OPTIONS,
 } from '../constants/hotels.js'
@@ -35,11 +34,15 @@ function parseArraySearchParam(searchParams, key) {
     .filter(Boolean)
 }
 
+function pickSingleFilterValue(value = []) {
+  return Array.isArray(value) && value.length ? [value[0]] : []
+}
+
 function createInitialSearchState(searchParams) {
   return {
-    location: searchParams.get('location') ?? DEFAULT_HOTEL_SEARCH_VALUES.location,
-    checkin: searchParams.get('checkin') ?? DEFAULT_HOTEL_SEARCH_VALUES.checkin,
-    checkout: searchParams.get('checkout') ?? DEFAULT_HOTEL_SEARCH_VALUES.checkout,
+    location: searchParams.get('location') ?? '',
+    checkin: searchParams.get('checkin') ?? '',
+    checkout: searchParams.get('checkout') ?? '',
   }
 }
 
@@ -66,9 +69,8 @@ function createInitialAppliedSearchState(searchParams) {
 function createInitialFilterState(searchParams) {
   return {
     sidebarLocation: searchParams.get('destination') ?? '',
-    priceRanges: parseArraySearchParam(searchParams, 'prices'),
-    durations: parseArraySearchParam(searchParams, 'durations'),
-    starRatings: parseArraySearchParam(searchParams, 'stars'),
+    priceRanges: pickSingleFilterValue(parseArraySearchParam(searchParams, 'prices')),
+    starRatings: pickSingleFilterValue(parseArraySearchParam(searchParams, 'stars')),
   }
 }
 
@@ -79,7 +81,6 @@ function buildHotelSearchParams({
   checkout = '',
   sidebarLocation = '',
   prices = [],
-  durations = [],
   stars = [],
   sort = DEFAULT_HOTEL_SORT,
   page = 1,
@@ -104,10 +105,6 @@ function buildHotelSearchParams({
 
   if (prices.length) {
     nextSearchParams.set('prices', prices.join(','))
-  }
-
-  if (durations.length) {
-    nextSearchParams.set('durations', durations.join(','))
   }
 
   if (stars.length) {
@@ -170,7 +167,6 @@ export default function useHotelList() {
           checkout: appliedSearch.checkout,
           destination: appliedFilters.sidebarLocation,
           priceRanges: appliedFilters.priceRanges,
-          durations: appliedFilters.durations,
           starRatings: appliedFilters.starRatings,
           sort: selectedSort,
           page: currentPage,
@@ -229,7 +225,6 @@ export default function useHotelList() {
         checkout: nextSearch.checkout,
         sidebarLocation: nextFilters.sidebarLocation,
         prices: nextFilters.priceRanges,
-        durations: nextFilters.durations,
         stars: nextFilters.starRatings,
         sort: nextSort,
         page: nextPage,
@@ -263,18 +258,18 @@ export default function useHotelList() {
   function handleToggleFilter(filterKey, value) {
     setFilterDraft((currentDraft) => ({
       ...currentDraft,
-      [filterKey]: currentDraft[filterKey].includes(value)
-        ? currentDraft[filterKey].filter((currentValue) => currentValue !== value)
-        : [...currentDraft[filterKey], value],
+      [filterKey]:
+        currentDraft[filterKey].length === 1 && currentDraft[filterKey][0] === value
+          ? []
+          : [value],
     }))
   }
 
   function handleApplyFilters() {
     const nextFilters = {
       ...filterDraft,
-      priceRanges: [...filterDraft.priceRanges],
-      durations: [...filterDraft.durations],
-      starRatings: [...filterDraft.starRatings],
+      priceRanges: pickSingleFilterValue(filterDraft.priceRanges),
+      starRatings: pickSingleFilterValue(filterDraft.starRatings),
     }
 
     setAppliedFilters(nextFilters)

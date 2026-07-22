@@ -24,6 +24,13 @@ const BASE_CARD_SELECT = `
     s.sale_price,
     COALESCE(s.sale_price, s.base_price) AS public_price,
     s.currency,
+    td.departure_location,
+    td.destination_location,
+    td.duration_days,
+    td.duration_nights,
+    td.max_group_size,
+    td.departure_schedule,
+    td.transport_type,
     image.image_url AS primary_image,
     s.created_at,
     CASE
@@ -38,6 +45,7 @@ const BASE_CARD_SELECT = `
     ORDER BY si.is_primary DESC, si.sort_order ASC, si.created_at ASC, si.id ASC
     LIMIT 1
   ) image ON TRUE
+  LEFT JOIN tour_details td ON td.service_id = s.id
 `;
 
 const BASE_PUBLIC_WHERE = `
@@ -59,6 +67,21 @@ const buildNormalizedTextSql = (column) => `
     REGEXP_REPLACE(BTRIM(COALESCE(${column}, '')), '\\s+', ' ', 'g')
   )
 `;
+
+const buildCompactTextSql = (column) => `
+  LOWER(
+    REGEXP_REPLACE(COALESCE(${column}, ''), '[^[:alnum:]]+', '', 'g')
+  )
+`;
+
+const compactSearchKeyword = (value = '') =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9]+/g, '')
+    .toLowerCase();
 
 const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
   const listActiveServiceSummaries = async ({ serviceType } = {}) => {
@@ -657,6 +680,13 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     if (keyword) {
       params.push(`%${keyword}%`);
       const keywordParam = `$${params.length}`;
+      const compactKeyword = compactSearchKeyword(keyword);
+
+      if (compactKeyword) {
+        params.push(`%${compactKeyword}%`);
+      }
+
+      const compactKeywordParam = compactKeyword ? `$${params.length}` : null;
       filteredSql += `
         AND (
           s.title ILIKE ${keywordParam}
@@ -664,6 +694,19 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
           OR COALESCE(s.description, '') ILIKE ${keywordParam}
           OR COALESCE(s.provider_name, '') ILIKE ${keywordParam}
           OR COALESCE(s.location_text, '') ILIKE ${keywordParam}
+          OR COALESCE(td.departure_location, '') ILIKE ${keywordParam}
+          OR COALESCE(td.destination_location, '') ILIKE ${keywordParam}
+          ${
+            compactKeywordParam
+              ? `OR ${buildCompactTextSql('s.title')} LIKE ${compactKeywordParam}
+          OR ${buildCompactTextSql("COALESCE(s.short_description, '')")} LIKE ${compactKeywordParam}
+          OR ${buildCompactTextSql("COALESCE(s.description, '')")} LIKE ${compactKeywordParam}
+          OR ${buildCompactTextSql("COALESCE(s.provider_name, '')")} LIKE ${compactKeywordParam}
+          OR ${buildCompactTextSql("COALESCE(s.location_text, '')")} LIKE ${compactKeywordParam}
+          OR ${buildCompactTextSql("COALESCE(td.departure_location, '')")} LIKE ${compactKeywordParam}
+          OR ${buildCompactTextSql("COALESCE(td.destination_location, '')")} LIKE ${compactKeywordParam}`
+              : ''
+          }
         )
       `;
     }
@@ -672,7 +715,19 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
       params.push(location.toLocaleLowerCase('vi-VN'));
       filteredSql += `
         AND LOWER(
-          REGEXP_REPLACE(BTRIM(COALESCE(s.location_text, '')), '\\s+', ' ', 'g')
+          REGEXP_REPLACE(
+            BTRIM(
+              COALESCE(
+                td.destination_location,
+                td.departure_location,
+                s.location_text,
+                ''
+              )
+            ),
+            '\\s+',
+            ' ',
+            'g'
+          )
         ) = $${params.length}
       `;
     }

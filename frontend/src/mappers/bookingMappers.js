@@ -5,6 +5,7 @@ import {
 import { ROLES } from '../constants/roles.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import { calculateItemPricing } from '../utils/pricing.js'
 import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
 
 function normalizeText(value = '') {
@@ -100,8 +101,10 @@ export function mapCartItemToBookingItem(cartItem, bookingId, index = 0) {
     end_at: cartItem.end_at ?? '',
     quantity: resolveNumber(cartItem.quantity, 1),
     unit_price_snapshot: resolveNumber(cartItem.unit_price_snapshot),
-    total_amount:
+    total_amount: resolveNumber(
+      calculateItemPricing(cartItem).subtotal_amount,
       resolveNumber(cartItem.unit_price_snapshot) * resolveNumber(cartItem.quantity, 1),
+    ),
     options: {
       duration_label: getDurationLabel(cartItem.start_at, cartItem.end_at),
       schedule_label: formatBookingDateRange(cartItem.start_at, cartItem.end_at),

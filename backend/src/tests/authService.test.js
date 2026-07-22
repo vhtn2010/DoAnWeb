@@ -214,7 +214,12 @@ test('register creates a pending customer account and writes email and user logs
 
   assert.equal(capturedEmailPayload.to.email, 'customer@example.com');
   assert.equal(capturedEmailPayload.to.name, 'Nguyen Van A');
+  assert.equal(capturedEmailPayload.subject, 'Xác thực tài khoản Nét Việt');
   assert.match(capturedEmailPayload.text, /verify-email\?token=verify-token/);
+  assert.match(capturedEmailPayload.html, /Xác thực tài khoản/);
+  assert.match(capturedEmailPayload.html, /Cảm ơn bạn đã đăng ký tài khoản trên website Nét Việt/);
+  assert.match(capturedEmailPayload.html, /Xác thực tại đây/);
+  assert.match(capturedEmailPayload.html, /Không chia sẻ liên kết xác thực với bất kỳ ai/);
   assert.doesNotMatch(capturedEmailPayload.html, /Thong tin ky thuat|POST \/auth|API:/);
   assert.doesNotMatch(capturedEmailPayload.text, /POST \/auth|API:/);
   assert.equal(Object.hasOwn(result, 'password_hash'), false);
@@ -657,7 +662,11 @@ test('resendVerification sends a fresh verification email for pending accounts',
   assert.equal(resendMetadata.status, USER_STATUS.PENDING_VERIFICATION);
   assert.equal(resendMetadata.verification_token_hash, tokenHash);
   assert.equal(capturedEmailPayload.to.email, 'customer@example.com');
+  assert.equal(capturedEmailPayload.subject, 'Xác thực tài khoản Nét Việt');
   assert.match(capturedEmailPayload.text, /verify-email\?token=resend-token/);
+  assert.match(capturedEmailPayload.html, /Xác thực tài khoản/);
+  assert.match(capturedEmailPayload.html, /Xác thực tại đây/);
+  assert.match(capturedEmailPayload.html, /Liên kết xác thực chỉ có hiệu lực trong vòng \d+ phút/);
   assert.doesNotMatch(capturedEmailPayload.html, /Thong tin ky thuat|POST \/auth|API:/);
   assert.doesNotMatch(capturedEmailPayload.text, /POST \/auth|API:/);
 });

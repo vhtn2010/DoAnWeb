@@ -23,7 +23,11 @@ import {
   getPaymentSuccessByCode as getPaymentSuccessByCodeWithMockAdapter,
 } from '../adapters/mock/paymentMockAdapter.js'
 import { ROLES } from '../constants/roles.js'
-import { getAuthSession } from '../services/authSession.js'
+import {
+  createCustomerAuthRequiredResponse,
+  isCustomerApiRequested,
+  shouldUseCustomerApi,
+} from '../utils/customerApiSession.js'
 
 const paymentAdapter = {
   applyPaymentVoucher: applyPaymentVoucherWithMockAdapter,
@@ -35,13 +39,6 @@ const paymentAdapter = {
   getPaymentConfirmation: getPaymentConfirmationWithMockAdapter,
   getPaymentSuccess: getPaymentSuccessWithMockAdapter,
   getPaymentSuccessByCode: getPaymentSuccessByCodeWithMockAdapter,
-}
-
-function shouldUseApi(authState = ROLES.guest) {
-  const session = getAuthSession()
-  const role = session.user?.role ?? session.user?.role_code ?? ''
-
-  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
 }
 
 async function findBookingByCodeFromSession(bookingCode) {
@@ -91,11 +88,15 @@ async function findPaymentByCode(paymentCode) {
 }
 
 export function getPaymentConfirmation(params) {
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
+  }
+
   return paymentAdapter.getPaymentConfirmation(params)
 }
 
 export async function getPaymentByCode(paymentCode, params) {
-  if (shouldUseApi(params?.authState)) {
+  if (shouldUseCustomerApi(params?.authState)) {
     const result = await findPaymentByCode(paymentCode)
 
     if (!result) {
@@ -128,11 +129,15 @@ export async function getPaymentByCode(paymentCode, params) {
     }
   }
 
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
+  }
+
   return paymentAdapter.getPaymentByCode(paymentCode, params)
 }
 
 export async function getPaymentByBookingCode(bookingCode, params) {
-  if (shouldUseApi(params?.authState)) {
+  if (shouldUseCustomerApi(params?.authState)) {
     const bookingPayload = await findBookingByCodeFromSession(bookingCode)
     const booking = bookingPayload?.booking ?? null
 
@@ -170,6 +175,10 @@ export async function getPaymentByBookingCode(bookingCode, params) {
     }
   }
 
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
+  }
+
   return paymentAdapter.getPaymentByBookingCode(bookingCode, params)
 }
 
@@ -186,7 +195,7 @@ export function buildPaymentResultPayload(payment) {
 }
 
 export function getPaymentSuccess(params) {
-  if (shouldUseApi(params?.authState)) {
+  if (shouldUseCustomerApi(params?.authState)) {
     if (params?.payment?.payment_code) {
       return getPaymentByCode(params.payment.payment_code, params)
     }
@@ -196,12 +205,20 @@ export function getPaymentSuccess(params) {
     }
   }
 
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
+  }
+
   return paymentAdapter.getPaymentSuccess(params)
 }
 
 export async function getPaymentSuccessByCode(paymentCode, params) {
-  if (shouldUseApi(params?.authState)) {
+  if (shouldUseCustomerApi(params?.authState)) {
     return getPaymentByCode(paymentCode, params)
+  }
+
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return paymentAdapter.getPaymentSuccessByCode(paymentCode, params)

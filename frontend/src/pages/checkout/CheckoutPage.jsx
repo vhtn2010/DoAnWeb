@@ -4,7 +4,6 @@ import CheckoutSpecialRequestCard from '../../components/checkout/CheckoutSpecia
 import CheckoutStepper from '../../components/checkout/CheckoutStepper.jsx'
 import CheckoutSummaryCard from '../../components/checkout/CheckoutSummaryCard.jsx'
 import CheckoutTrustRow from '../../components/checkout/CheckoutTrustRow.jsx'
-import CheckoutVoucherCard from '../../components/checkout/CheckoutVoucherCard.jsx'
 import useCheckout from '../../hooks/useCheckout.js'
 
 function CheckoutPage() {
@@ -13,17 +12,15 @@ function CheckoutPage() {
     error,
     formattedSummary,
     formErrors,
-    handleApplyVoucher,
     handleBaggageToggle,
     handleCheckboxChange,
     handleFieldChange,
     handleNoteChange,
     handleSubmitCheckout,
-    handleVoucherChange,
     loading,
+    submitting,
     submitFeedback,
     summaryService,
-    voucherFeedback,
   } = useCheckout()
 
   return (
@@ -60,16 +57,10 @@ function CheckoutPage() {
                 buttonLabel="Tiếp tục thanh toán"
                 feedbackMessage={submitFeedback}
                 formErrors={formErrors}
+                isSubmitting={submitting}
                 onContinue={handleSubmitCheckout}
                 summary={formattedSummary}
                 summaryService={summaryService}
-              />
-
-              <CheckoutVoucherCard
-                feedbackMessage={voucherFeedback}
-                onApplyVoucher={handleApplyVoucher}
-                onChange={handleVoucherChange}
-                value={checkoutDraft.voucher_code}
               />
             </aside>
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ProfileGuestGate from '../../components/profile/ProfileGuestGate.jsx'
 import { applyVoucher } from '../../repositories/checkoutRepository.js'
@@ -9,9 +9,9 @@ import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 
 const VOUCHER_FILTERS = Object.freeze([
   { id: 'all', label: 'Tất cả' },
-  { id: 'active', label: 'Sẵn sàng dùng' },
-  { id: 'used', label: 'Đã dùng' },
-  { id: 'expired', label: 'Hết hạn' },
+  { id: 'active', label: 'Sẵn sàng sử dụng' },
+  { id: 'used', label: 'Đã sử dụng' },
+  { id: 'expired', label: 'Hết hiệu lực' },
 ])
 
 const USAGE_STEPS = Object.freeze([
@@ -35,11 +35,7 @@ const USAGE_STEPS = Object.freeze([
   },
 ])
 
-const SUPPORT_NOTES = Object.freeze([
-  'Màn này không hiển thị toàn bộ voucher đang tồn tại trong hệ thống, vì có nhiều mã chỉ dùng khi bạn tự biết hoặc tự săn được.',
-  'Danh sách bên trái ưu tiên những mã đã từng gắn với lịch sử đặt dịch vụ của bạn, nhất là các mã còn có thể dùng lại.',
-  'Nếu có mã riêng từ chiến dịch, email hoặc banner, hãy nhập trực tiếp ở khối bên phải để kiểm tra theo giỏ hàng hiện tại.',
-])
+const VOUCHERS_PAGE_SIZE = 3
 
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   day: '2-digit',
@@ -263,6 +259,57 @@ function VoucherTicketIcon() {
   )
 }
 
+function PlusIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
+      <path
+        d="M10 4.2v11.6M4.2 10h11.6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2.4"
+      />
+    </svg>
+  )
+}
+
+function PageArrowIcon({ direction }) {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 16 16">
+      <path
+        d={direction === 'left' ? 'm9.5 4-4 4 4 4' : 'm6.5 4 4 4-4 4'}
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  )
+}
+
+function getVoucherActionLabel(voucher) {
+  if (voucher.status === 'active') {
+    return 'Dùng sau'
+  }
+
+  if (voucher.status === 'used') {
+    return 'Đã sử dụng'
+  }
+
+  return 'Hết hiệu lực'
+}
+
+function getVoucherCardTone(voucher) {
+  if (voucher.status === 'active') {
+    return 'active'
+  }
+
+  if (voucher.status === 'used') {
+    return 'used'
+  }
+
+  return 'expired'
+}
+
 function MyVouchersPage() {
   const navigate = useNavigate()
   const { authState, isCustomer, isCustomerPreview } = usePublicSession()
@@ -277,10 +324,8 @@ function MyVouchersPage() {
   const [voucherCheckResult, setVoucherCheckResult] = useState(null)
   const {
     filteredItems: filteredVouchers,
-    query,
     resetFilters,
     selectedFilter,
-    setQuery,
     setSelectedFilter,
   } = usePublicCollectionPage({
     filterItem: matchesVoucherFilter,
@@ -339,22 +384,24 @@ function MyVouchersPage() {
     }
   }, [isCustomerPreview, reloadToken])
 
-  const activeVouchers = vouchers.filter((voucher) => voucher.status === 'active')
-  const usedVouchers = vouchers.filter((voucher) => voucher.status === 'used')
+  const [currentPage, setCurrentPage] = useState(1)
   const hasAnyVouchers = vouchers.length > 0
-  const distinctServiceGroups = new Set(
-    activeVouchers.map((voucher) => voucher.service_tags[0]).filter(Boolean),
-  )
-  const nextExpiringVoucher =
-    [...activeVouchers].sort((leftVoucher, rightVoucher) =>
-      String(leftVoucher.expires_at || '').localeCompare(
-        String(rightVoucher.expires_at || ''),
-      ),
-    )[0] || null
+  const totalPages = Math.max(1, Math.ceil(filteredVouchers.length / VOUCHERS_PAGE_SIZE))
+  const visibleVouchers = useMemo(() => {
+    const startIndex = (currentPage - 1) * VOUCHERS_PAGE_SIZE
 
-  const profilePath = buildPublicAuthPath('/profile', isCustomer)
-  const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
+    return filteredVouchers.slice(startIndex, startIndex + VOUCHERS_PAGE_SIZE)
+  }, [currentPage, filteredVouchers])
+  const resultsStart = filteredVouchers.length
+    ? (currentPage - 1) * VOUCHERS_PAGE_SIZE + 1
+    : 0
+  const resultsEnd = Math.min(currentPage * VOUCHERS_PAGE_SIZE, filteredVouchers.length)
   const cartPath = buildPublicAuthPath('/cart', isCustomer)
+  const serviceListPath = buildPublicAuthPath('/services', isCustomer)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filteredVouchers.length, selectedFilter])
 
   async function handleCopyVoucher(code, voucherId) {
     if (!navigator?.clipboard?.writeText) {
@@ -433,122 +480,33 @@ function MyVouchersPage() {
   }
 
   return (
-    <div className="my-vouchers-page">
-      <section className="my-vouchers-hero">
-        <div className="my-vouchers-hero__copy">
-          <p className="my-vouchers-hero__eyebrow">Tài khoản cá nhân</p>
-          <h1>Mã ưu đãi của tôi</h1>
-          <p>
-            Xem lại các mã đã từng dùng trên tài khoản của bạn, nhận biết mã
-            nào còn có thể dùng lại và chủ động nhập những mã bạn tự biết hoặc
-            tự săn được để thử ngay trên giỏ hàng hiện tại.
-          </p>
-
-          <div className="my-vouchers-hero__actions">
-            <Link className="my-vouchers-hero__button" to={profilePath}>
-              Quay về tài khoản
-            </Link>
-            <Link
-              className="my-vouchers-hero__button my-vouchers-hero__button--secondary"
-              to={customerCarePath}
-            >
-              Hỏi điều kiện áp dụng
-            </Link>
-          </div>
-        </div>
-
-        <div className="my-vouchers-hero__spotlight">
-          <span className="my-vouchers-hero__badge">Mã còn có thể dùng lại</span>
-          <strong>{nextExpiringVoucher?.code || 'Chưa có mã nổi bật'}</strong>
-          <p>
-            {nextExpiringVoucher?.title ||
-              'Khi bạn đã từng dùng một mã và nó còn hiệu lực, hệ thống sẽ gợi ý lại tại đây để bạn tái sử dụng nhanh hơn.'}
-          </p>
-          <small>
-            {nextExpiringVoucher?.validity_label ||
-              'Nếu bạn có mã mới từ chiến dịch riêng, hãy nhập trực tiếp ở khối kiểm tra bên phải.'}
-          </small>
-        </div>
-      </section>
-
-      <section className="my-vouchers-stats" aria-label="Tổng quan ưu đãi">
-        <article className="my-vouchers-stat-card">
-          <span>Còn có thể dùng lại</span>
-          <strong>{activeVouchers.length}</strong>
-          <p>
-            Những mã trong lịch sử của bạn hiện vẫn còn hiệu lực và có thể thử
-            lại với giỏ hàng mới.
-          </p>
-        </article>
-
-        <article className="my-vouchers-stat-card">
-          <span>Nhóm đã từng áp dụng</span>
-          <strong>{distinctServiceGroups.size}</strong>
-          <p>
-            Các nhóm dịch vụ mà bạn đã từng dùng voucher, giúp tra lại thói
-            quen áp dụng ưu đãi trước đây.
-          </p>
-        </article>
-
-        <article className="my-vouchers-stat-card">
-          <span>Mã trong lịch sử</span>
-          <strong>{usedVouchers.length}</strong>
-          <p>
-            Những mã đã xuất hiện trong lịch sử đặt dịch vụ của bạn và được giữ
-            lại để dễ tra cứu lại.
-          </p>
-        </article>
-      </section>
-
-      {error ? (
-        <div className="my-vouchers-empty" role="alert">
-          <strong>Không thể tải voucher lúc này</strong>
-          <p>{error}</p>
-          <button
-            className="my-vouchers-empty__button"
-            type="button"
-            onClick={() => setReloadToken((currentValue) => currentValue + 1)}
-          >
-            Tải lại
-          </button>
-        </div>
-      ) : null}
-
-      <div className="my-vouchers-layout">
-        <section className="my-vouchers-main">
-          <header className="my-vouchers-toolbar">
-            <div>
-              <p className="my-vouchers-toolbar__eyebrow">Lịch sử cá nhân</p>
-              <h2>Mã bạn đã từng dùng</h2>
+    <div className="my-vouchers-page voucher-wallet-page">
+      <div className="voucher-wallet-layout">
+        <main className="voucher-wallet-main" aria-labelledby="voucher-wallet-title">
+          <section className="voucher-wallet-banner">
+            <div className="voucher-wallet-banner__copy">
+              <p className="voucher-wallet-eyebrow">Tài khoản cá nhân</p>
+              <h1 id="voucher-wallet-title">Mã ưu đãi của tôi</h1>
+              <p>Quản lý và sử dụng các voucher đã lưu trong tài khoản.</p>
             </div>
 
-            <label className="my-vouchers-search">
-              <span className="my-vouchers-search__label">
-                Tìm trong lịch sử mã của bạn
-              </span>
-              <input
-                className="my-vouchers-search__input"
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Ví dụ: NETVIET500, vé máy bay, khách sạn..."
-              />
-            </label>
-          </header>
+            <Link className="voucher-wallet-find-button" to={serviceListPath}>
+              <PlusIcon />
+              <span>Tìm thêm voucher</span>
+            </Link>
+          </section>
 
-          <div
-            className="my-vouchers-filter-list"
-            role="tablist"
-            aria-label="Lọc voucher"
-          >
+          <div className="voucher-wallet-tabs" role="tablist" aria-label="Lọc voucher">
             {VOUCHER_FILTERS.map((filter) => (
               <button
-                key={filter.id}
+                aria-selected={selectedFilter === filter.id}
                 className={
                   selectedFilter === filter.id
-                    ? 'my-vouchers-filter my-vouchers-filter--active'
-                    : 'my-vouchers-filter'
+                    ? 'voucher-wallet-tab voucher-wallet-tab--active'
+                    : 'voucher-wallet-tab'
                 }
+                key={filter.id}
+                role="tab"
                 type="button"
                 onClick={() => setSelectedFilter(filter.id)}
               >
@@ -557,207 +515,221 @@ function MyVouchersPage() {
             ))}
           </div>
 
-          {loading ? (
-            <div className="my-vouchers-empty" role="status">
-              <strong>Đang tải lịch sử mã của bạn</strong>
-              <p>
-                Hệ thống đang đồng bộ các mã bạn đã từng dùng và nhận diện mã
-                nào còn có thể áp dụng lại.
-              </p>
-            </div>
+          {error ? (
+            <section className="voucher-wallet-state" role="alert">
+              <VoucherTicketIcon />
+              <strong>Không thể tải voucher lúc này</strong>
+              <p>{error}</p>
+              <button
+                className="voucher-wallet-primary-button"
+                type="button"
+                onClick={() => setReloadToken((currentValue) => currentValue + 1)}
+              >
+                Tải lại
+              </button>
+            </section>
           ) : null}
 
-          {!loading && filteredVouchers.length ? (
-            <div className="my-vouchers-grid">
-              {filteredVouchers.map((voucher) => (
-                <article
-                  className={`my-voucher-card my-voucher-card--${voucher.status}`}
-                  key={voucher.id}
-                >
-                  <div className="my-voucher-card__top">
-                    <span className="my-voucher-card__icon">
-                      <VoucherTicketIcon />
-                    </span>
+          {loading ? (
+            <section className="voucher-wallet-state" role="status">
+              <VoucherTicketIcon />
+              <strong>Đang tải mã khuyến mãi</strong>
+              <p>Hệ thống đang đồng bộ các voucher đã lưu trong tài khoản của bạn.</p>
+            </section>
+          ) : null}
 
-                    <div className="my-voucher-card__heading">
-                      <span className="my-voucher-card__status">
-                        {voucher.status_label}
-                      </span>
-                      <strong>{voucher.title}</strong>
+          {!loading && !error && visibleVouchers.length ? (
+            <div className="voucher-wallet-list">
+              {visibleVouchers.map((voucher, index) => {
+                const tone = getVoucherCardTone(voucher)
+                const isHotVoucher =
+                  tone === 'active' && currentPage === 1 && index === 0
+
+                return (
+                  <article
+                    className={`voucher-wallet-card voucher-wallet-card--${tone}`}
+                    key={voucher.id || voucher.code}
+                  >
+                    {isHotVoucher ? (
+                      <span className="voucher-wallet-card__badge">Hot</span>
+                    ) : null}
+
+                    <div className="voucher-wallet-card__code-panel">
+                      <strong>{voucher.code}</strong>
+                      <span>Mã Khuyến Mãi</span>
                     </div>
 
-                    <div className="my-voucher-card__discount">
-                      {voucher.discount_label}
+                    <div className="voucher-wallet-card__body">
+                      <h2>{voucher.title}</h2>
+                      <p>{voucher.description}</p>
+                      <dl className="voucher-wallet-card__meta">
+                        <div>
+                          <dt>Hạn sử dụng:</dt>
+                          <dd>
+                            {voucher.expires_at
+                              ? formatVoucherDate(voucher.expires_at)
+                              : voucher.validity_label}
+                          </dd>
+                        </div>
+                      </dl>
                     </div>
-                  </div>
 
-                  <div className="my-voucher-card__code-row">
-                    <span className="my-voucher-card__code">{voucher.code}</span>
                     <button
-                      className="my-voucher-card__copy"
-                      type="button"
-                      onClick={() => handleCopyVoucher(voucher.code, voucher.id)}
+                      className="voucher-wallet-card__action"
                       disabled={voucher.status !== 'active'}
-                    >
-                      {copiedVoucherId === voucher.id
-                        ? 'Đã sao chép'
-                        : 'Sao chép mã'}
-                    </button>
-                  </div>
-
-                  <p className="my-voucher-card__description">
-                    {voucher.description}
-                  </p>
-
-                  <div className="my-voucher-card__meta">
-                    <span>{voucher.min_spend_label}</span>
-                    <span>{voucher.validity_label}</span>
-                  </div>
-
-                  <div className="my-voucher-card__tags">
-                    {voucher.service_tags.map((tag) => (
-                      <span
-                        className="my-voucher-card__tag"
-                        key={`${voucher.id}-${tag}`}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="my-voucher-card__actions">
-                    <Link
-                      className="my-voucher-card__button"
-                      to={buildPublicAuthPath(voucher.route, isCustomer)}
-                    >
-                      {voucher.status === 'active'
-                        ? 'Xem dịch vụ'
-                        : 'Mở liên quan'}
-                    </Link>
-                    <button
-                      className="my-voucher-card__button my-voucher-card__button--secondary"
                       type="button"
                       onClick={() => {
+                        handleCopyVoucher(voucher.code, voucher.id)
                         setVoucherCode(voucher.code)
                         setVoucherCheckResult(null)
                         setVoucherCheckFeedback(
-                          'Đã điền sẵn mã. Bạn có thể thử lại với giỏ hàng hiện tại ở khối bên phải.',
+                          'Đã điền sẵn mã. Bạn có thể lưu hoặc kiểm tra với giỏ hàng hiện tại.',
                         )
                       }}
                     >
-                      Thử lại mã này
+                      {copiedVoucherId === voucher.id && voucher.status === 'active'
+                        ? 'Đã lưu'
+                        : getVoucherActionLabel(voucher)}
                     </button>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                )
+              })}
             </div>
           ) : null}
 
-          {!loading && !filteredVouchers.length ? (
-            <div className="my-vouchers-empty" role="status">
+          {!loading && !error && !visibleVouchers.length ? (
+            <section className="voucher-wallet-state" role="status">
+              <VoucherTicketIcon />
               <strong>
                 {hasAnyVouchers
-                  ? 'Không có voucher khớp với bộ lọc hiện tại'
-                  : 'Bạn chưa có mã nào trong lịch sử'}
+                  ? 'Không có voucher trong nhóm này'
+                  : 'Bạn chưa có mã khuyến mãi nào'}
               </strong>
               <p>
                 {hasAnyVouchers
-                  ? 'Thử đổi từ khóa tìm kiếm hoặc chọn nhóm khác để xem lại các mã còn hạn, đã dùng hoặc đã hết hạn gần đây.'
-                  : 'Khi bạn từng áp dụng voucher trong booking, lịch sử sẽ xuất hiện ở đây. Nếu đang có mã từ chiến dịch riêng, hãy nhập trực tiếp ở khối bên phải để kiểm tra.'}
+                  ? 'Chọn nhóm khác để xem lại mã còn hạn, đã sử dụng hoặc đã hết hiệu lực.'
+                  : 'Khi bạn lưu voucher hoặc dùng mã trong đơn hàng, danh sách sẽ xuất hiện tại đây.'}
               </p>
-              <button
-                className="my-vouchers-empty__button"
-                type="button"
-                onClick={() => {
-                  resetFilters()
-                }}
-              >
-                Xóa bộ lọc
-              </button>
-            </div>
+              {hasAnyVouchers ? (
+                <button
+                  className="voucher-wallet-primary-button"
+                  type="button"
+                  onClick={resetFilters}
+                >
+                  Xem tất cả
+                </button>
+              ) : null}
+            </section>
           ) : null}
-        </section>
 
-        <aside className="my-vouchers-sidebar">
-          <section className="my-vouchers-panel">
-            <header className="my-vouchers-panel__header">
-              <p className="my-vouchers-panel__eyebrow">Nhập mã ưu đãi</p>
-              <h2>Áp dụng vào giỏ hàng hiện tại</h2>
-            </header>
+          <footer className="voucher-wallet-pagination">
+            <p>
+              {filteredVouchers.length
+                ? `Hiển thị ${resultsEnd - resultsStart + 1} trong số ${filteredVouchers.length} mã khuyến mãi`
+                : 'Hiển thị 0 mã khuyến mãi'}
+            </p>
 
-            <label className="my-vouchers-search">
-              <span className="my-vouchers-search__label">Mã ưu đãi</span>
-              <input
-                className="my-vouchers-search__input"
-                type="text"
-                value={voucherCode}
-                onChange={(event) =>
-                  setVoucherCode(event.target.value.toUpperCase())
-                }
-                placeholder="Ví dụ: NETVIET500"
-              />
+            {totalPages > 1 ? (
+              <nav aria-label="Phân trang mã khuyến mãi">
+                <button
+                  aria-label="Quay về trước 1 trang"
+                  className="voucher-wallet-page-button voucher-wallet-page-button--arrow"
+                  disabled={currentPage === 1}
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                >
+                  <PageArrowIcon direction="left" />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                  <button
+                    aria-current={currentPage === page ? 'page' : undefined}
+                    className={
+                      currentPage === page
+                        ? 'voucher-wallet-page-button voucher-wallet-page-button--active'
+                        : 'voucher-wallet-page-button'
+                    }
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  aria-label="Về sau 1 trang"
+                  className="voucher-wallet-page-button voucher-wallet-page-button--arrow"
+                  disabled={currentPage === totalPages}
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                >
+                  <PageArrowIcon direction="right" />
+                </button>
+              </nav>
+            ) : null}
+          </footer>
+        </main>
+
+        <aside className="voucher-wallet-sidebar">
+          <section className="voucher-wallet-side-card voucher-wallet-apply-card">
+            <p className="voucher-wallet-eyebrow">Nhập mã voucher</p>
+            <h2>Nhập mã để lưu thêm voucher vào ví của bạn</h2>
+
+            <label className="voucher-wallet-sr-only" htmlFor="voucher-wallet-code">
+              Mã voucher
             </label>
+            <input
+              id="voucher-wallet-code"
+              className="voucher-wallet-input"
+              placeholder="Ví dụ: NETVIET500"
+              type="text"
+              value={voucherCode}
+              onChange={(event) => setVoucherCode(event.target.value.toUpperCase())}
+            />
 
-            <div className="my-vouchers-validator__actions">
-              <button
-                className="my-vouchers-hero__button"
-                type="button"
-                onClick={handleValidateVoucher}
-                disabled={voucherCheckLoading}
-              >
-                {voucherCheckLoading ? 'Đang áp dụng...' : 'Áp dụng mã'}
-              </button>
-              <Link
-                className="my-vouchers-hero__button my-vouchers-hero__button--secondary"
-                to={cartPath}
-              >
-                Mở giỏ hàng
-              </Link>
-            </div>
+            <button
+              className="voucher-wallet-save-button"
+              disabled={voucherCheckLoading}
+              type="button"
+              onClick={handleValidateVoucher}
+            >
+              {voucherCheckLoading ? 'Đang lưu...' : 'Lưu mã'}
+            </button>
 
             {voucherCheckFeedback ? (
-              <p className="my-vouchers-validator__feedback" role="status">
+              <p className="voucher-wallet-feedback" role="status">
                 {voucherCheckFeedback}
               </p>
             ) : null}
 
             {voucherCheckResult ? (
-              <div className="my-vouchers-validator__result">
+              <div className="voucher-wallet-result">
                 <strong>{voucherCheckResult.code}</strong>
-                <div className="my-vouchers-validator__result-row">
-                  <span>Mức giảm</span>
-                  <strong>{formatCurrency(voucherCheckResult.discountAmount)}</strong>
-                </div>
-                <div className="my-vouchers-validator__result-row">
-                  <span>Tạm tính đủ điều kiện</span>
-                  <strong>
-                    {formatCurrency(voucherCheckResult.eligibleSubtotalAmount)}
-                  </strong>
-                </div>
-                <div className="my-vouchers-validator__result-row">
-                  <span>Tổng sau giảm</span>
-                  <strong>{formatCurrency(voucherCheckResult.finalTotalAmount)}</strong>
-                </div>
-                <div className="my-vouchers-validator__result-row">
-                  <span>Nhóm dịch vụ</span>
-                  <strong>
-                    {formatTargetServiceType(voucherCheckResult.targetServiceType)}
-                  </strong>
-                </div>
+                <span>{formatTargetServiceType(voucherCheckResult.targetServiceType)}</span>
+                <dl>
+                  <div>
+                    <dt>Mức giảm</dt>
+                    <dd>{formatCurrency(voucherCheckResult.discountAmount)}</dd>
+                  </div>
+                  <div>
+                    <dt>Tổng sau giảm</dt>
+                    <dd>{formatCurrency(voucherCheckResult.finalTotalAmount)}</dd>
+                  </div>
+                </dl>
+                <Link to={cartPath}>Mở giỏ hàng</Link>
               </div>
             ) : null}
           </section>
 
-          <section className="my-vouchers-panel">
-            <header className="my-vouchers-panel__header">
-              <p className="my-vouchers-panel__eyebrow">Cách dùng nhanh</p>
-              <h2>Tối ưu ưu đãi trước khi thanh toán</h2>
-            </header>
+          <section className="voucher-wallet-side-card voucher-wallet-guide-card">
+            <p className="voucher-wallet-eyebrow">Cách dùng nhanh</p>
+            <h2>Tối ưu ưu đãi trước khi thanh toán</h2>
 
-            <div className="my-vouchers-step-list">
+            <div className="voucher-wallet-guide-list">
               {USAGE_STEPS.map((step, index) => (
-                <article className="my-vouchers-step" key={step.id}>
-                  <span className="my-vouchers-step__index">0{index + 1}</span>
+                <article className="voucher-wallet-guide-item" key={step.id}>
+                  <span>0{index + 1}</span>
                   <div>
                     <strong>{step.title}</strong>
                     <p>{step.description}</p>
@@ -765,23 +737,6 @@ function MyVouchersPage() {
                 </article>
               ))}
             </div>
-          </section>
-
-          <section className="my-vouchers-panel my-vouchers-panel--notes">
-            <header className="my-vouchers-panel__header">
-              <p className="my-vouchers-panel__eyebrow">Lưu ý quan trọng</p>
-              <h2>Những điều thường làm mã chưa áp dụng được</h2>
-            </header>
-
-            <ul className="my-vouchers-note-list">
-              {SUPPORT_NOTES.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-
-            <Link className="my-vouchers-panel__link" to={customerCarePath}>
-              Mở chat chăm sóc khách hàng
-            </Link>
           </section>
         </aside>
       </div>

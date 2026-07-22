@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   buildInvoiceDownloadPayload,
@@ -70,20 +70,6 @@ export default function usePaymentSuccess() {
   const [feedback, setFeedback] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
 
-  const buildLocalPaymentSuccess = useCallback(() => {
-    if (!bookingState && !paymentState && !paymentResultPayloadState && !paymentCode) {
-      return null
-    }
-
-    return buildPaymentSuccessData({
-      booking: bookingState,
-      bookingItems: bookingItemsState,
-      payment: paymentState ?? (paymentCode ? { payment_code: paymentCode } : undefined),
-      paymentResultPayload:
-        paymentResultPayloadState ?? (paymentCode ? { payment_code: paymentCode } : undefined),
-    })
-  }, [bookingItemsState, bookingState, paymentCode, paymentResultPayloadState, paymentState])
-
   useEffect(() => {
     let isActive = true
 
@@ -100,7 +86,6 @@ export default function usePaymentSuccess() {
           payment: paymentState,
           paymentResultPayload: paymentResultPayloadState,
         }
-        const localPaymentSuccess = buildLocalPaymentSuccess()
         const response = paymentCode
           ? await getPaymentSuccessByCode(paymentCode, sharedParams)
           : await getPaymentSuccess(sharedParams)
@@ -110,11 +95,6 @@ export default function usePaymentSuccess() {
         }
 
         if (!response.success || !response.data) {
-          if (localPaymentSuccess) {
-            setPaymentSuccess(localPaymentSuccess)
-            return
-          }
-
           setPaymentSuccess(null)
           setError(
             formatLoadErrorMessage(
@@ -149,13 +129,6 @@ export default function usePaymentSuccess() {
           return
         }
 
-        const localPaymentSuccess = buildLocalPaymentSuccess()
-
-        if (localPaymentSuccess) {
-          setPaymentSuccess(localPaymentSuccess)
-          return
-        }
-
         setPaymentSuccess(null)
         setError(
           formatLoadErrorMessage(
@@ -177,7 +150,6 @@ export default function usePaymentSuccess() {
     }
   }, [
     authState,
-    buildLocalPaymentSuccess,
     bookingItemsState,
     bookingState,
     paymentCode,
@@ -217,6 +189,11 @@ export default function usePaymentSuccess() {
         const result = await downloadMyBookingSummary(paymentSuccess.booking_id)
         downloadBlob(result.blob, result.filename)
         setFeedback('Tệp tóm tắt đơn hàng đang được tải xuống.')
+        return
+      }
+
+      if (isCustomer) {
+        setFeedback('Không tìm thấy mã đơn hàng hợp lệ để tải tệp tóm tắt.')
         return
       }
 

@@ -16,6 +16,14 @@ function matchesStationSearch(station, keyword) {
     .some((value) => String(value).toLowerCase().includes(normalizedKeyword))
 }
 
+function ClearIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path d="M6.75 6.75 17.25 17.25M17.25 6.75 6.75 17.25" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  )
+}
+
 function TrainStationCombobox({ label, onChange, options, value }) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -29,6 +37,7 @@ function TrainStationCombobox({ label, onChange, options, value }) {
   const filteredStations = useMemo(() => {
     return options.filter((station) => matchesStationSearch(station, query))
   }, [options, query])
+  const hasSelectedValue = Boolean(value)
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -54,16 +63,22 @@ function TrainStationCombobox({ label, onChange, options, value }) {
     setQuery('')
   }, [isOpen])
 
+  function handleClearSelection() {
+    onChange('')
+    setQuery('')
+  }
+
   return (
     <div className="train-search-card__field train-station-combobox" ref={containerRef}>
       <span className="train-search-card__field-label">{label}</span>
 
-      <button
+      <div className="train-search-card__field-control">
+        <button
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className={`train-search-card__field-shell train-station-combobox__trigger ${
           isOpen ? 'train-station-combobox__trigger--open' : ''
-        }`}
+        } ${hasSelectedValue ? 'train-station-combobox__trigger--clearable' : ''}`}
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
@@ -88,7 +103,19 @@ function TrainStationCombobox({ label, onChange, options, value }) {
             <path d="m7 10 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
           </svg>
         </span>
-      </button>
+        </button>
+
+        {hasSelectedValue ? (
+          <button
+            aria-label={`Xóa lựa chọn ${label}`}
+            className="train-search-card__field-clear"
+            type="button"
+            onClick={handleClearSelection}
+          >
+            <ClearIcon />
+          </button>
+        ) : null}
+      </div>
 
       {isOpen ? (
         <div className="train-search-card__popover train-station-menu" role="dialog">

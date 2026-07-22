@@ -22,6 +22,14 @@ function ChevronIcon({ isOpen }) {
   )
 }
 
+function ClearIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path d="M6.75 6.75 17.25 17.25M17.25 6.75 6.75 17.25" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  )
+}
+
 function SearchFieldIcon({ type }) {
   const icons = {
     departure: {
@@ -98,16 +106,26 @@ function MonthNavIcon({ direction }) {
   )
 }
 
-function HomeSearchField({ field, handleFieldSelect, isOpen, searchState, toggleMenu }) {
+function HomeSearchField({
+  field,
+  handleFieldClear,
+  handleFieldSelect,
+  isOpen,
+  searchState,
+  toggleMenu,
+}) {
+  const hasValue = Boolean(searchState[field.key])
   const fieldValue = searchState[field.key] || FIELD_PLACEHOLDERS[field.key] || ''
-  const isPlaceholder = !searchState[field.key]
+  const isPlaceholder = !hasValue
 
   return (
     <div className="home-search-card__field-wrap">
       <button
         aria-expanded={isOpen}
         aria-haspopup="listbox"
-        className={`home-search-card__field-button ${isOpen ? 'home-search-card__field-button--open' : ''}`}
+        className={`home-search-card__field-button ${
+          isOpen ? 'home-search-card__field-button--open' : ''
+        } ${hasValue ? 'home-search-card__field-button--clearable' : ''}`}
         type="button"
         onClick={() => toggleMenu(field.key)}
       >
@@ -124,8 +142,19 @@ function HomeSearchField({ field, handleFieldSelect, isOpen, searchState, toggle
             {fieldValue}
           </span>
         </span>
-        <ChevronIcon isOpen={isOpen} />
+        {hasValue ? null : <ChevronIcon isOpen={isOpen} />}
       </button>
+
+      {hasValue ? (
+        <button
+          aria-label={`Xóa ${field.label}`}
+          className="home-search-card__clear-button"
+          type="button"
+          onClick={() => handleFieldClear(field.key)}
+        >
+          <ClearIcon />
+        </button>
+      ) : null}
 
       {isOpen ? (
         <div className="home-search-card__dropdown" role="listbox">
@@ -155,7 +184,9 @@ function HomeSearchDateField({
   formatMonthLabel,
   getMonthDays,
   handleDateFieldToggle,
+  handleDateClear,
   handleDateSelect,
+  hasDateValue,
   isOpen,
   isSameDay,
   showNextMonth,
@@ -170,7 +201,7 @@ function HomeSearchDateField({
         aria-haspopup="dialog"
         className={`home-search-card__field-button home-search-card__field-button--date ${
           isOpen ? 'home-search-card__field-button--open' : ''
-        }`}
+        } ${hasDateValue ? 'home-search-card__field-button--clearable' : ''}`}
         type="button"
         onClick={handleDateFieldToggle}
       >
@@ -183,8 +214,19 @@ function HomeSearchDateField({
             {displayedDateRange}
           </span>
         </span>
-        <ChevronIcon isOpen={isOpen} />
+        {hasDateValue ? null : <ChevronIcon isOpen={isOpen} />}
       </button>
+
+      {hasDateValue ? (
+        <button
+          aria-label="Xóa ngày đi - về"
+          className="home-search-card__clear-button"
+          type="button"
+          onClick={handleDateClear}
+        >
+          <ClearIcon />
+        </button>
+      ) : null}
 
       {isOpen ? (
         <div
@@ -339,7 +381,9 @@ export default function HomeSearchCard({
   formatMonthLabel,
   getMonthDays,
   handleDateFieldToggle,
+  handleDateClear,
   handleDateSelect,
+  handleFieldClear,
   handleFieldSelect,
   handleFilterSelect,
   handleRetry,
@@ -366,6 +410,7 @@ export default function HomeSearchCard({
         {searchFieldOptions.map((field) => (
           <HomeSearchField
             field={field}
+            handleFieldClear={handleFieldClear}
             handleFieldSelect={handleFieldSelect}
             isOpen={openMenu === field.key}
             key={field.key}
@@ -382,7 +427,9 @@ export default function HomeSearchCard({
           formatMonthLabel={formatMonthLabel}
           getMonthDays={getMonthDays}
           handleDateFieldToggle={handleDateFieldToggle}
+          handleDateClear={handleDateClear}
           handleDateSelect={handleDateSelect}
+          hasDateValue={Boolean(searchState.startDate || searchState.endDate)}
           isOpen={openMenu === 'date'}
           isSameDay={isSameDay}
           showNextMonth={showNextMonth}

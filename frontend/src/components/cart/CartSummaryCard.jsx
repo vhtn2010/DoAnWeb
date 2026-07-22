@@ -1,23 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './cartSummaryCard.css'
-
-function TicketIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-      <path
-        d="M7 6.5h10a2 2 0 0 1 2 2v1.25a1.75 1.75 0 0 0 0 3.5v1.25a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-1.25a1.75 1.75 0 0 0 0-3.5V8.5a2 2 0 0 1 2-2Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M9 9.5h6M9 14.5h3"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.8"
-      />
-    </svg>
-  )
-}
 
 function CloseIcon() {
   return (
@@ -43,6 +25,9 @@ function CartVoucherPickerModal({
   vouchers,
   vouchersError,
 }) {
+  const [manualVoucherCode, setManualVoucherCode] = useState('')
+  const [manualFeedback, setManualFeedback] = useState('')
+
   useEffect(() => {
     if (!isOpen) {
       return undefined
@@ -61,13 +46,41 @@ function CartVoucherPickerModal({
     }
   }, [isOpen, onClose])
 
+  useEffect(() => {
+    if (isOpen) {
+      setManualFeedback('')
+    }
+  }, [isOpen])
+
   if (!isOpen) {
     return null
   }
 
+  async function handleManualVoucherSubmit(event) {
+    event.preventDefault()
+
+    const normalizedCode = manualVoucherCode.trim().toUpperCase()
+
+    if (!normalizedCode) {
+      setManualFeedback('Vui lòng nhập mã voucher cần lưu hoặc áp dụng.')
+      return
+    }
+
+    if (!canApplyVoucherSelection) {
+      setManualFeedback('Hãy chọn ít nhất một dịch vụ trong giỏ hàng trước khi lưu mã voucher.')
+      return
+    }
+
+    setManualFeedback('')
+    const applied = await onApplyVoucher(normalizedCode)
+
+    if (applied) {
+      setManualVoucherCode('')
+    }
+  }
+
   return (
     <div
-      aria-hidden="true"
       className="cart-voucher-modal"
       role="presentation"
       onClick={onClose}
@@ -83,7 +96,7 @@ function CartVoucherPickerModal({
           <div className="cart-voucher-modal__copy">
             <span className="cart-voucher-modal__eyebrow">Kho voucher của tôi</span>
             <h3 id="cart-voucher-modal-title">Chọn voucher để áp dụng</h3>
-            <p>Danh sách bên dưới lấy trực tiếp từ các voucher đang gắn với tài khoản của bạn.</p>
+            <p>Phiên bản mini của kho voucher, lấy trực tiếp từ các mã đang gắn với tài khoản của bạn.</p>
           </div>
 
           <button
@@ -98,9 +111,47 @@ function CartVoucherPickerModal({
 
         {!canApplyVoucherSelection ? (
           <div className="cart-voucher-modal__notice" role="status">
-            Hãy chọn ít nhất một dịch vụ trong giỏ hàng trước khi áp dụng voucher.
+            Hãy chọn ít nhất một dịch vụ trong giỏ hàng trước khi áp dụng hoặc lưu mã voucher.
           </div>
         ) : null}
+
+        <form className="cart-voucher-modal__save" onSubmit={handleManualVoucherSubmit}>
+          <div className="cart-voucher-modal__save-copy">
+            <span>Nhập mã voucher</span>
+            <p>Lưu mã mới vào phiên giỏ hàng hiện tại và áp dụng ngay nếu mã hợp lệ.</p>
+          </div>
+
+          <div className="cart-voucher-modal__save-row">
+            <label className="cart-voucher-modal__sr-only" htmlFor="cart-voucher-manual-code">
+              Mã voucher
+            </label>
+            <input
+              autoComplete="off"
+              className="cart-voucher-modal__input"
+              id="cart-voucher-manual-code"
+              placeholder="Ví dụ: NETVIET500"
+              type="text"
+              value={manualVoucherCode}
+              onChange={(event) => {
+                setManualVoucherCode(event.target.value.toUpperCase())
+                setManualFeedback('')
+              }}
+            />
+            <button
+              className="cart-voucher-modal__save-button"
+              disabled={isVoucherLoading}
+              type="submit"
+            >
+              {isVoucherLoading ? 'Đang lưu...' : 'Lưu mã'}
+            </button>
+          </div>
+
+          {manualFeedback ? (
+            <p className="cart-voucher-modal__feedback" role="status">
+              {manualFeedback}
+            </p>
+          ) : null}
+        </form>
 
         {isLoading ? (
           <div className="cart-voucher-modal__state" role="status">
@@ -141,14 +192,14 @@ function CartVoucherPickerModal({
                   }
                   key={voucher.id || voucher.code}
                 >
-                  <div className="cart-voucher-card__icon">
-                    <TicketIcon />
+                  <div className="cart-voucher-card__code-panel">
+                    <strong>{voucher.code}</strong>
+                    <span>Mã Khuyến Mãi</span>
                   </div>
 
                   <div className="cart-voucher-card__content">
                     <div className="cart-voucher-card__top">
                       <div>
-                        <span className="cart-voucher-card__code">{voucher.code}</span>
                         <h4>{voucher.title}</h4>
                       </div>
                       <strong className="cart-voucher-card__discount">{voucher.discount_label}</strong>
@@ -208,6 +259,7 @@ function CartSummaryCard({
   availableVoucherCount,
   canApplyVoucherSelection,
   feedbackHint,
+  isCheckingOut,
   isContinueDisabled,
   isCustomer,
   isVoucherLoading,
@@ -241,10 +293,30 @@ function CartSummaryCard({
             <span>Tạm tính</span>
             <strong>{summary.subtotal_amount}</strong>
           </div>
-          <div className="cart-summary-card__row">
-            <span>Giảm giá</span>
-            <strong>{summary.discount_amount}</strong>
-          </div>
+          {summary.discount_amount_value > 0 ? (
+            <div className="cart-summary-card__row">
+              <span>Giảm giá</span>
+              <strong>-{summary.discount_amount}</strong>
+            </div>
+          ) : null}
+          {summary.vat_amount_value > 0 ? (
+            <div className="cart-summary-card__row">
+              <span>Thuế VAT (8%)</span>
+              <strong>{summary.vat_amount}</strong>
+            </div>
+          ) : null}
+          {summary.service_fee_amount_value > 0 ? (
+            <div className="cart-summary-card__row">
+              <span>Phí dịch vụ</span>
+              <strong>{summary.service_fee_amount}</strong>
+            </div>
+          ) : null}
+          {summary.surcharge_amount_value > 0 ? (
+            <div className="cart-summary-card__row">
+              <span>Phụ thu</span>
+              <strong>{summary.surcharge_amount}</strong>
+            </div>
+          ) : null}
         </div>
 
         <div className="cart-summary-card__details">
@@ -282,12 +354,13 @@ function CartSummaryCard({
         </div>
 
         <button
+          aria-busy={isCheckingOut}
           className="cart-summary-card__button"
           disabled={isContinueDisabled}
           type="button"
           onClick={onContinue}
         >
-          Tiếp tục
+          {isCheckingOut ? 'Đang kiểm tra...' : 'Tiếp tục'}
         </button>
 
         <p className="cart-summary-card__hint">

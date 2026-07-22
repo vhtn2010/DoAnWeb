@@ -71,6 +71,99 @@ function getStatusReason(status) {
   return undefined
 }
 
+function getUnlockReason() {
+  return 'Mở khóa tài khoản sau khi đã xác minh thông tin.'
+}
+
+function createClosedReasonModalState() {
+  return {
+    actionType: '',
+    confirmLabel: '',
+    currentStatusLabel: '',
+    defaultReason: '',
+    description: '',
+    errorMessage: '',
+    isOpen: false,
+    nextStatus: '',
+    nextStatusLabel: '',
+    quickReasons: [],
+    reason: '',
+    subtitle: '',
+    title: '',
+    tone: 'neutral',
+    user: null,
+    warningText: '',
+  }
+}
+
+function buildStatusReasonModalState(user, action) {
+  const isLockAction = action?.nextStatus === ADMIN_USER_STATUSES.locked
+  const defaultReason = isLockAction
+    ? getStatusReason(action.nextStatus) ?? 'Khóa tài khoản từ màn quản trị người dùng.'
+    : getUnlockReason()
+
+  return {
+    actionType: isLockAction ? 'lock' : 'unlock',
+    confirmLabel: action?.label || (isLockAction ? 'Khóa' : 'Mở khóa'),
+    currentStatusLabel: user?.status ?? '',
+    defaultReason,
+    description: isLockAction
+      ? 'Tài khoản sẽ bị tạm khóa và không thể đăng nhập cho đến khi được mở khóa lại.'
+      : 'Tài khoản sẽ trở lại trạng thái hoạt động và có thể đăng nhập bình thường.',
+    errorMessage: '',
+    isOpen: true,
+    nextStatus: action?.nextStatus ?? ADMIN_USER_STATUSES.active,
+    nextStatusLabel: isLockAction ? 'Đã khóa' : 'Hoạt động',
+    quickReasons: isLockAction
+      ? [
+          'Phát hiện đăng nhập bất thường',
+          'Cần rà soát thủ công',
+          'Theo yêu cầu hỗ trợ',
+        ]
+      : [
+          'Đã xác minh thông tin',
+          'Khách hàng đã liên hệ lại',
+          'Khôi phục quyền truy cập',
+        ],
+    reason: defaultReason,
+    subtitle: isLockAction
+      ? 'Chọn lý do trước khi khóa tài khoản này.'
+      : 'Chọn lý do trước khi mở khóa tài khoản này.',
+    title: isLockAction ? 'Khóa tài khoản' : 'Mở khóa tài khoản',
+    tone: isLockAction ? 'danger' : 'success',
+    user,
+    warningText: isLockAction
+      ? 'Tài khoản sẽ không thể truy cập hệ thống cho đến khi được mở khóa.'
+      : 'Tài khoản sẽ trở lại trạng thái hoạt động ngay sau thao tác này.',
+  }
+}
+
+function buildDeleteReasonModalState(user) {
+  return {
+    actionType: 'delete',
+    confirmLabel: 'Xóa mềm',
+    currentStatusLabel: user?.status ?? '',
+    defaultReason: ADMIN_USER_DEFAULT_DELETE_REASON,
+    description:
+      'Tài khoản sẽ được chuyển sang deleted nhưng vẫn giữ lịch sử để dễ đối soát và phục hồi khi cần.',
+    errorMessage: '',
+    isOpen: true,
+    nextStatus: ADMIN_USER_STATUSES.deleted,
+    nextStatusLabel: 'Đã xóa',
+    quickReasons: [
+      'Không còn sử dụng',
+      'Yêu cầu từ khách hàng',
+      'Chuẩn hóa dữ liệu nội bộ',
+    ],
+    reason: ADMIN_USER_DEFAULT_DELETE_REASON,
+    subtitle: 'Nhập lý do trước khi xóa mềm tài khoản này.',
+    title: 'Xóa mềm tài khoản',
+    tone: 'danger',
+    user,
+    warningText: 'Đây không phải hard delete, nhưng tài khoản sẽ bị ẩn khỏi danh sách hoạt động.',
+  }
+}
+
 function getResponseTotal(response) {
   return Number(response?.meta?.total ?? 0)
 }
@@ -98,6 +191,7 @@ async function loadUserRoleCounts() {
 export default function useAdminUsers() {
   const outletContext = useOutletContext()
   const currentRole = normalizeAdminRole(outletContext?.currentRole, 'guest')
+  const currentUser = outletContext?.currentUser ?? null
   const [users, setUsers] = useState([])
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -120,6 +214,15 @@ export default function useAdminUsers() {
     createInitialAdminUserFormValues({ currentRole }),
   )
   const [formErrors, setFormErrors] = useState({})
+  const [reasonModalState, setReasonModalState] = useState(() => createClosedReasonModalState())
+
+  function isCurrentAdminUser(user) {
+    return Boolean(
+      user?.id &&
+      currentUser?.id &&
+      String(user.id) === String(currentUser.id),
+    )
+  }
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -340,6 +443,36 @@ export default function useAdminUsers() {
     setFormErrors({})
   }
 
+  function closeReasonModal() {
+    if (actionLoading) {
+      return
+    }
+
+    setReasonModalState(createClosedReasonModalState())
+  }
+
+  function openStatusReasonModal(user, action) {
+    setSelectedUser(user)
+    setSelectedUserId(user.id)
+    setFeedback('')
+    setReasonModalState(buildStatusReasonModalState(user, action))
+  }
+
+  function openDeleteReasonModal(user) {
+    setSelectedUser(user)
+    setSelectedUserId(user.id)
+    setFeedback('')
+    setReasonModalState(buildDeleteReasonModalState(user))
+  }
+
+  function updateReasonModalReason(value) {
+    setReasonModalState((currentState) => ({
+      ...currentState,
+      errorMessage: '',
+      reason: value,
+    }))
+  }
+
   function updateFormField(field, value) {
     setFormValues((currentValues) => ({
       ...currentValues,
@@ -426,57 +559,85 @@ export default function useAdminUsers() {
       return
     }
 
+    if (isCurrentAdminUser(user)) {
+      setFeedback('Không thể tự thay đổi trạng thái tài khoản đang đăng nhập.')
+      return
+    }
+
+    openStatusReasonModal(user, action)
+  }
+
+  async function removeUser(user) {
+    if (isCurrentAdminUser(user)) {
+      setFeedback('Không thể tự xóa tài khoản đang đăng nhập.')
+      return
+    }
+
+    openDeleteReasonModal(user)
+  }
+
+  async function submitReasonModal() {
+    const modalUser = reasonModalState.user
+    const trimmedReason = reasonModalState.reason.trim()
+
+    if (!modalUser) {
+      return
+    }
+
+    if (!trimmedReason) {
+      setReasonModalState((currentState) => ({
+        ...currentState,
+        errorMessage: 'Vui lòng nhập lý do để tiếp tục.',
+      }))
+      return
+    }
+
     setActionLoading(true)
     setError('')
 
     try {
-      const response = await changeAdminUserStatus(user.id, {
-        reason: getStatusReason(action.nextStatus),
-        status: action.nextStatus,
-      })
+      let response
+
+      if (reasonModalState.actionType === 'delete') {
+        response = await deleteAdminUser(modalUser.id, {
+          reason: trimmedReason,
+        })
+      } else {
+        response = await changeAdminUserStatus(modalUser.id, {
+          reason: trimmedReason,
+          status: reasonModalState.nextStatus,
+        })
+      }
 
       if (!response.success || !response.data) {
-        throw new Error(response.message || 'Không thể cập nhật trạng thái người dùng.')
+        throw new Error(
+          response.message ||
+            (reasonModalState.actionType === 'delete'
+              ? 'Không thể xóa người dùng.'
+              : 'Không thể cập nhật trạng thái người dùng.'),
+        )
       }
 
       const nextUser = mapAdminUser(response.data)
 
       setSelectedUser(nextUser)
       setSelectedUserId(nextUser.id)
-      setFeedback(`${response.message || 'Đã cập nhật trạng thái.'} Tài khoản: ${nextUser.name}.`)
-      await loadUsers()
-    } catch (actionError) {
-      const nextMessage = actionError?.message ?? 'Không thể cập nhật trạng thái người dùng lúc này.'
 
-      setError(nextMessage)
-      setFeedback(nextMessage)
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  async function removeUser(user) {
-    setActionLoading(true)
-    setError('')
-
-    try {
-      const response = await deleteAdminUser(user.id, {
-        reason: ADMIN_USER_DEFAULT_DELETE_REASON,
-      })
-
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Không thể xóa người dùng.')
+      if (reasonModalState.actionType === 'delete') {
+        setCheckedUserIds((currentIds) => currentIds.filter((id) => id !== modalUser.id))
+        setFeedback(`${response.message || 'Đã xóa mềm tài khoản.'} Tài khoản: ${nextUser.name}.`)
+      } else {
+        setFeedback(`${response.message || 'Đã cập nhật trạng thái.'} Tài khoản: ${nextUser.name}.`)
       }
 
-      const deletedUser = mapAdminUser(response.data)
-
-      setSelectedUser(deletedUser)
-      setSelectedUserId(deletedUser.id)
-      setCheckedUserIds((currentIds) => currentIds.filter((id) => id !== user.id))
-      setFeedback(`${response.message || 'Đã xóa mềm tài khoản.'} Tài khoản: ${deletedUser.name}.`)
+      closeReasonModal()
       await loadUsers()
-    } catch (deleteError) {
-      const nextMessage = deleteError?.message ?? 'Không thể xóa người dùng lúc này.'
+    } catch (actionError) {
+      const nextMessage =
+        actionError?.message ??
+        (reasonModalState.actionType === 'delete'
+          ? 'Không thể xóa người dùng lúc này.'
+          : 'Không thể cập nhật trạng thái người dùng lúc này.')
 
       setError(nextMessage)
       setFeedback(nextMessage)
@@ -571,6 +732,7 @@ export default function useAdminUsers() {
     },
     query,
     reloadUsers,
+    reasonModalState,
     removeUser,
     resendVerification,
     resetFilters,
@@ -581,6 +743,7 @@ export default function useAdminUsers() {
     runStatusAction,
     selectedUser,
     selectedUserId,
+    closeReasonModal,
     setCurrentPage,
     setQuery,
     setRoleFilter,
@@ -589,9 +752,11 @@ export default function useAdminUsers() {
     sortOrder,
     statusFilter,
     submitUserForm,
+    submitReasonModal,
     toggleAllVisibleUsers,
     toggleUserChecked,
     updateFormField,
+    updateReasonModalReason,
     users: visibleUsers,
   }
 }

@@ -17,8 +17,11 @@ import {
   updateCartItem as updateCartItemWithMockAdapter,
   validateCart as validateCartWithMockAdapter,
 } from '../adapters/mock/cartMockAdapter.js'
-import { ROLES } from '../constants/roles.js'
-import { getAuthSession } from '../services/authSession.js'
+import {
+  createCustomerAuthRequiredResponse,
+  isCustomerApiRequested,
+  shouldUseCustomerApi,
+} from '../utils/customerApiSession.js'
 
 const cartAdapter = {
   addCartItemPreview: addCartItemPreviewWithMockAdapter,
@@ -29,20 +32,17 @@ const cartAdapter = {
   validateCart: validateCartWithMockAdapter,
 }
 
-function shouldUseApi(authState = ROLES.guest) {
-  const session = getAuthSession()
-  const role = session.user?.role ?? session.user?.role_code ?? ''
-
-  return authState === ROLES.customer && role === ROLES.customer && Boolean(session.access_token)
-}
-
 export function addCartItemPreview(payload) {
   return cartAdapter.addCartItemPreview(payload)
 }
 
 export function addCartItem(payload, options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return addCartItemWithApiAdapter(payload)
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return cartAdapter.addCartItemPreview({
@@ -52,48 +52,72 @@ export function addCartItem(payload, options = {}) {
 }
 
 export function getActiveCart(params) {
-  if (shouldUseApi(params?.authState)) {
+  if (shouldUseCustomerApi(params?.authState)) {
     return getActiveCartWithApiAdapter()
+  }
+
+  if (isCustomerApiRequested(params?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return cartAdapter.getActiveCart(params)
 }
 
 export function getCartSummary(cartId, selectedItemIds, options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return getCartSummaryWithApiAdapter(cartId, selectedItemIds)
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return cartAdapter.getCartSummary(cartId, selectedItemIds)
 }
 
 export function removeCartItem(cartItemId, options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return removeCartItemWithApiAdapter(cartItemId)
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return cartAdapter.removeCartItem(cartItemId)
 }
 
 export function updateCartItem(cartItemId, payload, options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return updateCartItemWithApiAdapter(cartItemId, payload)
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return cartAdapter.updateCartItem(cartItemId, payload)
 }
 
 export function validateCart(cartId, selectedItemIds, options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return validateCartWithApiAdapter(cartId, selectedItemIds)
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return cartAdapter.validateCart(cartId, selectedItemIds)
 }
 
 export function applyCartVoucher(payload = {}, options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return applyCartVoucherWithApiAdapter(payload)
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return Promise.resolve({
@@ -104,8 +128,12 @@ export function applyCartVoucher(payload = {}, options = {}) {
 }
 
 export function removeCartVoucher(options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return removeCartVoucherWithApiAdapter()
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return Promise.resolve({
@@ -116,8 +144,12 @@ export function removeCartVoucher(options = {}) {
 }
 
 export function clearCartItems(options = {}) {
-  if (shouldUseApi(options?.authState)) {
+  if (shouldUseCustomerApi(options?.authState)) {
     return clearCartItemsWithApiAdapter()
+  }
+
+  if (isCustomerApiRequested(options?.authState)) {
+    return createCustomerAuthRequiredResponse()
   }
 
   return Promise.resolve({

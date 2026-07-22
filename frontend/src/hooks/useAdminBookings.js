@@ -16,9 +16,7 @@ import {
   listAdminBookings,
   updateAdminBookingStatus,
 } from '../repositories/adminBookingRepository.js'
-
-const LEGACY_PAID_CONFIRM_REASON =
-  'Tự động xác nhận đơn đã được phê duyệt thanh toán theo luồng duyệt bill mới.'
+import { requestAdminActionReason } from '../utils/adminActionConfirmation.js'
 
 function getActionReason(action) {
   if (action === 'confirm') {
@@ -43,26 +41,6 @@ function prioritizePendingConfirmationBookings(bookings) {
 
     return leftPriority - rightPriority
   })
-}
-
-async function confirmLegacyPaidBookings(rawBookings = []) {
-  const legacyPaidBookings = rawBookings.filter(
-    (booking) => booking?.status === ADMIN_BOOKING_STATUSES.paid,
-  )
-
-  if (legacyPaidBookings.length === 0) {
-    return false
-  }
-
-  const results = await Promise.allSettled(
-    legacyPaidBookings.map((booking) =>
-      confirmAdminBooking(booking.id, {
-        reason: LEGACY_PAID_CONFIRM_REASON,
-      }),
-    ),
-  )
-
-  return results.some((result) => result.status === 'fulfilled' && result.value?.success !== false)
 }
 
 export default function useAdminBookings() {
@@ -110,36 +88,12 @@ export default function useAdminBookings() {
           throw new Error(response.message || 'Không thể tải danh sách đơn hàng lúc này.')
         }
 
-        let listResponse = response
-        const didConfirmLegacyBookings = await confirmLegacyPaidBookings(response.data)
-
-        if (!isActive) {
-          return
-        }
-
-        if (didConfirmLegacyBookings) {
-          listResponse = await listAdminBookings(
-            getAdminBookingListParams({
-              currentPage,
-              statusFilter,
-            }),
-          )
-
-          if (!isActive) {
-            return
-          }
-
-          if (!listResponse.success || !Array.isArray(listResponse.data)) {
-            throw new Error(listResponse.message || 'Không thể tải danh sách đơn hàng lúc này.')
-          }
-        }
-
         setBookings(
           prioritizePendingConfirmationBookings(
-            listResponse.data.map((booking) => mapAdminBookingSummary(booking)),
+            response.data.map((booking) => mapAdminBookingSummary(booking)),
           ),
         )
-        setPaginationMeta(mapAdminBookingPaginationMeta(listResponse.meta))
+        setPaginationMeta(mapAdminBookingPaginationMeta(response.meta))
       } catch (loadError) {
         if (!isActive) {
           return
@@ -176,7 +130,14 @@ export default function useAdminBookings() {
   }
 
   async function handleBookingAction(booking, action) {
-    const reason = getActionReason(action)
+    const reason = requestAdminActionReason({
+      defaultReason: getActionReason(action),
+      message: `Nhập lý do để ${action} đơn ${booking.bookingCode ?? booking.id}:`,
+    })
+
+    if (!reason) {
+      return false
+    }
 
     setActionState({
       action,

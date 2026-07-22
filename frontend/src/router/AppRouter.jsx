@@ -4,6 +4,7 @@ import AuthLayout from '../layouts/AuthLayout.jsx'
 import AdminLayout from '../layouts/AdminLayout.jsx'
 import HomePage from '../pages/public/HomePageV2.jsx'
 import NetVietBlogPage from '../pages/public/NetVietBlogPage.jsx'
+import NetVietBlogDetailPage from '../pages/public/NetVietBlogDetailPage.jsx'
 import LoginPage from '../pages/auth/LoginPage.jsx'
 import RegisterPage from '../pages/auth/RegisterPage.jsx'
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx'
@@ -237,6 +238,7 @@ function AppRouter() {
           />
           <Route path="/travel-handbook" element={<TravelHandbookPage />} />
           <Route path="/blog" element={<NetVietBlogPage />} />
+          <Route path="/blog/:slug" element={<NetVietBlogDetailPage />} />
           <Route path="/customer-care" element={<CustomerCarePage />} />
           <Route path="/help-center" element={<HelpCenterPage />} />
           <Route path="/flights" element={<FlightListPage />} />

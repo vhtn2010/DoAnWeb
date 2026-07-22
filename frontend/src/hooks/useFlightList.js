@@ -52,6 +52,10 @@ function parseArraySearchParam(searchParams, key) {
     .filter(Boolean)
 }
 
+function pickSingleFilterValue(value = []) {
+  return Array.isArray(value) && value.length ? [value[0]] : []
+}
+
 function createInitialSearchState(searchParams) {
   return {
     trip_type: searchParams.get('trip_type') ?? DEFAULT_FLIGHT_SEARCH_STATE.trip_type,
@@ -71,10 +75,12 @@ function createInitialSearchState(searchParams) {
 
 function createInitialFilterState(searchParams) {
   return {
-    airline_codes: parseArraySearchParam(searchParams, 'airlines'),
-    price_ranges: parseArraySearchParam(searchParams, 'prices'),
-    departure_windows: parseArraySearchParam(searchParams, 'departure_windows'),
-    stop_counts: parseArraySearchParam(searchParams, 'stops'),
+    airline_codes: pickSingleFilterValue(parseArraySearchParam(searchParams, 'airlines')),
+    price_ranges: pickSingleFilterValue(parseArraySearchParam(searchParams, 'prices')),
+    departure_windows: pickSingleFilterValue(
+      parseArraySearchParam(searchParams, 'departure_windows'),
+    ),
+    stop_counts: pickSingleFilterValue(parseArraySearchParam(searchParams, 'stops')),
   }
 }
 
@@ -140,6 +146,9 @@ export default function useFlightList() {
   const { isCustomer } = usePublicSession()
 
   const [searchState, setSearchState] = useState(() => createInitialSearchState(searchParams))
+  const [appliedSearchState, setAppliedSearchState] = useState(() =>
+    createInitialSearchState(searchParams),
+  )
   const [draftFilters, setDraftFilters] = useState(() => createInitialFilterState(searchParams))
   const [appliedFilters, setAppliedFilters] = useState(() => createInitialFilterState(searchParams))
   const [selectedSort, setSelectedSort] = useState(
@@ -190,13 +199,13 @@ export default function useFlightList() {
 
       try {
         const response = await listFlights({
-          trip_type: searchState.trip_type,
-          from_location: searchState.from_location,
-          to_location: searchState.to_location,
-          departure_date: searchState.departure_date,
-          return_date: searchState.return_date,
-          cabin_class: searchState.cabin_class,
-          passengers: searchState.passengers,
+          trip_type: appliedSearchState.trip_type,
+          from_location: appliedSearchState.from_location,
+          to_location: appliedSearchState.to_location,
+          departure_date: appliedSearchState.departure_date,
+          return_date: appliedSearchState.return_date,
+          cabin_class: appliedSearchState.cabin_class,
+          passengers: appliedSearchState.passengers,
           airline_codes: appliedFilters.airline_codes,
           price_ranges: appliedFilters.price_ranges,
           departure_windows: appliedFilters.departure_windows,
@@ -242,14 +251,14 @@ export default function useFlightList() {
     return () => {
       isActive = false
     }
-  }, [appliedFilters, currentPage, reloadSeed, searchState, selectedSort])
+  }, [appliedFilters, appliedSearchState, currentPage, reloadSeed, selectedSort])
 
   function preserveAuthQuery(path) {
     return buildPublicAuthPath(path, isCustomer)
   }
 
   function syncSearchParams({
-    nextSearchState = searchState,
+    nextSearchState = appliedSearchState,
     nextFilters = appliedFilters,
     nextSort = selectedSort,
     nextPage = currentPage,
@@ -332,26 +341,28 @@ export default function useFlightList() {
     }
 
     setCurrentPage(1)
+    setAppliedSearchState(searchState)
     setSelectedFlightId('')
     setFeedback(createFeedbackState('info', 'Đã cập nhật kết quả chuyến bay theo lựa chọn của bạn.'))
-    syncSearchParams({ nextPage: 1 })
+    syncSearchParams({ nextPage: 1, nextSearchState: searchState })
   }
 
   function setFilter(filterKey, value) {
     setDraftFilters((currentFilters) => ({
       ...currentFilters,
-      [filterKey]: currentFilters[filterKey].includes(value)
-        ? currentFilters[filterKey].filter((item) => item !== value)
-        : [...currentFilters[filterKey], value],
+      [filterKey]:
+        currentFilters[filterKey].length === 1 && currentFilters[filterKey][0] === value
+          ? []
+          : [value],
     }))
   }
 
   function applyFilters() {
     const nextFilters = {
-      airline_codes: [...draftFilters.airline_codes],
-      price_ranges: [...draftFilters.price_ranges],
-      departure_windows: [...draftFilters.departure_windows],
-      stop_counts: [...draftFilters.stop_counts],
+      airline_codes: pickSingleFilterValue(draftFilters.airline_codes),
+      price_ranges: pickSingleFilterValue(draftFilters.price_ranges),
+      departure_windows: pickSingleFilterValue(draftFilters.departure_windows),
+      stop_counts: pickSingleFilterValue(draftFilters.stop_counts),
     }
 
     setAppliedFilters(nextFilters)
@@ -420,15 +431,15 @@ export default function useFlightList() {
   const resultSummary = useMemo(() => {
     return {
       total: meta.total_display ?? meta.total ?? 0,
-      fromLabel: formatResultLocation(defaults.airports, searchState.from_location),
-      toLabel: formatResultLocation(defaults.airports, searchState.to_location),
+      fromLabel: formatResultLocation(defaults.airports, appliedSearchState.from_location),
+      toLabel: formatResultLocation(defaults.airports, appliedSearchState.to_location),
     }
   }, [
     defaults.airports,
     meta.total,
     meta.total_display,
-    searchState.from_location,
-    searchState.to_location,
+    appliedSearchState.from_location,
+    appliedSearchState.to_location,
   ])
 
   return {

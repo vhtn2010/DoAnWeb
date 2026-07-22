@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { PAYMENT_STATUSES } from '../constants/bookings.js'
 import { PAYMENT_METHOD_CODES } from '../constants/payments.js'
@@ -11,7 +11,10 @@ import {
   getPaymentByCode,
   uploadCustomerPaymentProof,
 } from '../repositories/paymentRepository.js'
-import { uploadPaymentProofAsset } from '../adapters/api/uploadApiAdapter.js'
+import {
+  uploadPaymentProofAsset,
+  validatePaymentProofFile,
+} from '../adapters/api/uploadApiAdapter.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
 
@@ -57,9 +60,12 @@ function normalizeBookingItems(items = []) {
     return {
       ...item,
       image_url:
-        snapshot.image_url ?? '/assets/template/service/detail/ha-long-gallery-main.png',
+        snapshot.image_url ??
+        item.image_url ??
+        '/assets/template/service/detail/ha-long-gallery-main.png',
       service_title:
         snapshot.title ??
+        item.service_title ??
         item.title_snapshot ??
         item.title ??
         'Dịch vụ đang được cập nhật',
@@ -153,6 +159,7 @@ export default function usePaymentTransfer() {
   const [feedback, setFeedback] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [reloadToken, setReloadToken] = useState(0)
+  const submittingRef = useRef(false)
 
   useEffect(() => {
     let isActive = true
@@ -209,9 +216,15 @@ export default function usePaymentTransfer() {
         setPaymentProof(nextPaymentProof)
         setPaymentSummary(buildSummaryFromBooking(nextBooking))
         setProofForm({
-          bank_transaction_code: nextPaymentProof?.bank_transaction_code ?? '',
-          file: null,
-          transfer_note: nextPaymentProof?.transfer_note ?? '',
+          bank_transaction_code:
+            location.state?.paymentProofForm?.bank_transaction_code ??
+            nextPaymentProof?.bank_transaction_code ??
+            '',
+          file: location.state?.paymentProofForm?.file ?? null,
+          transfer_note:
+            location.state?.paymentProofForm?.transfer_note ??
+            nextPaymentProof?.transfer_note ??
+            '',
         })
         setFeedback(buildFeedback(nextPayment, nextPaymentProof))
       } catch (loadError) {
@@ -232,7 +245,14 @@ export default function usePaymentTransfer() {
     return () => {
       isActive = false
     }
-  }, [authState, location.state?.booking, location.state?.bookingItems, paymentCode, reloadToken])
+  }, [
+    authState,
+    location.state?.booking,
+    location.state?.bookingItems,
+    location.state?.paymentProofForm,
+    paymentCode,
+    reloadToken,
+  ])
 
   const viewModel = useMemo(
     () =>
@@ -265,6 +285,29 @@ export default function usePaymentTransfer() {
 
   function updateProofFile(event) {
     const nextFile = event.target.files?.[0] ?? null
+
+    if (!nextFile) {
+      setProofForm((currentForm) => ({
+        ...currentForm,
+        file: null,
+      }))
+      return
+    }
+
+    const validationError = validatePaymentProofFile(nextFile)
+
+    if (validationError) {
+      setProofForm((currentForm) => ({
+        ...currentForm,
+        file: null,
+      }))
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        proof_file: validationError,
+      }))
+      event.target.value = ''
+      return
+    }
 
     setProofForm((currentForm) => ({
       ...currentForm,
@@ -302,6 +345,10 @@ export default function usePaymentTransfer() {
   }
 
   async function submitProof() {
+    if (submittingRef.current) {
+      return
+    }
+
     if (!payment?.id) {
       setFieldErrors({
         proof_file: 'Không tìm thấy giao dịch để gửi bill. Vui lòng tải lại trang và thử lại.',
@@ -314,14 +361,17 @@ export default function usePaymentTransfer() {
       return
     }
 
-    if (!proofForm.file) {
+    const validationError = validatePaymentProofFile(proofForm.file)
+
+    if (validationError) {
       setFieldErrors({
-        proof_file: 'Vui lòng tải bill chuyển khoản trước khi gửi duyệt.',
+        proof_file: validationError,
       })
-      setFeedback('Bạn cần tải bill chuyển khoản lên trước khi gửi.')
+      setFeedback(validationError)
       return
     }
 
+    submittingRef.current = true
     setSubmitting(true)
     setFieldErrors({})
 
@@ -378,6 +428,7 @@ export default function usePaymentTransfer() {
       })
       setFeedback(submitError?.message ?? 'Không thể gửi bill chuyển khoản lúc này.')
     } finally {
+      submittingRef.current = false
       setUploadingProof(false)
       setSubmitting(false)
     }

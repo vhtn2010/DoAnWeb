@@ -88,6 +88,7 @@ function CheckoutSummaryCard({
   buttonLabel,
   feedbackMessage,
   formErrors,
+  isSubmitting = false,
   onContinue,
   summary,
   summaryService,
@@ -96,6 +97,9 @@ function CheckoutSummaryCard({
   const dateRange = formatServiceDateRange(summaryService.start_at, summaryService.end_at)
   const travellerLabel = buildTravellerLabel(summaryService.options)
   const hasBaggageFee = Boolean(summary.has_baggage_fee)
+  const hasVat = Boolean(summary.has_vat)
+  const hasServiceFee = Boolean(summary.has_service_fee)
+  const hasDiscount = Boolean(summary.has_discount)
 
   return (
     <section className="checkout-summary-card">
@@ -143,14 +147,24 @@ function CheckoutSummaryCard({
               <strong>{summary.baggage_fee_amount}</strong>
             </div>
           ) : null}
-          <div className="checkout-summary-card__price-row">
-            <span>Thuế & Phí dịch vụ</span>
-            <strong>{summary.service_fee_amount}</strong>
-          </div>
-          <div className="checkout-summary-card__price-row checkout-summary-card__price-row--discount">
-            <span>Giảm giá thành viên</span>
-            <strong>- {summary.discount_amount}</strong>
-          </div>
+          {hasVat ? (
+            <div className="checkout-summary-card__price-row">
+              <span>Thuế VAT (8%)</span>
+              <strong>{summary.vat_amount}</strong>
+            </div>
+          ) : null}
+          {hasServiceFee ? (
+            <div className="checkout-summary-card__price-row">
+              <span>Phí dịch vụ</span>
+              <strong>{summary.service_fee_amount}</strong>
+            </div>
+          ) : null}
+          {hasDiscount ? (
+            <div className="checkout-summary-card__price-row checkout-summary-card__price-row--discount">
+              <span>Giảm giá thành viên</span>
+              <strong>- {summary.discount_amount}</strong>
+            </div>
+          ) : null}
         </div>
 
         <div className="checkout-summary-card__total-box">
@@ -161,8 +175,14 @@ function CheckoutSummaryCard({
           <span className="checkout-summary-card__vat-note">Đã bao gồm VAT</span>
         </div>
 
-        <button className="checkout-summary-card__button" type="button" onClick={onContinue}>
-          {buttonLabel}
+        <button
+          aria-busy={isSubmitting}
+          className="checkout-summary-card__button"
+          disabled={isSubmitting}
+          type="button"
+          onClick={onContinue}
+        >
+          {isSubmitting ? 'Đang xử lý...' : buttonLabel}
         </button>
 
         <p className="checkout-summary-card__note">

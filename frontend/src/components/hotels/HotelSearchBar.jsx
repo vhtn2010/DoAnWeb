@@ -72,7 +72,28 @@ function parseDateValue(value) {
   return createDate(year, month - 1, day)
 }
 
+function parseOptionalDateValue(value) {
+  if (!value) {
+    return null
+  }
+
+  const [dayText, monthText, yearText] = value.split('-')
+  const day = Number(dayText)
+  const month = Number(monthText)
+  const year = Number(yearText)
+
+  if (!day || !month || !year) {
+    return null
+  }
+
+  return createDate(year, month - 1, day)
+}
+
 function isSameDay(firstDate, secondDate) {
+  if (!firstDate || !secondDate) {
+    return false
+  }
+
   return (
     firstDate.getFullYear() === secondDate.getFullYear() &&
     firstDate.getMonth() === secondDate.getMonth() &&
@@ -132,6 +153,14 @@ function ChevronIcon({ isOpen }) {
         strokeLinejoin="round"
         strokeWidth="1.8"
       />
+    </svg>
+  )
+}
+
+function ClearIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24">
+      <path d="M6.75 6.75 17.25 17.25M17.25 6.75 6.75 17.25" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
     </svg>
   )
 }
@@ -198,7 +227,7 @@ function SearchIcon() {
 }
 
 function CalendarPopover({ minDate, selectedValue, visibleMonth, onMonthChange, onSelect }) {
-  const selectedDate = parseDateValue(selectedValue)
+  const selectedDate = parseOptionalDateValue(selectedValue)
 
   return (
     <div aria-label="Chọn ngày" className="hotel-search-bar__calendar-popover" role="dialog">
@@ -270,14 +299,20 @@ function HotelSearchField({
   isOpen,
   label,
   menu,
+  onClear,
   onToggle,
+  placeholder,
   value,
 }) {
+  const hasValue = Boolean(value)
+
   return (
     <div className="hotel-search-bar__field">
       <button
         aria-expanded={isOpen}
-        className={`hotel-search-bar__field-button ${isOpen ? 'hotel-search-bar__field-button--open' : ''}`}
+        className={`hotel-search-bar__field-button ${
+          isOpen ? 'hotel-search-bar__field-button--open' : ''
+        } ${hasValue ? 'hotel-search-bar__field-button--clearable' : ''}`}
         type="button"
         onClick={onToggle}
       >
@@ -286,10 +321,26 @@ function HotelSearchField({
         </span>
         <span className="hotel-search-bar__field-copy">
           <span className="hotel-search-bar__label">{label}</span>
-          <span className="hotel-search-bar__value">{value}</span>
+          <span
+            className={`hotel-search-bar__value ${
+              hasValue ? '' : 'hotel-search-bar__value--placeholder'
+            }`}
+          >
+            {hasValue ? value : placeholder}
+          </span>
         </span>
-        <ChevronIcon isOpen={isOpen} />
+        {hasValue ? null : <ChevronIcon isOpen={isOpen} />}
       </button>
+      {hasValue && onClear ? (
+        <button
+          aria-label={`Xóa ${label.toLowerCase()}`}
+          className="hotel-search-bar__clear-button"
+          type="button"
+          onClick={onClear}
+        >
+          <ClearIcon />
+        </button>
+      ) : null}
       {isOpen ? menu : null}
     </div>
   )
@@ -348,15 +399,26 @@ function HotelSearchBar({ onFieldChange, onSubmit, searchValues }) {
   function handleDateSelect(fieldKey, value) {
     if (fieldKey === 'checkin') {
       const nextCheckinDate = parseDateValue(value)
-      const currentCheckoutDate = parseDateValue(searchValues.checkout)
+      const currentCheckoutDate = parseOptionalDateValue(searchValues.checkout)
 
       onFieldChange('checkin', value)
 
-      if (compareDates(currentCheckoutDate, nextCheckinDate) <= 0) {
+      if (currentCheckoutDate && compareDates(currentCheckoutDate, nextCheckinDate) <= 0) {
         onFieldChange('checkout', formatDateValue(addDays(nextCheckinDate, 1)))
       }
     } else {
       onFieldChange(fieldKey, value)
+    }
+
+    setOpenMenu(null)
+  }
+
+  function handleFieldClear(fieldKey) {
+    if (fieldKey === 'checkin') {
+      onFieldChange('checkin', '')
+      onFieldChange('checkout', '')
+    } else {
+      onFieldChange(fieldKey, '')
     }
 
     setOpenMenu(null)
@@ -369,7 +431,9 @@ function HotelSearchBar({ onFieldChange, onSubmit, searchValues }) {
           icon={<LocationIcon />}
           isOpen={openMenu === 'location'}
           label="ĐỊA ĐIỂM"
+          placeholder="Chọn địa điểm"
           value={searchValues.location}
+          onClear={() => handleFieldClear('location')}
           onToggle={() => toggleMenu('location')}
           menu={
             <div className="hotel-search-bar__dropdown" role="listbox">
@@ -395,7 +459,9 @@ function HotelSearchBar({ onFieldChange, onSubmit, searchValues }) {
           icon={<CalendarIcon />}
           isOpen={openMenu === 'checkin'}
           label="NHẬN PHÒNG"
+          placeholder="Chọn ngày nhận"
           value={searchValues.checkin}
+          onClear={() => handleFieldClear('checkin')}
           onToggle={() => toggleMenu('checkin')}
           menu={
             <CalendarPopover
@@ -411,11 +477,13 @@ function HotelSearchBar({ onFieldChange, onSubmit, searchValues }) {
           icon={<CalendarIcon />}
           isOpen={openMenu === 'checkout'}
           label="TRẢ PHÒNG"
+          placeholder="Chọn ngày trả"
           value={searchValues.checkout}
+          onClear={() => handleFieldClear('checkout')}
           onToggle={() => toggleMenu('checkout')}
           menu={
             <CalendarPopover
-              minDate={parseDateValue(searchValues.checkin)}
+              minDate={parseOptionalDateValue(searchValues.checkin)}
               selectedValue={searchValues.checkout}
               visibleMonth={visibleMonth}
               onMonthChange={(offset) => setVisibleMonth((currentMonth) => addMonths(currentMonth, offset))}

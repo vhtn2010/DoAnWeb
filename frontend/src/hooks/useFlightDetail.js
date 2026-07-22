@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAddToCartToast } from '../components/public/feedback/addToCartToastContext.js'
 import { mapFlightDetailResponseToView } from '../mappers/flightMappers.js'
@@ -100,7 +100,9 @@ export default function useFlightDetail() {
   const [feedback, setFeedback] = useState(() => createFeedbackState())
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
   const [loginPromptVariant, setLoginPromptVariant] = useState('cart')
+  const [pendingAction, setPendingAction] = useState('')
   const [reloadSeed, setReloadSeed] = useState(0)
+  const pendingActionRef = useRef('')
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -285,45 +287,81 @@ export default function useFlightDetail() {
   }
 
   async function addToCartAction() {
+    if (pendingActionRef.current) {
+      return
+    }
+
     if (!isAuthenticatedCustomer) {
       setLoginPromptVariant('cart')
       setIsLoginPromptOpen(true)
       return
     }
 
-    const result = await buildFlightBooking()
+    pendingActionRef.current = 'cart'
+    setPendingAction('cart')
 
-    if (!result.success) {
-      return
+    try {
+      const result = await buildFlightBooking()
+
+      if (!result.success) {
+        return
+      }
+
+      await addCartItem(result.payload, {
+        authState,
+        previewItem: result.cartItem,
+      })
+      setFeedback(createFeedbackState())
+      showAddToCartToast()
+    } catch (actionError) {
+      setFeedback(
+        createFeedbackState(
+          'error',
+          actionError?.message ?? 'Không thể thêm chuyến bay vào giỏ hàng lúc này.',
+        ),
+      )
+    } finally {
+      pendingActionRef.current = ''
+      setPendingAction('')
     }
-
-    await addCartItem(result.payload, {
-      authState,
-      previewItem: result.cartItem,
-    })
-    setFeedback(createFeedbackState())
-    showAddToCartToast()
   }
 
   async function bookNowAction() {
+    if (pendingActionRef.current) {
+      return
+    }
+
     if (!isAuthenticatedCustomer) {
       setLoginPromptVariant('booking')
       setIsLoginPromptOpen(true)
       return
     }
 
-    const result = await buildFlightBooking()
+    pendingActionRef.current = 'booking'
+    setPendingAction('booking')
 
-    if (!result.success) {
-      return
-    }
+    try {
+      const result = await buildFlightBooking()
 
-    if (isAuthenticatedCustomer) {
+      if (!result.success) {
+        return
+      }
+
       await addCartItem(result.payload, {
         authState,
         previewItem: result.cartItem,
       })
       navigate(preserveAuthQuery('/cart'))
+    } catch (actionError) {
+      setFeedback(
+        createFeedbackState(
+          'error',
+          actionError?.message ?? 'Không thể chuẩn bị đặt chuyến bay lúc này.',
+        ),
+      )
+    } finally {
+      pendingActionRef.current = ''
+      setPendingAction('')
     }
   }
 
@@ -379,6 +417,7 @@ export default function useFlightDetail() {
     handleToggleFavorite,
     isFavorite,
     isLoginPromptOpen,
+    pendingAction,
     loading,
     loginPromptVariant,
     preserveAuthQuery,

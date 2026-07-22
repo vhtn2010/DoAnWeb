@@ -20,12 +20,6 @@ export const HOTEL_PRICE_FILTER_OPTIONS = Object.freeze([
   { value: 'over-5m', label: 'Trên 5 triệu' },
 ])
 
-export const HOTEL_DURATION_FILTER_OPTIONS = Object.freeze([
-  { value: '1-3', label: '1 - 3 ngày' },
-  { value: '4-7', label: '4 - 7 ngày' },
-  { value: 'other', label: 'Khác' },
-])
-
 export const HOTEL_STAR_FILTER_OPTIONS = Object.freeze([
   { value: '5', label: '5 sao' },
   { value: '4', label: '4 sao' },

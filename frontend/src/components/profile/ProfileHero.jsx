@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { requestChangeEmail } from '../../repositories/authRepository.js'
 import { updateCurrentProfile } from '../../repositories/profileRepository.js'
+import ProfileAvatarEditor from './ProfileAvatarEditor.jsx'
 
 function SparkIcon() {
   return (
@@ -58,25 +59,6 @@ function PhoneIcon() {
   )
 }
 
-function EditIcon() {
-  return (
-    <svg fill="none" viewBox="0 0 20 20">
-      <path
-        d="M12.4 4.1a1.8 1.8 0 0 1 2.55 0l.95.95a1.8 1.8 0 0 1 0 2.55L8.4 15.1 4.5 15.5l.4-3.9 7.5-7.5Z"
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeWidth="1.5"
-      />
-      <path
-        d="m11.5 5 3.5 3.5"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.5"
-      />
-    </svg>
-  )
-}
-
 function EyeOpenIcon() {
   return (
     <svg fill="none" viewBox="0 0 20 20">
@@ -126,17 +108,23 @@ function EyeClosedIcon() {
   )
 }
 
-function getInitials(name = '') {
-  const words = name.trim().split(/\s+/).filter(Boolean)
-
-  if (!words.length) {
-    return 'NV'
-  }
-
-  return words
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('')
+function EditIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M12.4 4.1a1.8 1.8 0 0 1 2.55 0l.95.95a1.8 1.8 0 0 1 0 2.55L8.4 15.1 4.5 15.5l.4-3.9 7.5-7.5Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+      <path
+        d="m11.5 5 3.5 3.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+    </svg>
+  )
 }
 
 function normalizeLoyaltyTier(value = '') {
@@ -337,6 +325,7 @@ function ProfileHero({
   onOpenHistory,
   onOpenUpcomingTripPrimary,
   onOpenUpcomingTripSecondary,
+  onProfileUpdated,
   profile,
   stats = [],
   upcomingTrip,
@@ -665,17 +654,11 @@ function ProfileHero({
         <aside className="profile-hero__membership">
           <div className="profile-hero__member-card">
             <div className="profile-hero__member-top">
-              {profile?.avatar_url ? (
-                <img
-                  alt={displayName}
-                  className="profile-hero__avatar-image"
-                  src={profile.avatar_url}
-                />
-              ) : (
-                <span className="profile-hero__avatar" aria-hidden="true">
-                  {getInitials(displayName)}
-                </span>
-              )}
+              <ProfileAvatarEditor
+                avatarUrl={profile?.avatar_url ?? ''}
+                displayName={displayName}
+                onProfileUpdated={onProfileUpdated}
+              />
 
               <div className="profile-hero__member-copy">
                 <p className="profile-hero__member-label">Thẻ thành viên</p>

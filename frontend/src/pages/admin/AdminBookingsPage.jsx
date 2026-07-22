@@ -21,6 +21,7 @@ import {
   rejectAdminPayment,
 } from '../../repositories/adminPaymentRepository.js'
 import { getAdminVoucherDetail } from '../../repositories/adminUtilityRepository.js'
+import { requestAdminConfirmation } from '../../utils/adminActionConfirmation.js'
 import { ADMIN_PERMISSIONS, hasPermission } from '../../utils/rolePermissions.js'
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN')
@@ -521,6 +522,26 @@ function AdminBookingsPage() {
       return
     }
 
+    const receivedAmount = Number(reviewPayment.amount)
+
+    if (!Number.isFinite(receivedAmount) || receivedAmount <= 0) {
+      setPaymentFeedback('Số tiền thanh toán không hợp lệ, không thể phê duyệt.')
+      return
+    }
+
+    if (!reviewPayment.proof?.proof_image_url) {
+      setPaymentFeedback('Giao dịch chưa có ảnh bill để phê duyệt.')
+      return
+    }
+
+    if (
+      !requestAdminConfirmation(
+        `Xác nhận đã đối soát bill và nhận ${formatCurrency(receivedAmount)} cho đơn ${booking.bookingCode}?`,
+      )
+    ) {
+      return
+    }
+
     setPaymentActionLoading(true)
     setPaymentActionType('approve')
     setPaymentFeedback('')
@@ -530,8 +551,7 @@ function AdminBookingsPage() {
       const response = await confirmAdminPayment(reviewPayment.id, {
         collector_note: `Admin xác nhận đã nhận tiền cho đơn ${booking.bookingCode}.`,
         next_booking_status: ADMIN_BOOKING_STATUSES.confirmed,
-        received_amount: reviewPayment.amount,
-        received_at: new Date().toISOString(),
+        received_amount: receivedAmount,
       })
 
       if (!response.success) {
@@ -573,6 +593,10 @@ function AdminBookingsPage() {
     if (!normalizedReason) {
       setPaymentRejectReasonError('Vui lòng nhập lý do từ chối bill trước khi tiếp tục.')
       setPaymentFeedback('')
+      return
+    }
+
+    if (!requestAdminConfirmation('Xác nhận từ chối bill chuyển khoản này?')) {
       return
     }
 

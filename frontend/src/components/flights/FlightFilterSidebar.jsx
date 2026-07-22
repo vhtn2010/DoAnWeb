@@ -4,94 +4,89 @@ import {
   FLIGHT_STOP_FILTER_OPTIONS,
 } from '../../constants/flights.js'
 
-function FilterSection({ children, title }) {
+function FilterIcon() {
   return (
-    <section className="flight-filter-sidebar__section">
-      <h3>{title}</h3>
-      <div className="flight-filter-sidebar__checks">{children}</div>
-    </section>
+    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M4.5 6.25h15m-12 5.5h9m-6 5.5h3"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
+    </svg>
   )
 }
 
-function FilterCheckbox({ checked, label, onChange }) {
+function FilterCheckboxGroup({ options, selectedValues, title, onToggle }) {
   return (
-    <label className="flight-filter-sidebar__check">
-      <input checked={checked} type="checkbox" onChange={onChange} />
-      <span>{label}</span>
-    </label>
+    <div className="hotel-filter-sidebar__section">
+      <h3 className="hotel-filter-sidebar__section-title">{title}</h3>
+      <div className="hotel-filter-sidebar__checks">
+        {options.map((option) => (
+          <label className="hotel-filter-sidebar__check" key={option.value}>
+            <input
+              checked={selectedValues.includes(option.value)}
+              type="checkbox"
+              onChange={() => onToggle(option.value)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
   )
 }
 
 function FlightFilterSidebar({ airlineOptions, draftFilters, onApply, onToggle }) {
+  const airlineFilterOptions = airlineOptions.map((airline) => ({
+    value: airline.code,
+    label: airline.name,
+  }))
+
   return (
-    <aside className="flight-filter-sidebar">
-      <div className="flight-filter-sidebar__header">
-        <span className="flight-filter-sidebar__marker" aria-hidden="true">
-          <svg fill="none" viewBox="0 0 24 24">
-            <path
-              d="M4 6.5h16M7.5 12h9M10.5 17.5h3"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeWidth="1.8"
-            />
-          </svg>
+    <aside className="hotel-filter-sidebar hotel-filter-sidebar--sticky">
+      <div className="hotel-filter-sidebar__header">
+        <span aria-hidden="true" className="hotel-filter-sidebar__icon">
+          <FilterIcon />
         </span>
-        <h2 className="flight-filter-sidebar__title">Bộ lọc nâng cao</h2>
+        <h2 className="hotel-filter-sidebar__title">Bộ lọc nâng cao</h2>
       </div>
 
-      <FilterSection title="Hãng hàng không">
-        {airlineOptions.map((airline) => (
-          <FilterCheckbox
-            checked={draftFilters.airline_codes.includes(airline.code)}
-            key={airline.code}
-            label={airline.name}
-            onChange={() => onToggle('airline_codes', airline.code)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCheckboxGroup
+        options={airlineFilterOptions}
+        selectedValues={draftFilters.airline_codes}
+        title="Hãng hàng không"
+        onToggle={(value) => onToggle('airline_codes', value)}
+      />
 
-      <FilterSection title="Khung giờ bay">
-        {FLIGHT_DEPARTURE_TIME_FILTER_OPTIONS.map((option) => (
-          <FilterCheckbox
-            checked={draftFilters.departure_windows.includes(option.value)}
-            key={option.value}
-            label={option.label}
-            onChange={() => onToggle('departure_windows', option.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCheckboxGroup
+        options={FLIGHT_DEPARTURE_TIME_FILTER_OPTIONS}
+        selectedValues={draftFilters.departure_windows}
+        title="Khung giờ bay"
+        onToggle={(value) => onToggle('departure_windows', value)}
+      />
 
-      <FilterSection title="Điểm dừng">
-        {FLIGHT_STOP_FILTER_OPTIONS.map((option) => (
-          <FilterCheckbox
-            checked={draftFilters.stop_counts.includes(option.value)}
-            key={option.value}
-            label={option.label}
-            onChange={() => onToggle('stop_counts', option.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCheckboxGroup
+        options={FLIGHT_STOP_FILTER_OPTIONS}
+        selectedValues={draftFilters.stop_counts}
+        title="Điểm dừng"
+        onToggle={(value) => onToggle('stop_counts', value)}
+      />
 
-      <FilterSection title="Mức giá">
-        {FLIGHT_PRICE_FILTER_OPTIONS.map((option) => (
-          <FilterCheckbox
-            checked={draftFilters.price_ranges.includes(option.value)}
-            key={option.value}
-            label={option.label}
-            onChange={() => onToggle('price_ranges', option.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCheckboxGroup
+        options={FLIGHT_PRICE_FILTER_OPTIONS}
+        selectedValues={draftFilters.price_ranges}
+        title="Mức giá"
+        onToggle={(value) => onToggle('price_ranges', value)}
+      />
 
-      <div className="flight-filter-sidebar__actions">
-        <button
-          className="flight-filter-sidebar__button flight-filter-sidebar__button--primary"
-          type="button"
-          onClick={onApply}
-        >
-          Áp dụng bộ lọc
-        </button>
-      </div>
+      <button
+        className="hotel-filter-sidebar__apply hotel-filter-sidebar__apply--full"
+        type="button"
+        onClick={onApply}
+      >
+        Áp dụng bộ lọc
+      </button>
     </aside>
   )
 }

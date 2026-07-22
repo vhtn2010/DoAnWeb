@@ -10,11 +10,11 @@ export const TOUR_PRICE_FILTER_OPTIONS = Object.freeze([
 export const TOUR_DURATION_FILTER_OPTIONS = Object.freeze([
   { value: '1-3', label: '1 - 3 ngày' },
   { value: '4-7', label: '4 - 7 ngày' },
-  { value: 'other', label: 'Khác' },
+  { value: 'other', label: 'Trên 7 ngày' },
 ])
 
 export const TOUR_CATEGORY_FILTER_OPTIONS = Object.freeze([
-  'Văn hoá',
+  'Văn hóa',
   'Nghỉ dưỡng',
   'Khám phá',
 ])
