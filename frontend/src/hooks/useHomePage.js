@@ -152,6 +152,12 @@ export default function useHomePage() {
         endDate: null,
       }
       setCalendarSelection(nextSelection)
+      setSearchState((currentState) => ({
+        ...currentState,
+        startDate: nextSelection.startDate,
+        endDate: null,
+      }))
+      setFeedbackMessage('')
       return
     }
 
@@ -161,6 +167,12 @@ export default function useHomePage() {
         endDate: null,
       }
       setCalendarSelection(nextSelection)
+      setSearchState((currentState) => ({
+        ...currentState,
+        startDate: nextSelection.startDate,
+        endDate: null,
+      }))
+      setFeedbackMessage('')
       return
     }
 
@@ -215,9 +227,13 @@ export default function useHomePage() {
   }
 
   function handleSearch() {
-    if (!searchState.startDate || !searchState.endDate) {
+    const hasDeparture = Boolean(searchState.from)
+    const hasDestination = Boolean(searchState.to)
+    const hasDateSelection = Boolean(searchState.startDate || searchState.endDate)
+
+    if (!hasDeparture && !hasDestination && !hasDateSelection) {
       setFeedbackMessage(
-        'Vui l\u00f2ng ch\u1ecdn \u0111\u1ea7y \u0111\u1ee7 ng\u00e0y \u0111i v\u00e0 ng\u00e0y v\u1ec1.',
+        'Vui lòng chọn ít nhất một tiêu chí tìm kiếm.',
       )
       return
     }
@@ -246,6 +262,8 @@ export default function useHomePage() {
   const displayedDateRange =
     searchState.startDate && searchState.endDate
       ? formatCompactDateRangeDisplay(searchState.startDate, searchState.endDate)
+      : searchState.startDate
+        ? formatDateDisplay(searchState.startDate)
       : 'Ch\u1ecdn ng\u00e0y \u0111i - v\u1ec1'
   const calendarPreview = calendarSelection.endDate
     ? formatCompactDateRangeDisplay(calendarSelection.startDate, calendarSelection.endDate)

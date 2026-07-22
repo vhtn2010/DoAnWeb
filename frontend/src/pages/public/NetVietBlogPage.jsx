@@ -248,7 +248,10 @@ function NetVietBlogPage() {
           </button>
         </form>
 
-        <div className="netviet-blog-hero__content">
+        <Link
+          className="netviet-blog-hero__content"
+          to={buildPublicAuthPath('/blog/kinh-nghiem-du-lich-co-do-hue-2026', isCustomer)}
+        >
           <span className="netviet-blog-hero__badge">TIÊU ĐIỂM DI SẢN</span>
           <h1>
             Kinh nghiệm du lịch Cố đô
@@ -260,7 +263,7 @@ function NetVietBlogPage() {
             <span aria-hidden="true" />
             <time dateTime="2024-07-15">15 tháng 7, 2024</time>
           </div>
-        </div>
+        </Link>
 
         <div className="netviet-blog-slider" aria-hidden="true">
           <button type="button" tabIndex={-1}>‹</button>

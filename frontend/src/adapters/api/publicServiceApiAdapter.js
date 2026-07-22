@@ -41,10 +41,27 @@ function normalizeTourCard(service = {}) {
   const resolvedSalePrice = salePrice ?? publicPrice ?? basePrice ?? 0
   const resolvedBasePrice = basePrice ?? resolvedSalePrice
   const fallbackSlug = normalizeSlug(service.slug, service.id ?? service.title ?? 'tour')
+  const rawDetails =
+    service.details && typeof service.details === 'object' && !Array.isArray(service.details)
+      ? service.details
+      : service
+
+  const normalizedDetails = {
+    departure_location: rawDetails.departure_location ?? '',
+    destination_location: rawDetails.destination_location ?? '',
+    duration_days: toNumber(rawDetails.duration_days) ?? 0,
+    duration_nights: toNumber(rawDetails.duration_nights) ?? 0,
+    max_group_size: toNumber(rawDetails.max_group_size) ?? 0,
+    departure_schedule: Array.isArray(rawDetails.departure_schedule)
+      ? rawDetails.departure_schedule
+      : [],
+    transport_type: rawDetails.transport_type ?? '',
+  }
 
   return {
     base_price: resolvedBasePrice,
     currency: service.currency ?? 'VND',
+    details: normalizedDetails,
     has_sale_price:
       salePrice != null &&
       resolvedBasePrice != null &&

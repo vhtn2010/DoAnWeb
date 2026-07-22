@@ -4,6 +4,7 @@ import LoginRequiredModal from '../components/auth/LoginRequiredModal.jsx'
 import PublicHeader from '../components/layout/PublicHeader.jsx'
 import PublicFooter from '../components/layout/PublicFooter.jsx'
 import { AddToCartToastProvider } from '../components/public/feedback/AddToCartToast.jsx'
+import CustomerCareMiniWidget from '../components/support/CustomerCareMiniWidget.jsx'
 import { createPublicSessionState } from '../hooks/usePublicSession.js'
 import { getCurrentProfile } from '../repositories/profileRepository.js'
 import { subscribeAuthEvents } from '../services/apiClient.js'
@@ -330,6 +331,7 @@ function PublicLayout() {
           </div>
         </main>
         <PublicFooter />
+        <CustomerCareMiniWidget isCustomer={publicSession.isCustomer} />
         <LoginRequiredModal
           description={loginRequiredModal.description}
           eyebrow={loginRequiredModal.eyebrow}

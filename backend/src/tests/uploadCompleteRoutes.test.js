@@ -312,6 +312,63 @@ test('POST /api/uploads/complete surfaces validation, forbidden, and duplicate e
   }
 });
 
+test('POST /api/uploads/complete passes through customer support reply file uploads', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'customer-77',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'customer-77',
+    });
+  uploadCompleteService.completeUpload = async (context) => {
+    capturedContext = context;
+
+    return {
+      asset_url:
+        'https://res.cloudinary.com/demo-cloud/raw/upload/v1783000900/net-viet-travel/support/support-note.pdf',
+      public_id: 'net-viet-travel/support/support-note.pdf',
+      purpose: 'support_reply',
+      resource_type: 'raw',
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/uploads/complete`, {
+      body: JSON.stringify({
+        asset_url:
+          'https://res.cloudinary.com/demo-cloud/raw/upload/v1783000900/net-viet-travel/support/support-note.pdf',
+        public_id: 'net-viet-travel/support/support-note.pdf',
+        purpose: 'support_reply',
+        resource_type: 'raw',
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.purpose, 'support_reply');
+    assert.equal(response.body.data.resource_type, 'raw');
+    assert.deepEqual(capturedContext.body, {
+      asset_url:
+        'https://res.cloudinary.com/demo-cloud/raw/upload/v1783000900/net-viet-travel/support/support-note.pdf',
+      public_id: 'net-viet-travel/support/support-note.pdf',
+      purpose: 'support_reply',
+      resource_type: 'raw',
+    });
+  } finally {
+    await closeServer(server);
+  }
+});
+
 test('POST /api/uploads/complete returns 429 when the complete rate limit is exceeded', async () => {
   const server = app.listen(0);
   const accessToken = createAccessToken({

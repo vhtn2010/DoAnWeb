@@ -182,6 +182,16 @@ function SupportMessageBody({ message }) {
           )
         }
 
+        if (block.type === 'file') {
+          return (
+            <p key={`${block.url}-${index}`}>
+              <a href={block.url} target="_blank" rel="noreferrer">
+                {block.label}
+              </a>
+            </p>
+          )
+        }
+
         return (
           <p key={`paragraph-${index}`}>
             {renderSupportInlineContent(block.text)}

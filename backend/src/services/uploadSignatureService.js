@@ -76,7 +76,7 @@ const FOLDER_POLICIES = Object.freeze({
     scope: 'service_assets',
   }),
   support: Object.freeze({
-    resourceTypes: Object.freeze(['image']),
+    resourceTypes: Object.freeze(['image', 'raw']),
     resolvedSegment: 'support',
     scope: 'support_assets',
   }),
@@ -258,6 +258,10 @@ const ensureRoleScope = ({
   }
 
   if (folder === 'support') {
+    if (roleCode === 'customer') {
+      return;
+    }
+
     if (
       roleCode === 'staff' &&
       permissionCodes.some((code) => PERMISSION_GROUPS.support.includes(code))

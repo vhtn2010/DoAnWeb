@@ -281,3 +281,43 @@ test('uploadCompleteService.completeUpload can verify Cloudinary asset existence
     },
   );
 });
+
+test('uploadCompleteService.completeUpload allows customer support reply uploads for raw files', async () => {
+  const service = createUploadCompleteService({
+    cloudinaryConfig: {
+      apiKey: 'cloud-key',
+      apiSecret: 'super-secret',
+      cloudName: 'demo-cloud',
+      folder: 'net-viet-travel',
+      requestTimeoutMs: 20000,
+    },
+    repository: {
+      findLatestUploadLogByPublicId: async () => null,
+      insertUserLog: async () => {},
+      listPermissionCodesByRoleId: async () => [],
+    },
+    verifyAssetEnabled: false,
+  });
+
+  const result = await service.completeUpload({
+    auth: createAuthContext({
+      roleCode: 'customer',
+      userId: 'customer-1',
+    }),
+    body: {
+      asset_url:
+        'https://res.cloudinary.com/demo-cloud/raw/upload/v1783000600/net-viet-travel/support/booking-change-request.pdf',
+      public_id: 'net-viet-travel/support/booking-change-request.pdf',
+      purpose: 'support_reply',
+      resource_type: 'raw',
+    },
+  });
+
+  assert.deepEqual(result, {
+    asset_url:
+      'https://res.cloudinary.com/demo-cloud/raw/upload/v1783000600/net-viet-travel/support/booking-change-request.pdf',
+    public_id: 'net-viet-travel/support/booking-change-request.pdf',
+    purpose: 'support_reply',
+    resource_type: 'raw',
+  });
+});

@@ -18,6 +18,7 @@ import {
   buildPublicAuthPath,
   getPublicAuthQueryValue,
 } from '../utils/publicNavigation.js'
+import { normalizeVietnamLocationDisplay } from '../utils/locationDisplay.js'
 
 const MAX_CLIENT_TOUR_RESULTS = 50
 
@@ -37,15 +38,26 @@ const DEFAULT_TOUR_CATALOG = Object.freeze({
 
 function createEmptyFilters() {
   return {
+    departure: '',
+    endDate: '',
     keyword: '',
     prices: [],
+    startDate: '',
     durations: [],
     categories: [],
   }
 }
 
+function normalizeFilterValues(value = []) {
+  if (!Array.isArray(value) || !value.length) {
+    return []
+  }
+
+  return [...new Set(value.map((item) => item?.trim()).filter(Boolean))]
+}
+
 function pickSingleFilterValue(value = []) {
-  return Array.isArray(value) && value.length ? [value[0]] : []
+  return normalizeFilterValues(value).slice(0, 1)
 }
 
 function humanizeQueryValue(value) {
@@ -56,16 +68,36 @@ function humanizeQueryValue(value) {
     .join(' ')
 }
 
+function normalizeLocationQueryValue(value = '') {
+  const normalizedDisplayValue = normalizeVietnamLocationDisplay(value)
+
+  if (normalizedDisplayValue) {
+    return normalizedDisplayValue
+  }
+
+  return humanizeQueryValue(value)
+}
+
 function buildFiltersFromSearchParams(searchParams) {
   const nextFilters = createEmptyFilters()
+  const departureValue = searchParams.get('from') ?? ''
   const locationValue = searchParams.get('location') ?? searchParams.get('to') ?? ''
+  const startDateValue = searchParams.get('start') ?? ''
+  const endDateValue = searchParams.get('end') ?? ''
   const selectedPrices = searchParams.get('prices')
   const selectedDurations = searchParams.get('durations')
   const selectedCategories = searchParams.get('categories')
 
-  if (locationValue) {
-    nextFilters.keyword = humanizeQueryValue(locationValue)
+  if (departureValue) {
+    nextFilters.departure = normalizeLocationQueryValue(departureValue)
   }
+
+  if (locationValue) {
+    nextFilters.keyword = normalizeLocationQueryValue(locationValue)
+  }
+
+  nextFilters.startDate = startDateValue
+  nextFilters.endDate = endDateValue
 
   nextFilters.prices = pickSingleFilterValue(
     selectedPrices ? selectedPrices.split(',').map((item) => item.trim()).filter(Boolean) : [],
@@ -96,18 +128,48 @@ function buildPageFromSearchParams(searchParams) {
 
 function buildServiceListSearchParams({
   auth: _auth = '',
+  departure = '',
+  endDate = '',
   keyword = '',
   page = 1,
+  prices = [],
+  startDate = '',
+  durations = [],
+  categories = [],
   sort = DEFAULT_TOUR_SORT,
 } = {}) {
   const nextSearchParams = new URLSearchParams()
+
+  if (departure.trim()) {
+    nextSearchParams.set('from', departure.trim())
+  }
 
   if (keyword.trim()) {
     nextSearchParams.set('location', keyword.trim())
   }
 
+  if (normalizeDateKey(startDate)) {
+    nextSearchParams.set('start', normalizeDateKey(startDate))
+  }
+
+  if (normalizeDateKey(endDate)) {
+    nextSearchParams.set('end', normalizeDateKey(endDate))
+  }
+
   if (sort && sort !== DEFAULT_TOUR_SORT) {
     nextSearchParams.set('sort', sort)
+  }
+
+  if (prices.length) {
+    nextSearchParams.set('prices', normalizeFilterValues(prices).join(','))
+  }
+
+  if (durations.length) {
+    nextSearchParams.set('durations', normalizeFilterValues(durations).join(','))
+  }
+
+  if (categories.length) {
+    nextSearchParams.set('categories', normalizeFilterValues(categories).join(','))
   }
 
   if (page > 1) {
@@ -125,6 +187,16 @@ function normalizeText(value = '') {
     .replace(/Đ/g, 'D')
     .toLowerCase()
     .trim()
+}
+
+function normalizeDateKey(value = '') {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmedValue = value.trim()
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmedValue) ? trimmedValue : ''
 }
 
 function resolvePriceQuery(priceRanges = []) {
@@ -234,6 +306,49 @@ function matchesDurations(service, selectedDurations) {
   return selectedDurations.includes(service.duration_group)
 }
 
+function matchesDepartureLocation(service, departureValue) {
+  if (!departureValue.trim()) {
+    return true
+  }
+
+  const normalizedDeparture = normalizeText(departureValue)
+  const departureCandidates = [
+    service.details?.departure_location,
+    service.departure_location,
+  ]
+
+  return departureCandidates.some((candidate) => normalizeText(candidate).includes(normalizedDeparture))
+}
+
+function matchesDepartureDate(service, startDateValue, endDateValue) {
+  const normalizedStartDate = normalizeDateKey(startDateValue)
+  const normalizedEndDate = normalizeDateKey(endDateValue)
+
+  if (!normalizedStartDate && !normalizedEndDate) {
+    return true
+  }
+
+  const departureDates = Array.isArray(service.details?.departure_dates)
+    ? service.details.departure_dates.map((value) => normalizeDateKey(value)).filter(Boolean)
+    : []
+
+  if (!departureDates.length) {
+    return false
+  }
+
+  return departureDates.some((departureDate) => {
+    if (normalizedStartDate && normalizedEndDate) {
+      return departureDate >= normalizedStartDate && departureDate <= normalizedEndDate
+    }
+
+    if (normalizedStartDate) {
+      return departureDate === normalizedStartDate
+    }
+
+    return departureDate === normalizedEndDate
+  })
+}
+
 function matchesCategories(service, selectedCategories) {
   if (!selectedCategories.length) {
     return true
@@ -298,16 +413,6 @@ function collectKnownLocations(filterOptions = {}, popularLocations = []) {
   }
 
   return knownLocations
-}
-
-function resolveLocationQuery(keyword, knownLocations) {
-  const normalizedKeyword = normalizeText(keyword)
-
-  if (!normalizedKeyword || !(knownLocations instanceof Map)) {
-    return ''
-  }
-
-  return knownLocations.get(normalizedKeyword) ?? ''
 }
 
 function createPaginationPages(currentPage, totalPages) {
@@ -404,6 +509,9 @@ export default function useTourServiceList() {
         const resolvedPriceQuery = resolvePriceQuery(appliedFilters.prices)
         const needsClientSideFiltering =
           resolvedPriceQuery.needsClientFilter ||
+          appliedFilters.departure.trim().length > 0 ||
+          appliedFilters.startDate.length > 0 ||
+          appliedFilters.endDate.length > 0 ||
           appliedFilters.durations.length > 0 ||
           appliedFilters.categories.length > 0
         const requestPage = needsClientSideFiltering ? 1 : currentPage
@@ -416,7 +524,7 @@ export default function useTourServiceList() {
 
         const response = await listTourServices({
           limit: requestLimit,
-          location: resolveLocationQuery(normalizedKeyword, catalog.knownLocations),
+          location: '',
           maxPrice: resolvedPriceQuery.maxPrice,
           minPrice: resolvedPriceQuery.minPrice,
           page: requestPage,
@@ -437,6 +545,8 @@ export default function useTourServiceList() {
           : []
         const filteredServices = mappedServices.filter(
           (service) =>
+            matchesDepartureLocation(service, appliedFilters.departure) &&
+            matchesDepartureDate(service, appliedFilters.startDate, appliedFilters.endDate) &&
             matchesPriceRanges(service, appliedFilters.prices) &&
             matchesDurations(service, appliedFilters.durations) &&
             matchesCategories(service, appliedFilters.categories),
@@ -480,8 +590,14 @@ export default function useTourServiceList() {
     setSearchParams(
       buildServiceListSearchParams({
         auth: getPublicAuthQueryValue(isCustomer),
+        categories: nextFilters.categories,
+        departure: nextFilters.departure,
+        durations: nextFilters.durations,
+        endDate: nextFilters.endDate,
         keyword: nextFilters.keyword,
         page: nextPage,
+        prices: nextFilters.prices,
+        startDate: nextFilters.startDate,
         sort: nextSort,
       }),
     )

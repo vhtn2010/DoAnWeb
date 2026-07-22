@@ -680,14 +680,14 @@ export default function useCart() {
 
   async function handleApplyVoucher(nextVoucherCode = voucherCode) {
     if (voucherLoadingRef.current) {
-      return
+      return false
     }
 
     const normalizedCode = String(nextVoucherCode || '').trim().toUpperCase()
 
     if (!normalizedCode) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn voucher để áp dụng.'))
-      return
+      return false
     }
 
     voucherLoadingRef.current = true
@@ -707,6 +707,8 @@ export default function useCart() {
       setVoucherCode(normalizedCode)
       setIsVoucherPickerOpen(false)
       setFeedback(createFeedbackState('success', response.message || 'Đã áp dụng voucher.'))
+      await loadVoucherWallet({ force: true })
+      return true
     } catch (applyError) {
       setFeedback(
         createFeedbackState(
@@ -714,6 +716,7 @@ export default function useCart() {
           applyError?.message || 'Không thể áp dụng voucher cho giỏ hàng lúc này.',
         ),
       )
+      return false
     } finally {
       voucherLoadingRef.current = false
       setVoucherLoading(false)

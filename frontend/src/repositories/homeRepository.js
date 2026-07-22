@@ -1,4 +1,4 @@
-import {
+﻿import {
   getHomeDestinations as getHomeDestinationsWithMockAdapter,
   getHomeFeaturedServices as getHomeFeaturedServicesWithMockAdapter,
   getHomeFlashSaleServices as getHomeFlashSaleServicesWithMockAdapter,
@@ -24,6 +24,7 @@ const homeAdapter = {
   getHomeFlashSaleServices: getHomeFlashSaleServicesWithMockAdapter,
   getHomePageFallbackData: getHomePageFallbackDataWithMockAdapter,
 }
+const FLASH_SALE_MAX_REMAINING_HOURS = 22
 
 function calculateDiscountPercent(basePrice, salePrice) {
   const numericBasePrice = Number(basePrice)
@@ -229,7 +230,9 @@ function buildFlashSaleMeta(promotions = [], fallbackMeta = {}) {
     return fallbackMeta
   }
 
-  const totalMinutes = Math.floor(remainingMilliseconds / (1000 * 60))
+  const maxRemainingMilliseconds = FLASH_SALE_MAX_REMAINING_HOURS * 60 * 60 * 1000
+  const displayedMilliseconds = Math.min(remainingMilliseconds, maxRemainingMilliseconds)
+  const totalMinutes = Math.floor(displayedMilliseconds / (1000 * 60))
   const days = Math.floor(totalMinutes / (60 * 24))
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60)
   const minutes = totalMinutes % 60
@@ -398,8 +401,8 @@ export async function getHomeDestinations({ limit = 4, type } = {}) {
 export function buildHomeSearchParams(formState, { auth: _auth = '' } = {}) {
   const params = new URLSearchParams()
 
-  const fromValue = slugifyQueryValue(formState.from)
-  const toValue = slugifyQueryValue(formState.to)
+  const fromValue = normalizeVietnamLocationDisplay(formState.from).trim()
+  const toValue = normalizeVietnamLocationDisplay(formState.to).trim()
   const startValue = formatQueryDate(formState.startDate)
   const endValue = formatQueryDate(formState.endDate)
   const sortValue = HOME_SORT_QUERY_MAP[formState.sort] ?? slugifyQueryValue(formState.sort)
@@ -433,3 +436,5 @@ export function buildHomeSearchParams(formState, { auth: _auth = '' } = {}) {
   // TODO: replace local search routing with API-backed search params when integration phase starts.
   return params
 }
+
+

@@ -750,28 +750,67 @@ const toPublicPrice = (service) => {
   return Number(service.base_price);
 };
 
-const mapServiceCard = (service) => ({
-  id: service.id,
-  service_type: service.service_type,
-  title: service.title,
-  slug: service.slug,
-  short_description: service.short_description,
-  location_text: service.location_text,
-  base_price:
-    service.base_price == null
-      ? null
-      : Number(service.base_price),
-  sale_price:
-    service.sale_price == null
-      ? null
-      : Number(service.sale_price),
-  public_price:
-    service.public_price == null
-      ? toPublicPrice(service)
-      : Number(service.public_price),
-  currency: service.currency || 'VND',
-  primary_image: service.primary_image || null,
-});
+const mapServiceCard = (service) => {
+  const tourDetails =
+    service.service_type === SERVICE_TYPE.TOUR
+      ? {
+          departure_location: service.departure_location || null,
+          destination_location: service.destination_location || null,
+          duration_days:
+            service.duration_days == null
+              ? null
+              : Number(service.duration_days),
+          duration_nights:
+            service.duration_nights == null
+              ? null
+              : Number(service.duration_nights),
+          max_group_size:
+            service.max_group_size == null
+              ? null
+              : Number(service.max_group_size),
+          departure_schedule: Array.isArray(service.departure_schedule)
+            ? service.departure_schedule
+            : [],
+          transport_type: service.transport_type || null,
+        }
+      : null;
+
+  const hasTourDetails =
+    tourDetails &&
+    (
+      (typeof tourDetails.departure_location === 'string' && tourDetails.departure_location.trim()) ||
+      (typeof tourDetails.destination_location === 'string' && tourDetails.destination_location.trim()) ||
+      Number.isFinite(tourDetails.duration_days) ||
+      Number.isFinite(tourDetails.duration_nights) ||
+      Number.isFinite(tourDetails.max_group_size) ||
+      (Array.isArray(tourDetails.departure_schedule) && tourDetails.departure_schedule.length > 0) ||
+      (typeof tourDetails.transport_type === 'string' && tourDetails.transport_type.trim())
+    );
+
+  return {
+    id: service.id,
+    service_type: service.service_type,
+    title: service.title,
+    slug: service.slug,
+    short_description: service.short_description,
+    location_text: service.location_text,
+    base_price:
+      service.base_price == null
+        ? null
+        : Number(service.base_price),
+    sale_price:
+      service.sale_price == null
+        ? null
+        : Number(service.sale_price),
+    public_price:
+      service.public_price == null
+        ? toPublicPrice(service)
+        : Number(service.public_price),
+    currency: service.currency || 'VND',
+    primary_image: service.primary_image || null,
+    ...(hasTourDetails ? { details: tourDetails } : {}),
+  };
+};
 
 const mapBaseServiceDetail = (service) => ({
   id: service.id,

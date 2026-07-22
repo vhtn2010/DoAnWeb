@@ -1,4 +1,4 @@
-import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
+﻿import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { vietnamProvinceOptions } from '../data/vietnamProvinces.js'
 
@@ -243,10 +243,11 @@ export const homePageFixture = Object.freeze({
     hour_label: 'GIỜ',
     minute_label: 'PHÚT',
     timer: {
-      days: '02',
-      hours: '14',
-      minutes: '45',
+      days: '00',
+      hours: '22',
+      minutes: '00',
     },
   },
   provinces: vietnamProvinceOptions,
 })
+

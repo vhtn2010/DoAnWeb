@@ -75,9 +75,9 @@ const PURPOSE_POLICIES = Object.freeze({
     scope: 'services',
   }),
   support_reply: Object.freeze({
-    allowedRoles: Object.freeze(['staff', 'admin', 'system_admin']),
+    allowedRoles: Object.freeze(['customer', 'staff', 'admin', 'system_admin']),
     folderSegment: 'support',
-    resourceTypes: Object.freeze(['image']),
+    resourceTypes: Object.freeze(['image', 'raw']),
     scope: 'support',
   }),
 });
@@ -491,6 +491,10 @@ const ensurePurposeScope = ({
   }
 
   if (policy.scope === 'support') {
+    if (auth.roleCode === 'customer') {
+      return;
+    }
+
     if (
       auth.roleCode === 'staff' &&
       permissionCodes.some((code) => PERMISSION_GROUPS.support.includes(code))

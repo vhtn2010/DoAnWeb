@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+﻿import { Link } from 'react-router-dom'
 import useHomePage from '../../hooks/useHomePage.js'
 
 function buildHomeServiceDetailPath(service = {}) {
@@ -259,6 +259,20 @@ function HomePage() {
     weekdayLabels,
     filterGroups,
   } = useHomePage()
+  const flashSaleDays = Number(flashSaleMeta?.timer?.days ?? 0) || 0
+  const flashSaleHours = Number(flashSaleMeta?.timer?.hours ?? 0) || 0
+  const flashSaleMinutes = Number(flashSaleMeta?.timer?.minutes ?? 0) || 0
+  const flashSaleSeconds = Number(flashSaleMeta?.timer?.seconds ?? 0) || 0
+  const flashSaleTotalSeconds =
+    (flashSaleDays * 24 * 60 * 60) +
+    (flashSaleHours * 60 * 60) +
+    (flashSaleMinutes * 60) +
+    flashSaleSeconds
+  const flashSaleDisplayTimer = {
+    hours: String(Math.floor(flashSaleTotalSeconds / 3600)).padStart(2, '0'),
+    minutes: String(Math.floor((flashSaleTotalSeconds % 3600) / 60)).padStart(2, '0'),
+    seconds: String(flashSaleTotalSeconds % 60).padStart(2, '0'),
+  }
 
   return (
     <div className="home-page">
@@ -618,16 +632,16 @@ function HomePage() {
 
           <div className="home-flash-sale__timer">
             <div className="home-flash-sale__timer-unit">
-              <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.days}</span>
-              <span className="home-flash-sale__timer-label">{flashSaleMeta.day_label}</span>
+              <span className="home-flash-sale__timer-value">{flashSaleDisplayTimer.hours}</span>
+              <span className="home-flash-sale__timer-label">GIỜ</span>
             </div>
             <div className="home-flash-sale__timer-unit">
-              <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.hours}</span>
-              <span className="home-flash-sale__timer-label">{flashSaleMeta.hour_label}</span>
+              <span className="home-flash-sale__timer-value">{flashSaleDisplayTimer.minutes}</span>
+              <span className="home-flash-sale__timer-label">PHÚT</span>
             </div>
             <div className="home-flash-sale__timer-unit">
-              <span className="home-flash-sale__timer-value">{flashSaleMeta.timer.minutes}</span>
-              <span className="home-flash-sale__timer-label">{flashSaleMeta.minute_label}</span>
+              <span className="home-flash-sale__timer-value">{flashSaleDisplayTimer.seconds}</span>
+              <span className="home-flash-sale__timer-label">GIÂY</span>
             </div>
           </div>
         </div>
@@ -678,3 +692,4 @@ function HomePage() {
 }
 
 export default HomePage
+

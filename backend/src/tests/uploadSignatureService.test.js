@@ -170,6 +170,49 @@ test('uploadSignatureService.createSignature blocks customer access to admin fol
   );
 });
 
+test('uploadSignatureService.createSignature allows customer support uploads for image and raw files', async () => {
+  const service = createUploadSignatureService({
+    cloudinaryConfig: {
+      apiKey: 'cloud-key',
+      apiSecret: 'super-secret',
+      cloudName: 'demo-cloud',
+      folder: 'net-viet-travel',
+    },
+    now: () => new Date('2026-07-02T13:05:00.000Z'),
+    repository: {
+      insertUserLog: async () => {},
+      listPermissionCodesByRoleId: async () => [],
+    },
+  });
+
+  const imageResult = await service.createSignature({
+    auth: createAuthContext({
+      roleCode: 'customer',
+      userId: 'customer-22',
+    }),
+    body: {
+      folder: 'support',
+      resource_type: 'image',
+    },
+  });
+
+  const rawResult = await service.createSignature({
+    auth: createAuthContext({
+      roleCode: 'customer',
+      userId: 'customer-22',
+    }),
+    body: {
+      folder: 'support',
+      resource_type: 'raw',
+    },
+  });
+
+  assert.equal(imageResult.folder, 'net-viet-travel/support');
+  assert.equal(imageResult.resource_type, 'image');
+  assert.equal(rawResult.folder, 'net-viet-travel/support');
+  assert.equal(rawResult.resource_type, 'raw');
+});
+
 test('uploadSignatureService.createSignature requires valid Cloudinary config and role-based permissions for report folders', async () => {
   const misconfiguredService = createUploadSignatureService({
     cloudinaryConfig: {

@@ -1,4 +1,5 @@
 const SUPPORT_IMAGE_LINE_REGEX = /^!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)$/
+const SUPPORT_FILE_LINE_REGEX = /^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/
 const SUPPORT_INLINE_STYLE_REGEX = /(\*\*([^*]+)\*\*|\*([^*]+)\*)/g
 
 function normalizeText(value) {
@@ -28,6 +29,24 @@ export function appendSupportImageMarkdown(message = '', { alt = '', url = '' } 
   }
 
   return `${normalizedMessage}\n${nextImageLine}`
+}
+
+export function appendSupportFileMarkdown(message = '', { label = '', url = '' } = {}) {
+  if (!url) {
+    return String(message || '')
+  }
+
+  const normalizedLabel = String(label || 'Tệp đính kèm')
+    .replace(/[\r\n[\]]+/g, ' ')
+    .trim()
+  const nextFileLine = `[${normalizedLabel || 'Tệp đính kèm'}](${url})`
+  const normalizedMessage = String(message || '').trimEnd()
+
+  if (!normalizedMessage) {
+    return nextFileLine
+  }
+
+  return `${normalizedMessage}\n${nextFileLine}`
 }
 
 export function parseSupportMessageBlocks(message = '') {
@@ -73,6 +92,18 @@ export function parseSupportMessageBlocks(message = '') {
       return
     }
 
+    const fileMatch = trimmedLine.match(SUPPORT_FILE_LINE_REGEX)
+
+    if (fileMatch) {
+      flushParagraph()
+      blocks.push({
+        label: fileMatch[1] || 'Tệp đính kèm',
+        type: 'file',
+        url: fileMatch[2],
+      })
+      return
+    }
+
     paragraphLines.push(line)
   })
 
@@ -83,6 +114,10 @@ export function parseSupportMessageBlocks(message = '') {
 
 export function getSupportMessageImageBlocks(message = '') {
   return parseSupportMessageBlocks(message).filter((block) => block.type === 'image')
+}
+
+export function getSupportMessageFileBlocks(message = '') {
+  return parseSupportMessageBlocks(message).filter((block) => block.type === 'file')
 }
 
 export function parseSupportInlineSegments(text = '') {

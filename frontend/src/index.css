@@ -19321,6 +19321,11 @@ select {
   gap: 22px;
 }
 
+.hotel-filter-sidebar--sticky {
+  position: sticky;
+  top: 106px;
+}
+
 .hotel-filter-sidebar__header {
   display: flex;
   align-items: center;
@@ -19423,6 +19428,10 @@ select {
 
 .hotel-filter-sidebar__apply {
   box-shadow: 0 18px 36px rgba(200, 16, 46, 0.18);
+}
+
+.hotel-filter-sidebar__apply--full {
+  width: 100%;
 }
 
 .hotel-results {

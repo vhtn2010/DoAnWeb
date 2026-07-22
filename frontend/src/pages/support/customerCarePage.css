@@ -1,0 +1,898 @@
+.public-layout__main:has(.customer-care-page--figma) {
+  width: min(1500px, calc(100% - 24px));
+  padding: 12px 0 32px;
+}
+
+.public-layout__content:has(.customer-care-page--figma) {
+  padding: 12px;
+}
+
+.customer-care-page--figma {
+  --customer-care-red: #d62828;
+  --customer-care-red-dark: #c8102e;
+  --customer-care-text: #1b1c1c;
+  --customer-care-brown: #59413e;
+  --customer-care-muted: #5e5e5b;
+  --customer-care-border: rgba(225, 190, 187, 0.3);
+  --customer-care-line: rgba(225, 190, 187, 0.2);
+  --customer-care-soft: #fbf9f8;
+  --customer-care-user: #feecec;
+  --customer-care-shadow: 0 18px 42px rgba(27, 28, 28, 0.12);
+
+  margin: -12px;
+  padding: 12px max(20px, calc((100% - 1440px) / 2));
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(27, 28, 28, 0.06) 0 1px, transparent 1px) 0 0 / 8px 8px,
+    #f8f8f7;
+  color: var(--customer-care-text);
+}
+
+.customer-care-page--figma .customer-care-layout {
+  width: min(100%, 1440px);
+  height: min(760px, calc(100vh - 150px));
+  min-height: 620px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.customer-care-page--figma .customer-care-inbox,
+.customer-care-page--figma .customer-care-chat {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--customer-care-shadow);
+}
+
+.customer-care-page--figma .customer-care-inbox {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+}
+
+.customer-care-page--figma .customer-care-inbox__header {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--customer-care-border);
+}
+
+.customer-care-page--figma .customer-care-inbox__header h1 {
+  margin: 0;
+  color: var(--customer-care-red);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 32px;
+}
+
+.customer-care-page--figma .customer-care-inbox__list {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.customer-care-page--figma .customer-care-inbox__empty {
+  min-height: 100%;
+  padding: 24px 20px;
+  color: var(--customer-care-brown);
+  display: grid;
+  align-content: center;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.customer-care-page--figma .customer-care-conversation {
+  width: 100%;
+  min-height: 82px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--customer-care-line);
+  border-left: 4px solid transparent;
+  background: #ffffff;
+  color: inherit;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.customer-care-page--figma .customer-care-conversation--active {
+  min-height: 92px;
+  padding-inline: 14px;
+  border-left-color: var(--customer-care-red);
+  background: var(--customer-care-soft);
+}
+
+.customer-care-page--figma .customer-care-conversation:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.customer-care-page--figma .customer-care-conversation:hover:not(:disabled),
+.customer-care-page--figma .customer-care-conversation:focus-visible:not(:disabled) {
+  outline: none;
+  background: #fff6f5;
+}
+
+.customer-care-page--figma .customer-care-conversation__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--customer-care-muted);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.customer-care-page--figma .customer-care-conversation__meta time {
+  color: var(--customer-care-brown);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.customer-care-page--figma .customer-care-conversation strong {
+  overflow: hidden;
+  color: var(--customer-care-text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-care-page--figma .customer-care-conversation__preview {
+  overflow: hidden;
+  color: var(--customer-care-brown);
+  display: -webkit-box;
+  font-size: 12px;
+  line-height: 17px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.customer-care-page--figma .customer-care-topic-strip {
+  max-height: 104px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  border-top: 1px solid var(--customer-care-line);
+  background: #fffafa;
+}
+
+.customer-care-page--figma .customer-care-topic {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid rgba(214, 40, 40, 0.16);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--customer-care-red-dark);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.customer-care-page--figma .customer-care-topic:hover:not(:disabled),
+.customer-care-page--figma .customer-care-topic:focus-visible:not(:disabled) {
+  outline: none;
+  background: var(--customer-care-red-dark);
+  color: #ffffff;
+}
+
+.customer-care-page--figma .customer-care-topic:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.customer-care-page--figma .customer-care-inbox__footer {
+  min-height: 44px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(254, 236, 236, 0), rgba(254, 236, 236, 0.92));
+}
+
+.customer-care-page--figma .customer-care-new-chat {
+  width: 100%;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--customer-care-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 15px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.customer-care-page--figma .customer-care-new-chat svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.customer-care-page--figma .customer-care-new-chat:hover,
+.customer-care-page--figma .customer-care-new-chat:focus-visible {
+  outline: none;
+  color: var(--customer-care-red-dark);
+}
+
+.customer-care-page--figma .customer-care-chat {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.customer-care-page--figma .customer-care-chat__header {
+  min-height: 76px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--customer-care-border);
+  background: var(--customer-care-red);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.customer-care-page--figma .customer-care-chat__brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.customer-care-page--figma .customer-care-chat__logo {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.customer-care-page--figma .customer-care-chat__logo img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.customer-care-page--figma .customer-care-chat__header h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.customer-care-page--figma .customer-care-chat__presence {
+  color: #f3f4f6;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.customer-care-page--figma .customer-care-chat__presence span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #22c55e;
+}
+
+.customer-care-page--figma .customer-care-chat__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.customer-care-page--figma .customer-care-chat__link {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.customer-care-page--figma .customer-care-chat__link:hover,
+.customer-care-page--figma .customer-care-chat__link:focus-visible {
+  outline: none;
+  background: #ffffff;
+  color: var(--customer-care-red-dark);
+}
+
+.customer-care-page--figma .customer-care-chat__link:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.customer-care-page--figma .customer-care-chat__log {
+  min-height: 0;
+  padding: 18px 28px;
+  background:
+    radial-gradient(circle at 62% 7%, rgba(225, 190, 187, 0.16), transparent 22%),
+    #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.customer-care-page--figma .customer-care-chat__date {
+  align-self: center;
+  min-height: 21px;
+  padding: 2px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--customer-care-brown);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.customer-care-page--figma .customer-care-chat__locked {
+  min-height: 100%;
+  max-width: 520px;
+  margin: auto;
+  display: grid;
+  gap: 16px;
+  align-content: center;
+  text-align: center;
+}
+
+.customer-care-page--figma .customer-care-chat__locked h3 {
+  margin: 0;
+  color: var(--customer-care-red-dark);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
+}
+
+.customer-care-page--figma .customer-care-chat__locked p {
+  margin: 0;
+  color: var(--customer-care-brown);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.customer-care-page--figma .customer-care-chat__locked-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.customer-care-page--figma .customer-care-message {
+  width: fit-content;
+  max-width: min(100%, 610px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--customer-care-text);
+  display: grid;
+  gap: 4px;
+}
+
+.customer-care-page--figma .customer-care-message--user {
+  align-self: flex-end;
+  max-width: min(100%, 620px);
+  border: 0;
+  background: transparent;
+  color: #1f2937;
+  justify-self: auto;
+}
+
+.customer-care-page--figma .customer-care-message--system {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  justify-self: auto;
+}
+
+.customer-care-page--figma .customer-care-message--typing {
+  opacity: 0.82;
+}
+
+.customer-care-page--figma .customer-care-message p {
+  margin: 0;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.customer-care-page--figma .customer-care-message__body {
+  display: grid;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid rgba(236, 221, 214, 0.82);
+  border-radius: 8px 18px 18px 18px;
+  background: rgba(243, 244, 246, 0.7);
+  box-shadow: 0 8px 18px rgba(95, 68, 61, 0.04);
+}
+
+.customer-care-page--figma .customer-care-message--user .customer-care-message__body {
+  border-color: rgba(215, 0, 24, 0.06);
+  border-radius: 18px 8px 18px 18px;
+  background: var(--customer-care-user);
+  color: #1f2937;
+}
+
+.customer-care-page--figma .customer-care-message__body p {
+  margin: 0;
+}
+
+.customer-care-page--figma .customer-care-message__image {
+  margin: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.customer-care-page--figma .customer-care-message__image a {
+  display: block;
+}
+
+.customer-care-page--figma .customer-care-message__image img {
+  width: 100%;
+  max-width: 300px;
+  max-height: 210px;
+  display: block;
+  object-fit: cover;
+}
+
+.customer-care-page--figma .customer-care-message__file {
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--customer-care-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 17px;
+  text-decoration: none;
+}
+
+.customer-care-page--figma .customer-care-message__file svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  color: var(--customer-care-red-dark);
+}
+
+.customer-care-page--figma .customer-care-message__time {
+  color: #9ca3af;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 13px;
+}
+
+.customer-care-page--figma .customer-care-message--system .customer-care-message__time,
+.customer-care-page--figma .customer-care-message--user .customer-care-message__time {
+  color: #9ca3af;
+}
+
+.customer-care-page--figma .customer-care-message--user .customer-care-message__time {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.customer-care-page--figma .customer-care-message--user .customer-care-message__time::after {
+  width: 13px;
+  height: 7px;
+  border-right: 2px solid var(--customer-care-red-dark);
+  border-bottom: 2px solid var(--customer-care-red-dark);
+  content: '';
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.customer-care-page--figma .customer-care-composer {
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid var(--customer-care-border);
+  background: #ffffff;
+  display: grid;
+  gap: 8px;
+}
+
+.customer-care-page--figma .customer-care-composer__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.customer-care-page--figma .customer-care-composer__input-hidden {
+  display: none;
+}
+
+.customer-care-page--figma .customer-care-composer__box {
+  overflow: hidden;
+  border: 1px solid rgba(214, 40, 40, 0.2);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.customer-care-page--figma .customer-care-composer__field {
+  min-height: 74px;
+}
+
+.customer-care-page--figma .customer-care-composer__textarea {
+  width: 100%;
+  min-height: 74px;
+  max-height: 112px;
+  padding: 12px 14px;
+  border: 0;
+  background: #ffffff;
+  color: var(--customer-care-text);
+  display: block;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  resize: none;
+}
+
+.customer-care-page--figma .customer-care-composer__textarea::placeholder {
+  color: rgba(89, 65, 62, 0.5);
+  opacity: 1;
+}
+
+.customer-care-page--figma .customer-care-composer__textarea:focus-visible {
+  outline: none;
+}
+
+.customer-care-page--figma .customer-care-composer__textarea:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.customer-care-page--figma .customer-care-composer__box:focus-within {
+  border-color: var(--customer-care-red-dark);
+  box-shadow: 0 0 0 3px rgba(214, 40, 40, 0.12);
+}
+
+.customer-care-page--figma .customer-care-composer__attachments {
+  padding: 0 16px 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.customer-care-page--figma .customer-care-composer__attachment-image {
+  margin: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #faf7f7;
+  display: grid;
+  gap: 8px;
+}
+
+.customer-care-page--figma .customer-care-composer__attachment-image img {
+  width: 100%;
+  max-height: 180px;
+  display: block;
+  object-fit: cover;
+}
+
+.customer-care-page--figma .customer-care-composer__attachment-image figcaption {
+  padding: 0 12px 12px;
+  color: var(--customer-care-brown);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.customer-care-page--figma .customer-care-composer__attachment-file {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid rgba(225, 190, 187, 0.5);
+  border-radius: 14px;
+  background: #fffafa;
+  color: var(--customer-care-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-decoration: none;
+}
+
+.customer-care-page--figma .customer-care-composer__attachment-file svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--customer-care-red-dark);
+}
+
+.customer-care-page--figma .customer-care-composer__actions {
+  min-height: 52px;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(225, 190, 187, 0.3);
+  background: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.customer-care-page--figma .customer-care-mini-composer__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-care-page--figma .customer-care-mini-composer__tools button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--customer-care-brown);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.customer-care-page--figma .customer-care-mini-composer__tools button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.customer-care-page--figma .customer-care-mini-composer__tools svg {
+  width: 20px;
+  height: 20px;
+}
+
+.customer-care-page--figma .customer-care-mini-composer__divider {
+  width: 1px;
+  height: 24px;
+  margin-inline: 4px;
+  background: rgba(225, 190, 187, 0.92);
+}
+
+.customer-care-page--figma .customer-care-mini-composer__emoji-wrap {
+  position: relative;
+}
+
+.customer-care-page--figma .customer-care-mini-composer__emoji-panel {
+  width: 220px;
+  padding: 10px;
+  border: 1px solid rgba(225, 190, 187, 0.7);
+  border-radius: 16px;
+  background: #ffffff;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  box-shadow: 0 18px 34px rgba(31, 41, 55, 0.14);
+}
+
+.customer-care-page--figma .customer-care-mini-composer__emoji-panel button {
+  width: 100%;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: #fff7f7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.customer-care-page--figma .customer-care-mini-composer__emoji-panel button:hover,
+.customer-care-page--figma .customer-care-mini-composer__emoji-panel button:focus-visible,
+.customer-care-page--figma .customer-care-mini-composer__tools button:hover:not(:disabled),
+.customer-care-page--figma .customer-care-mini-composer__tools button:focus-visible:not(:disabled) {
+  outline: none;
+  background: rgba(214, 40, 40, 0.08);
+  color: var(--customer-care-red-dark);
+}
+
+.customer-care-page--figma .customer-care-composer__submit {
+  min-width: 122px;
+  min-height: 38px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 999px;
+  background: var(--customer-care-red-dark);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 24px;
+  cursor: pointer;
+  box-shadow: 0 8px 10px rgba(0, 0, 0, 0.16);
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.customer-care-page--figma .customer-care-composer__submit svg {
+  width: 16px;
+  height: 16px;
+}
+
+.customer-care-page--figma .customer-care-composer__submit:hover:not(:disabled),
+.customer-care-page--figma .customer-care-composer__submit:focus-visible:not(:disabled) {
+  outline: none;
+  background: #a90922;
+  box-shadow: 0 12px 18px rgba(200, 16, 46, 0.2);
+}
+
+.customer-care-page--figma .customer-care-composer__submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none;
+}
+
+.customer-care-page--figma .customer-care-composer__hint {
+  min-height: 16px;
+  margin: 0;
+  color: var(--customer-care-brown);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+@media (max-width: 1180px) {
+  .customer-care-page--figma {
+    padding-inline: 24px;
+  }
+
+  .customer-care-page--figma .customer-care-layout {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .public-layout__main:has(.customer-care-page--figma) {
+    width: min(100% - 20px, 1500px);
+    padding-top: 10px;
+  }
+
+  .customer-care-page--figma .customer-care-layout {
+    height: auto;
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .customer-care-page--figma .customer-care-inbox,
+  .customer-care-page--figma .customer-care-chat {
+    min-height: 0;
+  }
+
+  .customer-care-page--figma .customer-care-inbox {
+    grid-template-rows: auto auto auto;
+  }
+
+  .customer-care-page--figma .customer-care-inbox__list {
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .customer-care-page--figma .customer-care-chat__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .customer-care-page--figma .customer-care-chat__log {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 720px) {
+  .customer-care-page--figma {
+    margin: -12px;
+    padding: 12px;
+  }
+
+  .customer-care-page--figma .customer-care-layout {
+    gap: 16px;
+  }
+
+  .customer-care-page--figma .customer-care-inbox__header {
+    min-height: 76px;
+    padding: 18px;
+  }
+
+  .customer-care-page--figma .customer-care-inbox__header h1 {
+    font-size: 28px;
+    line-height: 36px;
+  }
+
+  .customer-care-page--figma .customer-care-chat__header {
+    min-height: 96px;
+    padding: 18px;
+  }
+
+  .customer-care-page--figma .customer-care-chat__actions {
+    justify-content: flex-start;
+  }
+
+  .customer-care-page--figma .customer-care-chat__log {
+    min-height: 340px;
+    padding: 22px 16px;
+    gap: 18px;
+  }
+
+  .customer-care-page--figma .customer-care-chat__locked h3 {
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .customer-care-page--figma .customer-care-message {
+    max-width: 100%;
+  }
+
+  .customer-care-page--figma .customer-care-composer__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .customer-care-page--figma .customer-care-composer__submit {
+    width: 100%;
+  }
+
+  .customer-care-page--figma .customer-care-mini-composer__tools {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .customer-care-page--figma .customer-care-mini-composer__emoji-panel {
+    width: min(220px, calc(100vw - 72px));
+  }
+}

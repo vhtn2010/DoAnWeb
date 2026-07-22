@@ -15965,3 +15965,540 @@
     flex: 1 1 180px;
   }
 }
+
+/* Figma-aligned public blog detail page */
+.netviet-blog-detail-page {
+  --blog-detail-red: #a31d21;
+  --blog-detail-red-dark: #80000e;
+  --blog-detail-ink: #1b1c1c;
+  --blog-detail-muted: #59413e;
+  --blog-detail-line: rgba(225, 190, 187, 0.3);
+  --blog-detail-chip: #f5f3f3;
+  --blog-detail-soft: #efeded;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 56px clamp(24px, 5vw, 72px) 88px;
+  background: #fffaf4;
+  color: var(--blog-detail-ink);
+  font-family: "Be Vietnam Pro", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.public-layout__main:has(.netviet-blog-detail-page) {
+  width: 100%;
+  padding-top: 0;
+}
+
+.public-layout__content:has(.netviet-blog-detail-page) {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.public-layout__content-shell:has(.netviet-blog-detail-page) .public-layout__content-orb {
+  display: none;
+}
+
+.netviet-blog-detail-page a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.netviet-blog-detail-shell {
+  width: min(100%, 1280px);
+  display: grid;
+  grid-template-columns: minmax(0, 840px) 360px;
+  gap: 80px;
+  align-items: start;
+  margin-inline: auto;
+}
+
+.netviet-blog-detail-article {
+  min-width: 0;
+}
+
+.netviet-blog-detail-header {
+  display: grid;
+  gap: 22px;
+}
+
+.netviet-blog-detail-header h1 {
+  max-width: 920px;
+  margin: 0;
+  color: var(--blog-detail-ink);
+  font-size: clamp(48px, 4.4vw, 64px);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.netviet-blog-detail-meta-row {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-top: 1px solid var(--blog-detail-line);
+  border-bottom: 1px solid var(--blog-detail-line);
+  padding: 12px 0;
+}
+
+.netviet-blog-detail-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--blog-detail-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+}
+
+.netviet-blog-detail-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.netviet-blog-detail-share button {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e1bebb;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--blog-detail-muted);
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.netviet-blog-detail-share svg {
+  width: 16px;
+  height: 16px;
+}
+
+.netviet-blog-detail-share button:hover,
+.netviet-blog-detail-share button:focus-visible {
+  border-color: var(--blog-detail-red);
+  color: var(--blog-detail-red);
+  transform: translateY(-1px);
+}
+
+.netviet-blog-detail-figure {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 0;
+}
+
+.netviet-blog-detail-figure img {
+  width: 100%;
+  display: block;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.netviet-blog-detail-figure--hero {
+  margin-top: 36px;
+}
+
+.netviet-blog-detail-figure--hero img {
+  height: 380px;
+}
+
+.netviet-blog-detail-content .netviet-blog-detail-figure img {
+  height: 460px;
+}
+
+.netviet-blog-detail-figure figcaption {
+  margin: 0;
+  color: var(--blog-detail-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.netviet-blog-detail-content {
+  display: grid;
+  gap: 28px;
+  margin-top: 42px;
+  padding-bottom: 32px;
+}
+
+.netviet-blog-detail-content p {
+  margin: 0;
+  color: var(--blog-detail-ink);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 30px;
+}
+
+.netviet-blog-detail-lead {
+  border-left: 4px solid var(--blog-detail-red);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 20px 24px;
+}
+
+.netviet-blog-detail-content h2 {
+  margin: 0;
+  color: var(--blog-detail-ink);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 40px;
+}
+
+.netviet-blog-detail-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.netviet-blog-detail-list li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  color: var(--blog-detail-ink);
+  font-size: 18px;
+  line-height: 28px;
+}
+
+.netviet-blog-detail-list svg {
+  width: 16px;
+  height: 16px;
+  margin-top: 5px;
+  color: var(--blog-detail-red);
+}
+
+.netviet-blog-detail-list strong {
+  font-weight: 700;
+}
+
+.netviet-blog-detail-tags {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  border-top: 1px solid var(--blog-detail-line);
+  padding-top: 28px;
+}
+
+.netviet-blog-detail-tags strong {
+  color: var(--blog-detail-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+}
+
+.netviet-blog-detail-tags div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.netviet-blog-detail-tags a {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border-radius: 2px;
+  background: var(--blog-detail-chip);
+  color: var(--blog-detail-red-dark);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+  padding: 4px 12px;
+}
+
+.netviet-blog-detail-sidebar {
+  display: grid;
+  gap: 28px;
+  align-self: start;
+  padding-top: 118px;
+  position: sticky;
+  top: 92px;
+}
+
+.netviet-blog-detail-hotels {
+  border: 1px solid var(--blog-detail-line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 24px;
+  box-shadow: 0 18px 48px rgba(89, 65, 62, 0.08);
+}
+
+.netviet-blog-detail-widget-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.netviet-blog-detail-widget-heading h2,
+.netviet-blog-detail-related h2 {
+  margin: 0;
+  color: var(--blog-detail-ink);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
+}
+
+.netviet-blog-detail-widget-heading div {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.netviet-blog-detail-widget-heading button {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: var(--blog-detail-soft);
+  color: var(--blog-detail-ink);
+}
+
+.netviet-blog-detail-widget-heading button:last-child {
+  background: var(--blog-detail-red);
+  color: #ffffff;
+}
+
+.netviet-blog-detail-widget-heading svg {
+  width: 14px;
+  height: 14px;
+}
+
+.netviet-blog-detail-hotel-list {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.netviet-blog-detail-hotel {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 90px;
+}
+
+.netviet-blog-detail-hotel img {
+  width: 64px;
+  height: 64px;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.netviet-blog-detail-hotel span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.netviet-blog-detail-hotel strong,
+.netviet-blog-detail-related-link strong {
+  color: var(--blog-detail-ink);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.28px;
+  line-height: 20px;
+}
+
+.netviet-blog-detail-hotel small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  font-size: 12px;
+  line-height: 24px;
+}
+
+.netviet-blog-detail-hotel b {
+  color: #ffc107;
+  font-family: FreeSans, "Be Vietnam Pro", sans-serif;
+  font-weight: 400;
+}
+
+.netviet-blog-detail-hotel em {
+  color: var(--blog-detail-muted);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.netviet-blog-detail-hotel i {
+  color: var(--blog-detail-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+}
+
+.netviet-blog-detail-hotel mark {
+  background: transparent;
+  color: var(--blog-detail-red-dark);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.28px;
+  line-height: 20px;
+}
+
+.netviet-blog-detail-related h2 {
+  border-bottom: 1px solid var(--blog-detail-line);
+  padding-bottom: 12px;
+}
+
+.netviet-blog-detail-related {
+  border: 1px solid var(--blog-detail-line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 24px;
+  box-shadow: 0 18px 48px rgba(89, 65, 62, 0.08);
+}
+
+.netviet-blog-detail-related-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.netviet-blog-detail-related-link {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 80px;
+}
+
+.netviet-blog-detail-related-link img {
+  width: 80px;
+  height: 80px;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.netviet-blog-detail-related-link span {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.netviet-blog-detail-related-link small {
+  color: var(--blog-detail-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  line-height: 16px;
+}
+
+.netviet-blog-detail-next {
+  width: 50px;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 30px;
+  background: var(--blog-detail-red);
+  color: #ffffff;
+  box-shadow: 0 18px 36px rgba(163, 29, 33, 0.24);
+}
+
+.netviet-blog-detail-next svg {
+  width: 22px;
+  height: 22px;
+}
+
+.netviet-blog-detail-hotel:hover strong,
+.netviet-blog-detail-hotel:focus-visible strong,
+.netviet-blog-detail-related-link:hover strong,
+.netviet-blog-detail-related-link:focus-visible strong,
+.netviet-blog-detail-tags a:hover,
+.netviet-blog-detail-tags a:focus-visible {
+  color: var(--blog-detail-red);
+}
+
+.netviet-blog-detail-next:hover,
+.netviet-blog-detail-next:focus-visible {
+  background: #8e181d;
+}
+
+.netviet-blog-detail-page :focus-visible {
+  outline: 3px solid rgba(163, 29, 33, 0.28);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1320px) {
+  .netviet-blog-detail-page {
+    padding: 48px 28px 72px;
+  }
+
+  .netviet-blog-detail-shell {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .netviet-blog-detail-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .netviet-blog-detail-sidebar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    padding-top: 0;
+    position: static;
+  }
+
+  .netviet-blog-detail-next {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .netviet-blog-detail-page {
+    padding: 32px 16px 48px;
+  }
+
+  .netviet-blog-detail-header h1 {
+    font-size: 34px;
+    line-height: 42px;
+  }
+
+  .netviet-blog-detail-meta-row,
+  .netviet-blog-detail-tags {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .netviet-blog-detail-figure--hero img,
+  .netviet-blog-detail-content .netviet-blog-detail-figure img {
+    height: auto;
+    aspect-ratio: 704 / 393;
+  }
+
+  .netviet-blog-detail-content h2 {
+    font-size: 26px;
+    line-height: 34px;
+  }
+
+  .netviet-blog-detail-content p,
+  .netviet-blog-detail-list li {
+    font-size: 16px;
+    line-height: 26px;
+  }
+
+  .netviet-blog-detail-sidebar {
+    grid-template-columns: 1fr;
+  }
+}

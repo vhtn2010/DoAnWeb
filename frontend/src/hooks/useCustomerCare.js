@@ -90,6 +90,8 @@ function getTicketStatusLabel(status = '') {
 }
 
 function buildTicketIntroMessage(ticket) {
+  const ticketTimestamp = ticket.updated_at || ticket.created_at || ''
+
   return createMessage(
     'system',
     `Phiếu ${ticket.ticket_code} đang ở trạng thái "${getTicketStatusLabel(
@@ -97,6 +99,7 @@ function buildTicketIntroMessage(ticket) {
     )}". Bạn có thể tiếp tục trao đổi trực tiếp ngay trong luồng này.`,
     ticket.updated_at ? new Date(ticket.updated_at).getTime() : Date.now(),
     {
+      id: `ticket-intro-${ticket.id}-${ticket.status}-${ticketTimestamp}`,
       kind: 'ticket-intro',
       ticketId: ticket.id,
     },
@@ -134,6 +137,23 @@ function buildTicketSubject(message) {
   return `${normalizedMessage.slice(0, 69)}...`
 }
 
+function areMessagesEqual(currentMessages = [], nextMessages = []) {
+  if (currentMessages.length !== nextMessages.length) {
+    return false
+  }
+
+  return currentMessages.every((message, index) => {
+    const nextMessage = nextMessages[index]
+
+    return (
+      message.id === nextMessage?.id &&
+      message.sender === nextMessage?.sender &&
+      message.content === nextMessage?.content &&
+      message.timeLabel === nextMessage?.timeLabel
+    )
+  })
+}
+
 export default function useCustomerCare({ isCustomer } = {}) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -144,12 +164,17 @@ export default function useCustomerCare({ isCustomer } = {}) {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const timeoutRef = useRef(null)
+  const pollingRef = useRef(null)
   const logRef = useRef(null)
 
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
+      }
+
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
       }
     }
   }, [])
@@ -166,6 +191,10 @@ export default function useCustomerCare({ isCustomer } = {}) {
     async function hydrateCustomerTickets() {
       if (!isCustomer) {
         setLoading(false)
+        setRecentTickets([])
+        setActiveTicket(null)
+        setError('')
+        setFeedback('')
         setMessages([getGuestWelcomeMessage(false)])
         return
       }
@@ -242,23 +271,32 @@ export default function useCustomerCare({ isCustomer } = {}) {
     }, 700)
   }
 
-  async function refreshTicketState(ticketId) {
-    const [listResponse, detailResponse] = await Promise.all([
-      listMySupportTickets({
-        limit: 5,
-        page: 1,
-      }),
+  async function refreshTicketState(ticketId, { syncRecentTickets = true } = {}) {
+    const requests = [
+      syncRecentTickets
+        ? listMySupportTickets({
+            limit: 5,
+            page: 1,
+          })
+        : Promise.resolve(null),
       getMySupportTicketDetail(ticketId),
-    ])
+    ]
+    const [listResponse, detailResponse] = await Promise.all(requests)
+    const tickets = Array.isArray(listResponse?.data) ? listResponse.data : []
+    const nextTicket = detailResponse.data
+    const nextMessages = buildMessagesFromTicket(nextTicket)
 
-    const tickets = Array.isArray(listResponse.data) ? listResponse.data : []
+    if (syncRecentTickets) {
+      setRecentTickets(tickets)
+    }
 
-    setRecentTickets(tickets)
-    setActiveTicket(detailResponse.data)
-    setMessages(buildMessagesFromTicket(detailResponse.data))
+    setActiveTicket(nextTicket)
+    setMessages((currentMessages) =>
+      areMessagesEqual(currentMessages, nextMessages) ? currentMessages : nextMessages,
+    )
   }
 
-  async function sendCustomerMessage(content) {
+  async function sendCustomerMessage(content, { forceNewTicket = false } = {}) {
     const trimmedContent = content.trim()
 
     if (!trimmedContent || sending) {
@@ -274,7 +312,7 @@ export default function useCustomerCare({ isCustomer } = {}) {
         activeTicket?.status === 'closed' || activeTicket?.status === 'spam'
       let ticketId = activeTicket?.id ?? ''
 
-      if (!ticketId || isClosedTicket) {
+      if (!ticketId || isClosedTicket || forceNewTicket) {
         const createResponse = await createSupportTicket({
           message: trimmedContent,
           subject: buildTicketSubject(trimmedContent),
@@ -329,7 +367,31 @@ export default function useCustomerCare({ isCustomer } = {}) {
   }
 
   function handleTopicSelect(prompt) {
-    sendMessage(prompt)
+    if (isCustomer) {
+      return sendCustomerMessage(prompt, {
+        forceNewTicket: true,
+      })
+    }
+
+    return sendMessage(prompt)
+  }
+
+  function handleStartNewTicket(prefill = '') {
+    if (!isCustomer) {
+      setDraft(prefill)
+      return
+    }
+
+    setActiveTicket(null)
+    setFeedback('')
+    setError('')
+    setMessages([
+      createMessage(
+        'system',
+        'Bạn đang bắt đầu một phiếu hỗ trợ mới. Hãy mô tả rõ vấn đề để bộ phận chăm sóc khách hàng tiếp nhận và phản hồi nhanh hơn.',
+      ),
+    ])
+    setDraft(prefill)
   }
 
   async function handleSelectTicket(ticketId) {
@@ -370,6 +432,33 @@ export default function useCustomerCare({ isCustomer } = {}) {
     }
   }
 
+  useEffect(() => {
+    if (!isCustomer || !activeTicket?.id) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+
+      return undefined
+    }
+
+    pollingRef.current = setInterval(() => {
+      if (sending) {
+        return
+      }
+
+      refreshTicketState(activeTicket.id)
+        .catch(() => null)
+    }, 15000)
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [activeTicket?.id, isCustomer, sending])
+
   return {
     activeTicket,
     draft,
@@ -377,6 +466,7 @@ export default function useCustomerCare({ isCustomer } = {}) {
     feedback,
     handleCloseTicket,
     handleSelectTicket,
+    handleStartNewTicket,
     handleSubmit,
     handleTopicSelect,
     loading,
