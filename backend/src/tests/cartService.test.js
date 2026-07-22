@@ -368,6 +368,7 @@ test('addCartItem merges duplicate items and updates quantity with current snaps
   const calls = [];
   const serviceId = '22222222-2222-4222-8222-222222222222';
   const service = createCartService({
+    now: () => new Date('2026-07-01T09:00:00.000Z'),
     repository: {
       createActiveCart: async () => {
         throw new Error('createActiveCart should not be called');
@@ -522,6 +523,7 @@ test('updateCartItem rejects forbidden fields in PATCH payload', async () => {
 test('updateCartItem keeps previous snapshot when only quantity changes', async () => {
   const calls = [];
   const service = createCartService({
+    now: () => new Date('2026-07-01T09:00:00.000Z'),
     repository: {
       findActiveCartsByUser: async () => [
         {
@@ -1123,6 +1125,7 @@ test('validateCart returns invalid result for inactive service, availability iss
 
 test('validateCart reports PRICE_CHANGED without mutating snapshot totals', async () => {
   const service = createCartService({
+    now: () => new Date('2026-07-01T09:00:00.000Z'),
     repository: {
       findActiveCartsByUser: async () => [
         {
