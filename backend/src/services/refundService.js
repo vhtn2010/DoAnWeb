@@ -185,13 +185,24 @@ const sanitizeRefund = (refund) => ({
 const bookingAllowsCompletedRefund = (bookingItems) =>
   bookingItems.some((item) => {
     const snapshot = item?.service_snapshot;
+    const details =
+      snapshot?.details && typeof snapshot.details === 'object'
+        ? snapshot.details
+        : {};
 
     if (!snapshot || typeof snapshot !== 'object') {
       return false;
     }
 
     return Boolean(
-      snapshot.cancellation_policy || snapshot.cancellationPolicy,
+      snapshot.cancellation_policy ||
+        snapshot.cancellationPolicy ||
+        snapshot.refund_policy ||
+        snapshot.refundPolicy ||
+        details.cancellation_policy ||
+        details.cancellationPolicy ||
+        details.refund_policy ||
+        details.refundPolicy,
     );
   });
 

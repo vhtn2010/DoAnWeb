@@ -54,6 +54,7 @@ import AdminUsersPage from '../pages/admin/AdminUsersFigmaPage.jsx'
 import {
   AdminEmailLogsPage,
   AdminInventoryPage,
+  AdminNotificationsPage,
 } from '../pages/admin/AdminUtilityPages.jsx'
 import AdminRouteGate from '../pages/admin/AdminRouteGate.jsx'
 import CustomerOnlyRoute from './CustomerOnlyRoute.jsx'
@@ -417,7 +418,11 @@ function AppRouter() {
             />
             <Route
               path="/admin/notifications"
-              element={<Navigate replace to="/admin" />}
+              element={
+                <AdminRouteGate routeId="notifications">
+                  <AdminNotificationsPage />
+                </AdminRouteGate>
+              }
             />
             <Route
               path="/admin/access-control"

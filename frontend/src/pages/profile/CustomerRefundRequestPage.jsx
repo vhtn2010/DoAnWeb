@@ -23,6 +23,12 @@ const REFUND_REASON_OPTIONS = Object.freeze([
 
 const ACTIVE_REFUND_STATUSES = new Set(['requested', 'approved', 'processing', 'success'])
 const REFUNDABLE_PAYMENT_STATUSES = new Set(['success', 'reconciled', 'partially_refunded'])
+const REFUNDABLE_BOOKING_STATUSES = new Set([
+  'paid',
+  'confirmed',
+  'completed',
+  'partially_refunded',
+])
 
 function normalizeObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -340,13 +346,19 @@ function CustomerRefundRequestPage() {
     }),
     [bookingItems, remainingRefundableAmount],
   )
+  const requestedRefundAmount =
+    estimate.refundAmount > 0 ? estimate.refundAmount : remainingRefundableAmount
+  const requiresManualReview =
+    estimate.refundAmount <= 0 && requestedRefundAmount > 0
   const selectedReason = reasonChoice === 'Khác' ? customReason.trim() : reasonChoice
+  const bookingStatus = booking?.booking_status ?? booking?.status
+  const isBookingRefundable = REFUNDABLE_BOOKING_STATUSES.has(bookingStatus)
   const canSubmit =
     Boolean(booking?.id) &&
     Boolean(refundablePayment?.id) &&
     Boolean(selectedReason) &&
-    Boolean(evidenceFile) &&
-    estimate.refundAmount > 0 &&
+    isBookingRefundable &&
+    requestedRefundAmount > 0 &&
     !submitting
 
   function goBack() {
@@ -357,7 +369,9 @@ function CustomerRefundRequestPage() {
     event.preventDefault()
 
     if (!canSubmit) {
-      setFeedback('Vui lòng chọn lý do, tải ảnh minh chứng và kiểm tra số tiền hoàn dự kiến trước khi gửi.')
+      setFeedback(
+        'Vui lòng chọn lý do và kiểm tra đơn hàng còn giao dịch đủ điều kiện hoàn tiền trước khi gửi.',
+      )
       return
     }
 
@@ -374,11 +388,14 @@ function CustomerRefundRequestPage() {
       }
 
       const response = await createCustomerRefundRequest(booking.id, {
-        amount: estimate.refundAmount,
+        amount: requestedRefundAmount,
         payment_id: refundablePayment.id,
         reason: buildRefundReason({
           evidenceUrl,
-          estimate,
+          estimate: {
+            ...estimate,
+            refundAmount: requestedRefundAmount,
+          },
           note: note.trim(),
           reason: selectedReason,
         }),
@@ -413,7 +430,7 @@ function CustomerRefundRequestPage() {
             <h1>{getTripTitle(booking, bookingItems)}</h1>
             <span>Mã đơn {booking?.booking_code || bookingCode}</span>
           </div>
-          <strong>{formatCurrencyVND(estimate.refundAmount)}</strong>
+          <strong>{formatCurrencyVND(requestedRefundAmount)}</strong>
         </section>
 
         {loading ? (
@@ -469,15 +486,14 @@ function CustomerRefundRequestPage() {
               </div>
 
               <div className="customer-refund-field">
-                <label htmlFor="refund-evidence">Minh chứng</label>
+                <label htmlFor="refund-evidence">Minh chứng (không bắt buộc)</label>
                 <input
                   accept="image/*"
                   id="refund-evidence"
-                  required
                   type="file"
                   onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)}
                 />
-                <small>Vui lòng tải ảnh chụp giấy tờ, xác nhận y tế, lịch thay đổi hoặc bằng chứng liên quan.</small>
+                <small>Nếu có, bạn có thể tải ảnh giấy tờ, xác nhận y tế, lịch thay đổi hoặc bằng chứng liên quan để bộ phận vận hành kiểm tra nhanh hơn.</small>
               </div>
 
               <div className="customer-refund-actions">
@@ -491,8 +507,8 @@ function CustomerRefundRequestPage() {
             </section>
 
             <aside className="customer-refund-card customer-refund-summary">
-              <p>Khoản hoàn dự kiến</p>
-              <strong>{formatCurrencyVND(estimate.refundAmount)}</strong>
+              <p>{requiresManualReview ? 'Khoản hoàn đề nghị' : 'Khoản hoàn dự kiến'}</p>
+              <strong>{formatCurrencyVND(requestedRefundAmount)}</strong>
               <dl>
                 <div>
                   <dt>Ngày khởi hành</dt>
@@ -514,9 +530,25 @@ function CustomerRefundRequestPage() {
                 ) : null}
               </dl>
               <p className="customer-refund-explain">{estimate.explanation}</p>
+              {requiresManualReview ? (
+                <p className="customer-refund-alert customer-refund-alert--info">
+                  Yêu cầu này sẽ được kiểm tra thủ công. Số tiền thực tế do bộ phận vận hành
+                  phê duyệt theo chính sách và minh chứng của bạn.
+                </p>
+              ) : null}
               {!refundablePayment ? (
                 <p className="customer-refund-alert customer-refund-alert--error">
                   Chưa tìm thấy giao dịch đã thanh toán thành công để tạo yêu cầu hoàn tiền.
+                </p>
+              ) : null}
+              {refundablePayment && !isBookingRefundable ? (
+                <p className="customer-refund-alert customer-refund-alert--error">
+                  Trạng thái hiện tại của đơn hàng chưa cho phép gửi yêu cầu hoàn tiền.
+                </p>
+              ) : null}
+              {refundablePayment && remainingRefundableAmount <= 0 ? (
+                <p className="customer-refund-alert customer-refund-alert--error">
+                  Giao dịch này không còn số tiền có thể yêu cầu hoàn.
                 </p>
               ) : null}
             </aside>

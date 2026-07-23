@@ -42,8 +42,6 @@ const fieldLabels = {
   title: 'Tên dịch vụ',
 }
 
-const sampleAmenities = ['Khách sạn 5*', 'Vé máy bay']
-
 const acceptedServiceImageTypes = new Set([
   'image/jpeg',
   'image/png',
@@ -596,21 +594,6 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                     </select>
                   </FieldShell>
 
-                  <div className="admin-service-modal__tag-field">
-                    <span className="admin-service-modal__field-label">Tiện ích bao gồm</span>
-                    <div className="admin-service-modal__tag-list" aria-label="Tiện ích mẫu">
-                      {sampleAmenities.map((item) => (
-                        <span className="admin-service-modal__tag" key={item}>
-                          {item}
-                          <button type="button" aria-label={`Xóa ${item}`}>×</button>
-                        </span>
-                      ))}
-                      <button className="admin-service-modal__tag admin-service-modal__tag--add" type="button">
-                        Thêm tiện ích +
-                      </button>
-                    </div>
-                  </div>
-
                   <FieldShell error={errors.short_description} label={formatFieldLabel('short_description')}>
                     <textarea
                       className="admin-service-modal__textarea admin-service-modal__textarea--compact"
@@ -635,7 +618,7 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
               <section className="admin-service-modal__section">
                 <div className="admin-service-modal__section-heading">
                   <h3>Thông tin vận hành</h3>
-                  <p>Nhóm trường nâng cao vẫn được giữ để sẵn sàng nối API POST/PATCH.</p>
+                  <p>Cấu hình giá ưu đãi, nhà cung cấp và thông tin nhận diện dịch vụ.</p>
                 </div>
 
                 <div className="admin-service-modal__grid">
@@ -688,7 +671,7 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
               <section className="admin-service-modal__section">
                 <div className="admin-service-modal__section-heading">
                   <h3>Thông tin chi tiết theo loại dịch vụ</h3>
-                  <p>Render động theo loại dịch vụ đã chọn.</p>
+                  <p>Các trường bên dưới thay đổi theo loại dịch vụ đã chọn.</p>
                 </div>
 
                 <AdminServiceTypeFields

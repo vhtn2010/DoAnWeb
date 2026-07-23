@@ -174,6 +174,75 @@ test('refundService.createCustomerRefundRequest creates a requested refund for t
   });
 });
 
+test('refundService.createCustomerRefundRequest accepts completed bookings with refund_policy', async () => {
+  const service = refundService.createRefundService({
+    repository: {
+      createRefundRequest: async ({ amount, booking, nextBookingStatus, payment }) => ({
+        booking: {
+          booking_code: booking.booking_code,
+          id: booking.id,
+          status: nextBookingStatus,
+        },
+        reused: null,
+        refund: {
+          amount,
+          booking_id: booking.id,
+          created_at: '2026-07-23T12:00:00.000Z',
+          id: REFUND_ID,
+          payment_id: payment.id,
+          processed_at: null,
+          reason: 'Dich vu sau tour can duoc kiem tra lai',
+          refund_code: 'RF20260723AAAA1111',
+          status: 'requested',
+        },
+      }),
+      getBookingById: async () => ({
+        booking_code: 'BK202607230001',
+        id: BOOKING_ID,
+        status: 'completed',
+        user_id: CUSTOMER_ID,
+      }),
+      getPaymentById: async () => ({
+        amount: '500000',
+        booking_id: BOOKING_ID,
+        id: PAYMENT_ID,
+        status: 'success',
+      }),
+      listBookingItemsByBookingId: async () => [
+        {
+          service_snapshot: {
+            refund_policy: 'Yeu cau hoan tien duoc xem xet thu cong sau tour',
+          },
+        },
+      ],
+      sumActiveRefundAmountByPaymentId: async () => 0,
+    },
+  });
+
+  const result = await service.createCustomerRefundRequest({
+    auth: {
+      role: 'customer',
+      user: {
+        permission_codes: ['refund.request'],
+      },
+      userId: CUSTOMER_ID,
+    },
+    body: {
+      amount: 500000,
+      payment_id: PAYMENT_ID,
+      reason: 'Dich vu sau tour can duoc kiem tra lai',
+    },
+    bookingId: BOOKING_ID,
+    headers: {
+      'idempotency-key': 'rf-completed-refund-policy',
+    },
+  });
+
+  assert.equal(result.created, true);
+  assert.equal(result.booking.status, 'refund_pending');
+  assert.equal(result.refund.amount, 500000);
+});
+
 test('refundService.createCustomerRefundRequest reuses the previous refund for the same Idempotency-Key', async () => {
   const service = refundService.createRefundService({
     repository: {
