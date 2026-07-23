@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const {
   API_ERROR_CODES,
+  SERVICE_STATUS,
   SERVICE_TYPE,
   SERVICE_TYPE_VALUES,
 } = require('../constants/domainConstraints');
@@ -18,6 +19,7 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_COMBO_FIELDS = Object.freeze([
   'service_type',
+  'status',
   'title',
   'slug',
   'service_code',
@@ -31,6 +33,11 @@ const ALLOWED_COMBO_FIELDS = Object.freeze([
   'cancellation_policy',
   'metadata',
   'combo_items',
+]);
+const CREATE_COMBO_STATUS_VALUES = Object.freeze([
+  SERVICE_STATUS.DRAFT,
+  SERVICE_STATUS.ACTIVE,
+  SERVICE_STATUS.HIDDEN,
 ]);
 
 const buildAppError = ({
@@ -329,6 +336,25 @@ const parseCurrency = (value) => {
   return normalized;
 };
 
+const parseOptionalEnum = ({
+  allowedValues,
+  field,
+  value,
+}) => {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== 'string' || !allowedValues.includes(value)) {
+    throw buildValidationError(
+      field,
+      `${field} must be one of: ${allowedValues.join(', ')}`,
+    );
+  }
+
+  return value;
+};
+
 const parseServiceId = (field, value) => {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value.trim())) {
     throw buildValidationError(field, `${field} must be a valid UUID`);
@@ -395,6 +421,13 @@ const parseBasePayload = ({
         'service_type cannot be changed through this endpoint',
       );
     }
+  }
+
+  if (!isCreate && Object.prototype.hasOwnProperty.call(payload, 'status')) {
+    throw buildValidationError(
+      'status',
+      'status cannot be updated through this endpoint',
+    );
   }
 
   const title = Object.prototype.hasOwnProperty.call(payload, 'title')
@@ -495,6 +528,13 @@ const parseBasePayload = ({
   const currency = isCreate || Object.prototype.hasOwnProperty.call(payload, 'currency')
     ? parseCurrency(payload.currency)
     : undefined;
+  const status = isCreate
+    ? parseOptionalEnum({
+        allowedValues: CREATE_COMBO_STATUS_VALUES,
+        field: 'status',
+        value: payload.status,
+      }) ?? SERVICE_STATUS.DRAFT
+    : undefined;
 
   return {
     baseFields: {
@@ -509,6 +549,7 @@ const parseBasePayload = ({
       service_code: serviceCode,
       short_description: shortDescription,
       slug,
+      status,
       title,
     },
     comboItems,

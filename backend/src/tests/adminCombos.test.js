@@ -132,6 +132,7 @@ test('adminComboService.createCombo creates draft combo with sanitized combo_ite
 
   assert.equal(createCall.servicePayload.title, 'Combo Phu Quoc');
   assert.equal(createCall.servicePayload.currency, 'VND');
+  assert.equal(createCall.servicePayload.status, 'draft');
   assert.equal(createCall.servicePayload.metadata.season, 'summer');
   assert.deepEqual(createCall.servicePayload.metadata.combo_items, [
     {
@@ -150,6 +151,67 @@ test('adminComboService.createCombo creates draft combo with sanitized combo_ite
   assert.deepEqual(result, {
     id: '11111111-1111-4111-8111-111111111111',
     status: 'draft',
+  });
+});
+
+test('adminComboService.createCombo preserves requested create status', async () => {
+  let createCall = null;
+  const service = adminComboService.createAdminComboService({
+    catalogService: {
+      getServiceDetail: async ({ service_id: serviceId }) => ({
+        id: serviceId,
+        status: 'active',
+      }),
+    },
+    repository: {
+      createCombo: async (payload) => {
+        createCall = payload;
+        return {
+          id: '33333333-3333-4333-8333-333333333333',
+        };
+      },
+      getServiceByCode: async () => null,
+      getServiceBySlug: async () => null,
+      getServicesByIds: async () => [
+        {
+          base_price: '2000000',
+          deleted_at: null,
+          id: '22222222-2222-4222-8222-222222222222',
+          location_text: 'Phu Quoc',
+          sale_price: null,
+          short_description: 'Beach hotel',
+          slug: 'hotel-phu-quoc',
+          status: 'active',
+          title: 'Hotel Phu Quoc',
+          service_type: 'hotel',
+        },
+      ],
+    },
+  });
+
+  const result = await service.createCombo({
+    auth: {
+      role: 'staff',
+      userId: 'staff-1',
+    },
+    body: {
+      base_price: 3500000,
+      combo_items: [
+        {
+          quantity: 1,
+          service_id: '22222222-2222-4222-8222-222222222222',
+          service_type: 'hotel',
+        },
+      ],
+      status: 'active',
+      title: 'Combo Phu Quoc Active',
+    },
+  });
+
+  assert.equal(createCall.servicePayload.status, 'active');
+  assert.deepEqual(result, {
+    id: '33333333-3333-4333-8333-333333333333',
+    status: 'active',
   });
 });
 

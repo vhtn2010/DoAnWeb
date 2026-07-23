@@ -232,8 +232,8 @@ const createAdminComboRepository = ({
             deleted_at
           )
           VALUES (
-            $1, 'combo', $2, $3, $4, $5, $6, $7, $8, $9, $10, 'draft', $11, $12,
-            $13, $13, NULL, NULL, NOW(), NOW(), NULL
+            $1, 'combo', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+            $14, $14, NULL, NULL, NOW(), NOW(), NULL
           )
           RETURNING id
         `,
@@ -248,6 +248,7 @@ const createAdminComboRepository = ({
           servicePayload.base_price,
           servicePayload.sale_price,
           servicePayload.currency,
+          servicePayload.status,
           servicePayload.cancellation_policy,
           servicePayload.metadata,
           actorUserId,

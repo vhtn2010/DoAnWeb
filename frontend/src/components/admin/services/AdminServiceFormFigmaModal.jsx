@@ -295,9 +295,8 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
   const headerStatusOptions = ADMIN_SERVICE_FORM_STATUS_OPTIONS.filter((option) =>
     [SERVICE_STATUSES.active, SERVICE_STATUSES.hidden].includes(option.value),
   )
-  const statusHelp = isEditMode
-    ? 'Trạng thái được đổi bằng các action workflow ở bảng danh sách.'
-    : 'Dịch vụ mới luôn được tạo ở trạng thái bản nháp theo backend.'
+  const formStatusOptions = ADMIN_SERVICE_FORM_STATUS_OPTIONS
+  const statusHelp = 'Chọn trạng thái hiển thị cho dịch vụ.'
 
   const handleCommonChange = (event) => {
     const { name, value } = event.target
@@ -333,6 +332,17 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
         [name]: value,
       }
     })
+  }
+
+  const handleStatusShortcut = (status) => {
+    if (isSubmitting) {
+      return
+    }
+
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      status,
+    }))
   }
 
   const handleDetailChange = (event) => {
@@ -495,11 +505,12 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                       'admin-service-modal__status-option',
                       formValues.status === option.value && 'admin-service-modal__status-option--active',
                     )}
-                    disabled
+                    disabled={isSubmitting}
                     key={option.value}
                     type="button"
                     aria-pressed={formValues.status === option.value}
                     title={statusHelp}
+                    onClick={() => handleStatusShortcut(option.value)}
                   >
                     {option.value === SERVICE_STATUSES.active ? 'Đang bán' : 'Tạm ẩn'}
                   </button>
@@ -649,12 +660,12 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                   <FieldShell error={errors.status} help={statusHelp} label={formatFieldLabel('status')}>
                     <select
                       className={cx('admin-service-modal__select', errors.status && 'admin-service-modal__input--error')}
-                      disabled
+                      disabled={isSubmitting}
                       name="status"
                       value={formValues.status}
                       onChange={handleCommonChange}
                     >
-                      {ADMIN_SERVICE_FORM_STATUS_OPTIONS.map((option) => (
+                      {formStatusOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {serviceStatusLabels[option.value] ?? option.label}
                         </option>

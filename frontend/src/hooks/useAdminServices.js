@@ -36,6 +36,7 @@ import {
   softDeleteService,
   submitServiceForReview,
   updateAdminService,
+  updateServiceStatus,
 } from '../repositories/adminServiceRepository.js'
 
 function createClosedFormModalState() {
@@ -544,12 +545,16 @@ export default function useAdminServices() {
     const payload = buildServicePayloadFromForm(formValues, { submitIntent })
     const requestOptions = { currentRole }
     const isEditMode = formModalState.mode === 'edit' && Boolean(formModalState.service?.id)
+    const shouldUpdateStatus =
+      isEditMode &&
+      payload.status &&
+      payload.status !== formModalState.service?.status
 
     setLoading(true)
     setError('')
 
     try {
-      const response = isEditMode
+      let response = isEditMode
         ? await updateAdminService(formModalState.service.id, payload, requestOptions)
         : await createAdminService(payload, requestOptions)
 
@@ -560,6 +565,27 @@ export default function useAdminServices() {
         return {
           success: false,
           message: nextMessage,
+        }
+      }
+
+      if (shouldUpdateStatus) {
+        response = await updateServiceStatus(
+          response.data.id,
+          {
+            reason: 'Cập nhật trạng thái từ form quản lý dịch vụ.',
+            status: payload.status,
+          },
+          requestOptions,
+        )
+
+        if (!response.success || !response.data) {
+          const nextMessage = translateAdminServiceMessage(response.message)
+          setError(nextMessage)
+          setFeedback(createFeedbackState('error', nextMessage))
+          return {
+            success: false,
+            message: nextMessage,
+          }
         }
       }
 

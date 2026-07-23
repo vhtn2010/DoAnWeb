@@ -569,6 +569,52 @@ test('adminServiceCrudService.createService creates a draft service with generat
   });
 });
 
+test('adminServiceCrudService.createService preserves requested create status', async () => {
+  const service = adminServiceCrudService.createAdminServiceCrudService({
+    catalogService: {
+      getServiceDetail: async ({ service_id: serviceId }) => ({
+        id: serviceId,
+        status: 'active',
+      }),
+    },
+    repository: {
+      createService: async ({ servicePayload }) => {
+        assert.equal(servicePayload.service_type, 'hotel');
+        assert.equal(servicePayload.status, 'active');
+
+        return {
+          id: '77777777-7777-4777-8777-777777777777',
+        };
+      },
+      getServiceByCode: async () => null,
+      getServiceBySlug: async () => null,
+    },
+  });
+
+  const result = await service.createService({
+    auth: {
+      role: 'staff',
+      userId: 'staff-1',
+    },
+    body: {
+      base_price: 2500000,
+      details: {
+        address: '12 Ho Xuan Huong',
+        checkin_time: '14:00',
+        checkout_time: '12:00',
+      },
+      service_type: 'hotel',
+      status: 'active',
+      title: 'Khach san Da Lat Active',
+    },
+  });
+
+  assert.deepEqual(result, {
+    id: '77777777-7777-4777-8777-777777777777',
+    status: 'active',
+  });
+});
+
 test('adminServiceCrudService.createService normalizes multi-action tour itinerary before saving', async () => {
   const service = adminServiceCrudService.createAdminServiceCrudService({
     catalogService: {

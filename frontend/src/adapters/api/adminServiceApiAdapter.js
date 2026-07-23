@@ -129,7 +129,6 @@ function omitUnsupportedCreateFields(payload = {}) {
   const {
     gallery_image_urls: galleryImageUrls,
     image_url: imageUrl,
-    status: _status,
     ...createPayload
   } = payload
 

@@ -5,6 +5,7 @@ const {
   SEAT_CLASS_VALUES,
   SERVICE_TYPE,
   SERVICE_TYPE_VALUES,
+  SERVICE_STATUS,
   TRANSPORT_SCHEDULE_STATUS_VALUES,
   TRANSPORT_TYPE_VALUES,
 } = require('../constants/domainConstraints');
@@ -28,6 +29,11 @@ const UUID_PATTERN =
 const CREATE_SERVICE_TYPE_VALUES = Object.freeze(
   SERVICE_TYPE_VALUES.filter((value) => value !== SERVICE_TYPE.ROOM),
 );
+const CREATE_SERVICE_STATUS_VALUES = Object.freeze([
+  SERVICE_STATUS.DRAFT,
+  SERVICE_STATUS.ACTIVE,
+  SERVICE_STATUS.HIDDEN,
+]);
 const BLOCKED_UPDATE_FIELDS = new Set([
   'approved_at',
   'approved_by',
@@ -903,6 +909,13 @@ const parseBaseServicePayload = ({
   const currency = allowCreate || Object.prototype.hasOwnProperty.call(payload, 'currency')
     ? parseCurrency(payload.currency)
     : undefined;
+  const status = allowCreate
+    ? parseOptionalEnum({
+        allowedValues: CREATE_SERVICE_STATUS_VALUES,
+        field: 'status',
+        value: payload.status,
+      }) ?? SERVICE_STATUS.DRAFT
+    : undefined;
 
   const comboItems = Object.prototype.hasOwnProperty.call(payload, 'combo_items')
     ? parseOptionalArray({
@@ -930,6 +943,7 @@ const parseBaseServicePayload = ({
       service_code: serviceCode,
       short_description: shortDescription,
       slug,
+      status,
       title,
     },
     comboItems,
@@ -1411,7 +1425,7 @@ const createAdminServiceCrudService = ({
         service_code: serviceCode,
         service_type: parsed.serviceType,
         slug,
-        status: 'draft',
+        status: parsed.baseFields.status ?? SERVICE_STATUS.DRAFT,
       },
     }).catch((error) => {
       if (error?.code === '23505') {
