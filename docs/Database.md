@@ -255,6 +255,7 @@ Lưu thông tin tài khoản người dùng: Customer, Staff, Admin, System Admi
 | last_login_at | TIMESTAMPTZ | NULL | Lần đăng nhập gần nhất |
 | is_system_protected | BOOLEAN | NOT NULL, DEFAULT false | Tài khoản gốc không được xóa |
 | created_at | TIMESTAMPTZ | NOT NULL | Ngày tạo |
+
 | updated_at | TIMESTAMPTZ | NOT NULL | Ngày cập nhật |
 | deleted_at | TIMESTAMPTZ | NULL | Xóa mềm |
 
@@ -863,6 +864,16 @@ Lưu mã giảm giá.
 | valid_from | TIMESTAMPTZ | NOT NULL | Bắt đầu |
 | valid_to | TIMESTAMPTZ | NOT NULL | Kết thúc |
 | created_at | TIMESTAMPTZ | NOT NULL | Ngày tạo |
+
+### Bảng user_saved_vouchers
+
+Lưu quan hệ voucher mà khách hàng chủ động thêm vào tài khoản. Việc lưu mã không tăng `used_count`; lượt dùng chỉ được ghi nhận khi checkout thành công.
+
+| Thuộc tính | Kiểu dữ liệu | Loại thuộc tính | Mô tả |
+| --- | --- | --- | --- |
+| user_id | UUID | PK, FK → users.id | Khách hàng lưu voucher |
+| voucher_id | UUID | PK, FK → vouchers.id | Voucher đã lưu |
+| saved_at | TIMESTAMPTZ | NOT NULL | Thời điểm lưu mã |
 
 **discount_type có nhiều trạng thái:**
 

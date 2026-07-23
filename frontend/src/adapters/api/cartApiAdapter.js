@@ -92,10 +92,11 @@ export async function updateCartItem(cartItemId, payload = {}) {
   }
 }
 
-export function validateCart(_cartId, selectedItemIds = []) {
+export function validateCart(_cartId, selectedItemIds = [], voucherCode = '') {
   return apiPost('/cart/validate', {
     body: {
       selected_cart_item_ids: selectedItemIds,
+      voucher_code: voucherCode || undefined,
     },
   })
 }

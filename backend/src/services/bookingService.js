@@ -7,6 +7,7 @@ const {
   CART_STATUS,
   DEFAULT_CURRENCY = 'VND',
   DISCOUNT_TYPE,
+  PROMOTION_STATUS,
   SERVICE_TYPE,
   VOUCHER_STATUS,
 } = require('../constants/domainConstraints');
@@ -1517,6 +1518,7 @@ const enrichBookingItemsWithCurrentServiceData = async ({
   );
 
 const validateVoucher = async ({
+  bookingItems,
   repository,
   subtotalAmount,
   userId,
@@ -1542,6 +1544,8 @@ const validateVoucher = async ({
   const now = Date.now();
   const validFrom = new Date(voucher.valid_from).getTime();
   const validTo = new Date(voucher.valid_to).getTime();
+  const promotionValidFrom = new Date(voucher.promotion_valid_from).getTime();
+  const promotionValidTo = new Date(voucher.promotion_valid_to).getTime();
 
   if (
     voucher.status === VOUCHER_STATUS.EXPIRED ||
@@ -1570,6 +1574,20 @@ const validateVoucher = async ({
       API_ERROR_CODES.VOUCHER_INVALID,
       'voucher_code',
       'voucher_code is invalid',
+    );
+  }
+
+  if (
+    voucher.promotion_status !== PROMOTION_STATUS.ACTIVE ||
+    Number.isNaN(promotionValidFrom) ||
+    Number.isNaN(promotionValidTo) ||
+    now < promotionValidFrom ||
+    now > promotionValidTo
+  ) {
+    throw buildVoucherError(
+      API_ERROR_CODES.VOUCHER_EXPIRED,
+      'voucher_code',
+      'voucher_code promotion has expired',
     );
   }
 
@@ -1608,10 +1626,31 @@ const validateVoucher = async ({
     );
   }
 
+  const eligibleSubtotal = roundMoney(
+    bookingItems.reduce((total, item) => {
+      if (
+        voucher.target_service_type &&
+        item.service_type !== voucher.target_service_type
+      ) {
+        return total;
+      }
+
+      return total + Number(item.total_amount || 0);
+    }, 0),
+  );
+
+  if (eligibleSubtotal <= 0) {
+    throw buildVoucherError(
+      API_ERROR_CODES.VOUCHER_INVALID,
+      'voucher_code',
+      'voucher_code does not apply to the selected cart items',
+    );
+  }
+
   let discountAmount = 0;
 
   if (voucher.discount_type === DISCOUNT_TYPE.PERCENT) {
-    discountAmount = subtotalAmount * (Number(voucher.discount_value) / 100);
+    discountAmount = eligibleSubtotal * (Number(voucher.discount_value) / 100);
   } else {
     discountAmount = Number(voucher.discount_value);
   }
@@ -1623,7 +1662,9 @@ const validateVoucher = async ({
     );
   }
 
-  discountAmount = roundMoney(discountAmount);
+  discountAmount = roundMoney(
+    Math.min(discountAmount, eligibleSubtotal, subtotalAmount),
+  );
 
   if (discountAmount < 0) {
     discountAmount = 0;
@@ -1840,6 +1881,7 @@ const createBookingService = ({
       discountAmount,
       voucher,
     } = await validateVoucher({
+      bookingItems,
       repository,
       subtotalAmount,
       userId: auth.userId,

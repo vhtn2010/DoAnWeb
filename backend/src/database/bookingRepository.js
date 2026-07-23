@@ -474,20 +474,25 @@ const createBookingRepository = ({
     const result = await queryImpl(
       `
         SELECT
-          id,
-          code,
-          discount_type,
-          discount_value,
-          max_discount_amount,
-          min_order_amount,
-          usage_limit_total,
-          usage_limit_per_user,
-          used_count,
-          status,
-          valid_from,
-          valid_to
-        FROM vouchers
-        WHERE LOWER(code) = LOWER($1)
+          v.id,
+          v.code,
+          v.discount_type,
+          v.discount_value,
+          v.max_discount_amount,
+          v.min_order_amount,
+          v.usage_limit_total,
+          v.usage_limit_per_user,
+          v.used_count,
+          v.status,
+          v.valid_from,
+          v.valid_to,
+          p.status AS promotion_status,
+          p.valid_from AS promotion_valid_from,
+          p.valid_to AS promotion_valid_to,
+          p.target_service_type
+        FROM vouchers v
+        INNER JOIN promotions p ON p.id = v.promotion_id
+        WHERE LOWER(v.code) = LOWER($1)
         LIMIT 1
       `,
       [code],
@@ -792,13 +797,20 @@ const createBookingRepository = ({
         const voucherUpdate = await client.query(
           `
             UPDATE vouchers
-            SET used_count = used_count + 1
+            SET
+              used_count = used_count + 1,
+              status = CASE
+                WHEN usage_limit_total IS NOT NULL
+                  AND used_count + 1 >= usage_limit_total
+                THEN 'used_up'
+                ELSE status
+              END
             WHERE id = $1
               AND (
                 usage_limit_total IS NULL
                 OR used_count < usage_limit_total
               )
-            RETURNING used_count
+            RETURNING used_count, status
           `,
           [booking.voucher_id],
         );

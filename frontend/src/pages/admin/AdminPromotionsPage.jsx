@@ -93,7 +93,7 @@ function createInitialVoucherFormValues(promotion = null) {
     minOrderAmount: '0',
     status: 'active',
     usageLimitPerUser: '1',
-    usageLimitTotal: '',
+    usageLimitTotal: '1',
     validFrom: toDateTimeLocalValue(promotion?.startDate),
     validTo: toDateTimeLocalValue(promotion?.endDate),
   }
@@ -148,8 +148,8 @@ function validateVoucherCreateForm(values, promotion) {
     errors.minOrderAmount = 'Đơn tối thiểu phải lớn hơn hoặc bằng 0.'
   }
 
-  if (values.usageLimitTotal && (!Number.isInteger(usageLimitTotal) || usageLimitTotal <= 0)) {
-    errors.usageLimitTotal = 'Tổng lượt dùng phải là số nguyên dương.'
+  if (!Number.isInteger(usageLimitTotal) || usageLimitTotal <= 0) {
+    errors.usageLimitTotal = 'Số lượng voucher phải là số nguyên dương.'
   }
 
   if (!Number.isInteger(usageLimitPerUser) || usageLimitPerUser <= 0) {
@@ -204,7 +204,7 @@ function buildVoucherCreatePayload(values, promotion) {
     promotion_id: promotion.id,
     status: values.status,
     usage_limit_per_user: Number(values.usageLimitPerUser || 1),
-    usage_limit_total: values.usageLimitTotal === '' ? null : Number(values.usageLimitTotal),
+    usage_limit_total: Number(values.usageLimitTotal),
     valid_from: toIsoDateTime(values.validFrom),
     valid_to: toIsoDateTime(values.validTo),
   }
@@ -355,10 +355,13 @@ function getVoucherUsageLabel(voucher = {}) {
   const usedCount = Number(voucher.used_count || 0)
 
   if (voucher.usage_limit_total == null) {
-    return `${usedCount} lượt / không giới hạn`
+    return `Đã dùng ${usedCount} • không giới hạn`
   }
 
-  return `${usedCount}/${Number(voucher.usage_limit_total)} lượt`
+  const totalCount = Number(voucher.usage_limit_total)
+  const remainingCount = Math.max(totalCount - usedCount, 0)
+
+  return `Tổng ${totalCount} • đã dùng ${usedCount} • còn ${remainingCount}`
 }
 
 function getVoucherPerUserLabel(value) {
@@ -668,7 +671,6 @@ function PromotionVoucherModal({
               <div className="admin-promotion-voucher-create__header">
                 <div>
                   <h3>Thêm voucher</h3>
-                  <p>Gửi đúng body của POST /admin/vouchers theo promotion đang chọn.</p>
                 </div>
                 <VoucherStatusBadge status={createValues.status} />
               </div>
@@ -745,7 +747,13 @@ function PromotionVoucherModal({
                   />
                 </AdminField>
 
-                <AdminField error={createErrors.usageLimitTotal} htmlFor="voucher-usage-total" label="Tổng lượt dùng">
+                <AdminField
+                  error={createErrors.usageLimitTotal}
+                  helper="Tổng số voucher có thể được sử dụng trước khi mã tự hết lượt."
+                  htmlFor="voucher-usage-total"
+                  label="Số lượng voucher"
+                  required
+                >
                   <AdminInput
                     id="voucher-usage-total"
                     invalid={Boolean(createErrors.usageLimitTotal)}
@@ -862,7 +870,7 @@ function PromotionVoucherModal({
                         <dd>{voucher.minOrderLabel}</dd>
                       </div>
                       <div>
-                        <dt>Đã dùng</dt>
+                        <dt>Số lượng voucher</dt>
                         <dd>{voucher.usageLabel}</dd>
                       </div>
                       <div>

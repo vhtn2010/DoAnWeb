@@ -538,6 +538,141 @@ test('getCurrentUserVouchers rejects inactive current user before loading vouche
   assert.equal(voucherQueryAttempts, 0);
 });
 
+test('saveCurrentUserVoucher persists an active code and returns it in the wallet', async () => {
+  const fixedNow = new Date('2026-07-10T10:00:00.000Z');
+  const queries = [];
+  const voucherRow = {
+    code: 'NETVIET500',
+    discount_type: 'fixed_amount',
+    discount_value: '500000',
+    id: 'voucher-1',
+    last_used_at: null,
+    max_discount_amount: null,
+    min_order_amount: '1000000',
+    promotion_description: 'Summer saving',
+    promotion_id: 'promotion-1',
+    promotion_name: 'Summer 2026',
+    promotion_status: 'active',
+    promotion_valid_from: new Date('2026-07-01T00:00:00.000Z'),
+    promotion_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+    target_service_type: 'tour',
+    usage_limit_per_user: 1,
+    usage_limit_total: 100,
+    used_count: 0,
+    user_usage_count: 0,
+    voucher_status: 'active',
+    voucher_valid_from: new Date('2026-07-01T00:00:00.000Z'),
+    voucher_valid_to: new Date('2026-07-31T00:00:00.000Z'),
+  };
+  const client = {
+    query: async (sql, params = []) => {
+      queries.push({ params, sql });
+
+      if (sql.includes('FROM users') && sql.includes('deleted_at')) {
+        return {
+          rowCount: 1,
+          rows: [{ deleted_at: null, id: 'user-1', status: 'active' }],
+        };
+      }
+
+      if (sql.includes('FROM vouchers v') && sql.includes('UPPER(TRIM(v.code))')) {
+        return {
+          rowCount: 1,
+          rows: [voucherRow],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_saved_vouchers')) {
+        return {
+          rowCount: 1,
+          rows: [{ voucher_id: 'voucher-1' }],
+        };
+      }
+
+      if (sql.includes('INSERT INTO user_logs')) {
+        return { rowCount: 1, rows: [] };
+      }
+
+      if (sql.includes('WITH user_voucher_usage AS')) {
+        return { rowCount: 1, rows: [voucherRow] };
+      }
+
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    },
+  };
+  const service = createProfileService({
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) => callback(client),
+  });
+
+  const voucher = await service.saveCurrentUserVoucher({
+    ipAddress: '127.0.0.1',
+    payload: { code: ' netviet500 ' },
+    userAgent: 'voucher-save-test',
+    userId: 'user-1',
+  });
+
+  assert.equal(voucher.code, 'NETVIET500');
+  assert.equal(voucher.status, 'active');
+  assert.ok(queries.some((entry) => entry.sql.includes('INSERT INTO user_saved_vouchers')));
+  assert.ok(
+    queries.some(
+      (entry) =>
+        entry.sql.includes('INSERT INTO user_logs') &&
+        entry.params[1] === 'customer.voucher.save',
+    ),
+  );
+});
+
+test('saveCurrentUserVoucher reports a future code as not active instead of expired', async () => {
+  const fixedNow = new Date('2026-07-10T09:57:00.000Z');
+  const service = createProfileService({
+    now: () => fixedNow,
+    withTransactionImpl: async (callback) =>
+      callback({
+        query: async (sql) => {
+          if (sql.includes('FROM users') && sql.includes('deleted_at')) {
+            return {
+              rowCount: 1,
+              rows: [{ deleted_at: null, id: 'user-1', status: 'active' }],
+            };
+          }
+
+          if (sql.includes('FROM vouchers v') && sql.includes('UPPER(TRIM(v.code))')) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'voucher-upcoming',
+                  promotion_status: 'active',
+                  promotion_valid_from: new Date('2026-07-10T10:00:00.000Z'),
+                  promotion_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+                  voucher_status: 'active',
+                  voucher_valid_from: new Date('2026-07-10T10:00:00.000Z'),
+                  voucher_valid_to: new Date('2026-07-31T00:00:00.000Z'),
+                },
+              ],
+            };
+          }
+
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        },
+      }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.saveCurrentUserVoucher({
+        payload: { code: 'start10' },
+        userId: 'user-1',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VOUCHER_INVALID &&
+      error.message === 'Voucher is not active yet' &&
+      error.statusCode === 400,
+  );
+});
+
 test('normalizeAccountDeactivationPayload trims and validates reason', () => {
   assert.deepEqual(
     normalizeAccountDeactivationPayload({

@@ -5,6 +5,7 @@ const {
   getMyLogs,
   getMyVouchers,
   requestAccountDeactivation,
+  saveMyVoucher,
   updateMe,
   updateMeAvatar,
   updateMePassword,
@@ -47,6 +48,14 @@ router.get(
   }),
   requirePermissions(['profile.read_self']),
   asyncHandler(getMyVouchers),
+);
+router.post(
+  '/me/vouchers',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  requirePermissions(['profile.read_self']),
+  asyncHandler(saveMyVoucher),
 );
 router.patch(
   '/me',

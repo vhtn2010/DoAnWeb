@@ -101,7 +101,7 @@ export function updateCartItem(cartItemId, payload, options = {}) {
 
 export function validateCart(cartId, selectedItemIds, options = {}) {
   if (shouldUseCustomerApi(options?.authState)) {
-    return validateCartWithApiAdapter(cartId, selectedItemIds)
+    return validateCartWithApiAdapter(cartId, selectedItemIds, options.voucherCode)
   }
 
   if (isCustomerApiRequested(options?.authState)) {

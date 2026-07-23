@@ -81,6 +81,10 @@ export function getCurrentUserVouchers() {
   return apiGet('/me/vouchers')
 }
 
+export function saveCurrentUserVoucher(code) {
+  return apiPost('/me/vouchers', { code })
+}
+
 export function requestAccountDeactivation(payload = {}) {
   return apiPost('/me/account-deactivation-request', payload)
 }

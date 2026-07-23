@@ -51,6 +51,47 @@ function createFeedbackState(tone = 'info', message = '') {
   }
 }
 
+function getVoucherApplyErrorMessage(error = {}) {
+  const message = String(error.message || '')
+
+  if (
+    message === 'Voucher is not active yet' ||
+    message === 'Voucher promotion is not active yet'
+  ) {
+    return 'Mã voucher chưa đến thời gian áp dụng. Vui lòng kiểm tra lại giờ bắt đầu.'
+  }
+
+  if (
+    message === 'Voucher is expired' ||
+    message === 'Voucher promotion has expired' ||
+    error.code === 'VOUCHER_EXPIRED'
+  ) {
+    return 'Mã voucher này đã hết hạn sử dụng.'
+  }
+
+  if (message === 'Voucher does not apply to the current cart items') {
+    return 'Mã voucher không áp dụng cho các dịch vụ đang chọn.'
+  }
+
+  if (message === 'Cart subtotal does not meet the voucher minimum order amount') {
+    return 'Giỏ hàng chưa đạt giá trị tối thiểu để dùng mã voucher này.'
+  }
+
+  if (
+    message === 'User has reached the voucher usage limit' ||
+    message === 'Voucher has reached the total usage limit' ||
+    error.code === 'VOUCHER_USAGE_LIMIT_REACHED'
+  ) {
+    return 'Mã voucher này đã hết lượt sử dụng.'
+  }
+
+  if (error.code === 'VOUCHER_INVALID') {
+    return 'Mã voucher không hợp lệ hoặc chưa thể áp dụng cho giỏ hàng này.'
+  }
+
+  return message || 'Không thể áp dụng voucher cho giỏ hàng lúc này.'
+}
+
 function buildItemRoute(item) {
   const slug = item?.service?.slug
   const serviceType = item?.service_type
@@ -606,11 +647,13 @@ export default function useCart() {
     try {
       const response = await validateCart(cart.id, selectedItemIds, {
         authState,
+        voucherCode: appliedVoucher?.code ?? voucherCode,
       })
       const isValid = response.data?.valid ?? response.data?.is_valid ?? false
       const resolvedSelectedItemIds = Array.isArray(response.data?.selected_item_ids)
         ? response.data.selected_item_ids
         : selectedItemIds
+      const validatedSummary = response.data?.summary ?? null
 
       if (!isValid) {
         setFeedback(
@@ -631,7 +674,7 @@ export default function useCart() {
           cartSummaryPayload: {
             ...createCartSummaryPayload(
               cart,
-              summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds),
+              validatedSummary ?? summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds),
               resolvedSelectedItemIds,
               appliedVoucher?.code ?? voucherCode,
             ),
@@ -713,7 +756,7 @@ export default function useCart() {
       setFeedback(
         createFeedbackState(
           'error',
-          applyError?.message || 'Không thể áp dụng voucher cho giỏ hàng lúc này.',
+          getVoucherApplyErrorMessage(applyError),
         ),
       )
       return false

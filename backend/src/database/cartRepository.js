@@ -286,6 +286,27 @@ const createCartRepository = ({ queryImpl = query } = {}) => {
     return result.rows[0]?.usage_count ?? 0;
   };
 
+  const saveUserVoucher = async (
+    queryExecutor,
+    {
+      savedAt,
+      userId,
+      voucherId,
+    },
+  ) => {
+    const result = await queryExecutor(
+      `
+        INSERT INTO user_saved_vouchers (user_id, voucher_id, saved_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, voucher_id) DO NOTHING
+        RETURNING voucher_id
+      `,
+      [userId, voucherId, savedAt],
+    );
+
+    return result.rows[0] || null;
+  };
+
   const insertCartItem = async (
     queryExecutor,
     {
@@ -550,6 +571,7 @@ const createCartRepository = ({ queryImpl = query } = {}) => {
     insertCartItem,
     listCartItemRecords,
     listCartItems,
+    saveUserVoucher,
     touchCart,
     updateCartItem,
   };

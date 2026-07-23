@@ -12,6 +12,9 @@ const PROFILE_AVATAR_UPDATE_ACTION = 'profile.avatar_update';
 const PROFILE_CHANGE_PASSWORD_ACTION = 'profile.change_password';
 const PROFILE_UPDATE_ACTION = 'profile.update';
 const ACCOUNT_DEACTIVATION_REQUEST_ACTION = 'account.deactivation_requested';
+const VOUCHER_SAVE_ACTION = 'customer.voucher.save';
+const MAX_VOUCHER_CODE_LENGTH = 50;
+const VOUCHER_CODE_PATTERN = /^[A-Z0-9_-]{3,50}$/;
 const ALLOWED_UPDATE_FIELDS = new Set(['current_password', 'full_name', 'phone']);
 const ALLOWED_AVATAR_FIELDS = new Set(['avatar_url']);
 const ALLOWED_PASSWORD_FIELDS = new Set(['current_password', 'new_password']);
@@ -122,6 +125,32 @@ const createValidationError = (details) =>
     details,
     statusCode: 400,
   });
+
+const createVoucherError = (code, message) =>
+  new AppError(message, {
+    code,
+    statusCode: 400,
+  });
+
+const normalizeSaveVoucherPayload = (payload = {}) => {
+  const body = payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? payload
+    : {};
+  const code = typeof body.code === 'string'
+    ? body.code.trim().toUpperCase()
+    : '';
+
+  if (!code || code.length > MAX_VOUCHER_CODE_LENGTH || !VOUCHER_CODE_PATTERN.test(code)) {
+    throw createValidationError([
+      {
+        field: 'code',
+        message: 'code must contain 3-50 uppercase letters, numbers, hyphens, or underscores',
+      },
+    ]);
+  }
+
+  return { code };
+};
 
 const mapCurrentProfile = (row) => ({
   avatar_url: row.avatar_url,
@@ -875,7 +904,11 @@ const listCurrentUserVoucherRows = async (queryExecutor, userId, currentTime) =>
         ON p.id = v.promotion_id
       LEFT JOIN user_voucher_usage uvu
         ON uvu.voucher_id = v.id
-      WHERE COALESCE(uvu.usage_count, 0) > 0
+      LEFT JOIN user_saved_vouchers usv
+        ON usv.voucher_id = v.id
+        AND usv.user_id = $1
+      WHERE usv.user_id IS NOT NULL
+        OR COALESCE(uvu.usage_count, 0) > 0
       ORDER BY
         CASE
           WHEN (
@@ -893,7 +926,7 @@ const listCurrentUserVoucherRows = async (queryExecutor, userId, currentTime) =>
           ) THEN 0
           ELSE 1
         END ASC,
-        COALESCE(uvu.last_used_at, LEAST(v.valid_to, p.valid_to)) DESC,
+        COALESCE(uvu.last_used_at, usv.saved_at, LEAST(v.valid_to, p.valid_to)) DESC,
         v.created_at DESC,
         v.id ASC
     `,
@@ -982,6 +1015,109 @@ const createProfileService = ({
 
     return rows.map((row) => mapCurrentUserVoucherRow(row, currentTime));
   };
+
+  const saveCurrentUserVoucher = async ({
+    ipAddress,
+    payload,
+    userAgent,
+    userId,
+  }) =>
+    withTransactionImpl(async (client) => {
+      const queryExecutor = client.query.bind(client);
+      const currentUser = await loadCurrentUserState(queryExecutor, userId);
+
+      ensureCurrentUserIsActive(currentUser, 'save voucher');
+
+      const { code } = normalizeSaveVoucherPayload(payload);
+      const currentTime = now();
+      const voucherResult = await queryExecutor(
+        `
+          SELECT
+            v.id,
+            v.status AS voucher_status,
+            v.valid_from AS voucher_valid_from,
+            v.valid_to AS voucher_valid_to,
+            p.status AS promotion_status,
+            p.valid_from AS promotion_valid_from,
+            p.valid_to AS promotion_valid_to
+          FROM vouchers v
+          INNER JOIN promotions p ON p.id = v.promotion_id
+          WHERE UPPER(TRIM(v.code)) = $1
+          LIMIT 1
+        `,
+        [code],
+      );
+      const voucher = voucherResult.rows[0] || null;
+
+      if (!voucher) {
+        throw createVoucherError(
+          API_ERROR_CODES.VOUCHER_INVALID,
+          'Voucher is invalid',
+        );
+      }
+
+      const voucherExpired =
+        voucher.voucher_status === 'expired' ||
+        currentTime > new Date(voucher.voucher_valid_to) ||
+        voucher.promotion_status === 'expired' ||
+        currentTime > new Date(voucher.promotion_valid_to);
+
+      if (voucherExpired) {
+        throw createVoucherError(
+          API_ERROR_CODES.VOUCHER_EXPIRED,
+          'Voucher is expired',
+        );
+      }
+
+      if (voucher.voucher_status !== 'active' || voucher.promotion_status !== 'active') {
+        throw createVoucherError(
+          API_ERROR_CODES.VOUCHER_INVALID,
+          'Voucher is invalid',
+        );
+      }
+
+      if (
+        currentTime < new Date(voucher.voucher_valid_from) ||
+        currentTime < new Date(voucher.promotion_valid_from)
+      ) {
+        throw createVoucherError(
+          API_ERROR_CODES.VOUCHER_INVALID,
+          'Voucher is not active yet',
+        );
+      }
+
+      const savedResult = await queryExecutor(
+        `
+          INSERT INTO user_saved_vouchers (user_id, voucher_id, saved_at)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, voucher_id) DO NOTHING
+          RETURNING voucher_id
+        `,
+        [userId, voucher.id, currentTime],
+      );
+
+      await insertProfileUpdateLog(client, {
+        action: VOUCHER_SAVE_ACTION,
+        createdAt: currentTime,
+        ipAddress,
+        metadata: {
+          code,
+          idempotent: savedResult.rowCount === 0,
+          voucher_id: voucher.id,
+        },
+        userAgent,
+        userId,
+      });
+
+      const rows = await listCurrentUserVoucherRows(
+        queryExecutor,
+        userId,
+        currentTime,
+      );
+      const savedVoucher = rows.find((row) => row.id === voucher.id);
+
+      return mapCurrentUserVoucherRow(savedVoucher, currentTime);
+    });
 
   const updateCurrentProfile = async ({ payload, userId, ipAddress, userAgent }) => {
     return withTransactionImpl(async (client) => {
@@ -1201,6 +1337,7 @@ const createProfileService = ({
     getCurrentProfile,
     getCurrentUserLogs,
     getCurrentUserVouchers,
+    saveCurrentUserVoucher,
     requestAccountDeactivation,
     updateCurrentAvatar,
     updateCurrentPassword,

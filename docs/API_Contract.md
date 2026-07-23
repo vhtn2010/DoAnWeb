@@ -156,6 +156,8 @@ Ngày cập nhật: 28/06/2026
 | PATCH | /me/password | CUSTOMER \| STAFF \| ADMIN \| SYSTEM_ADMIN | current_password, new_password | Đổi mật khẩu khi đã đăng nhập |
 | PATCH | /me/avatar | CUSTOMER \| STAFF \| ADMIN \| SYSTEM_ADMIN | avatar_url | Cập nhật ảnh đại diện Cloudinary |
 | GET | /me/logs?page&limit | CUSTOMER \| STAFF \| ADMIN \| SYSTEM_ADMIN | Query pagination | Xem lịch sử hoạt động của mình |
+| GET | /me/vouchers | CUSTOMER | None | Xem voucher đã lưu hoặc đã sử dụng |
+| POST | /me/vouchers | CUSTOMER | code | Lưu voucher hợp lệ vào tài khoản; thao tác lặp lại là idempotent |
 | POST | /me/account-deactivation-request | CUSTOMER | reason | Khách yêu cầu vô hiệu hóa tài khoản |
 
 ## 3. Admin User & RBAC API

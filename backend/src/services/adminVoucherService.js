@@ -636,11 +636,14 @@ const assertPromotionAllowsVoucherWrite = (promotion) => {
     });
   }
 
-  if (promotion.status === PROMOTION_STATUS.CANCELLED) {
+  if (
+    promotion.status === PROMOTION_STATUS.CANCELLED ||
+    promotion.status === PROMOTION_STATUS.EXPIRED
+  ) {
     throw buildValidationError([
       {
         field: 'promotion_id',
-        message: 'promotion_id cannot reference a cancelled promotion',
+        message: 'promotion_id cannot reference an expired or cancelled promotion',
       },
     ]);
   }

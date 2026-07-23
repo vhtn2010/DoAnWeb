@@ -1417,6 +1417,7 @@ const buildVoucherValidationResult = (
   return {
     discountAmount,
     issue,
+    voucherId: voucher?.id || null,
     voucher: buildVoucherResponse(voucherCode, {
       applied: discountAmount > 0 && !issue,
       discountAmount,
@@ -1433,18 +1434,6 @@ const getItemEffectiveTotalAmount = (item) =>
       item.total_amount ??
       0,
   );
-
-const isWithinVoucherWindow = (currentTime, validFrom, validTo) => {
-  if (validFrom && currentTime < new Date(validFrom)) {
-    return false;
-  }
-
-  if (validTo && currentTime > new Date(validTo)) {
-    return false;
-  }
-
-  return true;
-};
 
 const calculateEligibleSubtotal = (items, targetServiceType) => {
   if (!targetServiceType) {
@@ -1521,21 +1510,53 @@ const evaluateVoucherForCartValidation = async (
   }
 
   if (
-    !isWithinVoucherWindow(
-      currentTime,
-      voucher.voucher_valid_from,
-      voucher.voucher_valid_to,
-    ) ||
-    voucher.promotion_status !== PROMOTION_STATUS.ACTIVE ||
-    !isWithinVoucherWindow(
-      currentTime,
-      voucher.promotion_valid_from,
-      voucher.promotion_valid_to,
-    )
+    voucher.voucher_valid_from &&
+    currentTime < new Date(voucher.voucher_valid_from)
+  ) {
+    return buildVoucherValidationResult(voucherCode, {
+      code: API_ERROR_CODES.VOUCHER_INVALID,
+      message: 'Voucher is not active yet',
+      voucher,
+    });
+  }
+
+  if (
+    voucher.voucher_valid_to &&
+    currentTime > new Date(voucher.voucher_valid_to)
   ) {
     return buildVoucherValidationResult(voucherCode, {
       code: API_ERROR_CODES.VOUCHER_EXPIRED,
-      message: 'Voucher is expired or outside the valid time window',
+      message: 'Voucher is expired',
+      voucher,
+    });
+  }
+
+  if (voucher.promotion_status !== PROMOTION_STATUS.ACTIVE) {
+    return buildVoucherValidationResult(voucherCode, {
+      code: API_ERROR_CODES.VOUCHER_INVALID,
+      message: 'Voucher promotion is not active',
+      voucher,
+    });
+  }
+
+  if (
+    voucher.promotion_valid_from &&
+    currentTime < new Date(voucher.promotion_valid_from)
+  ) {
+    return buildVoucherValidationResult(voucherCode, {
+      code: API_ERROR_CODES.VOUCHER_INVALID,
+      message: 'Voucher promotion is not active yet',
+      voucher,
+    });
+  }
+
+  if (
+    voucher.promotion_valid_to &&
+    currentTime > new Date(voucher.promotion_valid_to)
+  ) {
+    return buildVoucherValidationResult(voucherCode, {
+      code: API_ERROR_CODES.VOUCHER_EXPIRED,
+      message: 'Voucher promotion has expired',
       voucher,
     });
   }
@@ -1739,18 +1760,31 @@ const createCartService = ({
       const currentTime = now();
 
       if (
-        !isWithinVoucherWindow(
-          currentTime,
-          voucher.voucher_valid_from,
-          voucher.voucher_valid_to,
-        )
+        voucher.voucher_valid_from &&
+        currentTime < new Date(voucher.voucher_valid_from)
+      ) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'VOUCHER_NOT_STARTED',
+              'Voucher is not active yet',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      if (
+        voucher.voucher_valid_to &&
+        currentTime > new Date(voucher.voucher_valid_to)
       ) {
         return buildPricingSummary(items, {
           cartId: activeCart.id,
           voucher: buildVoucherResponse(voucherCode, {
             issue: buildVoucherIssue(
               'VOUCHER_EXPIRED',
-              'Voucher is outside the valid time window',
+              'Voucher is expired',
             ),
             voucher,
           }),
@@ -1771,18 +1805,31 @@ const createCartService = ({
       }
 
       if (
-        !isWithinVoucherWindow(
-          currentTime,
-          voucher.promotion_valid_from,
-          voucher.promotion_valid_to,
-        )
+        voucher.promotion_valid_from &&
+        currentTime < new Date(voucher.promotion_valid_from)
+      ) {
+        return buildPricingSummary(items, {
+          cartId: activeCart.id,
+          voucher: buildVoucherResponse(voucherCode, {
+            issue: buildVoucherIssue(
+              'PROMOTION_NOT_STARTED',
+              'Voucher promotion is not active yet',
+            ),
+            voucher,
+          }),
+        });
+      }
+
+      if (
+        voucher.promotion_valid_to &&
+        currentTime > new Date(voucher.promotion_valid_to)
       ) {
         return buildPricingSummary(items, {
           cartId: activeCart.id,
           voucher: buildVoucherResponse(voucherCode, {
             issue: buildVoucherIssue(
               'PROMOTION_EXPIRED',
-              'Promotion is outside the valid time window',
+              'Voucher promotion has expired',
             ),
             voucher,
           }),
@@ -2110,6 +2157,14 @@ const createCartService = ({
       );
 
       assertVoucherCanBeApplied(voucherResult);
+
+      if (voucherResult.voucherId && typeof repository.saveUserVoucher === 'function') {
+        await repository.saveUserVoucher(queryExecutor, {
+          savedAt: now(),
+          userId,
+          voucherId: voucherResult.voucherId,
+        });
+      }
 
       const summary = buildPricingSummary(items, {
         cartId: activeCart.id,

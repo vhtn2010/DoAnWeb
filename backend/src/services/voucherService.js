@@ -369,7 +369,7 @@ const createVoucherService = ({
 
       if (
         voucher.min_order_amount != null &&
-        eligibleSubtotal < Number(voucher.min_order_amount)
+        cartSummary.subtotal_amount < Number(voucher.min_order_amount)
       ) {
         throw createVoucherError(
           API_ERROR_CODES.VOUCHER_INVALID,

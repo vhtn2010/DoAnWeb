@@ -210,6 +210,10 @@ test('bookingService.checkout creates a pending_payment booking from an active c
           id: 'voucher-1',
           max_discount_amount: '1000000',
           min_order_amount: '1000000',
+          promotion_status: 'active',
+          promotion_valid_from: '2026-01-01T00:00:00.000Z',
+          promotion_valid_to: '2026-12-31T23:59:59.000Z',
+          target_service_type: 'tour',
           status: 'active',
           usage_limit_per_user: 1,
           usage_limit_total: 10,
@@ -280,11 +284,11 @@ test('bookingService.checkout creates a pending_payment booking from an active c
   assert.equal(createCheckoutPayload.idempotencyKey, 'checkout-001');
   assert.equal(createCheckoutPayload.booking.status, BOOKING_STATUS.PENDING_PAYMENT);
   assert.equal(createCheckoutPayload.booking.subtotal_amount, 4800000);
-  assert.equal(createCheckoutPayload.booking.discount_amount, 480000);
-  assert.equal(createCheckoutPayload.booking.vat_amount, 345600);
+  assert.equal(createCheckoutPayload.booking.discount_amount, 360000);
+  assert.equal(createCheckoutPayload.booking.vat_amount, 355200);
   assert.equal(createCheckoutPayload.booking.service_fee_amount, 160000);
   assert.equal(createCheckoutPayload.booking.surcharge_amount, 0);
-  assert.equal(createCheckoutPayload.booking.total_amount, 4825600);
+  assert.equal(createCheckoutPayload.booking.total_amount, 4955200);
   assert.equal(createCheckoutPayload.bookingItems.length, 2);
   assert.equal(createCheckoutPayload.bookingItems[0].traveller_info.length, 2);
   assert.deepEqual(createCheckoutPayload.bookingItems[0].service_snapshot.passenger_counts, {
@@ -295,12 +299,12 @@ test('bookingService.checkout creates a pending_payment booking from an active c
   });
   assert.equal(result.status, 'pending_payment');
   assert.equal(result.subtotal_amount, 4800000);
-  assert.equal(result.discount_amount, 480000);
-  assert.equal(result.vat_amount, 345600);
+  assert.equal(result.discount_amount, 360000);
+  assert.equal(result.vat_amount, 355200);
   assert.equal(result.service_fee_amount, 160000);
   assert.equal(result.surcharge_amount, 0);
-  assert.equal(result.tax_and_fee_amount, 505600);
-  assert.equal(result.total_amount, 4825600);
+  assert.equal(result.tax_and_fee_amount, 515200);
+  assert.equal(result.total_amount, 4955200);
   assert.equal(result.items.length, 2);
 });
 

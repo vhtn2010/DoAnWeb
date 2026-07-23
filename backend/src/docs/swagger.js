@@ -725,6 +725,9 @@ const requestBodyExamples = Object.freeze({
   'POST /me/account-deactivation-request': {
     reason: 'I no longer use this account',
   },
+  'POST /me/vouchers': {
+    code: 'SUMMER2026',
+  },
   'POST /payments/{payment_id}/cancel': {
     reason: 'Customer wants to use another payment method',
   },

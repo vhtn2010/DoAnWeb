@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ProfileGuestGate from '../../components/profile/ProfileGuestGate.jsx'
-import { applyVoucher } from '../../repositories/checkoutRepository.js'
-import { getCurrentUserVouchers } from '../../repositories/profileRepository.js'
+import {
+  getCurrentUserVouchers,
+  saveCurrentUserVoucher,
+} from '../../repositories/profileRepository.js'
 import usePublicCollectionPage from '../../hooks/usePublicCollectionPage.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
@@ -198,6 +200,17 @@ function mapVoucherMessage(message = '') {
     return 'Mã ưu đãi này đã hết hạn sử dụng.'
   }
 
+  if (
+    message === 'Voucher is not active yet' ||
+    message === 'Voucher promotion is not active yet'
+  ) {
+    return 'Mã ưu đãi chưa đến thời gian sử dụng. Vui lòng kiểm tra lại giờ bắt đầu.'
+  }
+
+  if (message === 'Voucher promotion has expired') {
+    return 'Chương trình của mã ưu đãi này đã kết thúc.'
+  }
+
   if (message === 'Voucher does not apply to the current cart items') {
     return 'Mã ưu đãi không áp dụng cho các dịch vụ đang có trong giỏ hàng.'
   }
@@ -312,7 +325,7 @@ function getVoucherCardTone(voucher) {
 
 function MyVouchersPage() {
   const navigate = useNavigate()
-  const { authState, isCustomer, isCustomerPreview } = usePublicSession()
+  const { isCustomer, isCustomerPreview } = usePublicSession()
   const [vouchers, setVouchers] = useState([])
   const [loading, setLoading] = useState(Boolean(isCustomerPreview))
   const [error, setError] = useState('')
@@ -429,36 +442,24 @@ function MyVouchersPage() {
     setVoucherCheckFeedback('')
 
     try {
-      const response = await applyVoucher(
-        normalizedCode,
-        {
-          service_fee_amount: 0,
-          subtotal_amount: 0,
-        },
-        {
-          authState,
-        },
-      )
+      const response = await saveCurrentUserVoucher(normalizedCode)
 
-      if (!response?.success || !response?.data?.valid) {
+      if (!response?.success || !response?.data) {
         setVoucherCheckResult(null)
         setVoucherCheckFeedback(mapVoucherMessage(response?.message))
         return
       }
 
       setVoucherCheckResult({
-        code: response.data.voucher_code ?? normalizedCode,
-        discountAmount: response.data.discount_amount,
-        eligibleSubtotalAmount: response.data.eligible_subtotal_amount,
-        finalTotalAmount:
-          response.data.summary?.total_amount ??
-          response.data.final_total_amount ??
-          0,
+        code: response.data.code ?? normalizedCode,
+        discountLabel: formatVoucherDiscountLabel(response.data),
         targetServiceType: response.data.target_service_type,
       })
       setVoucherCheckFeedback(
-        'Mã ưu đãi đã được áp dụng cho giỏ hàng hiện tại của bạn.',
+        'Đã lưu mã ưu đãi vào tài khoản. Bạn có thể áp dụng mã khi đặt hàng.',
       )
+      setVoucherCode('')
+      setReloadToken((currentValue) => currentValue + 1)
     } catch (validateError) {
       setVoucherCheckResult(null)
       setVoucherCheckFeedback(mapVoucherMessage(validateError?.message))
@@ -710,11 +711,7 @@ function MyVouchersPage() {
                 <dl>
                   <div>
                     <dt>Mức giảm</dt>
-                    <dd>{formatCurrency(voucherCheckResult.discountAmount)}</dd>
-                  </div>
-                  <div>
-                    <dt>Tổng sau giảm</dt>
-                    <dd>{formatCurrency(voucherCheckResult.finalTotalAmount)}</dd>
+                    <dd>{voucherCheckResult.discountLabel}</dd>
                   </div>
                 </dl>
                 <Link to={cartPath}>Mở giỏ hàng</Link>

@@ -18,6 +18,7 @@ const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
 const originalGetCurrentProfile = profileService.getCurrentProfile;
 const originalGetCurrentUserLogs = profileService.getCurrentUserLogs;
 const originalGetCurrentUserVouchers = profileService.getCurrentUserVouchers;
+const originalSaveCurrentUserVoucher = profileService.saveCurrentUserVoucher;
 const originalRequestAccountDeactivation =
   profileService.requestAccountDeactivation;
 const originalUpdateCurrentAvatar = profileService.updateCurrentAvatar;
@@ -76,6 +77,7 @@ test.beforeEach(() => {
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.getCurrentUserLogs = originalGetCurrentUserLogs;
   profileService.getCurrentUserVouchers = originalGetCurrentUserVouchers;
+  profileService.saveCurrentUserVoucher = originalSaveCurrentUserVoucher;
   profileService.requestAccountDeactivation =
     originalRequestAccountDeactivation;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
@@ -89,6 +91,7 @@ test.afterEach(() => {
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.getCurrentUserLogs = originalGetCurrentUserLogs;
   profileService.getCurrentUserVouchers = originalGetCurrentUserVouchers;
+  profileService.saveCurrentUserVoucher = originalSaveCurrentUserVoucher;
   profileService.requestAccountDeactivation =
     originalRequestAccountDeactivation;
   profileService.updateCurrentAvatar = originalUpdateCurrentAvatar;
@@ -963,6 +966,49 @@ test('GET /api/me/vouchers returns 403 for non-customer role', async () => {
     assert.equal(response.statusCode, 403);
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, API_ERROR_CODES.FORBIDDEN);
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/me/vouchers saves a voucher for the authenticated customer', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+  profileService.saveCurrentUserVoucher = async (context) => {
+    capturedContext = context;
+
+    return {
+      code: 'NETVIET500',
+      id: 'voucher-1',
+      status: 'active',
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/vouchers`, {
+      body: JSON.stringify({ code: 'netviet500' }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.code, 'NETVIET500');
+    assert.equal(capturedContext.payload.code, 'netviet500');
+    assert.equal(capturedContext.userId, 'user-1');
   } finally {
     server.close();
   }

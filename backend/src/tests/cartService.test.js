@@ -935,7 +935,7 @@ test('getCartSummary returns voucher issue when voucher is expired', async () =>
     discount_value: 500000,
     issue: {
       code: 'VOUCHER_EXPIRED',
-      message: 'Voucher is outside the valid time window',
+      message: 'Voucher is expired',
     },
     max_discount_amount: null,
     min_order_amount: 0,
@@ -1308,6 +1308,7 @@ test('applyCartVoucher rejects empty cart with CART_EMPTY', async () => {
 });
 
 test('applyCartVoucher returns strict applied voucher summary for valid cart', async () => {
+  let savedVoucherContext;
   const service = createCartService({
     now: () => new Date('2026-07-01T09:00:00.000Z'),
     repository: {
@@ -1347,6 +1348,10 @@ test('applyCartVoucher returns strict applied voucher summary for valid cart', a
           unitPriceSnapshot: '2000000.00',
         }),
       ],
+      saveUserVoucher: async (_queryExecutor, context) => {
+        savedVoucherContext = context;
+        return { voucher_id: context.voucherId };
+      },
     },
     withTransactionImpl: async (callback) => callback(createTransactionStub()),
   });
@@ -1362,6 +1367,8 @@ test('applyCartVoucher returns strict applied voucher summary for valid cart', a
   assert.equal(result.final_total_amount, 2044000);
   assert.equal(result.summary.discount_amount, 200000);
   assert.equal(result.voucher.code, 'TOUR10');
+  assert.equal(savedVoucherContext.userId, 'user-19');
+  assert.equal(savedVoucherContext.voucherId, 'voucher-apply');
 });
 
 test('applyCartVoucher rejects invalid voucher with strict VOUCHER_INVALID error', async () => {
@@ -1398,6 +1405,63 @@ test('applyCartVoucher rejects invalid voucher with strict VOUCHER_INVALID error
       }),
     (error) =>
       error.code === API_ERROR_CODES.VOUCHER_INVALID &&
+      error.statusCode === 400,
+  );
+});
+
+test('applyCartVoucher reports a future voucher as not active instead of expired', async () => {
+  const service = createCartService({
+    now: () => new Date('2026-07-01T09:57:00.000Z'),
+    repository: {
+      findActiveCartsByUser: async () => [
+        {
+          created_at: new Date('2026-07-01T08:00:00.000Z'),
+          id: 'cart-apply-upcoming',
+          status: 'active',
+          updated_at: new Date('2026-07-01T08:30:00.000Z'),
+        },
+      ],
+      getVoucherByCode: async () => ({
+        code: 'START10',
+        discount_type: 'fixed_amount',
+        discount_value: '100000.00',
+        id: 'voucher-upcoming',
+        max_discount_amount: null,
+        min_order_amount: '0.00',
+        promotion_id: 'promotion-upcoming',
+        promotion_status: 'active',
+        promotion_valid_from: new Date('2026-07-01T10:00:00.000Z'),
+        promotion_valid_to: new Date('2026-08-01T00:00:00.000Z'),
+        target_service_type: null,
+        usage_limit_per_user: 1,
+        usage_limit_total: 10,
+        used_count: 0,
+        voucher_status: 'active',
+        voucher_valid_from: new Date('2026-07-01T10:00:00.000Z'),
+        voucher_valid_to: new Date('2026-07-31T00:00:00.000Z'),
+      }),
+      listCartItems: async () => [
+        createEnrichedCartItemRow({
+          id: 'item-apply-upcoming',
+          serviceId: 'service-apply-upcoming',
+          unitPriceSnapshot: '2000000.00',
+        }),
+      ],
+    },
+    withTransactionImpl: async (callback) => callback(createTransactionStub()),
+  });
+
+  await assert.rejects(
+    () =>
+      service.applyCartVoucher({
+        payload: {
+          code: 'start10',
+        },
+        userId: 'user-upcoming',
+      }),
+    (error) =>
+      error.code === API_ERROR_CODES.VOUCHER_INVALID &&
+      error.message === 'Voucher is not active yet' &&
       error.statusCode === 400,
   );
 });

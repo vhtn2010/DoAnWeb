@@ -11,6 +11,21 @@ const getMyVouchers = async (req, res) => {
   });
 };
 
+const saveMyVoucher = async (req, res) => {
+  const voucher = await profileService.saveCurrentUserVoucher({
+    ipAddress: req.ip,
+    payload: req.body,
+    userAgent: req.get('user-agent'),
+    userId: req.auth.userId,
+  });
+
+  res.success({
+    data: voucher,
+    message: 'Voucher saved successfully',
+    statusCode: 201,
+  });
+};
+
 const getMe = async (req, res) => {
   const profile = await profileService.getCurrentProfile({
     userId: req.auth.userId,
@@ -97,6 +112,7 @@ module.exports = {
   getMyLogs,
   getMyVouchers,
   requestAccountDeactivation,
+  saveMyVoucher,
   updateMe,
   updateMeAvatar,
   updateMePassword,
