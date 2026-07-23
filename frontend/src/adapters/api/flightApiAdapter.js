@@ -78,11 +78,44 @@ function resolveAirportRecord(value) {
 
   return (
     vietnamAirportOptions.find((airport) => {
-      const candidates = [airport.code, airport.city, airport.airport_name, airport.label]
+      const candidates = [
+        airport.code,
+        airport.city,
+        airport.airport_name,
+        airport.province,
+        airport.label,
+      ]
 
       return candidates.some((candidate) => normalizeText(candidate) === normalizedValue)
     }) ?? null
   )
+}
+
+function getFlightDepartureProvinceLabel(flight = {}) {
+  return flight.departure_province_label || flight.departure_city_label || flight.departure_city || ''
+}
+
+function getFlightArrivalProvinceLabel(flight = {}) {
+  return flight.arrival_province_label || flight.arrival_city_label || flight.arrival_city || ''
+}
+
+function formatFlightProvinceRoute(flight = {}) {
+  return [getFlightDepartureProvinceLabel(flight), getFlightArrivalProvinceLabel(flight)]
+    .filter(Boolean)
+    .join(' - ')
+}
+
+function formatAirportProvinceLabel(airport, fallbackValue = '') {
+  return airport?.province || airport?.city || fallbackValue || ''
+}
+
+function formatAirportProvinceRoute(departureAirport, departureFallback, arrivalAirport, arrivalFallback) {
+  return [
+    formatAirportProvinceLabel(departureAirport, departureFallback),
+    formatAirportProvinceLabel(arrivalAirport, arrivalFallback),
+  ]
+    .filter(Boolean)
+    .join(' - ')
 }
 
 function resolveAirlineCode(airlineName, flightNumber) {
@@ -196,7 +229,12 @@ function mapSearchFlightRecord(record = {}) {
     service_code: '',
     title:
       record.title ??
-      `${departureAirport?.city ?? record.departure_airport} - ${arrivalAirport?.city ?? record.arrival_airport}`,
+      formatAirportProvinceRoute(
+        departureAirport,
+        record.departure_airport,
+        arrivalAirport,
+        record.arrival_airport,
+      ),
     slug: record.slug ?? '',
     short_description: record.short_description ?? '',
     description: '',
@@ -224,7 +262,7 @@ function mapSearchFlightRecord(record = {}) {
     sale_price: farePrice,
     currency: record.currency ?? 'VND',
     status: SERVICE_STATUSES.active,
-    image_url: resolveAirlineImage(record.airline_name),
+    image_url: record.primary_image || resolveAirlineImage(record.airline_name),
     reference_id: record.flight_detail_id ?? '',
     flight_detail_id: record.flight_detail_id ?? '',
     details: {
@@ -249,7 +287,12 @@ function mapFlightDetailRecord(service = {}) {
     service_code: service.service_code ?? '',
     title:
       service.title ??
-      `${departureAirport?.city ?? detail.departure_airport} - ${arrivalAirport?.city ?? detail.arrival_airport}`,
+      formatAirportProvinceRoute(
+        departureAirport,
+        detail.departure_airport,
+        arrivalAirport,
+        detail.arrival_airport,
+      ),
     slug: service.slug ?? '',
     short_description: service.short_description ?? '',
     description: service.description ?? '',
@@ -296,7 +339,7 @@ function mapFlightDetailRecord(service = {}) {
           : [defaultFareOption],
       flight_info:
         service.metadata?.flight_info ??
-        `Chuyến bay ${flight.flight_number} khởi hành từ ${flight.departure_city} đến ${flight.arrival_city}.`,
+        `Chuyến bay ${flight.flight_number} khởi hành từ ${getFlightDepartureProvinceLabel(flight)} đến ${getFlightArrivalProvinceLabel(flight)}.`,
       onboard_benefits:
         Array.isArray(service.metadata?.onboard_benefits) && service.metadata.onboard_benefits.length > 0
           ? service.metadata.onboard_benefits
@@ -701,7 +744,7 @@ export async function buildFlightSelectionPayload(
       unit_price_snapshot: toNumber(selectedFare?.price ?? flight.sale_price),
       options: {
         trip_type: searchState.trip_type ?? DEFAULT_FLIGHT_TRIP_TYPE,
-        route_label: `${flight.departure_city} - ${flight.arrival_city}`,
+        route_label: formatFlightProvinceRoute(flight),
         cabin_class: flight.cabin_class,
         cabin_class_label:
           FLIGHT_CABIN_CLASS_OPTIONS.find((option) => option.value === flight.cabin_class)?.label ??

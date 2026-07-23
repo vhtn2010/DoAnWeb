@@ -3,10 +3,12 @@ import {
   ADMIN_SEAT_CLASS_OPTIONS,
   ADMIN_TRANSPORT_TYPE_OPTIONS,
 } from '../../../constants/adminServices.js'
+import { TOUR_CATEGORY_FILTER_OPTIONS } from '../../../constants/tours.js'
 
 const detailFieldLabels = {
   departure_location: 'Điểm khởi hành',
   destination_location: 'Điểm đến chi tiết',
+  tour_category: 'Loại hình tour',
   duration_days: 'Số ngày',
   duration_nights: 'Số đêm',
   transport_type: 'Phương tiện',
@@ -120,6 +122,17 @@ function AdminServiceTypeFields({ details, errors, onDetailChange, serviceType }
       <div className="admin-service-modal__details-grid">
         <TextInput error={errors['details.departure_location']} label="departure_location" name="departure_location" value={details.departure_location} onChange={onDetailChange} />
         <TextInput error={errors['details.destination_location']} label="destination_location" name="destination_location" value={details.destination_location} onChange={onDetailChange} />
+        <SelectInput
+          error={errors['details.tour_category']}
+          label="tour_category"
+          name="tour_category"
+          options={TOUR_CATEGORY_FILTER_OPTIONS.map((category) => ({
+            label: category,
+            value: category,
+          }))}
+          value={details.tour_category}
+          onChange={onDetailChange}
+        />
         <TextInput error={errors['details.duration_days']} label="duration_days" name="duration_days" type="number" value={details.duration_days} onChange={onDetailChange} />
         <TextInput error={errors['details.duration_nights']} label="duration_nights" name="duration_nights" type="number" value={details.duration_nights} onChange={onDetailChange} />
         <SelectInput error={errors['details.transport_type']} label="transport_type" name="transport_type" options={ADMIN_TRANSPORT_TYPE_OPTIONS} value={details.transport_type} onChange={onDetailChange} />

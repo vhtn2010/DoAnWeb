@@ -17040,11 +17040,6 @@ select {
   gap: 24px;
 }
 
-.admin-service-modal__side-column {
-  position: sticky;
-  top: 0;
-}
-
 .admin-service-modal__hero-card,
 .admin-service-modal__error-summary,
 .admin-service-modal__section,
@@ -18341,10 +18336,6 @@ select {
 @media (max-width: 1024px) {
   .admin-service-modal__layout {
     grid-template-columns: 1fr;
-  }
-
-  .admin-service-modal__side-column {
-    position: static;
   }
 
   .admin-service-modal__grid,

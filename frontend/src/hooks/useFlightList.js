@@ -133,11 +133,11 @@ function formatResultLocation(airports, airportCode) {
     return airportCode || '---'
   }
 
-  if (airport.city === 'TP. Hồ Chí Minh') {
+  if (airport.code === 'SGN' || airport.airport_code === 'SGN') {
     return 'TP. HCM'
   }
 
-  return airport.city
+  return airport.province || airport.city
 }
 
 export default function useFlightList() {

@@ -40,7 +40,7 @@ function FlightCard({ flight, formatCurrency, isSelected, onOpenDetail }) {
           <div className="flight-card__time-block">
             <strong>{flight.departure_time_label}</strong>
             <p>
-              {flight.departure_airport_code} · {flight.departure_city_label}
+              {flight.departure_airport_card_label} · {flight.departure_province_label}
             </p>
           </div>
 
@@ -63,7 +63,7 @@ function FlightCard({ flight, formatCurrency, isSelected, onOpenDetail }) {
           <div className="flight-card__time-block flight-card__time-block--arrival">
             <strong>{flight.arrival_time_label}</strong>
             <p>
-              {flight.arrival_airport_code} · {flight.arrival_city_label}
+              {flight.arrival_airport_card_label} · {flight.arrival_province_label}
             </p>
           </div>
         </div>

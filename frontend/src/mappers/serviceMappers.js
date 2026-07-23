@@ -1,3 +1,5 @@
+import { TOUR_CATEGORY_FILTER_OPTIONS } from '../constants/tours.js'
+
 const TRANSPORT_TYPE_LABELS = Object.freeze({
   bus: 'Xe du lịch cao cấp',
   flight: 'Máy bay khứ hồi',
@@ -8,6 +10,26 @@ const TRANSPORT_TYPE_LABELS = Object.freeze({
 })
 
 const FALLBACK_SERVICE_IMAGE_URL = '/assets/template/service/list/tour-mien-trung.png'
+
+function normalizeCategoryKey(value = '') {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim()
+}
+
+function normalizeTourCategoryLabel(value = '') {
+  const normalizedValue = normalizeCategoryKey(value)
+
+  return (
+    TOUR_CATEGORY_FILTER_OPTIONS.find(
+      (option) => normalizeCategoryKey(option) === normalizedValue,
+    ) ?? ''
+  )
+}
 
 const DEFAULT_REVIEW_SAMPLES = Object.freeze([
   {
@@ -358,6 +380,7 @@ function normalizeDetails(details = {}) {
   const itinerary = normalizeItinerary(details.itinerary)
 
   return {
+    tour_category: normalizeTourCategoryLabel(details.tour_category),
     duration_days: Number.isFinite(durationDays) ? durationDays : 0,
     duration_nights: Number.isFinite(durationNights) ? durationNights : 0,
     transport_type: details.transport_type ?? '',
@@ -422,6 +445,13 @@ export function mapTourServiceToView(service, { detailPath } = {}) {
   const normalizedService = normalizeTourService(service)
   const details = normalizedService.details
   const uiMeta = TOUR_UI_META_BY_SLUG[normalizedService.slug] ?? {}
+  const categoryLabel = normalizeTourCategoryLabel(
+    details.tour_category ||
+    normalizedService.metadata?.category_label ||
+    normalizedService.category_label ||
+    uiMeta.categoryLabel ||
+    '',
+  )
   const ratingValue = normalizedService.review_summary
     ? Number(normalizedService.review_summary.average_rating || 0)
     : (uiMeta.ratingValue ?? 4.8)
@@ -432,7 +462,7 @@ export function mapTourServiceToView(service, { detailPath } = {}) {
   return {
     ...normalizedService,
     badge_text: uiMeta.badgeText ?? '',
-    category_label: uiMeta.categoryLabel ?? '',
+    category_label: categoryLabel,
     detail_path: detailPath ?? `/services/${normalizedService.slug}`,
     duration_group: getDurationGroup(details.duration_days),
     duration_text: buildDurationText(details.duration_days, details.duration_nights),

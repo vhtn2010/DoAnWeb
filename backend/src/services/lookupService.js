@@ -750,7 +750,20 @@ const toPublicPrice = (service) => {
   return Number(service.base_price);
 };
 
+const getPublicCategoryLabel = (metadata) => {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const categoryLabel = metadata.category_label;
+
+  return typeof categoryLabel === 'string' && categoryLabel.trim()
+    ? categoryLabel.trim()
+    : null;
+};
+
 const mapServiceCard = (service) => {
+  const categoryLabel = getPublicCategoryLabel(service.metadata);
   const tourDetails =
     service.service_type === SERVICE_TYPE.TOUR
       ? {
@@ -808,35 +821,41 @@ const mapServiceCard = (service) => {
         : Number(service.public_price),
     currency: service.currency || 'VND',
     primary_image: service.primary_image || null,
+    ...(categoryLabel ? { category_label: categoryLabel } : {}),
     ...(hasTourDetails ? { details: tourDetails } : {}),
   };
 };
 
-const mapBaseServiceDetail = (service) => ({
-  id: service.id,
-  service_type: service.service_type,
-  title: service.title,
-  slug: service.slug,
-  short_description: service.short_description,
-  description: service.description,
-  provider_name: service.provider_name,
-  location_text: service.location_text,
-  base_price:
-    service.base_price == null
-      ? null
-      : Number(service.base_price),
-  sale_price:
-    service.sale_price == null
-      ? null
-      : Number(service.sale_price),
-  public_price:
-    service.public_price == null
-      ? toPublicPrice(service)
-      : Number(service.public_price),
-  currency: service.currency || 'VND',
-  cancellation_policy: service.cancellation_policy,
-  primary_image: service.primary_image || null,
-});
+const mapBaseServiceDetail = (service) => {
+  const categoryLabel = getPublicCategoryLabel(service.metadata);
+
+  return {
+    id: service.id,
+    service_type: service.service_type,
+    title: service.title,
+    slug: service.slug,
+    short_description: service.short_description,
+    description: service.description,
+    provider_name: service.provider_name,
+    location_text: service.location_text,
+    base_price:
+      service.base_price == null
+        ? null
+        : Number(service.base_price),
+    sale_price:
+      service.sale_price == null
+        ? null
+        : Number(service.sale_price),
+    public_price:
+      service.public_price == null
+        ? toPublicPrice(service)
+        : Number(service.public_price),
+    currency: service.currency || 'VND',
+    cancellation_policy: service.cancellation_policy,
+    primary_image: service.primary_image || null,
+    ...(categoryLabel ? { category_label: categoryLabel } : {}),
+  };
+};
 
 const applyFarePriceToServiceDetail = (baseDetail, detail) => {
   if (detail.fare_price == null) {
@@ -1034,7 +1053,10 @@ const mapTrainDetail = (detail) => ({
 const mapFlightSearchResult = (flight) => ({
   service_id: flight.service_id,
   flight_detail_id: flight.flight_detail_id,
+  title: flight.title,
   slug: flight.slug,
+  short_description: flight.short_description,
+  primary_image: flight.primary_image || null,
   airline_name: flight.airline_name,
   flight_number: flight.flight_number,
   departure_airport: flight.departure_airport,

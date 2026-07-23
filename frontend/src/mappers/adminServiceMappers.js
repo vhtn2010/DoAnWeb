@@ -25,6 +25,7 @@ const SERVICE_ACTION_PERMISSION_MAP = Object.freeze({
 
 const SERVICE_DETAIL_TEMPLATES = Object.freeze({
   [SERVICE_TYPES.tour]: {
+    tour_category: 'Văn hóa',
     departure_location: '',
     destination_location: '',
     duration_days: '',
@@ -407,6 +408,7 @@ function parseComboItems(value) {
 function normalizeServiceDetails(serviceType, details, fallbackPrice) {
   if (serviceType === SERVICE_TYPES.tour) {
     return {
+      tour_category: String(details.tour_category ?? '').trim(),
       departure_location: details.departure_location.trim(),
       destination_location: details.destination_location.trim(),
       duration_days: parseNumberValue(details.duration_days),
@@ -541,6 +543,10 @@ export function getInitialServiceFormValues(service = null) {
   const serviceType = service?.service_type ?? SERVICE_TYPES.tour
   const defaults = createServiceDetailDefaults(serviceType)
   const sourceDetails = service?.details ?? {}
+  const sourceMetadata =
+    service?.metadata && typeof service.metadata === 'object' && !Array.isArray(service.metadata)
+      ? service.metadata
+      : {}
 
   return {
     service_type: serviceType,
@@ -556,10 +562,15 @@ export function getInitialServiceFormValues(service = null) {
     status: service?.status ?? SERVICE_STATUSES.draft,
     cancellation_policy: service?.cancellation_policy ?? '',
     image_url: service?.image_url ?? '',
+    metadata: sourceMetadata,
     details: {
       ...defaults,
       ...(serviceType === SERVICE_TYPES.tour
         ? {
+            tour_category:
+              sourceDetails.tour_category ??
+              sourceMetadata.category_label ??
+              defaults.tour_category,
             departure_location: sourceDetails.departure_location ?? defaults.departure_location,
             destination_location:
               sourceDetails.destination_location ?? defaults.destination_location,
@@ -642,6 +653,14 @@ export function getInitialServiceFormValues(service = null) {
 
 export function normalizeServiceFormValues(formValues) {
   const basePrice = parseNumberValue(formValues.base_price, 0)
+  const metadata =
+    formValues.metadata && typeof formValues.metadata === 'object' && !Array.isArray(formValues.metadata)
+      ? { ...formValues.metadata }
+      : {}
+
+  if (formValues.service_type === SERVICE_TYPES.tour) {
+    metadata.category_label = String(formValues.details.tour_category ?? '').trim()
+  }
 
   return {
     service_type: formValues.service_type,
@@ -662,6 +681,7 @@ export function normalizeServiceFormValues(formValues) {
           .filter(Boolean)
       : [],
     image_url: formValues.image_url.trim(),
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
     details: normalizeServiceDetails(formValues.service_type, formValues.details, basePrice),
   }
 }

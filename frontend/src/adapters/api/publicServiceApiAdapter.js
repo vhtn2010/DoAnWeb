@@ -49,6 +49,11 @@ function normalizeTourCard(service = {}) {
       : service
 
   const normalizedDetails = {
+    tour_category:
+      rawDetails.tour_category ??
+      service.metadata?.category_label ??
+      service.category_label ??
+      '',
     departure_location: rawDetails.departure_location ?? '',
     destination_location: rawDetails.destination_location ?? '',
     duration_days: toNumber(rawDetails.duration_days) ?? 0,
@@ -185,6 +190,7 @@ export async function getTourServiceBySlug(slug) {
       ...service,
       gallery_images: galleryImages.length ? galleryImages : [FALLBACK_TOUR_IMAGE_URL],
       image_url: service.primary_image ?? galleryImages[0] ?? FALLBACK_TOUR_IMAGE_URL,
+      metadata: service.metadata ?? {},
     },
   }
 }
@@ -240,6 +246,7 @@ export async function getPublicServiceBySlug(slug) {
       ...service,
       gallery_images: galleryImages.length ? galleryImages : [FALLBACK_TOUR_IMAGE_URL],
       image_url: service.primary_image ?? galleryImages[0] ?? FALLBACK_TOUR_IMAGE_URL,
+      metadata: service.metadata ?? {},
     },
   }
 }

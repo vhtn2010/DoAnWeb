@@ -692,9 +692,12 @@ test('lookupService.searchFlights validates input and returns mapped flight resu
             fare_price: '4200000',
             flight_detail_id: 'flight-detail-1',
             flight_number: 'VN123',
+            primary_image: 'https://example.com/flight.jpg',
             seats_available: '7',
             service_id: 'flight-service-1',
             slug: 'flight-sgn-dad',
+            short_description: 'Flight from SGN to DAD',
+            title: 'SGN to DAD',
           },
         ];
       },
@@ -720,9 +723,12 @@ test('lookupService.searchFlights validates input and returns mapped flight resu
       fare_price: 4200000,
       flight_detail_id: 'flight-detail-1',
       flight_number: 'VN123',
+      primary_image: 'https://example.com/flight.jpg',
       seats_available: 7,
       service_id: 'flight-service-1',
       slug: 'flight-sgn-dad',
+      short_description: 'Flight from SGN to DAD',
+      title: 'SGN to DAD',
     },
   ]);
 });
@@ -745,9 +751,12 @@ test('lookupService.searchFlights returns all open flights when query is omitted
             fare_price: '2300000',
             flight_detail_id: 'flight-detail-2',
             flight_number: 'VJ456',
+            primary_image: 'https://example.com/flight-han.jpg',
             seats_available: '11',
             service_id: 'flight-service-2',
             slug: 'flight-sgn-han',
+            short_description: 'Flight from SGN to HAN',
+            title: 'SGN to HAN',
           },
         ];
       },
@@ -768,9 +777,12 @@ test('lookupService.searchFlights returns all open flights when query is omitted
       fare_price: 2300000,
       flight_detail_id: 'flight-detail-2',
       flight_number: 'VJ456',
+      primary_image: 'https://example.com/flight-han.jpg',
       seats_available: 11,
       service_id: 'flight-service-2',
       slug: 'flight-sgn-han',
+      short_description: 'Flight from SGN to HAN',
+      title: 'SGN to HAN',
     },
   ]);
 });

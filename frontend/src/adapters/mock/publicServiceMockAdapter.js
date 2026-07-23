@@ -1,4 +1,8 @@
-import { DEFAULT_TOUR_LIMIT, DEFAULT_TOUR_SORT } from '../../constants/tours.js'
+import {
+  DEFAULT_TOUR_LIMIT,
+  DEFAULT_TOUR_SORT,
+  TOUR_CATEGORY_FILTER_OPTIONS,
+} from '../../constants/tours.js'
 import { SERVICE_STATUSES } from '../../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
 import { tourServiceFixtures } from '../../fixtures/services.fixtures.js'
@@ -11,6 +15,14 @@ function normalizeText(value = '') {
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase()
+}
+
+function normalizeTourCategoryLabel(value = '') {
+  const normalizedValue = normalizeText(value)
+
+  return (
+    TOUR_CATEGORY_FILTER_OPTIONS.find((option) => normalizeText(option) === normalizedValue) ?? ''
+  )
 }
 
 function getDurationGroup(service) {
@@ -60,6 +72,17 @@ function matchesDurations(service, selectedDurations) {
 function matchesCategories(service, selectedCategories) {
   if (!selectedCategories.length) {
     return true
+  }
+
+  const categoryLabel = normalizeTourCategoryLabel(
+    service.details?.tour_category ||
+    service.metadata?.category_label ||
+    service.category_label ||
+    '',
+  )
+
+  if (categoryLabel) {
+    return selectedCategories.includes(categoryLabel)
   }
 
   const categoryBySlug = {

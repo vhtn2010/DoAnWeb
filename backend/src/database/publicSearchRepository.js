@@ -24,6 +24,7 @@ const BASE_CARD_SELECT = `
     s.sale_price,
     COALESCE(s.sale_price, s.base_price) AS public_price,
     s.currency,
+    s.metadata,
     td.departure_location,
     td.destination_location,
     td.duration_days,
@@ -197,7 +198,7 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
   const getPublicServiceBySlug = async (slug) => {
     const result = await queryImpl(
       `
-        ${BASE_CARD_SELECT.replace('s.created_at,', 's.description,\n    s.provider_name,\n    s.cancellation_policy,\n    s.metadata,\n    s.created_at,')}
+        ${BASE_CARD_SELECT.replace('s.created_at,', 's.description,\n    s.provider_name,\n    s.cancellation_policy,\n    s.created_at,')}
         ${BASE_PUBLIC_WHERE}
           AND s.slug = $2
         LIMIT 1
@@ -211,7 +212,7 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
   const getPublicComboBySlug = async (slug) => {
     const result = await queryImpl(
       `
-        ${BASE_CARD_SELECT.replace('s.created_at,', 's.description,\n    s.provider_name,\n    s.cancellation_policy,\n    s.metadata,\n    s.created_at,')}
+        ${BASE_CARD_SELECT.replace('s.created_at,', 's.description,\n    s.provider_name,\n    s.cancellation_policy,\n    s.created_at,')}
         ${BASE_PUBLIC_WHERE}
           AND s.service_type = $2
           AND s.slug = $3
@@ -474,7 +475,10 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     let sql = `
       SELECT
         s.id AS service_id,
+        s.title,
         s.slug,
+        s.short_description,
+        image.image_url AS primary_image,
         fd.id AS flight_detail_id,
         fd.airline_name,
         fd.flight_number,
@@ -487,6 +491,13 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
         fd.fare_price,
         COALESCE(s.currency, 'VND') AS currency
       FROM services s
+      LEFT JOIN LATERAL (
+        SELECT si.image_url
+        FROM service_images si
+        WHERE si.service_id = s.id
+        ORDER BY si.is_primary DESC, si.sort_order ASC, si.created_at ASC, si.id ASC
+        LIMIT 1
+      ) image ON TRUE
       INNER JOIN flight_details fd ON fd.service_id = s.id
       WHERE s.status = $1
         AND s.deleted_at IS NULL

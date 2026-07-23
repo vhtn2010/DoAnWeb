@@ -354,7 +354,9 @@ function matchesCategories(service, selectedCategories) {
     return true
   }
 
-  return selectedCategories.includes(service.category_label)
+  const normalizedCategory = normalizeText(service.category_label)
+
+  return selectedCategories.some((category) => normalizeText(category) === normalizedCategory)
 }
 
 function paginateServices(services, page, limit) {

@@ -19,16 +19,18 @@ function FlightDetailHeaderCard({ flight }) {
     <article className="flight-detail-card flight-detail-header-card">
       <div className="flight-detail-header-card__top">
         <div className="flight-detail-header-card__brand">
-          <div className="flight-detail-header-card__brand-mark">
-            <img alt={flight.airline_name} src={flight.image_url} />
-          </div>
+          <span className="flight-detail-header-card__brand-mark">
+            <img
+              alt={flight.airline_name}
+              className="flight-detail-header-card__airline-logo"
+              src={flight.image_url}
+            />
+          </span>
 
           <div className="flight-detail-header-card__brand-copy">
             <h1>{flight.airline_name}</h1>
             <div className="flight-detail-header-card__meta">
               <p>{flight.flight_number_label}</p>
-              <span aria-hidden="true">•</span>
-              <p>{flight.aircraft_label}</p>
             </div>
           </div>
         </div>

@@ -49,6 +49,15 @@ function createDefaultSearchState(flight) {
   }
 }
 
+function formatFlightProvinceRoute(flight) {
+  const departureLabel =
+    flight?.departure_province_label || flight?.departure_city_label || flight?.departure_city || ''
+  const arrivalLabel =
+    flight?.arrival_province_label || flight?.arrival_city_label || flight?.arrival_city || ''
+
+  return [departureLabel, arrivalLabel].filter(Boolean).join(' - ')
+}
+
 function buildFlightCartItem({ flight, payload, selectedFare }) {
   return {
     id: `cart-item-flight-detail-${Date.now()}`,
@@ -68,7 +77,7 @@ function buildFlightCartItem({ flight, payload, selectedFare }) {
       title: `${flight.airline_name} ${flight.flight_number_label}`,
       slug: flight.slug,
       short_description: flight.short_description,
-      location_text: `${flight.departure_city_label} - ${flight.arrival_city_label}`,
+      location_text: formatFlightProvinceRoute(flight),
       image_url: flight.image_url,
       status: flight.status,
     },
@@ -198,18 +207,20 @@ export default function useFlightDetail() {
       return null
     }
 
+    const routeLocationText = formatFlightProvinceRoute(flight)
+
     return buildFavoriteItem({
       favorite_key: buildFavoriteKey('flight', flight.service_id ?? flight.id ?? flight.slug),
       service_type: 'flight',
       service_id: flight.service_id ?? flight.id ?? '',
       slug: flight.slug,
-      title: `${flight.departure_city_label} - ${flight.arrival_city_label}`,
+      title: routeLocationText,
       image_url: flight.image_url,
       detail_path: flight.detail_path ?? `/flights/${flight.slug}`,
       source_path: buildFavoriteSourcePath(location),
       source_label: getFavoriteSourceLabel('flight'),
       summary: `${flight.airline_name} • ${flight.flight_number_label} • ${flight.departure_time_label} - ${flight.arrival_time_label}`,
-      location_text: `${flight.departure_city_label} - ${flight.arrival_city_label}`,
+      location_text: routeLocationText,
     })
   }, [flight, location])
 

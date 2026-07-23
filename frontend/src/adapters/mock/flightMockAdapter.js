@@ -58,6 +58,20 @@ function getDepartureDateKey(dateTimeValue) {
   ).padStart(2, '0')}`
 }
 
+function getFlightDepartureProvinceLabel(flight = {}) {
+  return flight.departure_province_label || flight.departure_city_label || flight.departure_city || ''
+}
+
+function getFlightArrivalProvinceLabel(flight = {}) {
+  return flight.arrival_province_label || flight.arrival_city_label || flight.arrival_city || ''
+}
+
+function formatFlightProvinceRoute(flight = {}) {
+  return [getFlightDepartureProvinceLabel(flight), getFlightArrivalProvinceLabel(flight)]
+    .filter(Boolean)
+    .join(' - ')
+}
+
 function matchesPriceRanges(flight, priceRanges = []) {
   if (!priceRanges.length) {
     return true
@@ -439,7 +453,7 @@ export async function buildFlightSelectionPayload(
       unit_price_snapshot: unitPriceSnapshot,
       options: {
         trip_type: searchState.trip_type ?? DEFAULT_FLIGHT_TRIP_TYPE,
-        route_label: `${flight.departure_city} - ${flight.arrival_city}`,
+        route_label: formatFlightProvinceRoute(flight),
         cabin_class: flight.cabin_class,
         cabin_class_label:
           flightSearchDefaultsFixture.cabin_classes.find(

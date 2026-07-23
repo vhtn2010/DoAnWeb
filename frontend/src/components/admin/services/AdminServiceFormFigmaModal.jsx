@@ -17,6 +17,7 @@ import {
 } from '../../../mappers/adminServiceMappers.js'
 
 const ADMIN_SERVICE_TOAST_DURATION_MS = 3500
+const SECONDARY_SERVICE_IMAGE_SLOT_COUNT = 4
 
 const requiredFieldNames = new Set([
   'service_type',
@@ -121,20 +122,19 @@ function formatFieldLabel(fieldName) {
 }
 
 function getSecondaryServiceImages(service) {
+  const emptySlots = Array.from({ length: SECONDARY_SERVICE_IMAGE_SLOT_COUNT }, () => '')
+
   if (!Array.isArray(service?.images)) {
-    return ['', '']
+    return emptySlots
   }
 
   const secondaryImageUrls = service.images
     .filter((image) => image && !image.is_primary)
     .map((image) => image.image_url)
     .filter(Boolean)
-    .slice(0, 2)
+    .slice(0, SECONDARY_SERVICE_IMAGE_SLOT_COUNT)
 
-  return [
-    secondaryImageUrls[0] ?? '',
-    secondaryImageUrls[1] ?? '',
-  ]
+  return emptySlots.map((_, index) => secondaryImageUrls[index] ?? '')
 }
 
 function getStatusTone(status) {
@@ -228,8 +228,7 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
   const titleId = useId()
   const descriptionId = useId()
   const coverImageInputId = useId()
-  const firstThumbInputId = useId()
-  const secondThumbInputId = useId()
+  const thumbInputIdBase = useId()
 
   const handleRequestClose = () => {
     if (isSubmitting) {
@@ -297,7 +296,6 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
   )
   const formStatusOptions = ADMIN_SERVICE_FORM_STATUS_OPTIONS
   const statusHelp = 'Chọn trạng thái hiển thị cho dịch vụ.'
-
   const handleCommonChange = (event) => {
     const { name, value } = event.target
 
@@ -762,13 +760,16 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                 </label>
 
                 <div className="admin-service-modal__thumb-grid">
-                  {[
-                    { id: firstThumbInputId, slot: 'thumb-0' },
-                    { id: secondThumbInputId, slot: 'thumb-1' },
-                  ].map((thumb, index) => (
-                    <label
+                  {thumbImageUrls.map((imageUrl, index) => {
+                    const thumb = {
+                      id: `${thumbInputIdBase}-thumb-${index}`,
+                      slot: `thumb-${index}`,
+                    }
+
+                    return (
+                      <label
                       className={cx(
-                        thumbImageUrls[index]
+                        imageUrl
                           ? 'admin-service-modal__thumb-preview'
                           : 'admin-service-modal__thumb-placeholder',
                         uploadingSlot && 'admin-service-modal__media-upload--disabled',
@@ -776,11 +777,11 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                       htmlFor={thumb.id}
                       key={thumb.slot}
                     >
-                      {thumbImageUrls[index] ? (
+                      {imageUrl ? (
                         <img
                           alt={`Ảnh phụ dịch vụ ${index + 1}`}
                           className="admin-service-modal__preview-image"
-                          src={thumbImageUrls[index]}
+                          src={imageUrl}
                         />
                       ) : (
                         '+'
@@ -798,8 +799,9 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                           Đang tải...
                         </span>
                       ) : null}
-                    </label>
-                  ))}
+                      </label>
+                    )
+                  })}
                 </div>
 
                 <p className="admin-service-modal__media-note">

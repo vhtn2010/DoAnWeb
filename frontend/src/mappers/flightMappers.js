@@ -1,3 +1,5 @@
+import { vietnamAirportOptions } from '../constants/vietnamAirports.js'
+
 const DESTINATION_EDITORIAL_BY_AIRPORT_CODE = Object.freeze({
   // TODO: replace mock destination editorial with destination content from database/API in integration phase.
   SGN: {
@@ -114,6 +116,70 @@ function formatCityLabel(city = '') {
   }
 
   return city
+}
+
+function normalizeAirportLookupText(value = '') {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/quoc te/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function resolveAirportLocationRecord({ airportCode = '', airportLabel = '', cityLabel = '' } = {}) {
+  const normalizedCode = String(airportCode ?? '').trim().toUpperCase()
+  const normalizedValues = [
+    airportLabel,
+    cityLabel,
+    normalizedCode,
+  ]
+    .map((value) => normalizeAirportLookupText(value))
+    .filter(Boolean)
+
+  return (
+    vietnamAirportOptions.find((airport) => {
+      if (normalizedCode && airport.code === normalizedCode) {
+        return true
+      }
+
+      const airportCandidates = [
+        airport.code,
+        airport.city,
+        airport.airport_name,
+        airport.province,
+        airport.label,
+      ]
+        .map((value) => normalizeAirportLookupText(value))
+        .filter(Boolean)
+
+      return normalizedValues.some((value) =>
+        airportCandidates.some((candidate) =>
+          candidate === value || candidate.includes(value) || value.includes(candidate),
+        ),
+      )
+    }) ?? null
+  )
+}
+
+function formatProvinceLabel(airportRecord, cityLabel = '') {
+  return airportRecord?.province || cityLabel
+}
+
+function formatAirportCardLabel(airportLabel = '', cityLabel = '') {
+  const normalizedAirportLabel = String(airportLabel ?? '').trim()
+
+  if (!normalizedAirportLabel) {
+    return cityLabel
+  }
+
+  return normalizedAirportLabel
+    .replace(/^Sân bay quốc tế\s+/i, 'Sân bay ')
+    .replace(/^Cảng hàng không quốc tế\s+/i, 'Sân bay ')
+    .trim()
 }
 
 function formatAirportShortLabel(airportLabel = '', cityLabel = '') {
@@ -343,6 +409,20 @@ function buildFlightDetailPath(flight, detailPathPrefix = '/flights') {
 function buildBaseFlightView(flight) {
   const departureCityLabel = formatCityLabel(flight.departure_city)
   const arrivalCityLabel = formatCityLabel(flight.arrival_city)
+  const departureAirportRecord = resolveAirportLocationRecord({
+    airportCode: flight.departure_airport_code,
+    airportLabel: flight.departure_airport,
+    cityLabel: departureCityLabel,
+  })
+  const arrivalAirportRecord = resolveAirportLocationRecord({
+    airportCode: flight.arrival_airport_code,
+    airportLabel: flight.arrival_airport,
+    cityLabel: arrivalCityLabel,
+  })
+  const departureAirportLabel =
+    departureAirportRecord?.airport_name ?? flight.departure_airport
+  const arrivalAirportLabel =
+    arrivalAirportRecord?.airport_name ?? flight.arrival_airport
 
   return {
     ...flight,
@@ -354,12 +434,17 @@ function buildBaseFlightView(flight) {
     duration_display: formatDurationDisplay(Number(flight.duration_minutes ?? 0)),
     route_text: `${flight.departure_airport_code} → ${flight.arrival_airport_code}`,
     flight_number_label: formatFlightNumber(flight.flight_number),
-    aircraft_label: flight.aircraft ?? 'Máy bay khai thác nội địa',
+    service_code_label: flight.service_code || formatFlightNumber(flight.flight_number),
+    aircraft_label: flight.aircraft || 'Máy bay khai thác nội địa',
     cabin_class_label: getCabinClassLabel(flight.cabin_class),
     departure_city_label: departureCityLabel,
     arrival_city_label: arrivalCityLabel,
-    departure_airport_short_label: formatAirportShortLabel(flight.departure_airport, departureCityLabel),
-    arrival_airport_short_label: formatAirportShortLabel(flight.arrival_airport, arrivalCityLabel),
+    departure_province_label: formatProvinceLabel(departureAirportRecord, departureCityLabel),
+    arrival_province_label: formatProvinceLabel(arrivalAirportRecord, arrivalCityLabel),
+    departure_airport_card_label: formatAirportCardLabel(departureAirportLabel, departureCityLabel),
+    arrival_airport_card_label: formatAirportCardLabel(arrivalAirportLabel, arrivalCityLabel),
+    departure_airport_short_label: formatAirportShortLabel(departureAirportLabel, departureCityLabel),
+    arrival_airport_short_label: formatAirportShortLabel(arrivalAirportLabel, arrivalCityLabel),
     departure_terminal_label: resolveTerminalLabel(
       flight.departure_airport_code,
       flight.details?.departure_terminal,

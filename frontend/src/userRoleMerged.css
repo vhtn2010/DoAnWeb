@@ -198,17 +198,18 @@
   width: 64px;
   height: 64px;
   border-radius: 8px;
-  background: #efeded;
+  background: #fff;
+  border: 1px solid rgba(229, 231, 235, 0.96);
   overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.flight-detail-header-card__brand-mark img {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
+.flight-detail-header-card__airline-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .flight-detail-header-card__brand-copy {
