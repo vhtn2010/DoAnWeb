@@ -47,6 +47,29 @@ function formatDisplayDateTime(value) {
   return Number.isNaN(date.getTime()) ? 'Chưa có dữ liệu' : dateTimeFormatter.format(date)
 }
 
+function getPaymentActionErrorMessage(error, fallbackMessage) {
+  const validationDetails = Array.isArray(error?.details) ? error.details : []
+  const receivedAtError = validationDetails.find((detail) => detail?.field === 'received_at')
+
+  if (receivedAtError) {
+    return 'Không xác định được thời gian nhận tiền. Vui lòng tải lại đơn hàng và thử phê duyệt lại.'
+  }
+
+  const receivedAmountError = validationDetails.find(
+    (detail) => detail?.field === 'received_amount',
+  )
+
+  if (receivedAmountError) {
+    return 'Số tiền xác nhận không hợp lệ. Vui lòng kiểm tra lại giao dịch.'
+  }
+
+  if (error?.message === 'Validation failed') {
+    return fallbackMessage
+  }
+
+  return error?.message || fallbackMessage
+}
+
 function BookingIcon({ name }) {
   const commonProps = {
     'aria-hidden': true,
@@ -552,6 +575,7 @@ function AdminBookingsPage() {
         collector_note: `Admin xác nhận đã nhận tiền cho đơn ${booking.bookingCode}.`,
         next_booking_status: ADMIN_BOOKING_STATUSES.confirmed,
         received_amount: receivedAmount,
+        received_at: new Date().toISOString(),
       })
 
       if (!response.success) {
@@ -574,7 +598,10 @@ function AdminBookingsPage() {
       setActiveBooking(null)
     } catch (approveError) {
       setPaymentFeedback(
-        approveError?.message || 'Không thể phê duyệt thanh toán lúc này.',
+        getPaymentActionErrorMessage(
+          approveError,
+          'Không thể phê duyệt thanh toán lúc này.',
+        ),
       )
     } finally {
       setPaymentActionLoading(false)
@@ -632,7 +659,12 @@ function AdminBookingsPage() {
       )
       reloadBookings()
     } catch (rejectError) {
-      setPaymentFeedback(rejectError?.message || 'Không thể từ chối bill chuyển khoản lúc này.')
+      setPaymentFeedback(
+        getPaymentActionErrorMessage(
+          rejectError,
+          'Không thể từ chối bill chuyển khoản lúc này.',
+        ),
+      )
     } finally {
       setPaymentActionLoading(false)
       setPaymentActionType('')

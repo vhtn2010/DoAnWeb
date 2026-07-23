@@ -297,6 +297,21 @@ Ngày cập nhật: 28/06/2026
 | POST | /admin/payments/{payment_id}/mark-reconciled | ADMIN \| SYSTEM_ADMIN | note? | Đối soát nội bộ |
 | PATCH | /admin/payments/{payment_id}/note | STAFF \| ADMIN \| SYSTEM_ADMIN | note | Ghi chú nội bộ vào raw_response/metadata |
 
+## 9.1 Tour review API
+
+| Method | Endpoint | Role | Body / Query chính | Ghi chú xử lý |
+| --- | --- | --- | --- | --- |
+| POST | /bookings/{booking_id}/complete | CUSTOMER | None | Khách xác nhận hoàn thành sau khi tour kết thúc |
+| POST | /bookings/{booking_id}/reviews | CUSTOMER | booking_item_id, rating, comment | Một đánh giá cho mỗi booking item tour |
+| GET | /services/{service_id}/reviews | PUBLIC | page?, limit? | Danh sách và điểm trung bình đánh giá công khai |
+
+### 9.2 Tour comment API
+
+| Method | Endpoint | Role | Input | Mô tả |
+| --- | --- | --- | --- | --- |
+| GET | /services/{service_id}/comments | PUBLIC | page?, limit? | Đọc bình luận thảo luận, không ảnh hưởng điểm đánh giá |
+| POST | /services/{service_id}/comments | PUBLIC/OPTIONAL AUTH | content, display_name nếu là khách vãng lai | Mọi người đều có thể bình luận, không yêu cầu booking |
+
 ## 10. Manual Refund API — Hoàn tiền thủ công
 
 | Method | Endpoint | Role | Body / Query chính | Ghi chú xử lý |

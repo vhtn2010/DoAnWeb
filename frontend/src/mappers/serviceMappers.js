@@ -399,7 +399,7 @@ export function normalizeTourService(service) {
     Boolean(service.has_sale_price) ||
     (basePrice != null && salePrice != null && salePrice < basePrice)
   const normalizedReviewSamples =
-    Array.isArray(service.review_samples) && service.review_samples.length
+    Array.isArray(service.review_samples)
       ? service.review_samples
       : DEFAULT_REVIEW_SAMPLES
 
@@ -422,8 +422,12 @@ export function mapTourServiceToView(service, { detailPath } = {}) {
   const normalizedService = normalizeTourService(service)
   const details = normalizedService.details
   const uiMeta = TOUR_UI_META_BY_SLUG[normalizedService.slug] ?? {}
-  const ratingValue = uiMeta.ratingValue ?? 4.8
-  const reviewCount = uiMeta.reviewCount ?? normalizedService.review_samples.length
+  const ratingValue = normalizedService.review_summary
+    ? Number(normalizedService.review_summary.average_rating || 0)
+    : (uiMeta.ratingValue ?? 4.8)
+  const reviewCount = normalizedService.review_summary
+    ? Number(normalizedService.review_summary.review_count || 0)
+    : (uiMeta.reviewCount ?? normalizedService.review_samples.length)
 
   return {
     ...normalizedService,

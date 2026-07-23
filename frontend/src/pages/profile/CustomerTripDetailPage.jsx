@@ -5,6 +5,10 @@ import {
   getBookingByCode,
   getMyBookingStatusHistory,
 } from '../../repositories/bookingRepository.js'
+import {
+  completeCustomerBooking,
+  createCustomerTourReview,
+} from '../../repositories/reviewRepository.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import { normalizeTourService } from '../../mappers/serviceMappers.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
@@ -46,6 +50,12 @@ const STATUS_COPY = Object.freeze({
 
 const REFUND_REQUESTABLE_STATUSES = new Set([
   'paid',
+  'confirmed',
+  'in_progress',
+  'completed',
+  'partially_refunded',
+])
+const POST_TOUR_ACTION_STATUSES = new Set([
   'confirmed',
   'in_progress',
   'completed',
@@ -156,6 +166,11 @@ function splitTextList(value) {
 function parseDate(value) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+function hasTourEnded(item) {
+  const endDate = parseDate(item?.end_at || item?.start_at)
+  return Boolean(endDate && Date.now() > endDate.getTime())
 }
 
 function formatDate(value) {
@@ -913,6 +928,13 @@ function CustomerTripDetailPage() {
   const [feedback, setFeedback] = useState('')
   const [downloadLoading, setDownloadLoading] = useState(false)
   const [selectedJourneyPlanId, setSelectedJourneyPlanId] = useState('')
+  const [completionLoading, setCompletionLoading] = useState(false)
+  const [reviewModalOpen, setReviewModalOpen] = useState(false)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewItemId, setReviewItemId] = useState('')
+  const [reviewErrorMessage, setReviewErrorMessage] = useState('')
 
   useEffect(() => {
     let isActive = true
@@ -976,6 +998,17 @@ function CustomerTripDetailPage() {
   const canRequestRefund = REFUND_REQUESTABLE_STATUSES.has(
     booking?.booking_status ?? booking?.status,
   )
+  const bookingStatus = booking?.booking_status ?? booking?.status
+  const endedTourItems = bookingItems.filter(
+    (item) => item?.service_type === 'tour' && hasTourEnded(item),
+  )
+  const hasEndedTour =
+    endedTourItems.length > 0 &&
+    POST_TOUR_ACTION_STATUSES.has(bookingStatus) &&
+    bookingItems
+      .filter((item) => item?.service_type === 'tour')
+      .every(hasTourEnded)
+  const isBookingCompleted = bookingStatus === 'completed'
   const selectedJourneyPlan =
     viewModel.journeyPlans.find((plan) => plan.id === selectedJourneyPlanId) ??
     viewModel.journeyPlans[0] ??
@@ -1011,6 +1044,92 @@ function CustomerTripDetailPage() {
 
   function goRefundRequest() {
     navigate(buildPublicAuthPath(`/profile/trips/${bookingCode}/refund-request`, isCustomer))
+  }
+
+  async function confirmTripCompletion() {
+    if (!booking?.id || completionLoading || isBookingCompleted) {
+      return
+    }
+
+    setCompletionLoading(true)
+    setFeedback('')
+
+    try {
+      const response = await completeCustomerBooking(booking.id)
+      setBooking((currentBooking) => ({
+        ...currentBooking,
+        ...response.data,
+        booking_status: 'completed',
+        status: 'completed',
+      }))
+      setFeedback('Đã xác nhận tour hoàn thành. Bạn có thể đánh giá trải nghiệm ngay bây giờ.')
+    } catch (completionError) {
+      setFeedback(
+        completionError?.message === 'Tour has not ended yet'
+          ? 'Tour chưa kết thúc nên chưa thể xác nhận hoàn thành.'
+          : completionError?.message || 'Không thể xác nhận hoàn thành tour lúc này.',
+      )
+    } finally {
+      setCompletionLoading(false)
+    }
+  }
+
+  function openReviewModal() {
+    if (!isBookingCompleted) {
+      setFeedback('Vui lòng chọn “Đã hoàn thành” trước khi gửi đánh giá.')
+      return
+    }
+
+    const firstItem = endedTourItems[0]
+
+    if (!firstItem) {
+      setFeedback('Chưa tìm thấy tour đủ điều kiện đánh giá.')
+      return
+    }
+
+    setReviewItemId(firstItem.id)
+    setReviewRating(5)
+    setReviewComment('')
+    setReviewErrorMessage('')
+    setReviewModalOpen(true)
+    setFeedback('')
+  }
+
+  async function submitTourReview(event) {
+    event.preventDefault()
+
+    if (!booking?.id || reviewLoading) {
+      return
+    }
+
+    const normalizedComment = reviewComment.trim()
+
+    if (normalizedComment.length < 10) {
+      setReviewErrorMessage('Nội dung đánh giá cần ít nhất 10 ký tự.')
+      return
+    }
+
+    setReviewLoading(true)
+    setFeedback('')
+    setReviewErrorMessage('')
+
+    try {
+      await createCustomerTourReview(booking.id, {
+        booking_item_id: reviewItemId,
+        comment: normalizedComment,
+        rating: reviewRating,
+      })
+      setReviewModalOpen(false)
+      setFeedback('Cảm ơn bạn! Đánh giá đã được đăng trong trang chi tiết tour.')
+    } catch (reviewError) {
+      setReviewErrorMessage(
+        reviewError?.code === 'DUPLICATE_RESOURCE'
+          ? 'Bạn đã đánh giá tour này rồi.'
+          : reviewError?.message || 'Không thể gửi đánh giá lúc này.',
+      )
+    } finally {
+      setReviewLoading(false)
+    }
   }
 
   async function downloadSummary() {
@@ -1104,7 +1223,7 @@ function CustomerTripDetailPage() {
                   </p>
                 ) : null}
 
-                {canRequestRefund ? (
+                {!hasEndedTour && canRequestRefund ? (
                   <div className="customer-trip-hero__refund-slot">
                     <button
                       className="customer-trip-hero__refund-button"
@@ -1112,6 +1231,34 @@ function CustomerTripDetailPage() {
                       onClick={goRefundRequest}
                     >
                       Yêu cầu hoàn tiền
+                    </button>
+                  </div>
+                ) : null}
+
+                {hasEndedTour ? (
+                  <div className="customer-trip-post-actions" aria-label="Thao tác sau chuyến đi">
+                    <button type="button" onClick={goRefundRequest} disabled={!canRequestRefund}>
+                      <span>Hoàn tiền</span>
+                      <strong>Yêu cầu hoàn tiền</strong>
+                    </button>
+                    <button
+                      className={isBookingCompleted ? 'is-completed' : ''}
+                      disabled={completionLoading || isBookingCompleted}
+                      type="button"
+                      onClick={confirmTripCompletion}
+                    >
+                      <span>Trạng thái</span>
+                      <strong>
+                        {completionLoading
+                          ? 'Đang xác nhận...'
+                          : isBookingCompleted
+                            ? 'Đã hoàn thành'
+                            : 'Xác nhận hoàn thành'}
+                      </strong>
+                    </button>
+                    <button type="button" onClick={openReviewModal}>
+                      <span>Chia sẻ trải nghiệm</span>
+                      <strong>Đánh giá ngay</strong>
                     </button>
                   </div>
                 ) : null}
@@ -1270,6 +1417,89 @@ function CustomerTripDetailPage() {
           </>
         ) : null}
       </main>
+
+      {reviewModalOpen ? (
+        <div className="customer-trip-review-modal" role="presentation">
+          <form
+            aria-labelledby="customer-trip-review-title"
+            aria-modal="true"
+            className="customer-trip-review-modal__dialog"
+            role="dialog"
+            onSubmit={submitTourReview}
+          >
+            <div className="customer-trip-review-modal__header">
+              <div>
+                <span>Đánh giá tour</span>
+                <h2 id="customer-trip-review-title">Chuyến đi của bạn thế nào?</h2>
+              </div>
+              <button
+                aria-label="Đóng form đánh giá"
+                type="button"
+                onClick={() => setReviewModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            {endedTourItems.length > 1 ? (
+              <label>
+                <span>Tour muốn đánh giá</span>
+                <select value={reviewItemId} onChange={(event) => setReviewItemId(event.target.value)}>
+                  {endedTourItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title_snapshot || item.service_snapshot?.title || 'Tour đã hoàn thành'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            <fieldset className="customer-trip-review-stars">
+              <legend>Mức độ hài lòng</legend>
+              <div>
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <button
+                    aria-label={`${rating} sao`}
+                    className={rating <= reviewRating ? 'is-active' : ''}
+                    key={rating}
+                    type="button"
+                    onClick={() => setReviewRating(rating)}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <label>
+              <span>Nội dung đánh giá</span>
+              <textarea
+                maxLength={2000}
+                placeholder="Chia sẻ lịch trình, hướng dẫn viên, dịch vụ và những điều bạn ấn tượng..."
+                rows={5}
+                value={reviewComment}
+                onChange={(event) => setReviewComment(event.target.value)}
+              />
+              <small>{reviewComment.trim().length}/2000 ký tự</small>
+            </label>
+
+            {reviewErrorMessage ? (
+              <p className="customer-trip-review-modal__error" role="alert">
+                {reviewErrorMessage}
+              </p>
+            ) : null}
+
+            <div className="customer-trip-review-modal__actions">
+              <button type="button" onClick={() => setReviewModalOpen(false)}>
+                Để sau
+              </button>
+              <button disabled={reviewLoading} type="submit">
+                {reviewLoading ? 'Đang gửi...' : 'Gửi đánh giá'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -4915,6 +4915,16 @@ select {
   line-height: 1.3;
 }
 
+.service-detail-reviews__eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #a23a2b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .service-detail-reviews__link {
   color: #c8102e;
   font-size: 0.9375rem;
@@ -4930,6 +4940,331 @@ select {
 .service-detail-reviews__list {
   display: grid;
   gap: 16px;
+}
+
+.service-detail-reviews__overview {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.35fr) minmax(0, 1fr);
+  gap: 22px;
+  border: 1px solid #f0d9d5;
+  border-radius: 16px;
+  padding: 20px;
+  background: #fffaf8;
+}
+
+.service-detail-reviews__rating {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  border-right: 1px solid #efd9d4;
+  padding-right: 22px;
+}
+
+.service-detail-reviews__rating strong {
+  color: #9e001f;
+  font-size: 2.25rem;
+  line-height: 1;
+}
+
+.service-detail-reviews__rating > span {
+  color: #7b6662;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.service-detail-reviews__guide {
+  align-content: center;
+  display: grid;
+  gap: 10px;
+}
+
+.service-detail-reviews__guide p {
+  margin: 0;
+  color: #66514d;
+  line-height: 1.55;
+}
+
+.service-detail-reviews__guide a {
+  width: fit-content;
+  color: #c8102e;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.service-detail-reviews__guide a:hover,
+.service-detail-reviews__guide a:focus-visible {
+  outline: none;
+  text-decoration: underline;
+}
+
+.service-detail-reviews__empty {
+  border: 1px dashed #dfc3bd;
+  border-radius: 14px;
+  padding: 24px;
+  color: #695752;
+  text-align: center;
+  background: #fff;
+}
+
+.service-detail-reviews__empty strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #3f302d;
+}
+
+.service-detail-reviews__empty p {
+  margin: 0;
+}
+
+.service-detail-comments {
+  display: grid;
+  gap: 18px;
+}
+
+.service-detail-comments__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.service-detail-comments__header span {
+  display: block;
+  margin-bottom: 4px;
+  color: #a23a2b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.service-detail-comments__header h2 {
+  margin: 0;
+  color: #1b1c1c;
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+
+.service-detail-comments__header > strong {
+  color: #806763;
+  font-size: 0.9rem;
+}
+
+.service-detail-comments__form {
+  display: grid;
+  gap: 15px;
+  border: 1px solid #edd7d2;
+  border-radius: 18px;
+  padding: 20px;
+  background: #fffaf8;
+}
+
+.service-detail-comments__form-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.service-detail-comments__form-heading strong {
+  color: #392e2b;
+}
+
+.service-detail-comments__form-heading p {
+  margin: 3px 0 0;
+  color: #806e69;
+  font-size: 0.85rem;
+}
+
+.service-detail-comments__form label {
+  display: grid;
+  gap: 7px;
+}
+
+.service-detail-comments__form label > span {
+  color: #5b4541;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.service-detail-comments__form input,
+.service-detail-comments__form textarea {
+  width: 100%;
+  border: 1px solid #ddc7c1;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #362b29;
+  font: inherit;
+  background: #fff;
+}
+
+.service-detail-comments__form textarea {
+  resize: vertical;
+}
+
+.service-detail-comments__form input:focus,
+.service-detail-comments__form textarea:focus {
+  border-color: #c8102e;
+  outline: 3px solid rgba(200, 16, 46, 0.1);
+}
+
+.service-detail-comments__form small {
+  color: #8a7570;
+  text-align: right;
+}
+
+.service-detail-comments__error,
+.service-detail-comments__success {
+  margin: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.service-detail-comments__error {
+  color: #9f1239;
+  background: #fff1f2;
+}
+
+.service-detail-comments__success {
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.service-detail-comments__form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.service-detail-comments__form-actions button {
+  min-height: 42px;
+  border: 1px solid #c8102e;
+  border-radius: 11px;
+  padding: 0 18px;
+  color: #fff;
+  font-weight: 800;
+  background: #c8102e;
+  cursor: pointer;
+}
+
+.service-detail-comments__form-actions button:hover,
+.service-detail-comments__form-actions button:focus-visible {
+  outline: 3px solid rgba(200, 16, 46, 0.14);
+  background: #a90d27;
+}
+
+.service-detail-comments__form-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.service-detail-comments__list {
+  display: grid;
+  gap: 12px;
+}
+
+.service-detail-comment {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid #eadbd7;
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+}
+
+.service-detail-comment__avatar {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #9e001f;
+  font-size: 0.85rem;
+  font-weight: 800;
+  background: #f8e8e7;
+}
+
+.service-detail-comment__body {
+  min-width: 0;
+}
+
+.service-detail-comment__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.service-detail-comment__meta strong {
+  color: #382c29;
+}
+
+.service-detail-comment__meta span {
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: #8c3128;
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #fff0ed;
+}
+
+.service-detail-comment__meta time {
+  margin-left: auto;
+  color: #927e79;
+  font-size: 0.75rem;
+}
+
+.service-detail-comment__body > p {
+  margin: 8px 0 0;
+  color: #5f4d49;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.service-detail-comments__empty {
+  border: 1px dashed #dfc3bd;
+  border-radius: 14px;
+  padding: 24px;
+  color: #695752;
+  text-align: center;
+  background: #fff;
+}
+
+.service-detail-comments__empty strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #3f302d;
+}
+
+.service-detail-comments__empty p {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .service-detail-reviews__overview {
+    grid-template-columns: 1fr;
+  }
+
+  .service-detail-reviews__rating {
+    border-right: 0;
+    border-bottom: 1px solid #efd9d4;
+    padding-right: 0;
+    padding-bottom: 18px;
+  }
+
+  .service-detail-comments__form {
+    padding: 16px;
+  }
+
+  .service-detail-comment__meta time {
+    width: 100%;
+    margin-left: 0;
+  }
 }
 
 .service-detail-review-card {

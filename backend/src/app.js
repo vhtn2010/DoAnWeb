@@ -45,6 +45,8 @@ const systemRoutes = require('./routes/systemRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const emailLogRoutes = require('./routes/emailLogRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const commentRoutes = require('./routes/commentRoutes');
 const {
   isSupabaseConfigured,
   testSupabaseConnection,
@@ -87,6 +89,8 @@ app.use(apiPrefix, adminDashboardRoutes);
 app.use(apiPrefix, adminAuditLogRoutes);
 app.use(apiPrefix, adminReportRoutes);
 app.use(apiPrefix, profileRoutes);
+app.use(apiPrefix, reviewRoutes);
+app.use(apiPrefix, commentRoutes);
 app.use(apiPrefix, lookupRoutes);
 app.use(apiPrefix, bookingRoutes);
 app.use(apiPrefix, cartRoutes);

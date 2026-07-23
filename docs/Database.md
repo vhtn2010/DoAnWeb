@@ -26,7 +26,8 @@ Database đề xuất dùng PostgreSQL trên Supabase.
 | MFA/2FA | Bỏ ở MVP để giảm độ phức tạp, có thể bổ sung sau cho Admin/System Admin |
 | Thông tin cá nhân phụ | Bỏ date_of_birth, gender khỏi users nếu chưa dùng đến nghiệp vụ chính |
 | Log người dùng | Bỏ old_data, new_data; chỉ giữ metadata để ghi dữ liệu cần thiết |
-| Service rating | Bỏ rating_average, rating_count vì chưa có bảng reviews |
+| Service rating | Tính động từ `service_reviews`; mỗi booking item chỉ được đánh giá một lần |
+| Service comments | Lưu riêng trong `service_comments`; không yêu cầu booking và không tham gia tính điểm sao |
 | Khách sạn | Bỏ latitude, longitude nếu chưa làm bản đồ |
 | Vé máy bay/vé tàu | Bỏ các thông tin phụ như hành lý, số toa nếu chưa cần |
 | Booking amount | Bỏ tax_amount, fee_amount ở MVP; chỉ giữ subtotal_amount, discount_amount, total_amount |
@@ -420,12 +421,13 @@ services
 
 | Thuộc tính bỏ | Lý do |
 | --- | --- |
-| rating_average | Chưa có bảng reviews, chưa cần tính rating |
-| rating_count | Chưa có bảng reviews, chưa cần tính rating |
+| rating_average | Tính động từ `service_reviews`, không lưu trùng trên `services` |
+| rating_count | Tính động từ `service_reviews`, không lưu trùng trên `services` |
 
 **Ghi chú tiến hóa:**
 
-Nếu sau này bổ sung chức năng đánh giá dịch vụ, có thể thêm lại rating_average, rating_count hoặc tạo bảng reviews.
+Đánh giá tour được lưu trong `service_reviews`. Điểm trung bình và tổng số đánh giá
+được tổng hợp khi đọc để tránh dữ liệu bị lệch giữa hai bảng.
 
 ### Bảng tour_details
 
@@ -1019,7 +1021,7 @@ Tổng số bảng vẫn giữ nguyên: 25 bảng.
 | 3 | permissions | User & RBAC | Giữ nguyên |
 | 4 | role_permissions | User & RBAC | Giữ nguyên |
 | 5 | user_logs | User/Admin | Bỏ old_data/new_data |
-| 6 | services | Service | Bỏ rating nếu chưa có reviews |
+| 6 | services | Service | Rating được tổng hợp từ `service_reviews` |
 | 7 | tour_details | Service | Bỏ min_group_size |
 | 8 | hotel_details | Service | Bỏ latitude/longitude |
 | 9 | room_types | Service | Bỏ room_size_sqm/amenities |

@@ -422,9 +422,9 @@ function ServiceDetailPage() {
                   <h2 className="service-detail-section__title">Đánh giá từ khách hàng</h2>
                 </div>
 
-                <a className="service-detail-reviews__link" href="#">
-                  Xem tất cả {service.review_count} đánh giá
-                </a>
+                <span className="service-detail-reviews__link">
+                  {service.review_count} đánh giá đã xác thực
+                </span>
               </div>
 
               <div className="service-detail-reviews__summary">
@@ -433,7 +433,9 @@ function ServiceDetailPage() {
                   <div className="service-detail-reviews__stars">{renderStars(service.rating_value)}</div>
                 </div>
                 <p className="service-detail-reviews__summary-copy">
-                  Khách hàng yêu thích chất lượng lưu trú, lịch trình hợp lý và cảm giác được chăm sóc xuyên suốt hành trình.
+                  {service.review_count > 0
+                    ? 'Điểm số được tổng hợp từ những khách hàng đã hoàn thành tour.'
+                    : 'Tour chưa có đánh giá. Trải nghiệm của khách hàng đầu tiên sẽ xuất hiện tại đây.'}
                 </p>
               </div>
 
@@ -457,6 +459,9 @@ function ServiceDetailPage() {
                     <p className="service-detail-review-card__content">“{review.content}”</p>
                   </article>
                 ))}
+                {service.review_samples.length === 0 ? (
+                  <p className="service-detail-reviews__empty">Chưa có đánh giá cho tour này.</p>
+                ) : null}
               </div>
             </section>
 

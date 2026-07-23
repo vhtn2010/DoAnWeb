@@ -667,6 +667,7 @@ const requestBodyExamples = Object.freeze({
   'POST /bookings/{booking_id}/cancel-request': {
     reason: 'Customer cannot join this trip',
   },
+  'POST /bookings/{booking_id}/complete': {},
   'POST /bookings/{booking_id}/direct-payments': {
     payment_method: 'manual_bank_transfer',
     payer_name: 'Nguyen Van A',
@@ -677,6 +678,11 @@ const requestBodyExamples = Object.freeze({
     payment_id: sampleUuid,
     amount: 1000000,
     reason: 'Customer requested cancellation',
+  },
+  'POST /bookings/{booking_id}/reviews': {
+    booking_item_id: sampleUuid,
+    rating: 5,
+    comment: 'Tour được tổ chức chu đáo và hướng dẫn viên rất nhiệt tình.',
   },
   'POST /bookings/checkout': {
     cart_id: sampleUuid,
@@ -745,6 +751,10 @@ const requestBodyExamples = Object.freeze({
     start_at: sampleDateTime,
     end_at: sampleEndDateTime,
     quantity: 2,
+  },
+  'POST /services/{service_id}/comments': {
+    display_name: 'Khách du lịch',
+    content: 'Tour này có phù hợp với gia đình có trẻ nhỏ không?',
   },
   'POST /support/tickets': {
     customer_name: 'Nguyen Van A',

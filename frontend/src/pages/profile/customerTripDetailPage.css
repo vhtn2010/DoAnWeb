@@ -941,6 +941,184 @@
   outline: none;
 }
 
+.customer-trip-post-actions {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.customer-trip-post-actions button {
+  min-height: 82px;
+  display: grid;
+  gap: 6px;
+  align-content: center;
+  border: 1px solid #ead8d2;
+  border-radius: 16px;
+  padding: 12px;
+  color: #5e403a;
+  text-align: left;
+  background: #fffaf8;
+  cursor: pointer;
+}
+
+.customer-trip-post-actions button:hover,
+.customer-trip-post-actions button:focus-visible {
+  border-color: #d62828;
+  outline: none;
+}
+
+.customer-trip-post-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.customer-trip-post-actions span {
+  color: #9b7b73;
+  font-size: 0.72rem;
+}
+
+.customer-trip-post-actions strong {
+  color: #b91c1c;
+  font-size: 0.86rem;
+}
+
+.customer-trip-post-actions .is-completed strong {
+  color: #17804a;
+}
+
+.customer-trip-review-modal {
+  position: fixed;
+  z-index: 1100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(28, 20, 19, 0.58);
+}
+
+.customer-trip-review-modal__dialog {
+  width: min(100%, 560px);
+  display: grid;
+  gap: 20px;
+  border-radius: 24px;
+  padding: 26px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(61, 31, 27, 0.24);
+}
+
+.customer-trip-review-modal__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.customer-trip-review-modal__header span,
+.customer-trip-review-modal label > span,
+.customer-trip-review-stars legend {
+  color: #a23a2b;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.customer-trip-review-modal__header h2 {
+  margin: 5px 0 0;
+  color: #2c2422;
+}
+
+.customer-trip-review-modal__header > button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #ead8d2;
+  border-radius: 50%;
+  color: #b91c1c;
+  background: #fff;
+  cursor: pointer;
+}
+
+.customer-trip-review-modal label {
+  display: grid;
+  gap: 8px;
+}
+
+.customer-trip-review-modal select,
+.customer-trip-review-modal textarea {
+  width: 100%;
+  border: 1px solid #decac4;
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #392e2b;
+  background: #fff;
+}
+
+.customer-trip-review-modal textarea {
+  resize: vertical;
+}
+
+.customer-trip-review-modal small {
+  color: #8c7771;
+  text-align: right;
+}
+
+.customer-trip-review-modal__error {
+  margin: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #9f1239;
+  font-size: 0.84rem;
+  font-weight: 700;
+  background: #fff1f2;
+}
+
+.customer-trip-review-stars {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.customer-trip-review-stars div {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.customer-trip-review-stars button {
+  border: 0;
+  padding: 0;
+  color: #d8cbc7;
+  font-size: 2rem;
+  line-height: 1;
+  background: transparent;
+  cursor: pointer;
+}
+
+.customer-trip-review-stars button.is-active {
+  color: #f5a623;
+}
+
+.customer-trip-review-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.customer-trip-review-modal__actions button {
+  min-height: 44px;
+  border: 1px solid #d62828;
+  border-radius: 12px;
+  padding: 0 18px;
+  color: #b91c1c;
+  font-weight: 800;
+  background: #fff;
+  cursor: pointer;
+}
+
+.customer-trip-review-modal__actions button:last-child {
+  color: #fff;
+  background: #d62828;
+}
+
 @media (max-width: 980px) {
   .customer-trip-hero,
   .customer-trip-layout,
@@ -973,6 +1151,14 @@
   .customer-trip-shortcuts__stack {
     width: 100%;
     grid-template-columns: 1fr;
+  }
+
+  .customer-trip-post-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-trip-review-modal__dialog {
+    padding: 20px;
   }
 
   .customer-trip-service {

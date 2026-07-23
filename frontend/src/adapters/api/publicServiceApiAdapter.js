@@ -1,6 +1,8 @@
 import { DEFAULT_TOUR_LIMIT, DEFAULT_TOUR_SORT } from '../../constants/tours.js'
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
 import { apiGet } from '../../services/apiClient.js'
+import { getPublicTourComments } from './commentApiAdapter.js'
+import { getPublicTourReviews } from './reviewApiAdapter.js'
 
 const DEFAULT_LOCATION_LIMIT = 10
 const FALLBACK_TOUR_IMAGE_URL = '/assets/template/service/list/tour-mien-trung.png'
@@ -151,13 +153,29 @@ export async function getTourServiceBySlug(slug) {
   )
 
   if (service.id) {
-    try {
-      const imagesResponse = await apiGet(`/services/${service.id}/images`, {
+    const [imagesResponse, reviewsResponse, commentsResponse] = await Promise.all([
+      apiGet(`/services/${service.id}/images`, {
         query: withCacheBust(),
-      })
-      galleryImages = buildGalleryImages(service.primary_image, imagesResponse.data)
-    } catch {
-      galleryImages = buildGalleryImages(service.primary_image, [])
+      }).catch(() => ({ data: [] })),
+      service.service_type === SERVICE_TYPES.tour
+        ? getPublicTourReviews(service.id, { limit: 12 }).catch(() => ({
+            data: [],
+            meta: { summary: null },
+          }))
+        : Promise.resolve({ data: [], meta: { summary: null } }),
+      service.service_type === SERVICE_TYPES.tour
+        ? getPublicTourComments(service.id, { limit: 20 }).catch(() => ({
+            data: [],
+            meta: { comment_count: 0 },
+          }))
+        : Promise.resolve({ data: [], meta: { comment_count: 0 } }),
+    ])
+    galleryImages = buildGalleryImages(service.primary_image, imagesResponse.data)
+    service.review_samples = Array.isArray(reviewsResponse.data) ? reviewsResponse.data : []
+    service.review_summary = reviewsResponse.meta?.summary ?? null
+    service.comment_samples = Array.isArray(commentsResponse.data) ? commentsResponse.data : []
+    service.comment_summary = {
+      comment_count: Number(commentsResponse.meta?.comment_count || 0),
     }
   }
 
@@ -190,13 +208,29 @@ export async function getPublicServiceBySlug(slug) {
   )
 
   if (service.id) {
-    try {
-      const imagesResponse = await apiGet(`/services/${service.id}/images`, {
+    const [imagesResponse, reviewsResponse, commentsResponse] = await Promise.all([
+      apiGet(`/services/${service.id}/images`, {
         query: withCacheBust(),
-      })
-      galleryImages = buildGalleryImages(service.primary_image, imagesResponse.data)
-    } catch {
-      galleryImages = buildGalleryImages(service.primary_image, [])
+      }).catch(() => ({ data: [] })),
+      service.service_type === SERVICE_TYPES.tour
+        ? getPublicTourReviews(service.id, { limit: 12 }).catch(() => ({
+            data: [],
+            meta: { summary: null },
+          }))
+        : Promise.resolve({ data: [], meta: { summary: null } }),
+      service.service_type === SERVICE_TYPES.tour
+        ? getPublicTourComments(service.id, { limit: 20 }).catch(() => ({
+            data: [],
+            meta: { comment_count: 0 },
+          }))
+        : Promise.resolve({ data: [], meta: { comment_count: 0 } }),
+    ])
+    galleryImages = buildGalleryImages(service.primary_image, imagesResponse.data)
+    service.review_samples = Array.isArray(reviewsResponse.data) ? reviewsResponse.data : []
+    service.review_summary = reviewsResponse.meta?.summary ?? null
+    service.comment_samples = Array.isArray(commentsResponse.data) ? commentsResponse.data : []
+    service.comment_summary = {
+      comment_count: Number(commentsResponse.meta?.comment_count || 0),
     }
   }
 

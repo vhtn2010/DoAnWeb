@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ProfileGuestGate from '../../components/profile/ProfileGuestGate.jsx'
 import {
@@ -197,6 +197,8 @@ function NotificationsPage() {
   const [selectedNotificationId, setSelectedNotificationId] = useState('')
   const [selectedNotification, setSelectedNotification] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [detailReloadToken, setDetailReloadToken] = useState(0)
+  const detailRef = useRef(null)
   const [pageMeta, setPageMeta] = useState({
     page: 1,
     total: 0,
@@ -268,22 +270,6 @@ function NotificationsPage() {
     () => notifications.some((notification) => !notification.read_at),
     [notifications],
   )
-
-  useEffect(() => {
-    if (!visibleNotifications.length) {
-      setSelectedNotificationId('')
-      setSelectedNotification(null)
-      return
-    }
-
-    const hasSelectedVisibleNotification = visibleNotifications.some(
-      (notification) => notification.id === selectedNotificationId,
-    )
-
-    if (!hasSelectedVisibleNotification) {
-      setSelectedNotificationId(visibleNotifications[0].id)
-    }
-  }, [selectedNotificationId, visibleNotifications])
 
   useEffect(() => {
     if (!isCustomerPreview || !selectedNotificationId) {
@@ -362,7 +348,7 @@ function NotificationsPage() {
     return () => {
       isActive = false
     }
-  }, [isCustomerPreview, selectedNotificationId])
+  }, [detailReloadToken, isCustomerPreview, selectedNotificationId])
 
   const filteredNotifications = useMemo(
     () => visibleNotifications.filter((notification) => matchesFilter(notification, selectedFilter)),
@@ -371,6 +357,37 @@ function NotificationsPage() {
 
   const profilePath = buildPublicAuthPath('/profile', isCustomer)
   const customerCarePath = buildPublicAuthPath('/customer-care', isCustomer)
+
+  function handleOpenNotificationDetail(notification) {
+    setSelectedNotification(notification)
+    setFeedback({
+      message: '',
+      tone: 'info',
+    })
+    setSelectedNotificationId(notification.id)
+    setDetailReloadToken((value) => value + 1)
+
+    window.requestAnimationFrame(() => {
+      const detailElement = detailRef.current
+
+      if (!detailElement) {
+        return
+      }
+
+      const detailBounds = detailElement.getBoundingClientRect()
+      const isDetailVisible =
+        detailBounds.top >= 0 &&
+        detailBounds.top < window.innerHeight &&
+        detailBounds.bottom > 0
+
+      if (!isDetailVisible) {
+        detailElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+      }
+    })
+  }
 
   async function handleMarkAllRead() {
     if (!hasUnreadNotifications) {
@@ -503,7 +520,7 @@ function NotificationsPage() {
       {!loading && !error ? (
         <div className="notifications-page__layout">
           <section className="notifications-page__list">
-            <PublicCard padding="lg">
+            <PublicCard className="notifications-page__list-card" padding="lg">
               <PublicSectionHeader
                 actions={
                   <PublicButton
@@ -568,7 +585,7 @@ function NotificationsPage() {
                         <PublicButton
                           type="button"
                           variant="primary"
-                          onClick={() => setSelectedNotificationId(notification.id)}
+                          onClick={() => handleOpenNotificationDetail(notification)}
                         >
                           Xem chi tiết
                         </PublicButton>
@@ -604,7 +621,7 @@ function NotificationsPage() {
             </PublicCard>
           </section>
 
-          <aside className="notifications-page__detail">
+          <aside className="notifications-page__detail" ref={detailRef}>
             <PublicCard className="notifications-page__detail-card" padding="lg">
               <PublicSectionHeader
                 eyebrow="Chi tiết"
