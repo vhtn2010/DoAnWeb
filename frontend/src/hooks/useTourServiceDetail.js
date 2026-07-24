@@ -202,6 +202,7 @@ function buildTourCartItem({
   childCount,
   childPrice,
   departureDate,
+  directBookingKey = '',
   infantCount = 0,
   infantPrice = 0,
   service,
@@ -228,6 +229,7 @@ function buildTourCartItem({
       child_price: childPrice,
       infant_count: infantCount,
       infant_price: infantPrice,
+      ...(directBookingKey ? { direct_booking_key: directBookingKey } : {}),
       selected_total_price: totalPrice,
       departure_date: departureDate,
       duration_text: service.duration_text,
@@ -470,7 +472,7 @@ export default function useTourServiceDetail() {
     setBookingMessage('Liên kết tour đã được sao chép.')
   }
 
-  async function createTourCart() {
+  async function createTourCart({ directBookingKey = '' } = {}) {
     if (!service) {
       return null
     }
@@ -496,16 +498,20 @@ export default function useTourServiceDetail() {
       childCount,
       childPrice: childUnitPrice,
       departureDate: resolvedDepartureDate,
+      directBookingKey,
       service,
       totalPrice,
     })
 
     if (isAuthenticatedCustomer) {
-      await addCartItem(toCartPayload(cartItem), {
+      const response = await addCartItem(toCartPayload(cartItem), {
         authState,
         previewItem: cartItem,
       })
-      return cartItem
+      return {
+        ...cartItem,
+        id: response.data?.cart_item_id ?? cartItem.id,
+      }
     }
 
     await addCartItemPreview({
@@ -583,20 +589,18 @@ export default function useTourServiceDetail() {
     setBookingMessage('')
 
     try {
-      const cartItem = await createTourCart()
+      const cartItem = await createTourCart({
+        directBookingKey: `book-now-${Date.now()}`,
+      })
 
       if (!cartItem) {
         setBookingMessage('Không thể chuẩn bị đơn đặt tour lúc này.')
         return
       }
 
-      if (isAuthenticatedCustomer) {
-        navigate(buildPublicAuthPath('/checkout', isCustomer))
-        return
-      }
-
-      navigate(buildPublicAuthPath('/checkout', isCustomer), {
+      navigate(buildPublicAuthPath('/booking-confirmation', isCustomer), {
         state: {
+          directCartItems: [cartItem],
           selectedCartItemIds: [cartItem.id],
         },
       })

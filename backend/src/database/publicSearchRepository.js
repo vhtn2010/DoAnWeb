@@ -84,6 +84,33 @@ const compactSearchKeyword = (value = '') =>
     .replace(/[^a-zA-Z0-9]+/g, '')
     .toLowerCase();
 
+const normalizeRouteFilterValues = (value) => {
+  const values = Array.isArray(value) ? value : [value];
+
+  return [
+    ...new Set(
+      values
+        .map((item) => String(item ?? '').trim())
+        .filter(Boolean),
+    ),
+  ];
+};
+
+const appendNormalizedRouteFilter = ({ column, params, sql, value }) => {
+  const values = normalizeRouteFilterValues(value);
+
+  if (!values.length) {
+    return sql;
+  }
+
+  const placeholders = values.map((item) => {
+    params.push(item);
+    return `$${params.length}`;
+  });
+
+  return `${sql} AND ${buildNormalizedTextSql(column)} IN (${placeholders.join(', ')})`;
+};
+
 const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
   const listActiveServiceSummaries = async ({ serviceType } = {}) => {
     const params = ['active'];
@@ -508,13 +535,21 @@ const createPublicSearchRepository = ({ queryImpl = query } = {}) => {
     `;
 
     if (from) {
-      params.push(from);
-      sql += ` AND ${buildNormalizedTextSql('fd.departure_airport')} = $${params.length}`;
+      sql = appendNormalizedRouteFilter({
+        column: 'fd.departure_airport',
+        params,
+        sql,
+        value: from,
+      });
     }
 
     if (to) {
-      params.push(to);
-      sql += ` AND ${buildNormalizedTextSql('fd.arrival_airport')} = $${params.length}`;
+      sql = appendNormalizedRouteFilter({
+        column: 'fd.arrival_airport',
+        params,
+        sql,
+        value: to,
+      });
     }
 
     if (departureDateStart && departureDateEnd) {

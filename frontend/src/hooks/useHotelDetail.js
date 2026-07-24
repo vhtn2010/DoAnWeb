@@ -148,6 +148,22 @@ function createAvailabilityState() {
   }
 }
 
+function createCheckoutDatePromptState({
+  checkinDate = '',
+  checkoutDate = '',
+  errorMessage = '',
+  isOpen = false,
+  roomIdOverride = '',
+} = {}) {
+  return {
+    checkinDate,
+    checkoutDate,
+    errorMessage,
+    isOpen,
+    roomIdOverride,
+  }
+}
+
 function buildCartItemFromPayload({ hotel, payload, room }) {
   return {
     id: `cart-item-room-${Date.now()}`,
@@ -223,18 +239,14 @@ function buildHotelCartPayload({
     return null
   }
 
-  const nights = calculateStayNights(checkinDate, checkoutDate)
-
-  if (nights < 1) {
-    return null
-  }
+  const nights = Math.max(calculateStayNights(checkinDate, checkoutDate), 1)
 
   const requestedGuests = Math.max(1, Number(guests) || 1)
   const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
   const roomPrice = resolveCurrentPrice(room)
 
   return {
-    end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
+    end_at: checkoutDate ? buildDateTimeStamp(checkoutDate, hotel.checkout_time) : '',
     options: buildHotelBookingOptions({
       checkinDate,
       checkoutDate,
@@ -249,8 +261,8 @@ function buildHotelCartPayload({
     reference_id: room.id,
     service_id: hotel.id,
     service_type: hotel.service_type ?? 'hotel',
-    start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
-    unit_price_snapshot: roomPrice * Math.max(nights, 1),
+    start_at: checkinDate ? buildDateTimeStamp(checkinDate, hotel.checkin_time) : '',
+    unit_price_snapshot: roomPrice * nights,
   }
 }
 
@@ -280,6 +292,9 @@ export default function useHotelDetail() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState(() => createFeedbackState())
   const [availability, setAvailability] = useState(() => createAvailabilityState())
+  const [checkoutDatePrompt, setCheckoutDatePrompt] = useState(() =>
+    createCheckoutDatePromptState(),
+  )
   const [pendingAction, setPendingAction] = useState('')
   const [reloadSeed, setReloadSeed] = useState(0)
   const pendingActionRef = useRef('')
@@ -511,8 +526,17 @@ export default function useHotelDetail() {
     setAvailability(createAvailabilityState())
   }
 
-  async function checkAvailabilityForRoom(roomIdOverride, { shouldShowAvailableMessage = true } = {}) {
+  async function checkAvailabilityForRoom(
+    roomIdOverride,
+    {
+      checkinDateOverride,
+      checkoutDateOverride,
+      shouldShowAvailableMessage = true,
+    } = {},
+  ) {
     const nextRoom = resolveRoom(roomIdOverride)
+    const activeCheckinDate = checkinDateOverride ?? checkinDate
+    const activeCheckoutDate = checkoutDateOverride ?? checkoutDate
 
     if (!hotel || !nextRoom) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn phòng trước khi tiếp tục.'))
@@ -530,7 +554,7 @@ export default function useHotelDetail() {
 
     const requestedGuests = Math.max(1, Number(guests) || 1)
     const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
-    const stayNights = calculateStayNights(checkinDate, checkoutDate)
+    const stayNights = calculateStayNights(activeCheckinDate, activeCheckoutDate)
 
     if (stayNights < 1) {
       const dateMessage = 'Vui lòng chọn ngày nhận và trả phòng hợp lệ.'
@@ -557,7 +581,7 @@ export default function useHotelDetail() {
         quantity: requestedQuantity,
         reference_id: nextRoom.id,
         service_id: hotel.id,
-        start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
+        start_at: buildDateTimeStamp(activeCheckinDate, hotel.checkin_time),
       })
     } catch (availabilityError) {
       const nextMessage =
@@ -580,8 +604,8 @@ export default function useHotelDetail() {
     const responseData = response.data
       ? {
           ...response.data,
-          checkin_date: checkinDate,
-          checkout_date: checkoutDate,
+          checkin_date: activeCheckinDate,
+          checkout_date: activeCheckoutDate,
           guests: requestedGuests,
           hotel_service_id: hotel.id,
           selected_room_id: nextRoom.id,
@@ -614,8 +638,17 @@ export default function useHotelDetail() {
     }
   }
 
-  async function addSelectedRoomToCart({ roomIdOverride, shouldShowCartToast = false } = {}) {
+  async function addSelectedRoomToCart({
+    checkinDateOverride,
+    checkoutDateOverride,
+    directBookingKey = '',
+    requireValidDates = false,
+    roomIdOverride,
+    shouldShowCartToast = false,
+  } = {}) {
     const nextRoom = resolveRoom(roomIdOverride)
+    const activeCheckinDate = checkinDateOverride ?? checkinDate
+    const activeCheckoutDate = checkoutDateOverride ?? checkoutDate
 
     if (!hotel || !nextRoom) {
       setFeedback(createFeedbackState('error', 'Vui lòng chọn phòng trước khi đặt.'))
@@ -628,19 +661,18 @@ export default function useHotelDetail() {
       setSelectedRoomId(nextRoom.id)
     }
 
-    const availabilityResponse = await checkAvailabilityForRoom(nextRoom.id, {
-      shouldShowAvailableMessage: false,
-    })
+    const hasValidStayDates = calculateStayNights(activeCheckinDate, activeCheckoutDate) >= 1
 
-    if (!availabilityResponse.success || !availabilityResponse.data?.is_available) {
+    if (requireValidDates && !hasValidStayDates) {
       return {
+        needsDateInput: true,
         success: false,
       }
     }
 
     const payload = buildHotelCartPayload({
-      checkinDate,
-      checkoutDate,
+      checkinDate: activeCheckinDate,
+      checkoutDate: activeCheckoutDate,
       guests,
       hotel,
       room: nextRoom,
@@ -654,6 +686,13 @@ export default function useHotelDetail() {
       }
     }
 
+    if (directBookingKey) {
+      payload.options = {
+        ...(payload.options ?? {}),
+        direct_booking_key: directBookingKey,
+      }
+    }
+
     const cartItem = buildCartItemFromPayload({
       hotel,
       payload,
@@ -661,15 +700,21 @@ export default function useHotelDetail() {
     })
 
     if (isAuthenticatedCustomer) {
-      await addCartItem(payload, {
+      const response = await addCartItem(payload, {
         authState,
         previewItem: cartItem,
       })
+      const cartItemId = response.data?.cart_item_id ?? cartItem.id
+
       if (shouldShowCartToast) {
         showAddToCartToast()
       }
       return {
-        cartItem,
+        cartItem: {
+          ...cartItem,
+          id: cartItemId,
+        },
+        cartItemId,
         payload,
         success: true,
       }
@@ -725,7 +770,76 @@ export default function useHotelDetail() {
     }
   }
 
-  async function goToCheckoutAction(roomIdOverride) {
+  function openCheckoutDatePrompt(
+    roomIdOverride,
+    nextCheckinDate = checkinDate,
+    nextCheckoutDate = checkoutDate,
+  ) {
+    setAvailability(createAvailabilityState())
+    setFeedback(createFeedbackState())
+    setCheckoutDatePrompt(
+      createCheckoutDatePromptState({
+        checkinDate: nextCheckinDate,
+        checkoutDate: nextCheckoutDate,
+        isOpen: true,
+        roomIdOverride: roomIdOverride ?? '',
+      }),
+    )
+  }
+
+  function closeCheckoutDatePrompt() {
+    setCheckoutDatePrompt(createCheckoutDatePromptState())
+  }
+
+  function updateCheckoutDatePromptField(fieldName, value) {
+    setCheckoutDatePrompt((currentState) => {
+      if (fieldName === 'checkinDate') {
+        const nextCheckoutDate =
+          calculateStayNights(value, currentState.checkoutDate) >= 1
+            ? currentState.checkoutDate
+            : ''
+
+        return {
+          ...currentState,
+          checkinDate: value,
+          checkoutDate: nextCheckoutDate,
+          errorMessage: '',
+        }
+      }
+
+      return {
+        ...currentState,
+        [fieldName]: value,
+        errorMessage: '',
+      }
+    })
+  }
+
+  async function submitCheckoutDatePrompt(event) {
+    event?.preventDefault?.()
+
+    const nextCheckinDate = checkoutDatePrompt.checkinDate
+    const nextCheckoutDate = checkoutDatePrompt.checkoutDate
+
+    if (calculateStayNights(nextCheckinDate, nextCheckoutDate) < 1) {
+      setCheckoutDatePrompt((currentState) => ({
+        ...currentState,
+        errorMessage: 'Vui lòng chọn ngày nhận và trả phòng hợp lệ.',
+      }))
+      return
+    }
+
+    setCheckinDate(nextCheckinDate)
+    setCheckoutDate(nextCheckoutDate)
+    setCheckoutDatePrompt(createCheckoutDatePromptState())
+
+    await goToCheckoutAction(checkoutDatePrompt.roomIdOverride, {
+      checkinDate: nextCheckinDate,
+      checkoutDate: nextCheckoutDate,
+    })
+  }
+
+  async function goToCheckoutAction(roomIdOverride, dateOverride = {}) {
     if (pendingActionRef.current) {
       return
     }
@@ -740,17 +854,41 @@ export default function useHotelDetail() {
       return
     }
 
+    const activeCheckinDate = dateOverride.checkinDate ?? checkinDate
+    const activeCheckoutDate = dateOverride.checkoutDate ?? checkoutDate
+
+    if (calculateStayNights(activeCheckinDate, activeCheckoutDate) < 1) {
+      openCheckoutDatePrompt(roomIdOverride, activeCheckinDate, activeCheckoutDate)
+      return
+    }
+
     pendingActionRef.current = 'checkout'
     setPendingAction('checkout')
 
     try {
-      const result = await addSelectedRoomToCart({ roomIdOverride })
+      const result = await addSelectedRoomToCart({
+        checkinDateOverride: activeCheckinDate,
+        checkoutDateOverride: activeCheckoutDate,
+        directBookingKey: `book-now-${Date.now()}`,
+        requireValidDates: true,
+        roomIdOverride,
+      })
 
       if (!result.success) {
+        if (result.needsDateInput) {
+          openCheckoutDatePrompt(roomIdOverride, activeCheckinDate, activeCheckoutDate)
+        }
         return
       }
 
-      navigate(buildPublicAuthPath('/checkout', isCustomer))
+      const selectedCartItemId = result.cartItemId ?? result.cartItem?.id
+
+      navigate(buildPublicAuthPath('/booking-confirmation', isCustomer), {
+        state: {
+          directCartItems: result.cartItem ? [result.cartItem] : undefined,
+          selectedCartItemIds: selectedCartItemId ? [selectedCartItemId] : undefined,
+        },
+      })
     } catch (actionError) {
       setFeedback(
         createFeedbackState(
@@ -797,6 +935,8 @@ export default function useHotelDetail() {
     checkAvailability: checkAvailabilityForRoom,
     checkinDate,
     checkoutDate,
+    checkoutDatePrompt,
+    closeCheckoutDatePrompt,
     error,
     feedback,
     formatCurrency: formatCurrencyVND,
@@ -825,7 +965,9 @@ export default function useHotelDetail() {
     selectedRoomId,
     stayNights,
     handleToggleFavorite,
+    submitCheckoutDatePrompt,
     updateDateRange,
+    updateCheckoutDatePromptField,
     updateGuests,
     updateRoomQuantity,
   }

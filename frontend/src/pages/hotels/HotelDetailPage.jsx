@@ -111,6 +111,8 @@ function HeartIcon() {
 function HotelDetailPage() {
   const {
     availability,
+    checkoutDatePrompt,
+    closeCheckoutDatePrompt,
     error,
     feedback,
     formatCurrency,
@@ -128,6 +130,8 @@ function HotelDetailPage() {
     selectRoom,
     selectedRoom,
     selectedRoomId,
+    submitCheckoutDatePrompt,
+    updateCheckoutDatePromptField,
   } = useHotelDetail()
 
   if (error && !hotel && !loading) {
@@ -215,6 +219,7 @@ function HotelDetailPage() {
 
           <HotelBookingPanel
             availability={availability}
+            checkoutDatePrompt={checkoutDatePrompt}
             feedback={feedback}
             formatCurrency={formatCurrency}
             hotel={hotel}
@@ -223,6 +228,9 @@ function HotelDetailPage() {
             selectedRoom={selectedRoom}
             onAddToCart={goToCartMock}
             onCheckout={goToCheckoutMock}
+            onCheckoutDatePromptClose={closeCheckoutDatePrompt}
+            onCheckoutDatePromptFieldChange={updateCheckoutDatePromptField}
+            onCheckoutDatePromptSubmit={submitCheckoutDatePrompt}
           />
         </div>
 

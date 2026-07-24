@@ -200,6 +200,7 @@ export default function useBookingConfirmation() {
           const handoff = buildBookingConfirmationFromCheckoutHandoff({
             authState,
             cartSnapshot: cartResponse.data,
+            directCartItems: location.state?.directCartItems,
             selectedCartItemIds: location.state?.selectedCartItemIds,
             cartSummaryPayload: location.state?.cartSummaryPayload,
           })
@@ -294,6 +295,7 @@ export default function useBookingConfirmation() {
     isCheckoutDraftConfirmation,
     location.state?.bookingId,
     location.state?.cartSummaryPayload,
+    location.state?.directCartItems,
     location.state?.selectedCartItemIds,
     reloadToken,
   ])
@@ -425,6 +427,7 @@ export default function useBookingConfirmation() {
       navigate(buildPublicAuthPath('/checkout', isCustomer), {
         state: {
           cartSummaryPayload: location.state?.cartSummaryPayload,
+          directCartItems: location.state?.directCartItems,
           selectedCartItemIds: location.state?.selectedCartItemIds,
         },
       })

@@ -404,11 +404,33 @@ export default function useFlightDetail() {
         return
       }
 
-      await addCartItem(result.payload, {
+      const payload = {
+        ...result.payload,
+        options: {
+          ...(result.payload.options ?? {}),
+          direct_booking_key: `book-now-${Date.now()}`,
+        },
+      }
+      const cartItem = {
+        ...result.cartItem,
+        options: payload.options,
+      }
+      const response = await addCartItem(payload, {
         authState,
-        previewItem: result.cartItem,
+        previewItem: cartItem,
       })
-      navigate(preserveAuthQuery('/checkout'))
+      const selectedCartItemId = response.data?.cart_item_id ?? cartItem.id
+      const directCartItem = {
+        ...cartItem,
+        id: selectedCartItemId,
+      }
+
+      navigate(preserveAuthQuery('/booking-confirmation'), {
+        state: {
+          directCartItems: [directCartItem],
+          selectedCartItemIds: [selectedCartItemId],
+        },
+      })
     } catch (actionError) {
       setFeedback(
         createFeedbackState(

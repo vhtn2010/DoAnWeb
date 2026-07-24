@@ -676,8 +676,25 @@ test('lookupService.searchFlights validates input and returns mapped flight resu
           cabinClass: 'business',
           departureDateEnd: new Date('2099-07-20T17:00:00.000Z'),
           departureDateStart: new Date('2099-07-19T17:00:00.000Z'),
-          from: 'sgn',
-          to: 'dad',
+          from: [
+            'sgn',
+            'tp. hồ chí minh',
+            'sân bay quốc tế tân sơn nhất',
+            'sân bay tân sơn nhất',
+            'san bay tan son nhat',
+            'tp hcm',
+            'tp.hcm',
+            'ho chi minh',
+            'sai gon',
+            'sài gòn',
+            'tan son nhat',
+          ],
+          to: [
+            'dad',
+            'đà nẵng',
+            'sân bay quốc tế đà nẵng',
+            'da nang',
+          ],
         });
 
         return [

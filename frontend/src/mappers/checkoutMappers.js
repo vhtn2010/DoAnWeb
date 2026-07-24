@@ -299,12 +299,16 @@ export function buildCheckoutDraftFromCartSnapshot(
   cartSnapshot,
   {
     authState = ROLES.guest,
+    directCartItems,
     selectedCartItemIds = [],
     cartSummaryPayload,
   } = {},
 ) {
   const cart = cartSnapshot?.cart ?? null
-  const cartItems = Array.isArray(cartSnapshot?.cart_items) ? cartSnapshot.cart_items : []
+  const cartItems =
+    Array.isArray(directCartItems) && directCartItems.length > 0
+      ? directCartItems
+      : Array.isArray(cartSnapshot?.cart_items) ? cartSnapshot.cart_items : []
   const normalizedSelectedIds = normalizeSelectedCartItemIds(selectedCartItemIds, cartItems)
   const selectedCartItems = cartItems.filter((cartItem) =>
     normalizedSelectedIds.includes(cartItem.id),

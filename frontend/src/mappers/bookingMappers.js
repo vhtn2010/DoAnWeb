@@ -5,7 +5,7 @@ import {
 import { ROLES } from '../constants/roles.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
-import { calculateItemPricing } from '../utils/pricing.js'
+import { calculateItemPricing, calculatePricingSummary } from '../utils/pricing.js'
 import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
 
 function normalizeText(value = '') {
@@ -129,30 +129,37 @@ export function buildBookingConfirmationFromCheckoutHandoff({
   baseBookingData,
   cartSnapshot,
   checkoutPayload,
+  directCartItems,
   selectedCartItemIds,
   cartSummaryPayload,
 } = {}) {
   const fallbackData = cloneBookingValue(baseBookingData ?? {})
   const fallbackBooking = fallbackData.booking ?? {}
-  const selectedCartItems = getSelectedCartItems(
-    cartSnapshot,
-    checkoutPayload?.selected_cart_item_ids ?? selectedCartItemIds,
-  )
+  const selectedCartItems =
+    Array.isArray(directCartItems) && directCartItems.length > 0
+      ? directCartItems
+      : getSelectedCartItems(
+          cartSnapshot,
+          checkoutPayload?.selected_cart_item_ids ?? selectedCartItemIds,
+        )
   const bookingId = fallbackBooking.id ?? 'booking-preview-001'
   const bookingItems =
     selectedCartItems.length > 0
       ? selectedCartItems.map((cartItem, index) => mapCartItemToBookingItem(cartItem, bookingId, index))
       : (fallbackData.booking_items ?? [])
+  const cartPricingSummary = calculatePricingSummary(selectedCartItems)
 
   const subtotalAmount = resolveNumber(
     checkoutPayload?.summary?.subtotal_amount,
     cartSummaryPayload?.summary?.subtotal_amount,
+    cartPricingSummary.subtotal_amount,
     bookingItems.reduce((totalAmount, item) => totalAmount + resolveNumber(item.total_amount), 0),
     fallbackBooking.subtotal_amount,
   )
   const discountAmount = resolveNumber(
     checkoutPayload?.summary?.discount_amount,
     cartSummaryPayload?.summary?.discount_amount,
+    cartPricingSummary.discount_amount,
     fallbackBooking.discount_amount,
   )
   const taxAndFeeAmount = resolveNumber(
@@ -160,6 +167,7 @@ export function buildBookingConfirmationFromCheckoutHandoff({
     cartSummaryPayload?.summary?.tax_and_fee_amount,
     sumPricingAmounts(checkoutPayload?.summary),
     sumPricingAmounts(cartSummaryPayload?.summary),
+    cartPricingSummary.tax_and_fee_amount,
     resolveNumber(fallbackBooking.tax_and_fee_amount),
     sumPricingAmounts(fallbackBooking),
   )
@@ -198,28 +206,33 @@ export function buildBookingConfirmationFromCheckoutHandoff({
       vat_amount: resolveNumber(
         checkoutPayload?.summary?.vat_amount,
         cartSummaryPayload?.summary?.vat_amount,
+        cartPricingSummary.vat_amount,
         fallbackBooking.vat_amount,
         fallbackBooking.tax_amount,
       ),
       service_fee_amount: resolveNumber(
         checkoutPayload?.summary?.service_fee_amount,
         cartSummaryPayload?.summary?.service_fee_amount,
+        cartPricingSummary.service_fee_amount,
         fallbackBooking.service_fee_amount,
       ),
       baggage_fee_amount: resolveNumber(
         checkoutPayload?.summary?.baggage_fee_amount,
         cartSummaryPayload?.summary?.baggage_fee_amount,
+        cartPricingSummary.baggage_fee_amount,
         fallbackBooking.baggage_fee_amount,
       ),
       surcharge_amount: resolveNumber(
         checkoutPayload?.summary?.surcharge_amount,
         cartSummaryPayload?.summary?.surcharge_amount,
+        cartPricingSummary.surcharge_amount,
         fallbackBooking.surcharge_amount,
       ),
       tax_and_fee_amount: taxAndFeeAmount,
       tax_amount: resolveNumber(
         checkoutPayload?.summary?.vat_amount,
         cartSummaryPayload?.summary?.vat_amount,
+        cartPricingSummary.vat_amount,
         fallbackBooking.tax_amount,
       ),
       total_amount: totalAmount,

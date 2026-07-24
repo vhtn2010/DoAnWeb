@@ -1,5 +1,23 @@
+function addOneDayInputDate(value) {
+  const [yearText, monthText, dayText] = String(value ?? '').split('-')
+  const date = new Date(Number(yearText), Number(monthText) - 1, Number(dayText))
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  date.setDate(date.getDate() + 1)
+
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
 function HotelBookingPanel({
   availability,
+  checkoutDatePrompt,
   feedback,
   formatCurrency,
   hotel,
@@ -8,6 +26,9 @@ function HotelBookingPanel({
   selectedRoom,
   onAddToCart,
   onCheckout,
+  onCheckoutDatePromptClose,
+  onCheckoutDatePromptFieldChange,
+  onCheckoutDatePromptSubmit,
 }) {
   const roomHasSalePrice =
     selectedRoom?.sale_price != null &&
@@ -21,6 +42,10 @@ function HotelBookingPanel({
   const ratingLabel = hotel
     ? `${hotel.display_rating_text} (${hotel.display_review_count} đánh giá)`
     : '--'
+
+  const checkoutMinDate = checkoutDatePrompt?.checkinDate
+    ? addOneDayInputDate(checkoutDatePrompt.checkinDate)
+    : undefined
 
   return (
     <aside className="hotel-booking-panel">
@@ -133,6 +158,91 @@ function HotelBookingPanel({
           </p>
         ) : null}
       </div>
+
+      {checkoutDatePrompt?.isOpen ? (
+        <div className="hotel-booking-date-modal" role="presentation">
+          <form
+            aria-labelledby="hotel-booking-date-modal-title"
+            aria-modal="true"
+            className="hotel-booking-date-modal__dialog"
+            role="dialog"
+            onSubmit={onCheckoutDatePromptSubmit}
+          >
+            <div className="hotel-booking-date-modal__header">
+              <div>
+                <span className="hotel-booking-date-modal__eyebrow">Đặt ngay</span>
+                <h2 id="hotel-booking-date-modal-title">Chọn ngày lưu trú</h2>
+              </div>
+              <button
+                aria-label="Đóng"
+                className="hotel-booking-date-modal__close"
+                type="button"
+                onClick={onCheckoutDatePromptClose}
+              >
+                <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
+                  <path
+                    d="m5 5 10 10M15 5 5 15"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.8"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="hotel-booking-date-modal__fields">
+              <label className="hotel-booking-date-modal__field">
+                <span>Ngày nhận phòng</span>
+                <input
+                  required
+                  type="date"
+                  value={checkoutDatePrompt.checkinDate}
+                  onChange={(event) =>
+                    onCheckoutDatePromptFieldChange('checkinDate', event.target.value)
+                  }
+                />
+              </label>
+
+              <label className="hotel-booking-date-modal__field">
+                <span>Ngày trả phòng</span>
+                <input
+                  required
+                  min={checkoutMinDate}
+                  type="date"
+                  value={checkoutDatePrompt.checkoutDate}
+                  onChange={(event) =>
+                    onCheckoutDatePromptFieldChange('checkoutDate', event.target.value)
+                  }
+                />
+              </label>
+            </div>
+
+            {checkoutDatePrompt.errorMessage ? (
+              <p className="hotel-booking-date-modal__error" role="status">
+                {checkoutDatePrompt.errorMessage}
+              </p>
+            ) : null}
+
+            <div className="hotel-booking-date-modal__actions">
+              <button
+                className="hotel-booking-date-modal__button hotel-booking-date-modal__button--secondary"
+                type="button"
+                onClick={onCheckoutDatePromptClose}
+              >
+                Hủy
+              </button>
+              <button
+                aria-busy={pendingAction === 'checkout'}
+                className="hotel-booking-date-modal__button hotel-booking-date-modal__button--primary"
+                disabled={pendingAction === 'checkout'}
+                type="submit"
+              >
+                {pendingAction === 'checkout' ? 'Đang xử lý...' : 'Tiếp tục'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </aside>
   )
 }

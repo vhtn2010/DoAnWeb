@@ -75,7 +75,6 @@ function ServiceListPageV2() {
         <HomeSearchCard
           calendarPreview={homeSearch.calendarPreview}
           calendarSelection={homeSearch.calendarSelection}
-          compareDates={homeSearch.compareDates}
           displayedDateRange={homeSearch.displayedDateRange}
           errorMessage=""
           feedbackMessage={homeSearch.feedbackMessage}

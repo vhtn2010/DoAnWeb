@@ -9,7 +9,6 @@ function HomePageV2() {
   const {
     calendarSelection,
     calendarPreview,
-    compareDates,
     destinations,
     displayedDateRange,
     errorMessage,
@@ -62,7 +61,6 @@ function HomePageV2() {
         <HomeSearchCard
           calendarPreview={calendarPreview}
           calendarSelection={calendarSelection}
-          compareDates={compareDates}
           displayedDateRange={displayedDateRange}
           errorMessage={errorMessage}
           feedbackMessage={feedbackMessage}

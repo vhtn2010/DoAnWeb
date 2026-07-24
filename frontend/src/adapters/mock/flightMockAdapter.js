@@ -186,7 +186,6 @@ export async function listFlights({
   departure_date = '',
   return_date = '',
   cabin_class = DEFAULT_FLIGHT_CABIN_CLASS,
-  passengers = {},
   airline_codes = [],
   price_ranges = [],
   departure_windows = [],
@@ -214,15 +213,11 @@ export async function listFlights({
       const matchesDepartureDate =
         !departure_date || getDepartureDateKey(flight.departure_at) === departure_date
       const matchesCabinClass = !safeCabinClass || flight.cabin_class === safeCabinClass
-      const hasEnoughSeats =
-        flight.available_seats >=
-        Math.max(Number(passengers.adults ?? 0) + Number(passengers.children ?? 0), 1)
 
       return (
         matchesRoute &&
         matchesDepartureDate &&
         matchesCabinClass &&
-        hasEnoughSeats &&
         matchesAirlines(flight, airline_codes) &&
         matchesPriceRanges(flight, price_ranges) &&
         matchesDepartureWindows(flight, departure_windows) &&

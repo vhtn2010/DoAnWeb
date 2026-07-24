@@ -10,9 +10,7 @@ import { vietnamProvinceOptions } from '../data/vietnamProvinces.js'
 import usePublicSession from './usePublicSession.js'
 import {
   addMonths,
-  compareDates,
   createHomePageViewState,
-  formatCompactDateRangeDisplay,
   formatDateDisplay,
   formatMonthLabel,
   getMonthDays,
@@ -45,10 +43,13 @@ export default function useHomePage() {
   const fallbackHomeState = createHomePageViewState(getHomePageFallbackData().data)
 
   const [homeData, setHomeData] = useState(fallbackHomeState)
-  const [searchState, setSearchState] = useState(fallbackHomeState.searchDefaults)
+  const [searchState, setSearchState] = useState({
+    ...fallbackHomeState.searchDefaults,
+    endDate: null,
+  })
   const [calendarSelection, setCalendarSelection] = useState({
     startDate: fallbackHomeState.searchDefaults.startDate,
-    endDate: fallbackHomeState.searchDefaults.endDate,
+    endDate: null,
   })
   const [openMenu, setOpenMenu] = useState(null)
   const [visibleMonth, setVisibleMonth] = useState(() =>
@@ -83,18 +84,24 @@ export default function useHomePage() {
       const nextHomeState = createHomePageViewState(response.data)
 
       setHomeData(nextHomeState)
-      setSearchState(nextHomeState.searchDefaults)
+      setSearchState({
+        ...nextHomeState.searchDefaults,
+        endDate: null,
+      })
       setCalendarSelection({
         startDate: nextHomeState.searchDefaults.startDate,
-        endDate: nextHomeState.searchDefaults.endDate,
+        endDate: null,
       })
       setVisibleMonth(createCalendarBaseMonth(nextHomeState.searchDefaults.startDate))
     } catch (error) {
       setHomeData(fallbackHomeState)
-      setSearchState(fallbackHomeState.searchDefaults)
+      setSearchState({
+        ...fallbackHomeState.searchDefaults,
+        endDate: null,
+      })
       setCalendarSelection({
         startDate: fallbackHomeState.searchDefaults.startDate,
-        endDate: fallbackHomeState.searchDefaults.endDate,
+        endDate: null,
       })
       setVisibleMonth(createCalendarBaseMonth(fallbackHomeState.searchDefaults.startDate))
       setErrorMessage(error?.message ?? 'Kh\u00f4ng th\u1ec3 t\u1ea3i trang ch\u1ee7 l\u00fac n\u00e0y.')
@@ -137,55 +144,23 @@ export default function useHomePage() {
 
     setCalendarSelection({
       startDate: searchState.startDate,
-      endDate: searchState.endDate,
+      endDate: null,
     })
     setVisibleMonth(createCalendarBaseMonth(searchState.startDate))
     setOpenMenu('date')
   }
 
   function handleDateSelect(date) {
-    let nextSelection
-
-    if (!calendarSelection.startDate || calendarSelection.endDate) {
-      nextSelection = {
-        startDate: date,
-        endDate: null,
-      }
-      setCalendarSelection(nextSelection)
-      setSearchState((currentState) => ({
-        ...currentState,
-        startDate: nextSelection.startDate,
-        endDate: null,
-      }))
-      setFeedbackMessage('')
-      return
-    }
-
-    if (compareDates(date, calendarSelection.startDate) < 0) {
-      nextSelection = {
-        startDate: date,
-        endDate: null,
-      }
-      setCalendarSelection(nextSelection)
-      setSearchState((currentState) => ({
-        ...currentState,
-        startDate: nextSelection.startDate,
-        endDate: null,
-      }))
-      setFeedbackMessage('')
-      return
-    }
-
-    nextSelection = {
-      startDate: calendarSelection.startDate,
-      endDate: date,
+    const nextSelection = {
+      startDate: date,
+      endDate: null,
     }
 
     setCalendarSelection(nextSelection)
     setSearchState((currentState) => ({
       ...currentState,
       startDate: nextSelection.startDate,
-      endDate: nextSelection.endDate,
+      endDate: null,
     }))
     setFeedbackMessage('')
     setOpenMenu(null)
@@ -229,7 +204,7 @@ export default function useHomePage() {
   function handleSearch() {
     const hasDeparture = Boolean(searchState.from)
     const hasDestination = Boolean(searchState.to)
-    const hasDateSelection = Boolean(searchState.startDate || searchState.endDate)
+    const hasDateSelection = Boolean(searchState.startDate)
 
     if (!hasDeparture && !hasDestination && !hasDateSelection) {
       setFeedbackMessage(
@@ -260,16 +235,10 @@ export default function useHomePage() {
   }
 
   const displayedDateRange =
-    searchState.startDate && searchState.endDate
-      ? formatCompactDateRangeDisplay(searchState.startDate, searchState.endDate)
-      : searchState.startDate
-        ? formatDateDisplay(searchState.startDate)
-      : 'Ch\u1ecdn ng\u00e0y \u0111i - v\u1ec1'
-  const calendarPreview = calendarSelection.endDate
-    ? formatCompactDateRangeDisplay(calendarSelection.startDate, calendarSelection.endDate)
-    : calendarSelection.startDate
-      ? `${formatDateDisplay(calendarSelection.startDate)} - Ch\u1ecdn ng\u00e0y v\u1ec1`
-      : displayedDateRange
+    searchState.startDate ? formatDateDisplay(searchState.startDate) : 'Ch\u1ecdn ng\u00e0y \u0111i'
+  const calendarPreview = calendarSelection.startDate
+    ? formatDateDisplay(calendarSelection.startDate)
+    : displayedDateRange
   const visibleMonths = [visibleMonth, addMonths(visibleMonth, 1)]
   const serviceListPath = buildPublicAuthPath('/services', isCustomer)
   const heroCtaPath = buildPublicAuthPath(homeData.hero.cta_path, isCustomer)
@@ -284,7 +253,6 @@ export default function useHomePage() {
   return {
     calendarSelection,
     calendarPreview,
-    compareDates,
     destinations: homeData.destinations,
     displayedDateRange,
     errorMessage,

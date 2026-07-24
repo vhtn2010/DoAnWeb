@@ -15,6 +15,7 @@ function prefillContactFields(draft = {}, profile = {}) {
 
 export async function getCheckoutDraft({
   cartSummaryPayload,
+  directCartItems,
   selectedCartItemIds,
 } = {}) {
   const [cartResponse, profileResponse] = await Promise.all([
@@ -25,6 +26,7 @@ export async function getCheckoutDraft({
   const draft = buildCheckoutDraftFromCartSnapshot(cartResponse.data, {
     authState: 'customer',
     cartSummaryPayload,
+    directCartItems,
     selectedCartItemIds,
   })
 

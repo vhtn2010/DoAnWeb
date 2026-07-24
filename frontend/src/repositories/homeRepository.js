@@ -404,7 +404,6 @@ export function buildHomeSearchParams(formState, { auth: _auth = '' } = {}) {
   const fromValue = normalizeVietnamLocationDisplay(formState.from).trim()
   const toValue = normalizeVietnamLocationDisplay(formState.to).trim()
   const startValue = formatQueryDate(formState.startDate)
-  const endValue = formatQueryDate(formState.endDate)
   const sortValue = HOME_SORT_QUERY_MAP[formState.sort] ?? slugifyQueryValue(formState.sort)
 
   if (fromValue) {
@@ -417,10 +416,6 @@ export function buildHomeSearchParams(formState, { auth: _auth = '' } = {}) {
 
   if (startValue) {
     params.set('start', startValue)
-  }
-
-  if (endValue) {
-    params.set('end', endValue)
   }
 
   if (sortValue) {

@@ -226,7 +226,6 @@ function HomePage() {
   const {
     calendarSelection,
     calendarPreview,
-    compareDates,
     destinations,
     displayedDateRange,
     errorMessage,
@@ -359,7 +358,7 @@ function HomePage() {
                   <SearchFieldIcon type="calendar" />
                 </span>
                 <span className="home-search-card__field-copy">
-                  <span className="home-search-card__label">NGÀY ĐI - VỀ</span>
+                  <span className="home-search-card__label">NGÀY ĐI</span>
                   <span className="home-search-card__value home-search-card__value--date">
                     {displayedDateRange}
                   </span>
@@ -369,13 +368,13 @@ function HomePage() {
 
               {openMenu === 'date' ? (
                 <div
-                  aria-label="Ngày đi và ngày về"
+                  aria-label="Ngày đi"
                   className="home-search-card__date-popover"
                   role="dialog"
                 >
                   <div className="home-search-card__calendar-header">
                     <div className="home-search-card__calendar-heading">
-                      <h3 className="home-search-card__calendar-title">Ngày đi và ngày về</h3>
+                      <h3 className="home-search-card__calendar-title">Ngày đi</h3>
                       <p className="home-search-card__calendar-preview">{calendarPreview}</p>
                     </div>
 
@@ -427,15 +426,6 @@ function HomePage() {
                             const isStartDate =
                               calendarSelection.startDate &&
                               isSameDay(day, calendarSelection.startDate)
-                            const isEndDate =
-                              calendarSelection.endDate &&
-                              isSameDay(day, calendarSelection.endDate)
-                            const isInSelectedRange =
-                              calendarSelection.startDate &&
-                              calendarSelection.endDate &&
-                              compareDates(day, calendarSelection.startDate) > 0 &&
-                              compareDates(day, calendarSelection.endDate) < 0
-
                             return (
                               <button
                                 className={`home-search-card__calendar-day ${
@@ -443,15 +433,9 @@ function HomePage() {
                                 } ${
                                   day.getDay() === 0 ? 'home-search-card__calendar-day--sunday' : ''
                                 } ${
-                                  isInSelectedRange
-                                    ? 'home-search-card__calendar-day--in-range'
-                                    : ''
-                                } ${
                                   isStartDate
                                     ? 'home-search-card__calendar-day--range-start'
                                     : ''
-                                } ${
-                                  isEndDate ? 'home-search-card__calendar-day--range-end' : ''
                                 }`}
                                 key={day.toISOString()}
                                 type="button"
@@ -468,7 +452,7 @@ function HomePage() {
 
                   <div className="home-search-card__calendar-footer">
                     <span className="home-search-card__calendar-helper">
-                      Chọn ngày đi trước, sau đó chọn ngày về.
+                      Chọn ngày khởi hành cho hành trình của bạn.
                     </span>
                   </div>
                 </div>

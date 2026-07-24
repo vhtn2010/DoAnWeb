@@ -88,6 +88,17 @@ export default function useCheckout() {
     return undefined
   }, [location.state?.cartSummaryPayload])
 
+  const directCartItems = useMemo(() => {
+    if (
+      Array.isArray(location.state?.directCartItems) &&
+      location.state.directCartItems.length > 0
+    ) {
+      return [...location.state.directCartItems]
+    }
+
+    return undefined
+  }, [location.state?.directCartItems])
+
   const [checkoutDraft, setCheckoutDraft] = useState(null)
   const [baseSummary, setBaseSummary] = useState(null)
   const [formErrors, setFormErrors] = useState({})
@@ -153,6 +164,7 @@ export default function useCheckout() {
           authState,
           selectedCartItemIds,
           cartSummaryPayload,
+          directCartItems,
         })
 
         if (!isActive) {
@@ -189,7 +201,7 @@ export default function useCheckout() {
     return () => {
       isActive = false
     }
-  }, [authState, cartSummaryPayload, selectedCartItemIds])
+  }, [authState, cartSummaryPayload, directCartItems, selectedCartItemIds])
 
   const formattedSummary = useMemo(() => {
     if (!checkoutDraft?.summary) {

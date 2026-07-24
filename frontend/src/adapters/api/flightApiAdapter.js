@@ -44,6 +44,12 @@ function normalizeText(value = '') {
     .trim()
 }
 
+function normalizeCompactText(value = '') {
+  return stripVietnamese(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
 function toNumber(value, fallbackValue = 0) {
   const parsedValue = Number(value)
   return Number.isFinite(parsedValue) ? parsedValue : fallbackValue
@@ -71,8 +77,9 @@ function calculateDurationMinutes(startAt, endAt) {
 
 function resolveAirportRecord(value) {
   const normalizedValue = normalizeText(value)
+  const normalizedCompactValue = normalizeCompactText(value)
 
-  if (!normalizedValue) {
+  if (!normalizedValue && !normalizedCompactValue) {
     return null
   }
 
@@ -86,9 +93,83 @@ function resolveAirportRecord(value) {
         airport.label,
       ]
 
-      return candidates.some((candidate) => normalizeText(candidate) === normalizedValue)
+      return candidates.some((candidate) => {
+        return (
+          normalizeText(candidate) === normalizedValue ||
+          normalizeCompactText(candidate) === normalizedCompactValue
+        )
+      })
     }) ?? null
   )
+}
+
+function getAirportRouteCandidates(value) {
+  const airport = resolveAirportRecord(value)
+  const candidates = [
+    value,
+    airport?.code,
+    airport?.airport_code,
+    airport?.city,
+    airport?.airport_name,
+    airport?.province,
+    airport?.label,
+  ]
+
+  if (airport?.code === 'SGN') {
+    candidates.push(
+      'Sân bay Tân Sơn Nhất',
+      'San bay Tan Son Nhat',
+      'TP HCM',
+      'TP.HCM',
+      'Ho Chi Minh',
+      'Sai Gon',
+      'Sài Gòn',
+      'Tan Son Nhat',
+    )
+  }
+
+  if (airport?.code === 'HAN') {
+    candidates.push('Ha Noi', 'Noi Bai')
+  }
+
+  if (airport?.code === 'VDO') {
+    candidates.push('Sân bay Vân Đồn', 'San bay Van Don', 'Van Don', 'Quang Ninh')
+  }
+
+  return new Set(
+    candidates
+      .flatMap((candidate) => [normalizeText(candidate), normalizeCompactText(candidate)])
+      .filter(Boolean),
+  )
+}
+
+function matchesAirportRoute(valueCandidates, selectedValue) {
+  if (!selectedValue) {
+    return true
+  }
+
+  const selectedCandidates = getAirportRouteCandidates(selectedValue)
+
+  return valueCandidates.some((candidate) => {
+    const candidateValues = getAirportRouteCandidates(candidate)
+
+    return [...candidateValues].some((candidateValue) => {
+      if (selectedCandidates.has(candidateValue)) {
+        return true
+      }
+
+      return [...selectedCandidates].some((selectedCandidate) => {
+        if (candidateValue.length < 4 || selectedCandidate.length < 4) {
+          return false
+        }
+
+        return (
+          candidateValue.includes(selectedCandidate) ||
+          selectedCandidate.includes(candidateValue)
+        )
+      })
+    })
+  })
 }
 
 function getFlightDepartureProvinceLabel(flight = {}) {
@@ -375,17 +456,28 @@ function filterFlights(flights = [], filters = {}) {
   const {
     airline_codes = [],
     departure_windows = [],
-    passengers = {},
+    from_location = '',
     price_ranges = [],
     stop_counts = [],
+    to_location = '',
   } = filters
-  const minimumSeats = Math.max(
-    toNumber(passengers.adults, 0) + toNumber(passengers.children, 0),
-    1,
-  )
 
   return flights.filter((flight) => {
-    if (flight.available_seats < minimumSeats) {
+    if (
+      !matchesAirportRoute(
+        [flight.departure_airport_code, flight.departure_airport, flight.departure_city],
+        from_location,
+      )
+    ) {
+      return false
+    }
+
+    if (
+      !matchesAirportRoute(
+        [flight.arrival_airport_code, flight.arrival_airport, flight.arrival_city],
+        to_location,
+      )
+    ) {
       return false
     }
 
@@ -460,28 +552,42 @@ export async function listFlights({
   from_location = '',
   limit = DEFAULT_FLIGHT_PAGE_SIZE,
   page = 1,
-  passengers = DEFAULT_FLIGHT_PASSENGERS,
   price_ranges = [],
   sort = DEFAULT_FLIGHT_SORT,
   stop_counts = [],
   to_location = '',
 } = {}) {
-  const response = await apiGet('/services/flights/search', {
+  const routeQuery = {
+    cabin_class,
+    departure_date,
+    from: from_location,
+    to: to_location,
+  }
+  let response = await apiGet('/services/flights/search', {
     auth: false,
-    query: {
-      cabin_class,
-      departure_date,
-      from: from_location,
-      to: to_location,
-    },
+    query: routeQuery,
   })
-  const mappedFlights = Array.isArray(response.data) ? response.data.map(mapSearchFlightRecord) : []
+  let responseRows = Array.isArray(response.data) ? response.data : []
+
+  if (!responseRows.length && (from_location || to_location)) {
+    response = await apiGet('/services/flights/search', {
+      auth: false,
+      query: {
+        cabin_class,
+        departure_date,
+      },
+    })
+    responseRows = Array.isArray(response.data) ? response.data : []
+  }
+
+  const mappedFlights = responseRows.map(mapSearchFlightRecord)
   const filteredFlights = filterFlights(mappedFlights, {
     airline_codes,
     departure_windows,
-    passengers,
+    from_location,
     price_ranges,
     stop_counts,
+    to_location,
   })
   const sortedFlights = sortFlights(filteredFlights, sort)
   const paginatedFlights = paginateFlights(sortedFlights, {

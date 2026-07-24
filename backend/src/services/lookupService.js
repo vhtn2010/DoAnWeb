@@ -137,6 +137,171 @@ const TRAIN_STATION_OPTIONS = Object.freeze([
     aliases: ['Hồ Chí Minh', 'Ho Chi Minh', 'Sài Gòn', 'Sai Gon'],
   },
 ]);
+const FLIGHT_AIRPORT_OPTIONS = Object.freeze([
+  {
+    code: 'HAN',
+    city: 'Hà Nội',
+    airportName: 'Sân bay quốc tế Nội Bài',
+    province: 'Hà Nội',
+    aliases: ['Ha Noi', 'Noi Bai'],
+  },
+  {
+    code: 'SGN',
+    city: 'TP. Hồ Chí Minh',
+    airportName: 'Sân bay quốc tế Tân Sơn Nhất',
+    province: 'TP. Hồ Chí Minh',
+    aliases: [
+      'Sân bay Tân Sơn Nhất',
+      'San bay Tan Son Nhat',
+      'TP HCM',
+      'TP.HCM',
+      'Ho Chi Minh',
+      'Sai Gon',
+      'Sài Gòn',
+      'Tan Son Nhat',
+    ],
+  },
+  {
+    code: 'DAD',
+    city: 'Đà Nẵng',
+    airportName: 'Sân bay quốc tế Đà Nẵng',
+    province: 'Đà Nẵng',
+    aliases: ['Da Nang'],
+  },
+  {
+    code: 'CXR',
+    city: 'Nha Trang/Cam Ranh',
+    airportName: 'Sân bay quốc tế Cam Ranh',
+    province: 'Khánh Hòa',
+    aliases: ['Nha Trang', 'Cam Ranh', 'Khanh Hoa'],
+  },
+  {
+    code: 'PQC',
+    city: 'Phú Quốc',
+    airportName: 'Sân bay quốc tế Phú Quốc',
+    province: 'Kiên Giang',
+    aliases: ['Phu Quoc', 'Kien Giang'],
+  },
+  {
+    code: 'HPH',
+    city: 'Hải Phòng',
+    airportName: 'Sân bay quốc tế Cát Bi',
+    province: 'Hải Phòng',
+    aliases: ['Hai Phong', 'Cat Bi'],
+  },
+  {
+    code: 'VII',
+    city: 'Vinh',
+    airportName: 'Sân bay quốc tế Vinh',
+    province: 'Nghệ An',
+    aliases: ['Nghe An'],
+  },
+  {
+    code: 'HUI',
+    city: 'Huế',
+    airportName: 'Sân bay quốc tế Phú Bài',
+    province: 'Thừa Thiên Huế',
+    aliases: ['Hue', 'Phu Bai'],
+  },
+  {
+    code: 'VCA',
+    city: 'Cần Thơ',
+    airportName: 'Sân bay quốc tế Cần Thơ',
+    province: 'Cần Thơ',
+    aliases: ['Can Tho'],
+  },
+  {
+    code: 'DLI',
+    city: 'Đà Lạt',
+    airportName: 'Sân bay Liên Khương',
+    province: 'Lâm Đồng',
+    aliases: ['Da Lat', 'Lien Khuong', 'Lam Dong'],
+  },
+  {
+    code: 'BMV',
+    city: 'Buôn Ma Thuột',
+    airportName: 'Sân bay Buôn Ma Thuột',
+    province: 'Đắk Lắk',
+    aliases: ['Buon Ma Thuot', 'Dak Lak'],
+  },
+  {
+    code: 'UIH',
+    city: 'Quy Nhơn',
+    airportName: 'Sân bay Phù Cát',
+    province: 'Bình Định',
+    aliases: ['Quy Nhon', 'Phu Cat', 'Binh Dinh'],
+  },
+  {
+    code: 'PXU',
+    city: 'Pleiku',
+    airportName: 'Sân bay Pleiku',
+    province: 'Gia Lai',
+    aliases: ['Gia Lai'],
+  },
+  {
+    code: 'VCL',
+    city: 'Chu Lai',
+    airportName: 'Sân bay Chu Lai',
+    province: 'Quảng Nam',
+    aliases: ['Quang Nam'],
+  },
+  {
+    code: 'VDH',
+    city: 'Đồng Hới',
+    airportName: 'Sân bay Đồng Hới',
+    province: 'Quảng Bình',
+    aliases: ['Dong Hoi', 'Quang Binh'],
+  },
+  {
+    code: 'TBB',
+    city: 'Tuy Hòa',
+    airportName: 'Sân bay Tuy Hòa',
+    province: 'Phú Yên',
+    aliases: ['Tuy Hoa', 'Phu Yen'],
+  },
+  {
+    code: 'THD',
+    city: 'Thanh Hóa',
+    airportName: 'Sân bay Thọ Xuân',
+    province: 'Thanh Hóa',
+    aliases: ['Thanh Hoa', 'Tho Xuan'],
+  },
+  {
+    code: 'DIN',
+    city: 'Điện Biên',
+    airportName: 'Sân bay Điện Biên',
+    province: 'Điện Biên',
+    aliases: ['Dien Bien'],
+  },
+  {
+    code: 'VKG',
+    city: 'Rạch Giá',
+    airportName: 'Sân bay Rạch Giá',
+    province: 'Kiên Giang',
+    aliases: ['Rach Gia', 'Kien Giang'],
+  },
+  {
+    code: 'CAH',
+    city: 'Cà Mau',
+    airportName: 'Sân bay Cà Mau',
+    province: 'Cà Mau',
+    aliases: ['Ca Mau'],
+  },
+  {
+    code: 'VCS',
+    city: 'Côn Đảo',
+    airportName: 'Sân bay Côn Đảo',
+    province: 'Bà Rịa - Vũng Tàu',
+    aliases: ['Con Dao', 'Ba Ria Vung Tau'],
+  },
+  {
+    code: 'VDO',
+    city: 'Vân Đồn',
+    airportName: 'Sân bay quốc tế Vân Đồn',
+    province: 'Quảng Ninh',
+    aliases: ['Sân bay Vân Đồn', 'San bay Van Don', 'Van Don', 'Quang Ninh'],
+  },
+]);
 
 const buildValidationError = (field, message) =>
   new AppError('Validation failed', {
@@ -183,6 +348,30 @@ const TRAIN_STATION_LOOKUP = (() => {
 
       if (normalizedCandidate) {
         lookup.set(normalizedCandidate, station);
+      }
+    }
+  }
+
+  return lookup;
+})();
+const FLIGHT_AIRPORT_LOOKUP = (() => {
+  const lookup = new Map();
+
+  for (const airport of FLIGHT_AIRPORT_OPTIONS) {
+    const candidates = [
+      airport.code,
+      airport.city,
+      airport.airportName,
+      airport.province,
+      `${airport.city} (${airport.code})`,
+      ...(Array.isArray(airport.aliases) ? airport.aliases : []),
+    ];
+
+    for (const candidate of candidates) {
+      const normalizedCandidate = normalizeSearchKey(candidate);
+
+      if (normalizedCandidate) {
+        lookup.set(normalizedCandidate, airport);
       }
     }
   }
@@ -1211,6 +1400,43 @@ const buildPaginationMeta = ({ limit, page, total }) => {
 const normalizeTransportRouteIdentity = (value) =>
   String(value).toLocaleLowerCase(LOCALE);
 
+const resolveFlightAirportRecord = (value) => {
+  const normalizedValue = normalizeSearchKey(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return FLIGHT_AIRPORT_LOOKUP.get(normalizedValue) ?? null;
+};
+
+const resolveFlightAirportCandidates = (value) => {
+  const airport = resolveFlightAirportRecord(value);
+  const candidates = airport
+    ? [
+        airport.code,
+        airport.city,
+        airport.airportName,
+        airport.province,
+        ...(Array.isArray(airport.aliases) ? airport.aliases : []),
+      ]
+    : [value];
+
+  return [
+    ...new Set(
+      candidates
+        .map((candidate) => normalizeWhitespace(String(candidate ?? '')))
+        .filter(Boolean)
+        .map((candidate) => candidate.toLocaleLowerCase(LOCALE)),
+    ),
+  ];
+};
+
+const normalizeFlightRouteIdentity = (value) => {
+  const airport = resolveFlightAirportRecord(value);
+  return airport ? airport.code.toLocaleLowerCase(LOCALE) : normalizeSearchKey(value);
+};
+
 const resolveCanonicalTrainStation = (value) => {
   const normalizedValue = normalizeSearchKey(value);
 
@@ -1280,6 +1506,14 @@ const parseOptionalTrainRouteQuery = ({ departureDate, from, to }) => {
       : null,
   };
 };
+
+const parseOptionalFlightRouteQuery = ({ departureDate, from, to }) =>
+  parseOptionalTransportRouteQuery({
+    departureDate,
+    from,
+    normalizeRouteValue: normalizeFlightRouteIdentity,
+    to,
+  });
 
 const parseComboFilters = ({
   limit,
@@ -2424,7 +2658,7 @@ const createLookupService = ({
     from,
     to,
   } = {}) => {
-    const resolvedRoute = parseOptionalTransportRouteQuery({
+    const resolvedRoute = parseOptionalFlightRouteQuery({
       departureDate,
       from,
       to,
@@ -2449,11 +2683,11 @@ const createLookupService = ({
     }
 
     if (resolvedRoute.from) {
-      repositoryFilters.from = resolvedRoute.from.toLocaleLowerCase(LOCALE);
+      repositoryFilters.from = resolveFlightAirportCandidates(resolvedRoute.from);
     }
 
     if (resolvedRoute.to) {
-      repositoryFilters.to = resolvedRoute.to.toLocaleLowerCase(LOCALE);
+      repositoryFilters.to = resolveFlightAirportCandidates(resolvedRoute.to);
     }
 
     const rows = await repository.searchFlights(repositoryFilters);

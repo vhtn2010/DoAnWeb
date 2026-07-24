@@ -396,6 +396,7 @@ export default function useTrainDetail() {
   }
 
   async function buildTrainBooking({
+    directBookingKey = '',
     missingSeatMessage = 'Vui lòng chọn chỗ trước khi tiếp tục.',
     shouldShowCartToast = false,
   } = {}) {
@@ -453,11 +454,27 @@ export default function useTrainDetail() {
         selectedSeatOption,
         train,
       })
+      const payload = directBookingKey
+        ? {
+            ...payloadResponse.data,
+            options: {
+              ...(payloadResponse.data.options ?? {}),
+              direct_booking_key: directBookingKey,
+            },
+          }
+        : payloadResponse.data
+      const nextCartItem = directBookingKey
+        ? {
+            ...cartItem,
+            options: payload.options,
+          }
+        : cartItem
 
-      await addCartItem(payloadResponse.data, {
+      const response = await addCartItem(payload, {
         authState,
-        previewItem: cartItem,
+        previewItem: nextCartItem,
       })
+      const cartItemId = response.data?.cart_item_id ?? nextCartItem.id
 
       setFeedback(createFeedbackState())
 
@@ -467,8 +484,12 @@ export default function useTrainDetail() {
 
       return {
         success: true,
-        cartItem,
-        payload: payloadResponse.data,
+        cartItem: {
+          ...nextCartItem,
+          id: cartItemId,
+        },
+        cartItemId,
+        payload,
       }
     } catch (bookingError) {
       setFeedback(
@@ -523,6 +544,7 @@ export default function useTrainDetail() {
 
     try {
       const result = await buildTrainBooking({
+        directBookingKey: `book-now-${Date.now()}`,
         missingSeatMessage: 'Vui lòng chọn chỗ trước khi tiếp tục.',
       })
 
@@ -530,7 +552,14 @@ export default function useTrainDetail() {
         return
       }
 
-      navigate(preserveAuthQuery('/checkout'))
+      const selectedCartItemId = result.cartItemId ?? result.cartItem?.id
+
+      navigate(preserveAuthQuery('/booking-confirmation'), {
+        state: {
+          directCartItems: result.cartItem ? [result.cartItem] : undefined,
+          selectedCartItemIds: selectedCartItemId ? [selectedCartItemId] : undefined,
+        },
+      })
     } finally {
       pendingActionRef.current = ''
       setPendingAction('')

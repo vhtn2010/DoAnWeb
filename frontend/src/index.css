@@ -4573,7 +4573,7 @@ select {
 .service-detail-page__title {
   margin: 0;
   color: #1f2937;
-  font-size: clamp(2.4rem, 4vw, 3rem);
+  font-size: clamp(2.08rem, 3.35vw, 2.62rem);
   font-weight: 700;
   line-height: 1.14;
 }
@@ -6656,7 +6656,7 @@ select {
   }
 
   .service-detail-page__title {
-    font-size: 2rem;
+    font-size: 1.78rem;
   }
 
   .service-detail-page__actions {
