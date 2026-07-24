@@ -1,4 +1,3 @@
-const crypto = require('node:crypto');
 const { query, withTransaction } = require('../database/client');
 const {
   API_ERROR_CODES,
@@ -6,8 +5,9 @@ const {
 } = require('../constants/domainConstraints');
 const AppError = require('../utils/AppError');
 
-const WELCOME_PROMOTION_NAME = 'Chào Mừng Thành Viên Mới';
+const WELCOME_PROMOTION_NAME = 'Chào Bạn Mới, Ưu Đãi Tới';
 const WELCOME_PROMOTION_CODE = 'KM-4E6BF0BA';
+const WELCOME_VOUCHER_CODE = 'NEWNETVIET10';
 const CUSTOMER_SURVEY_ACTION = 'customer.survey.complete';
 const MAX_TEXT_LENGTH = 200;
 const REQUIRED_MULTI_SELECT_MIN = 1;
@@ -457,21 +457,20 @@ async function loadWelcomePromotion(queryExecutor, currentTime, { forUpdate = fa
     `
       SELECT id, name, status, valid_from, valid_to, target_service_type
       FROM promotions
-      WHERE name = $1
-        AND UPPER('KM-' || SUBSTRING(id::text FROM 1 FOR 8)) = $2
+      WHERE UPPER('KM-' || SUBSTRING(id::text FROM 1 FOR 8)) = $1
         AND status = 'active'
-        AND valid_from <= $3
-        AND valid_to >= $3
+        AND valid_from <= $2
+        AND valid_to >= $2
       LIMIT 1
       ${forUpdate ? 'FOR UPDATE' : ''}
     `,
-    [WELCOME_PROMOTION_NAME, WELCOME_PROMOTION_CODE, currentTime],
+    [WELCOME_PROMOTION_CODE, currentTime],
   );
 
   return result.rows[0] || null;
 }
 
-async function loadVoucherTemplate(queryExecutor, promotionId, currentTime) {
+async function loadWelcomeVoucher(queryExecutor, promotionId, currentTime) {
   const result = await queryExecutor(
     `
       SELECT
@@ -486,80 +485,17 @@ async function loadVoucherTemplate(queryExecutor, promotionId, currentTime) {
         valid_to
       FROM vouchers
       WHERE promotion_id = $1
+        AND UPPER(TRIM(code)) = $2
         AND status = 'active'
-        AND valid_from <= $2
-        AND valid_to >= $2
-      ORDER BY created_at ASC, id ASC
+        AND valid_from <= $3
+        AND valid_to >= $3
       LIMIT 1
       FOR UPDATE
     `,
-    [promotionId, currentTime],
+    [promotionId, WELCOME_VOUCHER_CODE, currentTime],
   );
 
   return result.rows[0] || null;
-}
-
-function createCustomerVoucherCode() {
-  return `NVT-WELCOME-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
-}
-
-async function insertCustomerVoucher(queryExecutor, template, currentTime) {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const code = createCustomerVoucherCode();
-
-    try {
-      const result = await queryExecutor(
-        `
-          INSERT INTO vouchers (
-            promotion_id,
-            code,
-            discount_type,
-            discount_value,
-            max_discount_amount,
-            min_order_amount,
-            usage_limit_total,
-            usage_limit_per_user,
-            used_count,
-            status,
-            valid_from,
-            valid_to,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, 1, 1, 0, 'active', $7, $8, $9)
-          RETURNING
-            id,
-            promotion_id,
-            code,
-            discount_type,
-            discount_value,
-            max_discount_amount,
-            min_order_amount,
-            status,
-            valid_from,
-            valid_to
-        `,
-        [
-          template.promotion_id,
-          code,
-          template.discount_type,
-          template.discount_value,
-          template.max_discount_amount,
-          template.min_order_amount,
-          template.valid_from,
-          template.valid_to,
-          currentTime,
-        ],
-      );
-
-      return result.rows[0] || null;
-    } catch (error) {
-      if (error?.code !== '23505' || attempt === 4) {
-        throw error;
-      }
-    }
-  }
-
-  return null;
 }
 
 async function insertSurvey(queryExecutor, {
@@ -753,21 +689,15 @@ function createCustomerSurveyService({
         throw buildUnavailableError('Welcome member promotion is not active');
       }
 
-      const template = await loadVoucherTemplate(
+      const voucher = await loadWelcomeVoucher(
         queryExecutor,
         promotion.id,
         currentTime,
       );
 
-      if (!template) {
-        throw buildUnavailableError('Welcome member voucher template is not available');
+      if (!voucher) {
+        throw buildUnavailableError('Welcome member voucher is not available');
       }
-
-      const voucher = await insertCustomerVoucher(
-        queryExecutor,
-        template,
-        currentTime,
-      );
 
       const survey = await insertSurvey(queryExecutor, {
         currentTime,
@@ -819,3 +749,4 @@ module.exports.createCustomerSurveyService = createCustomerSurveyService;
 module.exports.normalizeSurveyPayload = normalizeSurveyPayload;
 module.exports.WELCOME_PROMOTION_CODE = WELCOME_PROMOTION_CODE;
 module.exports.WELCOME_PROMOTION_NAME = WELCOME_PROMOTION_NAME;
+module.exports.WELCOME_VOUCHER_CODE = WELCOME_VOUCHER_CODE;

@@ -506,12 +506,13 @@ const normalizeUpdateProfilePayload = (payload = {}) => {
       });
     }
 
-    if (!currentPassword) {
-      details.push({
-        field: 'current_password',
-        message: 'current_password is required when updating phone',
-      });
-    }
+  }
+
+  if ((hasFullName || hasPhone) && !currentPassword) {
+    details.push({
+      field: 'current_password',
+      message: 'current_password is required when updating profile',
+    });
   }
 
   if (details.length > 0) {
@@ -1126,7 +1127,7 @@ const createProfileService = ({
       ensureCurrentUserCanAccessProfile(currentUser, 'update');
       const input = normalizeUpdateProfilePayload(payload);
 
-      if (input.hasPhone) {
+      if (input.hasFullName || input.hasPhone) {
         const isCurrentPasswordValid = await bcryptCompareImpl(
           input.currentPassword,
           currentUser.password_hash,

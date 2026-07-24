@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   WELCOME_PROMOTION_CODE,
+  WELCOME_VOUCHER_CODE,
   createCustomerSurveyService,
 } = require('../services/customerSurveyService');
 
@@ -9,7 +10,6 @@ const FIXED_NOW = new Date('2026-07-24T08:00:00.000Z');
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const PROMOTION_ID = '4e6bf0ba-0000-4000-8000-000000000000';
 const TEMPLATE_VOUCHER_ID = '22222222-2222-4222-8222-222222222222';
-const CREATED_VOUCHER_ID = '33333333-3333-4333-8333-333333333333';
 const SURVEY_ID = '44444444-4444-4444-8444-444444444444';
 
 function createValidSurveyPayload() {
@@ -53,7 +53,7 @@ function createCustomerSurveyTransactionStub({ existingSurvey = false } = {}) {
         return {
           rows: [
             {
-              code: 'NVT-WELCOME-EXISTING',
+              code: WELCOME_VOUCHER_CODE,
               completed_at: FIXED_NOW,
               discount_type: 'fixed',
               discount_value: '150000',
@@ -65,7 +65,7 @@ function createCustomerSurveyTransactionStub({ existingSurvey = false } = {}) {
               survey_id: SURVEY_ID,
               valid_from: FIXED_NOW,
               valid_to: new Date('2045-12-31T16:59:59.000Z'),
-              voucher_id: CREATED_VOUCHER_ID,
+              voucher_id: TEMPLATE_VOUCHER_ID,
             },
           ],
         };
@@ -90,34 +90,16 @@ function createCustomerSurveyTransactionStub({ existingSurvey = false } = {}) {
         return {
           rows: [
             {
-              code: 'WELCOME-TEMPLATE',
-              discount_type: 'fixed',
-              discount_value: '150000',
+              code: WELCOME_VOUCHER_CODE,
+              discount_type: 'percent',
+              discount_value: '15',
               id: TEMPLATE_VOUCHER_ID,
-              max_discount_amount: null,
-              min_order_amount: '0',
+              max_discount_amount: '100000',
+              min_order_amount: '100000',
               promotion_id: PROMOTION_ID,
+              status: 'active',
               valid_from: FIXED_NOW,
               valid_to: new Date('2045-12-31T16:59:59.000Z'),
-            },
-          ],
-        };
-      }
-
-      if (normalizedSql.includes('INSERT INTO vouchers')) {
-        return {
-          rows: [
-            {
-              code: params[1],
-              discount_type: params[2],
-              discount_value: params[3],
-              id: CREATED_VOUCHER_ID,
-              max_discount_amount: params[4],
-              min_order_amount: params[5],
-              promotion_id: params[0],
-              status: 'active',
-              valid_from: params[6],
-              valid_to: params[7],
             },
           ],
         };
@@ -149,7 +131,7 @@ function createCustomerSurveyTransactionStub({ existingSurvey = false } = {}) {
   return { calls, client };
 }
 
-test('submitCurrentSurvey stores structured survey data and assigns a customer-specific welcome voucher', async () => {
+test('submitCurrentSurvey stores structured survey data and saves the active welcome voucher', async () => {
   const transaction = createCustomerSurveyTransactionStub();
   const service = createCustomerSurveyService({
     now: () => FIXED_NOW,
@@ -166,8 +148,8 @@ test('submitCurrentSurvey stores structured survey data and assigns a customer-s
   assert.equal(result.completed, true);
   assert.equal(result.promotion.code, WELCOME_PROMOTION_CODE);
   assert.equal(result.promotion.id, PROMOTION_ID);
-  assert.equal(result.voucher.id, CREATED_VOUCHER_ID);
-  assert.match(result.voucher.code, /^NVT-WELCOME-[A-F0-9]{10}$/);
+  assert.equal(result.voucher.id, TEMPLATE_VOUCHER_ID);
+  assert.equal(result.voucher.code, WELCOME_VOUCHER_CODE);
 
   const insertVoucherCall = transaction.calls.find((call) =>
     call.sql.includes('INSERT INTO vouchers'),
@@ -182,17 +164,15 @@ test('submitCurrentSurvey stores structured survey data and assigns a customer-s
     call.sql.includes('INSERT INTO user_logs'),
   );
 
-  assert.ok(insertVoucherCall);
-  assert.equal(insertVoucherCall.params[0], PROMOTION_ID);
-  assert.equal(insertVoucherCall.params[6], FIXED_NOW);
+  assert.equal(insertVoucherCall, undefined);
   assert.equal(insertSurveyCall.params[0], USER_ID);
   assert.equal(insertSurveyCall.params[1], PROMOTION_ID);
-  assert.equal(insertSurveyCall.params[2], CREATED_VOUCHER_ID);
+  assert.equal(insertSurveyCall.params[2], TEMPLATE_VOUCHER_ID);
   assert.deepEqual(insertSurveyCall.params[7], ['relaxing', 'food']);
   assert.deepEqual(insertSurveyCall.params[9], ['beach', 'heritage_city']);
   assert.deepEqual(insertSurveyCall.params[12], ['family']);
   assert.equal(saveVoucherCall.params[0], USER_ID);
-  assert.equal(saveVoucherCall.params[1], CREATED_VOUCHER_ID);
+  assert.equal(saveVoucherCall.params[1], TEMPLATE_VOUCHER_ID);
   assert.equal(logCall.params[1], 'customer.survey.complete');
 });
 

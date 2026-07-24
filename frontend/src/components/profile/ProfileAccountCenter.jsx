@@ -272,6 +272,57 @@ function createPasswordState() {
   }
 }
 
+function getPasswordValidationMessage(passwordForm) {
+  if (passwordForm.newPassword === passwordForm.currentPassword) {
+    return 'Mật khẩu mới cần khác mật khẩu hiện tại.'
+  }
+
+  if (passwordForm.newPassword.length < 8) {
+    return 'Mật khẩu mới cần có ít nhất 8 ký tự.'
+  }
+
+  if (!/[a-z]/.test(passwordForm.newPassword)) {
+    return 'Mật khẩu mới cần có ít nhất 1 chữ thường.'
+  }
+
+  if (!/[A-Z]/.test(passwordForm.newPassword)) {
+    return 'Mật khẩu mới cần có ít nhất 1 chữ hoa.'
+  }
+
+  if (!/\d/.test(passwordForm.newPassword)) {
+    return 'Mật khẩu mới cần có ít nhất 1 chữ số.'
+  }
+
+  return ''
+}
+
+function getPasswordApiErrorMessage(error) {
+  if (error?.code === 'AUTH_INVALID_CREDENTIALS') {
+    return 'Mật khẩu hiện tại không đúng.'
+  }
+
+  const firstDetail = Array.isArray(error?.details) ? error.details[0] : null
+
+  if (!firstDetail) {
+    return error?.message || 'Không thể đổi mật khẩu lúc này.'
+  }
+
+  const messageMap = {
+    'current_password is required': 'Vui lòng nhập mật khẩu hiện tại.',
+    'new_password is required': 'Vui lòng nhập mật khẩu mới.',
+    'new_password must be different from current_password': 'Mật khẩu mới cần khác mật khẩu hiện tại.',
+    'new_password must include at least one lowercase letter': 'Mật khẩu mới cần có ít nhất 1 chữ thường.',
+    'new_password must include at least one uppercase letter': 'Mật khẩu mới cần có ít nhất 1 chữ hoa.',
+    'new_password must include at least one number': 'Mật khẩu mới cần có ít nhất 1 chữ số.',
+  }
+
+  if (firstDetail.message?.startsWith('new_password must be at least')) {
+    return 'Mật khẩu mới cần có ít nhất 8 ký tự.'
+  }
+
+  return messageMap[firstDetail.message] || firstDetail.message || 'Không thể đổi mật khẩu lúc này.'
+}
+
 function EyeIcon({ visible }) {
   if (visible) {
     return (
@@ -570,9 +621,11 @@ export default function ProfileAccountCenter() {
       return
     }
 
-    if (passwordForm.newPassword.length < 8) {
+    const passwordPolicyMessage = getPasswordValidationMessage(passwordForm)
+
+    if (passwordPolicyMessage) {
       setPasswordFeedback({
-        message: 'Mật khẩu mới cần có ít nhất 8 ký tự.',
+        message: passwordPolicyMessage,
         tone: 'error',
       })
       return
@@ -607,7 +660,7 @@ export default function ProfileAccountCenter() {
       setReloadToken((value) => value + 1)
     } catch (error) {
       setPasswordFeedback({
-        message: error?.message || 'Không thể đổi mật khẩu lúc này.',
+        message: getPasswordApiErrorMessage(error),
         tone: 'error',
       })
     } finally {
@@ -716,6 +769,10 @@ export default function ProfileAccountCenter() {
                 Lưu mật khẩu mới
               </PublicButton>
             </div>
+
+            <a className="profile-account-center__forgot-link" href="/forgot-password">
+              Quên mật khẩu?
+            </a>
           </form>
         </AccountAccordionItem>
 
@@ -826,4 +883,3 @@ export default function ProfileAccountCenter() {
     </section>
   )
 }
-

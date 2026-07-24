@@ -43,18 +43,17 @@ function CloseIcon() {
 
 function GearIcon() {
   return (
-    <svg fill="none" viewBox="0 0 20 20">
+    <svg fill="none" height="20" viewBox="0 0 20 20" width="20">
       <path
-        d="M10 12.65a2.65 2.65 0 1 0 0-5.3 2.65 2.65 0 0 0 0 5.3Z"
+        d="M10 7.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.7"
       />
       <path
-        d="m3.85 11.55-.72-.42a.95.95 0 0 1-.36-1.3l.63-1.08a.95.95 0 0 1 1.18-.4l.8.33c.35-.28.72-.5 1.12-.66l.12-.86A.95.95 0 0 1 7.56 6h1.25a.95.95 0 0 1 .94.82l.12.86c.4.16.77.38 1.12.66l.8-.33a.95.95 0 0 1 1.18.4l.63 1.08a.95.95 0 0 1-.36 1.3l-.72.42c.03.22.05.44.05.68s-.02.46-.05.68l.72.42c.46.27.62.86.36 1.3l-.63 1.08a.95.95 0 0 1-1.18.4l-.8-.33c-.35.28-.72.5-1.12.66l-.12.86a.95.95 0 0 1-.94.82H7.56a.95.95 0 0 1-.94-.82l-.12-.86a5.33 5.33 0 0 1-1.12-.66l-.8.33a.95.95 0 0 1-1.18-.4l-.63-1.08a.95.95 0 0 1 .36-1.3l.72-.42a5.2 5.2 0 0 1-.05-.68c0-.24.02-.46.05-.68Z"
+        d="m16.2 10-.98.57a5.96 5.96 0 0 1-.24.58l.28 1.1a.8.8 0 0 1-.22.79l-.8.8a.8.8 0 0 1-.79.22l-1.1-.28c-.18.09-.38.17-.58.24l-.57.98a.8.8 0 0 1-.69.4H9.39a.8.8 0 0 1-.69-.4l-.57-.98a5.96 5.96 0 0 1-.58-.24l-1.1.28a.8.8 0 0 1-.79-.22l-.8-.8a.8.8 0 0 1-.22-.79l.28-1.1c-.09-.18-.17-.38-.24-.58L3.8 10a.8.8 0 0 1 0-.78l.98-.57c.07-.2.15-.4.24-.58l-.28-1.1a.8.8 0 0 1 .22-.79l.8-.8a.8.8 0 0 1 .79-.22l1.1.28c.18-.09.38-.17.58-.24l.57-.98a.8.8 0 0 1 .69-.4h1.13a.8.8 0 0 1 .69.4l.57.98c.2.07.4.15.58.24l1.1-.28a.8.8 0 0 1 .79.22l.8.8a.8.8 0 0 1 .22.79l-.28 1.1c.09.18.17.38.24.58l.98.57a.8.8 0 0 1 0 .78Z"
         stroke="currentColor"
-        strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.4"
+        strokeWidth="1.2"
       />
     </svg>
   )
@@ -85,6 +84,19 @@ function PhoneIcon() {
       <path
         d="M6.12 3.75h1.84c.3 0 .57.2.65.5l.76 2.9a.75.75 0 0 1-.2.73l-1.06 1.05a11.12 11.12 0 0 0 4.96 4.96l1.05-1.06a.75.75 0 0 1 .73-.2l2.9.76c.3.08.5.35.5.65v1.84a.9.9 0 0 1-.9.9h-.9C8.89 17.98 2 11.11 2 2.9V2a.9.9 0 0 1 .9-.9h3.22Z"
         stroke="currentColor"
+        strokeWidth="1.6"
+      />
+    </svg>
+  )
+}
+
+function UserIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M10 10.2a3.8 3.8 0 1 0 0-7.6 3.8 3.8 0 0 0 0 7.6ZM3.5 17.25a6.5 6.5 0 0 1 13 0"
+        stroke="currentColor"
+        strokeLinecap="round"
         strokeWidth="1.6"
       />
     </svg>
@@ -208,6 +220,18 @@ function getApiErrorMessage(field, error) {
     return matchedDetail.message === 'phone must be at most 20 characters'
       ? 'Số điện thoại không được vượt quá 20 ký tự.'
       : matchedDetail.message
+  }
+
+  if (matchedDetail?.field === 'full_name') {
+    if (matchedDetail.message === 'full_name must not be empty') {
+      return 'Họ và tên không được để trống.'
+    }
+
+    if (matchedDetail.message === 'full_name must be at most 150 characters') {
+      return 'Họ và tên không được vượt quá 150 ký tự.'
+    }
+
+    return matchedDetail.message
   }
 
   return error?.message || 'Không thể cập nhật thông tin lúc này.'
@@ -366,22 +390,27 @@ function ProfileHero({
 }) {
   const displayName = profile?.full_name ?? greeting.title.replace('Xin chào, ', '')
   const [contactInfo, setContactInfo] = useState({
+    full_name: displayName,
     email: profile?.email ?? '',
     phone: profile?.phone ?? '',
   })
   const [draftInfo, setDraftInfo] = useState({
+    full_name: displayName,
     email: profile?.email ?? '',
     phone: profile?.phone ?? '',
   })
   const [passwordDrafts, setPasswordDrafts] = useState({
+    full_name: '',
     email: '',
     phone: '',
   })
   const [fieldErrors, setFieldErrors] = useState({
+    full_name: '',
     email: '',
     phone: '',
   })
   const [visiblePasswords, setVisiblePasswords] = useState({
+    full_name: false,
     email: false,
     phone: false,
   })
@@ -395,6 +424,7 @@ function ProfileHero({
 
   useEffect(() => {
     const nextContactInfo = {
+      full_name: displayName,
       email: profile?.email ?? '',
       phone: profile?.phone ?? '',
     }
@@ -402,14 +432,17 @@ function ProfileHero({
     setContactInfo(nextContactInfo)
     setDraftInfo(nextContactInfo)
     setPasswordDrafts({
+      full_name: '',
       email: '',
       phone: '',
     })
     setFieldErrors({
+      full_name: '',
       email: '',
       phone: '',
     })
     setVisiblePasswords({
+      full_name: false,
       email: false,
       phone: false,
     })
@@ -419,7 +452,7 @@ function ProfileHero({
       message: '',
       tone: 'success',
     })
-  }, [profile?.email, profile?.phone])
+  }, [displayName, profile?.email, profile?.phone])
 
   useEffect(() => {
     if (!isSettingsOpen) {
@@ -519,6 +552,10 @@ function ProfileHero({
       ? 'Bạn chưa thay đổi email nên hệ thống chưa thể xác nhận cập nhật.'
       : 'Bạn chưa thay đổi số điện thoại nên hệ thống chưa thể xác nhận cập nhật.'
 
+    const contactUnchangedMessage = field === 'full_name'
+      ? 'Bạn chưa thay đổi họ và tên nên hệ thống chưa thể xác nhận cập nhật.'
+      : unchangedMessage
+
     if (field === 'email' && !isValidEmail(nextValue)) {
       const nextErrorMessage = 'Email chưa đúng định dạng.'
 
@@ -535,6 +572,34 @@ function ProfileHero({
 
     if (field === 'phone' && !isValidPhone(nextValue)) {
       const nextErrorMessage = 'Số điện thoại cần từ 8 đến 20 ký tự hợp lệ.'
+
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: nextErrorMessage,
+      }))
+      setContactFeedback({
+        message: nextErrorMessage,
+        tone: 'error',
+      })
+      return
+    }
+
+    if (field === 'full_name' && !nextValue) {
+      const nextErrorMessage = 'Họ và tên không được để trống.'
+
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        [field]: nextErrorMessage,
+      }))
+      setContactFeedback({
+        message: nextErrorMessage,
+        tone: 'error',
+      })
+      return
+    }
+
+    if (field === 'full_name' && nextValue.length > 150) {
+      const nextErrorMessage = 'Họ và tên không được vượt quá 150 ký tự.'
 
       setFieldErrors((currentErrors) => ({
         ...currentErrors,
@@ -564,10 +629,10 @@ function ProfileHero({
     if (isUnchangedContactValue(field, nextValue, contactInfo[field] ?? '')) {
       setFieldErrors((currentErrors) => ({
         ...currentErrors,
-        [field]: unchangedMessage,
+        [field]: contactUnchangedMessage,
       }))
       setContactFeedback({
-        message: unchangedMessage,
+        message: contactUnchangedMessage,
         tone: 'error',
       })
       return
@@ -600,32 +665,45 @@ function ProfileHero({
         return
       }
 
-      const response = await updateCurrentProfile({
-        current_password: currentPassword,
-        phone: nextValue,
-      })
+      const updatePayload = field === 'full_name'
+        ? {
+          current_password: currentPassword,
+          full_name: nextValue,
+        }
+        : {
+          current_password: currentPassword,
+          phone: nextValue,
+        }
 
-      const nextPhone = response?.data?.phone ?? nextValue
+      const response = await updateCurrentProfile(updatePayload)
+
+      const responseProfile = response?.data ?? {}
+      const nextSavedValue = responseProfile[field] ?? nextValue
 
       setContactInfo((currentInfo) => ({
         ...currentInfo,
-        phone: nextPhone,
+        [field]: nextSavedValue,
       }))
       setDraftInfo((currentDraft) => ({
         ...currentDraft,
-        phone: nextPhone,
+        [field]: nextSavedValue,
       }))
       setPasswordDrafts((currentPasswords) => ({
         ...currentPasswords,
-        phone: '',
+        [field]: '',
       }))
       setVisiblePasswords((currentVisibility) => ({
         ...currentVisibility,
-        phone: false,
+        [field]: false,
       }))
       setEditingField('')
+      onProfileUpdated?.(responseProfile)
+      const successMessage = field === 'full_name'
+        ? 'Đã cập nhật họ và tên thành công.'
+        : 'Đã cập nhật số điện thoại thành công.'
+
       setContactFeedback({
-        message: 'Đã cập nhật số điện thoại thành công.',
+        message: successMessage,
         tone: 'success',
       })
     } catch (error) {
@@ -646,7 +724,42 @@ function ProfileHero({
 
   const memberContactMeta = (
     <>
+      <div className="profile-hero__settings-member">
+        <ProfileAvatarEditor
+          avatarUrl={profile?.avatar_url ?? ''}
+          displayName={displayName}
+          onProfileUpdated={onProfileUpdated}
+        />
+
+        <div className="profile-hero__member-copy">
+          <p className="profile-hero__member-label">Thẻ thành viên</p>
+          <strong id="profile-settings-title">
+            {normalizeLoyaltyTier(profile?.loyalty_tier)}
+          </strong>
+        </div>
+      </div>
+
       <div className="profile-hero__member-meta">
+        <EditableContactField
+          errorMessage={fieldErrors.full_name}
+          field="full_name"
+          icon={<UserIcon />}
+          inputMode="text"
+          isEditing={editingField === 'full_name'}
+          isPasswordVisible={visiblePasswords.full_name}
+          isSaving={savingField === 'full_name'}
+          label="Họ và tên"
+          onCancel={handleCancel}
+          onChange={handleDraftChange}
+          onEdit={handleEdit}
+          onPasswordChange={handlePasswordChange}
+          onSave={handleSave}
+          onTogglePasswordVisibility={handleTogglePasswordVisibility}
+          passwordValue={passwordDrafts.full_name}
+          placeholder="Nguyễn Văn A"
+          value={editingField === 'full_name' ? draftInfo.full_name : contactInfo.full_name}
+        />
+
         <EditableContactField
           errorMessage={fieldErrors.email}
           field="email"
@@ -833,22 +946,6 @@ function ProfileHero({
             >
               <div className="profile-hero__settings-modal">
                 <div className="profile-hero__settings-header">
-                  <div className="profile-hero__settings-member">
-                    <ProfileAvatarEditor
-                      avatarUrl={profile?.avatar_url ?? ''}
-                      displayName={displayName}
-                      onProfileUpdated={onProfileUpdated}
-                    />
-
-                    <div className="profile-hero__member-copy">
-                      <p className="profile-hero__member-label">Thẻ thành viên</p>
-                      <strong id="profile-settings-title">
-                        {normalizeLoyaltyTier(profile?.loyalty_tier)}
-                      </strong>
-                      <small>{displayName}</small>
-                    </div>
-                  </div>
-
                   <button
                     aria-label="Đóng cài đặt tài khoản"
                     className="profile-hero__settings-close"

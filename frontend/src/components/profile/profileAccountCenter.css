@@ -117,6 +117,21 @@
   gap: 10px;
 }
 
+.profile-account-center__forgot-link {
+  justify-self: start;
+  color: #c91f26;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profile-account-center__forgot-link:hover,
+.profile-account-center__forgot-link:focus-visible {
+  color: #a51d22;
+  text-decoration: underline;
+  outline: none;
+}
+
 .profile-account-center__accordion {
   display: grid;
   gap: 12px;

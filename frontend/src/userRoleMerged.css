@@ -11051,7 +11051,7 @@
 .profile-hero__settings-header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 20px;
   padding: 26px 28px 0;
 }
