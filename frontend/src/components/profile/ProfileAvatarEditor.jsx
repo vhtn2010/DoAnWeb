@@ -193,7 +193,7 @@ export default function ProfileAvatarEditor({
 
     setAvatarLoading(true)
     setAvatarFeedback({
-      message: 'Đang tải ảnh lên và cập nhật avatar...',
+      message: '',
       tone: 'info',
     })
 
@@ -314,7 +314,7 @@ export default function ProfileAvatarEditor({
                   <span className="profile-avatar-modal__file-button-icon" aria-hidden="true">
                     <UploadIcon />
                   </span>
-                  {avatarLoading ? 'Đang tải avatar...' : 'Chọn ảnh mới'}
+                  Chọn ảnh mới
                 </label>
 
                 <div className="profile-avatar-modal__file-meta">

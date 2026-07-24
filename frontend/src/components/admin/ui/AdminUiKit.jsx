@@ -1,5 +1,6 @@
 import './adminUiKit.css'
 import { forwardRef } from 'react'
+import { LocalLoading } from '../../loading/Loading.jsx'
 
 function cx(...classNames) {
   return classNames.filter(Boolean).join(' ')
@@ -549,17 +550,7 @@ export function AdminSkeleton({ className = '', width = '100%' }) {
 }
 
 export function AdminLoadingBlock({ className = '', rows = 3 }) {
-  return (
-    <div className={cx('admin-ui-loading-block', className)} role="status">
-      <span className="admin-ui-loading-block__label">Đang tải dữ liệu...</span>
-      {Array.from({ length: rows }, (_, index) => (
-        <div className="admin-ui-loading-block__row" key={index}>
-          <AdminSkeleton width={index === rows - 1 ? '64%' : '100%'} />
-          <AdminSkeleton width={index % 2 === 0 ? '42%' : '58%'} />
-        </div>
-      ))}
-    </div>
-  )
+  return <LocalLoading className={cx('admin-ui-loading-block', className)} minHeight={`${Math.max(rows, 2) * 52}px`} />
 }
 
 export function AdminDataTable({
@@ -569,7 +560,6 @@ export function AdminDataTable({
   columns = [],
   emptyState = null,
   loading = false,
-  loadingLabel = 'Đang tải dữ liệu...',
   rows = [],
   tableClassName = '',
 }) {
@@ -593,7 +583,6 @@ export function AdminDataTable({
             <tr>
               <td colSpan={Math.max(columns.length, 1)}>
                 <AdminLoadingBlock rows={2} />
-                <span className="admin-ui-table__status">{loadingLabel}</span>
               </td>
             </tr>
           ) : hasRows ? (

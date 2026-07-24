@@ -9,6 +9,7 @@ import {
   completeCustomerBooking,
   createCustomerTourReview,
 } from '../../repositories/reviewRepository.js'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import { normalizeTourService } from '../../mappers/serviceMappers.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
@@ -1168,10 +1169,7 @@ function CustomerTripDetailPage() {
         </button>
 
         {loading ? (
-          <section className="customer-trip-state" role="status">
-            <strong>Đang chuẩn bị chi tiết chuyến đi</strong>
-            <p>Hệ thống đang đồng bộ lịch trình, dịch vụ và thông tin đặt chỗ của bạn.</p>
-          </section>
+          <LocalLoading className="customer-trip-state" minHeight="220px" />
         ) : null}
 
         {!loading && error ? (
@@ -1209,7 +1207,7 @@ function CustomerTripDetailPage() {
                 <div className="customer-trip-hero__actions">
                   <button type="button" onClick={downloadSummary} disabled={downloadLoading}>
                     <TripIcon name="download" />
-                    {downloadLoading ? 'Đang tải...' : 'Tải tóm tắt'}
+                    Tải tóm tắt
                   </button>
                   <button type="button" onClick={goSupport}>
                     <TripIcon name="phone" />

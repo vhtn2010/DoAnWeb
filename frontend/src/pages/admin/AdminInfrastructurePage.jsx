@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import { getAdminUploadUsage } from '../../repositories/adminUtilityRepository.js'
 
 const SYSTEM_LOGS = Object.freeze([
@@ -439,7 +440,7 @@ function AdminInfrastructurePage() {
             </div>
 
             {uploadLoading ? (
-              <p className="admin-infrastructure-page__upload-state">Đang tải thông tin uploads...</p>
+              <LocalLoading className="admin-infrastructure-page__upload-state" minHeight="160px" />
             ) : null}
 
             {uploadError ? (

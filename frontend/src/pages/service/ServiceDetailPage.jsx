@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { FullPageLoading } from '../../components/loading/Loading.jsx'
 import ServiceRecommendationCard from '../../components/service/ServiceRecommendationCard.jsx'
 import useTourServiceDetail from '../../hooks/useTourServiceDetail.js'
 
@@ -160,6 +161,7 @@ function ServiceDetailPage() {
     isLoading,
     isShared,
     leadLocation,
+    pricingSummary,
     recommendedServices,
     selectedImage,
     service,
@@ -203,21 +205,7 @@ function ServiceDetailPage() {
   }
 
   if (isLoading || !service) {
-    return (
-      <div className="service-detail-page">
-        <div className="service-detail-page__shell">
-          <section className="service-detail-section">
-            <div className="service-detail-section__header">
-              <span className="service-detail-section__eyebrow">Đang tải</span>
-              <h1 className="service-detail-section__title">Chi tiết tour đang được chuẩn bị</h1>
-            </div>
-            <p className="service-detail-page__description">
-              Dữ liệu đang được đọc từ mock adapter theo API-ready pattern.
-            </p>
-          </section>
-        </div>
-      </div>
-    )
+    return <FullPageLoading />
   }
 
   return (
@@ -550,14 +538,32 @@ function ServiceDetailPage() {
                   <strong>{childCount > 0 ? formatCurrency(childTotal) : '0đ'}</strong>
                 </div>
 
-                <div className="service-detail-booking__summary-row">
-                  <span>Phí dịch vụ</span>
-                  <strong>Miễn phí</strong>
-                </div>
+                {pricingSummary?.vat_amount_value > 0 ? (
+                  <div className="service-detail-booking__summary-row">
+                    <span>Thuế VAT (8%)</span>
+                    <strong>{pricingSummary.vat_amount}</strong>
+                  </div>
+                ) : null}
+
+                {pricingSummary?.service_fee_amount_value > 0 ? (
+                  <div className="service-detail-booking__summary-row">
+                    <span>Phí dịch vụ</span>
+                    <strong>{pricingSummary.service_fee_amount}</strong>
+                  </div>
+                ) : null}
+
+                {pricingSummary?.surcharge_amount_value > 0 ? (
+                  <div className="service-detail-booking__summary-row">
+                    <span>Phụ thu</span>
+                    <strong>{pricingSummary.surcharge_amount}</strong>
+                  </div>
+                ) : null}
 
                 <div className="service-detail-booking__summary-row service-detail-booking__summary-row--total">
                   <span>Tổng cộng</span>
-                  <strong>{formatCurrency(totalPrice)}</strong>
+                  <strong>
+                    {pricingSummary?.has_pricing ? pricingSummary.total_amount : formatCurrency(totalPrice)}
+                  </strong>
                 </div>
               </div>
 

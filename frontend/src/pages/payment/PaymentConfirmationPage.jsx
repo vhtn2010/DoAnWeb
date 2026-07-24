@@ -1,3 +1,4 @@
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import PaymentChoiceCard from '../../components/payment/PaymentChoiceCard.jsx'
 import PaymentContactCard from '../../components/payment/PaymentContactCard.jsx'
 import PaymentMethodPanel from '../../components/payment/PaymentMethodPanel.jsx'
@@ -42,11 +43,7 @@ function PaymentConfirmationPage() {
           </div>
         </header>
 
-        {loading ? (
-          <p className="payment-confirmation-page__status" role="status">
-            Đang chuẩn bị thông tin thanh toán cho đơn hàng của bạn...
-          </p>
-        ) : null}
+        {loading ? <LocalLoading className="payment-confirmation-page__status" minHeight="220px" /> : null}
 
         {error ? (
           <div

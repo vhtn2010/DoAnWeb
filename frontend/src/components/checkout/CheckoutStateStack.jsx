@@ -6,9 +6,7 @@ export default function CheckoutStateStack({ checkoutDraft, error, loading }) {
       {loading && !checkoutDraft ? (
         <PublicLoadingBlock
           className="checkout-page__state"
-          description="Đơn nháp và thông tin liên hệ đang được chuẩn bị cho bước thanh toán."
           rows={3}
-          title="Đang tải thông tin đặt đơn"
         />
       ) : null}
 

@@ -1,4 +1,5 @@
 ﻿import { Link } from 'react-router-dom'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import useHomePage from '../../hooks/useHomePage.js'
 
 function buildHomeServiceDetailPath(service = {}) {
@@ -574,11 +575,7 @@ function HomePage() {
           </div>
 
           {loading ? (
-            <div className="home-search-card__calendar-footer" role="status">
-              <span className="home-search-card__calendar-helper">
-                Đang tải dữ liệu trang chủ từ mock adapter...
-              </span>
-            </div>
+            <LocalLoading className="home-search-card__calendar-footer" minHeight="72px" size="sm" />
           ) : null}
 
           {errorMessage ? (

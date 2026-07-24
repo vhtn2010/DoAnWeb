@@ -3,6 +3,7 @@ import HotelBookingPanel from '../../components/hotels/HotelBookingPanel.jsx'
 import HotelGallery from '../../components/hotels/HotelGallery.jsx'
 import HotelReviewSummary from '../../components/hotels/HotelReviewSummary.jsx'
 import HotelRoomCard from '../../components/hotels/HotelRoomCard.jsx'
+import { FullPageLoading } from '../../components/loading/Loading.jsx'
 import useHotelDetail from '../../hooks/useHotelDetail.js'
 
 function StarIcon() {
@@ -121,6 +122,7 @@ function HotelDetailPage() {
     isFavorite,
     loading,
     pendingAction,
+    pricingSummary,
     retry,
     rooms,
     selectRoom,
@@ -146,19 +148,7 @@ function HotelDetailPage() {
   }
 
   if (loading || !hotel) {
-    return (
-      <div className="hotel-detail-page">
-        <div className="hotel-detail-page__shell">
-          <section className="hotel-detail-card hotel-detail-card--empty">
-            <p className="hotel-detail-page__eyebrow">Đang tải</p>
-            <h1 className="hotel-detail-page__title">Chi tiết khách sạn đang được chuẩn bị</h1>
-            <p className="hotel-detail-page__description">
-              Dữ liệu khách sạn đang được tải từ hệ thống.
-            </p>
-          </section>
-        </div>
-      </div>
-    )
+    return <FullPageLoading />
   }
 
   const featuredRooms = rooms.slice(0, 3)
@@ -229,6 +219,7 @@ function HotelDetailPage() {
             formatCurrency={formatCurrency}
             hotel={hotel}
             pendingAction={pendingAction}
+            pricingSummary={pricingSummary}
             selectedRoom={selectedRoom}
             onAddToCart={goToCartMock}
             onCheckout={goToCheckoutMock}

@@ -5,6 +5,7 @@ import {
   AdminErrorState,
   AdminLoadingBlock,
 } from '../../components/admin/ui/index.js'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import useAdminDashboard from '../../hooks/useAdminDashboard.js'
 import { listAdminAuditLogs } from '../../repositories/adminUtilityRepository.js'
 
@@ -706,9 +707,7 @@ function AdminDashboardPage() {
             </header>
 
             {auditLoading ? (
-              <div className="admin-system-dashboard__audit-state">
-                Đang tải audit logs...
-              </div>
+              <LocalLoading className="admin-system-dashboard__audit-state" minHeight="180px" />
             ) : null}
 
             {auditError ? (

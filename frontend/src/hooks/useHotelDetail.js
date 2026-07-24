@@ -20,6 +20,7 @@ import {
   buildFavoriteSourcePath,
   getFavoriteSourceLabel,
 } from '../services/favoriteStorage.js'
+import { createPricingSummaryViewFromItem } from '../utils/pricingSummaryView.js'
 
 function convertDisplayDateToInput(value) {
   const [dayText, monthText, yearText] = String(value ?? '').split('-')
@@ -153,6 +154,47 @@ function buildHotelBookingOptions({
     selected_options: {
       ...(room.options ?? {}),
     },
+  }
+}
+
+function buildHotelCartPayload({
+  checkinDate,
+  checkoutDate,
+  guests,
+  hotel,
+  room,
+  roomQuantity,
+}) {
+  if (!hotel || !room) {
+    return null
+  }
+
+  const nights = calculateStayNights(checkinDate, checkoutDate)
+
+  if (nights < 1) {
+    return null
+  }
+
+  const requestedGuests = Math.max(1, Number(guests) || 1)
+  const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
+
+  return {
+    end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
+    options: buildHotelBookingOptions({
+      checkinDate,
+      checkoutDate,
+      guests: requestedGuests,
+      hotel,
+      nights,
+      room,
+      roomQuantity: requestedQuantity,
+    }),
+    quantity: requestedQuantity,
+    reference_id: room.id,
+    service_id: hotel.id,
+    service_type: hotel.service_type ?? 'hotel',
+    start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
+    unit_price_snapshot: resolveCurrentPrice(room) * Math.max(nights, 1),
   }
 }
 
@@ -307,6 +349,31 @@ export default function useHotelDetail() {
     () => calculateStayNights(checkinDate, checkoutDate),
     [checkinDate, checkoutDate],
   )
+  const pricingSummary = useMemo(() => {
+    const pricingSource = selectedRoom || hotel
+
+    if (!hotel || !pricingSource || stayNights < 1) {
+      return createPricingSummaryViewFromItem(null)
+    }
+
+    const unitRoomPrice = resolveCurrentPrice(pricingSource)
+    const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
+
+    return createPricingSummaryViewFromItem(
+      {
+        id: selectedRoom?.id || hotel.id,
+        quantity: requestedQuantity,
+        service_type: selectedRoom?.service_type ?? hotel.service_type ?? 'hotel',
+        unit_price: unitRoomPrice,
+        unit_price_snapshot: unitRoomPrice * Math.max(stayNights, 1),
+        options: {
+          nights: stayNights,
+          room_price: unitRoomPrice,
+          room_quantity: requestedQuantity,
+        },
+      },
+    )
+  }, [hotel, roomQuantity, selectedRoom, stayNights])
 
   function selectRoom(roomId) {
     setSelectedRoomId(roomId)
@@ -472,26 +539,20 @@ export default function useHotelDetail() {
       }
     }
 
-    const requestedGuests = Math.max(1, Number(guests) || 1)
-    const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
-    const nights = calculateStayNights(checkinDate, checkoutDate)
-    const payload = {
-      end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
-      options: buildHotelBookingOptions({
-        checkinDate,
-        checkoutDate,
-        guests: requestedGuests,
-        hotel,
-        nights,
-        room: nextRoom,
-        roomQuantity: requestedQuantity,
-      }),
-      quantity: requestedQuantity,
-      reference_id: nextRoom.id,
-      service_id: hotel.id,
-      service_type: hotel.service_type ?? 'hotel',
-      start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
-      unit_price_snapshot: resolveCurrentPrice(nextRoom) * Math.max(nights, 1),
+    const payload = buildHotelCartPayload({
+      checkinDate,
+      checkoutDate,
+      guests,
+      hotel,
+      room: nextRoom,
+      roomQuantity,
+    })
+
+    if (!payload) {
+      setFeedback(createFeedbackState('error', 'Vui lòng chọn ngày nhận và trả phòng hợp lệ.'))
+      return {
+        success: false,
+      }
     }
 
     const cartItem = buildCartItemFromPayload({
@@ -590,7 +651,7 @@ export default function useHotelDetail() {
         return
       }
 
-      navigate(buildPublicAuthPath('/cart', isCustomer))
+      navigate(buildPublicAuthPath('/checkout', isCustomer))
     } catch (actionError) {
       setFeedback(
         createFeedbackState(
@@ -655,6 +716,7 @@ export default function useHotelDetail() {
     isCustomer,
     loading,
     pendingAction,
+    pricingSummary,
     relatedHotels,
     retry,
     roomQuantity,

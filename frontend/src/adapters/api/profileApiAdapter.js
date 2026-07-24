@@ -81,6 +81,14 @@ export function getCurrentUserVouchers() {
   return apiGet('/me/vouchers')
 }
 
+export function getCurrentCustomerSurveyStatus() {
+  return apiGet('/me/customer-survey')
+}
+
+export function submitCurrentCustomerSurvey(payload = {}) {
+  return apiPost('/me/customer-survey', payload)
+}
+
 export function saveCurrentUserVoucher(code) {
   return apiPost('/me/vouchers', { code })
 }

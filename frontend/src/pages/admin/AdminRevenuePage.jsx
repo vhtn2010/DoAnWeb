@@ -209,7 +209,7 @@ function AdminRevenuePage() {
 
         <button className="admin-revenue-page__period-button" disabled={loading} type="button">
           <CalendarIcon />
-          <span>{report?.period ?? 'Đang tải dữ liệu'}</span>
+          <span>{report?.period ?? ''}</span>
           <ChevronDownIcon />
         </button>
       </section>

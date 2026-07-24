@@ -4,6 +4,7 @@ import {
   uploadSupportReplyFileAsset,
   uploadSupportReplyImageAsset,
 } from '../../adapters/api/uploadApiAdapter.js'
+import { LocalLoading } from '../loading/Loading.jsx'
 import useCustomerCare from '../../hooks/useCustomerCare.js'
 import {
   appendSupportFileMarkdown,
@@ -14,6 +15,7 @@ import {
   parseSupportInlineSegments,
   parseSupportMessageBlocks,
 } from '../../utils/adminSupportMessageFormat.js'
+import { useCustomerSurveyPopup } from '../customerSurvey/customerSurveyContext.js'
 import './customerCareMiniWidget.css'
 
 const QUICK_EMOJIS = Object.freeze([
@@ -32,12 +34,29 @@ const QUICK_EMOJIS = Object.freeze([
 ])
 
 function MiniChatIcon({ name }) {
-  if (name === 'phone') {
+  if (name === 'lightning') {
     return (
       <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
         <path
-          d="M7.06 4.95 8.7 4.1a1.55 1.55 0 0 1 2.06.62l1.12 2.06c.36.66.2 1.48-.38 1.96l-1.1.92a9.7 9.7 0 0 0 3.94 3.94l.92-1.1a1.55 1.55 0 0 1 1.96-.38l2.06 1.12c.72.39 1 1.28.62 2.06l-.85 1.64c-.38.74-1.2 1.14-2.02.98C10.84 16.7 7.3 13.16 6.08 6.97c-.16-.82.24-1.64.98-2.02Z"
+          d="M13.2 2.8 5.8 13h5.1l-1.1 8.2 8.4-11.3h-5.4l.4-7.1Z"
           fill="currentColor"
+        />
+      </svg>
+    )
+  }
+
+  if (name === 'headset') {
+    return (
+      <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+        <path
+          d="M5.5 12a6.5 6.5 0 1 1 13 0v4a2 2 0 0 1-2 2h-1.5v-5H19"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M5 13h1.5v5H5a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
         />
       </svg>
     )
@@ -435,7 +454,7 @@ function CustomerCareMiniPanel({ isCustomer, onExpand, onMinimize }) {
             <h2>Hỗ trợ Nét Việt Travel</h2>
             <span className="customer-care-mini__status">
               <span aria-hidden="true" />
-              {loading ? 'Đang đồng bộ' : sending ? 'Đang gửi nội dung' : 'Đang trực tuyến'}
+              Đang trực tuyến
             </span>
           </div>
         </div>
@@ -475,7 +494,7 @@ function CustomerCareMiniPanel({ isCustomer, onExpand, onMinimize }) {
 
         {sending ? (
           <article className="customer-care-mini-message customer-care-mini-message--system customer-care-mini-message--typing">
-            <p>Đang gửi nội dung tới bộ phận hỗ trợ...</p>
+            <LocalLoading minHeight="56px" size="sm" />
           </article>
         ) : null}
       </div>
@@ -598,9 +617,7 @@ function CustomerCareMiniPanel({ isCustomer, onExpand, onMinimize }) {
               disabled={sending || loading || isUploadingAsset || !draft.trim()}
             >
               <MiniChatIcon name="send" />
-              <span>
-                {isUploadingAsset ? 'Đang tải lên' : sending ? 'Đang gửi' : 'Gửi'}
-              </span>
+              <span>Gửi</span>
             </button>
           </div>
         </div>
@@ -614,6 +631,11 @@ function CustomerCareMiniPanel({ isCustomer, onExpand, onMinimize }) {
 
 function CustomerCareMiniWidget({ isCustomer = false }) {
   const [isOpen, setIsOpen] = useState(false)
+  const customerSurvey = useCustomerSurveyPopup()
+  const shouldShowSurveyButton =
+    customerSurvey.isCustomer &&
+    !customerSurvey.isStatusLoading &&
+    !customerSurvey.completed
 
   if (!isCustomer) {
     return null
@@ -629,6 +651,17 @@ function CustomerCareMiniWidget({ isCustomer = false }) {
         />
       ) : null}
 
+      {shouldShowSurveyButton ? (
+        <button
+          className="customer-care-mini-fab customer-care-mini-fab--survey"
+          type="button"
+          aria-label="Mở khảo sát nhận voucher"
+          onClick={customerSurvey.openSurvey}
+        >
+          <MiniChatIcon name="lightning" />
+        </button>
+      ) : null}
+
       <button
         className="customer-care-mini-fab"
         type="button"
@@ -637,7 +670,7 @@ function CustomerCareMiniWidget({ isCustomer = false }) {
         aria-label={isOpen ? 'Ẩn hộp chat hỗ trợ' : 'Mở hộp chat hỗ trợ'}
         onClick={() => setIsOpen((currentState) => !currentState)}
       >
-        <MiniChatIcon name="phone" />
+        <MiniChatIcon name="headset" />
       </button>
     </div>
   )

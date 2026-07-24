@@ -1,6 +1,10 @@
 const express = require('express');
 const { profileRateLimit } = require('../config/auth');
 const {
+  getMyCustomerSurveyStatus,
+  submitMyCustomerSurvey,
+} = require('../controllers/customerSurveyController');
+const {
   getMe,
   getMyLogs,
   getMyVouchers,
@@ -56,6 +60,22 @@ router.post(
   }),
   requirePermissions(['profile.read_self']),
   asyncHandler(saveMyVoucher),
+);
+router.get(
+  '/me/customer-survey',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  requirePermissions(['profile.read_self']),
+  asyncHandler(getMyCustomerSurveyStatus),
+);
+router.post(
+  '/me/customer-survey',
+  authRequired({
+    allowedRoles: ['customer'],
+  }),
+  requirePermissions(['profile.read_self']),
+  asyncHandler(submitMyCustomerSurvey),
 );
 router.patch(
   '/me',

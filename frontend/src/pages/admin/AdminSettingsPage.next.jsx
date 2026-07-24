@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import {
   getAdminBusinessSettings,
   getAdminDirectPaymentSettings,
@@ -1072,7 +1073,7 @@ function AdminSettingsPage() {
           ) : null}
         </aside>
 
-        {loading ? <p className="admin-settings-page__feedback" role="status">?ang t?i c?u h?nh t? API...</p> : null}
+        {loading ? <LocalLoading className="admin-settings-page__feedback" minHeight="160px" /> : null}
       </form>
     </main>
   )

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import useClickableSelectShell from '../../hooks/useClickableSelectShell.js'
 import useAdminAccessControl from '../../hooks/useAdminAccessControl.js'
 
@@ -199,10 +200,7 @@ function AdminAccessControlPage() {
                 {loading ? (
                   <tr>
                     <td colSpan="4">
-                      <div className="admin-access-control-page__empty" role="status">
-                        <strong>Đang tải dữ liệu RBAC...</strong>
-                        <span>Hệ thống đang lấy roles và permissions từ backend.</span>
-                      </div>
+                      <LocalLoading className="admin-access-control-page__empty" minHeight="180px" />
                     </td>
                   </tr>
                 ) : null}

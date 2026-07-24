@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import { PublicPagination } from '../../components/public/ui/index.js'
 import ServiceCard from '../../components/service/ServiceCard.jsx'
 import useTourServiceList from '../../hooks/useTourServiceList.js'
@@ -156,10 +157,7 @@ function ServiceListPage() {
                 <p>{errorMessage}</p>
               </div>
             ) : isLoading ? (
-              <div className="service-results__empty" role="status">
-                <h2>Đang tải tour</h2>
-                <p>Danh sách tour đang được đọc từ mock adapter theo API-ready pattern.</p>
-              </div>
+              <LocalLoading className="service-results__empty" minHeight="260px" />
             ) : services.length ? (
               <>
                 <div className="service-results__grid">

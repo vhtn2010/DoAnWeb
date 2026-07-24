@@ -36,6 +36,10 @@ const migrationMap = [
     source: '006_service_comments.up.sql',
     target: '20260723213000_service_comments.sql',
   },
+  {
+    source: '007_customer_surveys.up.sql',
+    target: '20260724160000_customer_surveys.sql',
+  },
 ];
 
 fs.mkdirSync(supabaseMigrationsDir, { recursive: true });

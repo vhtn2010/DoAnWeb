@@ -10,10 +10,12 @@ import {
 } from '../adapters/api/profileDashboardApiAdapter.js'
 import {
   getCurrentProfileLogs as getCurrentProfileLogsWithApiAdapter,
+  getCurrentCustomerSurveyStatus as getCurrentCustomerSurveyStatusWithApiAdapter,
   getCurrentProfile as getCurrentProfileWithApiAdapter,
   getCurrentUserVouchers as getCurrentUserVouchersWithApiAdapter,
   requestAccountDeactivation as requestAccountDeactivationWithApiAdapter,
   saveCurrentUserVoucher as saveCurrentUserVoucherWithApiAdapter,
+  submitCurrentCustomerSurvey as submitCurrentCustomerSurveyWithApiAdapter,
   updateCurrentAvatar as updateCurrentAvatarWithApiAdapter,
   updateCurrentPassword as updateCurrentPasswordWithApiAdapter,
   updateCurrentProfile as updateCurrentProfileWithApiAdapter,
@@ -29,12 +31,14 @@ const profileAdapter = {
   getBookingHistory: getBookingHistoryWithMockAdapter,
   getCustomerProfile: getCustomerProfileWithMockAdapter,
   getCurrentProfileLogs: getCurrentProfileLogsWithApiAdapter,
+  getCurrentCustomerSurveyStatus: getCurrentCustomerSurveyStatusWithApiAdapter,
   getCurrentProfile: getCurrentProfileWithApiAdapter,
   getCurrentUserVouchers: getCurrentUserVouchersWithApiAdapter,
   getFavoriteDestinations: getFavoriteDestinationsWithMockAdapter,
   getUpcomingTrip: getUpcomingTripWithMockAdapter,
   requestAccountDeactivation: requestAccountDeactivationWithApiAdapter,
   saveCurrentUserVoucher: saveCurrentUserVoucherWithApiAdapter,
+  submitCurrentCustomerSurvey: submitCurrentCustomerSurveyWithApiAdapter,
   updateCurrentAvatar: updateCurrentAvatarWithApiAdapter,
   updateCurrentPassword: updateCurrentPasswordWithApiAdapter,
   updateCurrentProfile: updateCurrentProfileWithApiAdapter,
@@ -102,6 +106,14 @@ export function getCurrentProfileLogs(params = {}) {
 
 export function getCurrentUserVouchers() {
   return profileAdapter.getCurrentUserVouchers()
+}
+
+export function getCurrentCustomerSurveyStatus() {
+  return profileAdapter.getCurrentCustomerSurveyStatus()
+}
+
+export function submitCurrentCustomerSurvey(payload = {}) {
+  return profileAdapter.submitCurrentCustomerSurvey(payload)
 }
 
 export function saveCurrentUserVoucher(code) {

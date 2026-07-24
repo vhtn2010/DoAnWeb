@@ -1,5 +1,5 @@
 export const DEFAULT_TOUR_SORT = 'popular'
-export const DEFAULT_TOUR_LIMIT = 24
+export const DEFAULT_TOUR_LIMIT = 6
 
 export const TOUR_PRICE_FILTER_OPTIONS = Object.freeze([
   { value: 'under-2m', label: 'Dưới 2 triệu' },

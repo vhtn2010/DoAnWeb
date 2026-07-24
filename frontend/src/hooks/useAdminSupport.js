@@ -53,9 +53,7 @@ export default function useAdminSupport() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState('')
-  const [feedback, setFeedback] = useState(() =>
-    createFeedback('info', 'Đang đồng bộ yêu cầu hỗ trợ từ API backend.'),
-  )
+  const [feedback, setFeedback] = useState(() => createFeedback('info', ''))
   const [reloadKey, setReloadKey] = useState(0)
   const [detailReloadKey, setDetailReloadKey] = useState(0)
   const selectedIdRef = useRef('')

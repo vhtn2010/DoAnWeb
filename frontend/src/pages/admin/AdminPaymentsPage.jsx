@@ -326,7 +326,7 @@ function AdminPaymentsPage() {
             <AdminSectionHeader
               className="admin-payments-page__detail-header"
               title={`Chi tiết giao dịch #${selectedPayment.code}`}
-              subtitle={detailLoading ? 'Đang tải chi tiết...' : selectedPayment.method}
+              subtitle={selectedPayment.method}
             >
               <p className="admin-payments-page__detail-eyebrow" id="admin-payments-detail-title">
                 Mã đơn {selectedPayment.bookingCode || 'Chưa có'}

@@ -71,9 +71,7 @@ export default function ServiceResultsSection({
       ) : isLoading ? (
         <PublicLoadingBlock
           className="service-results__empty"
-          description="Danh sách tour đang được đọc từ mock adapter theo API-ready pattern."
           rows={4}
-          title="Đang tải tour"
         />
       ) : services.length ? (
         <>

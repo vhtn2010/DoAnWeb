@@ -330,47 +330,7 @@
 }
 
 .public-ui-loading-block {
-  display: grid;
-  gap: 20px;
   padding: 24px;
-}
-
-.public-ui-loading-block__copy {
-  display: grid;
-  gap: 8px;
-}
-
-.public-ui-loading-block__eyebrow {
-  color: var(--color-brand-primary);
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.public-ui-loading-block__copy h3,
-.public-ui-loading-block__copy p {
-  margin: 0;
-}
-
-.public-ui-loading-block__copy h3 {
-  color: #10243e;
-  font-size: 1.15rem;
-}
-
-.public-ui-loading-block__copy p {
-  color: var(--color-text-soft);
-  line-height: 1.7;
-}
-
-.public-ui-loading-block__rows {
-  display: grid;
-  gap: 14px;
-}
-
-.public-ui-loading-block__row {
-  display: grid;
-  gap: 10px;
 }
 
 .public-ui-skeleton {

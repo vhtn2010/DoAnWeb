@@ -5,6 +5,7 @@ import FlightInfoCards from '../../components/flights/FlightInfoCards.jsx'
 import FlightLoginRequiredModal from '../../components/flights/FlightLoginRequiredModal.jsx'
 import FlightPaymentSummary from '../../components/flights/FlightPaymentSummary.jsx'
 import FlightPolicyCard from '../../components/flights/FlightPolicyCard.jsx'
+import { FullPageLoading } from '../../components/loading/Loading.jsx'
 import useFlightDetail from '../../hooks/useFlightDetail.js'
 
 function ShareIcon() {
@@ -70,6 +71,7 @@ function FlightDetailPage() {
     loginPromptVariant,
     loading,
     pendingAction,
+    pricingSummary,
     retry,
     selectFare,
     selectedFare,
@@ -116,17 +118,7 @@ function FlightDetailPage() {
   }
 
   if (loading || !flight) {
-    return (
-      <div className="flight-detail-page">
-        <div className="flight-detail-shell">
-          <section className="flight-detail-state-card" role="status">
-            <p className="flight-detail-state-card__eyebrow">Đang tải</p>
-            <h1>Chi tiết vé máy bay đang được chuẩn bị</h1>
-            <p>Dữ liệu chuyến bay đang được tải từ hệ thống.</p>
-          </section>
-        </div>
-      </div>
-    )
+    return <FullPageLoading />
   }
 
   return (
@@ -171,6 +163,7 @@ function FlightDetailPage() {
             flight={flight}
             formatCurrency={formatCurrency}
             pendingAction={pendingAction}
+            pricingSummary={pricingSummary}
             selectedFare={selectedFare}
             onAddToCart={addToCartAction}
             onBookNow={bookNowAction}

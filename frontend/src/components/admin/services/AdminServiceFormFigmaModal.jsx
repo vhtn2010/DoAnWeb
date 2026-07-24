@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useState } from 'react'
+import { LocalLoading } from '../../loading/Loading.jsx'
 import AdminTourItinerarySection from './AdminTourItinerarySection.jsx'
 import AdminServiceTypeFields from './AdminServiceTypeFields.jsx'
 import { uploadServiceImageAsset } from '../../../adapters/api/uploadApiAdapter.js'
@@ -753,9 +754,7 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                     onChange={(event) => handleImageFileChange(event, 'cover')}
                   />
                   {uploadingSlot === 'cover' ? (
-                    <span className="admin-service-modal__uploading" role="status">
-                      Đang tải ảnh...
-                    </span>
+                    <LocalLoading className="admin-service-modal__uploading" minHeight="48px" size="sm" />
                   ) : null}
                 </label>
 
@@ -795,9 +794,11 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                         onChange={(event) => handleImageFileChange(event, thumb.slot)}
                       />
                       {uploadingSlot === thumb.slot ? (
-                        <span className="admin-service-modal__uploading admin-service-modal__uploading--thumb" role="status">
-                          Đang tải...
-                        </span>
+                        <LocalLoading
+                          className="admin-service-modal__uploading admin-service-modal__uploading--thumb"
+                          minHeight="40px"
+                          size="sm"
+                        />
                       ) : null}
                       </label>
                     )

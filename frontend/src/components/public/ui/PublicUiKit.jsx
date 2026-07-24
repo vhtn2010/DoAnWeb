@@ -1,4 +1,5 @@
 import './publicUiKit.css'
+import { LocalLoading } from '../../loading/Loading.jsx'
 
 function cx(...classNames) {
   return classNames.filter(Boolean).join(' ')
@@ -174,27 +175,9 @@ export function PublicSkeleton({ className = '', width = '100%' }) {
 
 export function PublicLoadingBlock({
   className = '',
-  description = '',
   rows = 3,
-  title = 'Đang tải dữ liệu',
 }) {
-  return (
-    <div className={cx('public-ui-loading-block', className)} role="status">
-      <div className="public-ui-loading-block__copy">
-        <span className="public-ui-loading-block__eyebrow">Đang đồng bộ</span>
-        <h3>{title}</h3>
-        {description ? <p>{description}</p> : null}
-      </div>
-      <div className="public-ui-loading-block__rows" aria-hidden="true">
-        {Array.from({ length: rows }, (_, index) => (
-          <div className="public-ui-loading-block__row" key={index}>
-            <PublicSkeleton width={index === rows - 1 ? '62%' : '100%'} />
-            <PublicSkeleton width={index % 2 === 0 ? '36%' : '54%'} />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+  return <LocalLoading className={cx('public-ui-loading-block', className)} minHeight={`${Math.max(rows, 2) * 58}px`} />
 }
 
 const PUBLIC_PAGINATION_VISIBLE_PAGE_COUNT = 4

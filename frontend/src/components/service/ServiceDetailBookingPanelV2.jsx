@@ -21,6 +21,7 @@ export default function ServiceDetailBookingPanelV2({
   childTotal,
   departureDate,
   pendingAction,
+  pricingSummary,
   onAdultCountChange,
   onAddToCart,
   onBookNow,
@@ -113,14 +114,32 @@ export default function ServiceDetailBookingPanelV2({
             </div>
           ) : null}
 
-          <div className="service-detail-booking__summary-row">
-            <span>Phí dịch vụ</span>
-            <strong className="service-detail-booking__summary-note">Chưa bao gồm</strong>
-          </div>
+          {pricingSummary?.vat_amount_value > 0 ? (
+            <div className="service-detail-booking__summary-row">
+              <span>Thuế VAT (8%)</span>
+              <strong>{pricingSummary.vat_amount}</strong>
+            </div>
+          ) : null}
+
+          {pricingSummary?.service_fee_amount_value > 0 ? (
+            <div className="service-detail-booking__summary-row">
+              <span>Phí dịch vụ</span>
+              <strong>{pricingSummary.service_fee_amount}</strong>
+            </div>
+          ) : null}
+
+          {pricingSummary?.surcharge_amount_value > 0 ? (
+            <div className="service-detail-booking__summary-row">
+              <span>Phụ thu</span>
+              <strong>{pricingSummary.surcharge_amount}</strong>
+            </div>
+          ) : null}
 
           <div className="service-detail-booking__summary-row service-detail-booking__summary-row--total">
             <span>Tổng cộng</span>
-            <strong>{formatCurrency(totalPrice)}</strong>
+            <strong>
+              {pricingSummary?.has_pricing ? pricingSummary.total_amount : formatCurrency(totalPrice)}
+            </strong>
           </div>
         </div>
 

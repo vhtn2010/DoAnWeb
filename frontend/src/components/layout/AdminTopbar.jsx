@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AdminButton, AdminStatusBadge } from '../admin/ui/index.js'
+import { LocalLoading } from '../loading/Loading.jsx'
 import { listAdminNotifications, updateAdminNotificationStatus } from '../../repositories/adminUtilityRepository.js'
 import {
   ADMIN_ROLE_LABELS,
@@ -465,9 +466,7 @@ function AdminTopbar({
               ) : null}
 
               {notificationLoading ? (
-                <p className="admin-topbar__notification-state" role="status">
-                  Đang tải thông báo...
-                </p>
+                <LocalLoading className="admin-topbar__notification-state" minHeight="140px" size="sm" />
               ) : null}
 
               {!notificationLoading && notifications.length === 0 ? (

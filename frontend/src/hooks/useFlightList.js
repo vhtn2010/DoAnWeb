@@ -39,6 +39,8 @@ const EMPTY_DEFAULTS = Object.freeze({
   sort_options: FLIGHT_SORT_OPTIONS,
 })
 
+const FLIGHT_AIRLINE_FILTER_CODES = Object.freeze(['VN', 'VJ'])
+
 function parseArraySearchParam(searchParams, key) {
   const value = searchParams.get(key)
 
@@ -54,6 +56,10 @@ function parseArraySearchParam(searchParams, key) {
 
 function pickSingleFilterValue(value = []) {
   return Array.isArray(value) && value.length ? [value[0]] : []
+}
+
+function pickAirlineFilterValue(value = []) {
+  return pickSingleFilterValue(value).filter((code) => FLIGHT_AIRLINE_FILTER_CODES.includes(code))
 }
 
 function createInitialSearchState(searchParams) {
@@ -75,7 +81,7 @@ function createInitialSearchState(searchParams) {
 
 function createInitialFilterState(searchParams) {
   return {
-    airline_codes: pickSingleFilterValue(parseArraySearchParam(searchParams, 'airlines')),
+    airline_codes: pickAirlineFilterValue(parseArraySearchParam(searchParams, 'airlines')),
     price_ranges: pickSingleFilterValue(parseArraySearchParam(searchParams, 'prices')),
     departure_windows: pickSingleFilterValue(
       parseArraySearchParam(searchParams, 'departure_windows'),
@@ -359,7 +365,7 @@ export default function useFlightList() {
 
   function applyFilters() {
     const nextFilters = {
-      airline_codes: pickSingleFilterValue(draftFilters.airline_codes),
+      airline_codes: pickAirlineFilterValue(draftFilters.airline_codes),
       price_ranges: pickSingleFilterValue(draftFilters.price_ranges),
       departure_windows: pickSingleFilterValue(draftFilters.departure_windows),
       stop_counts: pickSingleFilterValue(draftFilters.stop_counts),

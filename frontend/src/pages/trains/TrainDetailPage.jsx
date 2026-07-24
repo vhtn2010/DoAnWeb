@@ -1,4 +1,5 @@
 import LoginRequiredModal from '../../components/auth/LoginRequiredModal.jsx'
+import { FullPageLoading } from '../../components/loading/Loading.jsx'
 import TrainBookingSummary from '../../components/trains/TrainBookingSummary.jsx'
 import TrainCarTabs from '../../components/trains/TrainCarTabs.jsx'
 import TrainDetailHeaderCard from '../../components/trains/TrainDetailHeaderCard.jsx'
@@ -126,17 +127,7 @@ function TrainDetailPage() {
   }
 
   if (loading || !train) {
-    return (
-      <div className="train-detail-page">
-        <div className="train-detail-shell">
-          <section className="train-detail-state-card" role="status">
-            <p className="train-detail-state-card__eyebrow">Đang tải</p>
-            <h1>Chi tiết vé tàu đang được chuẩn bị</h1>
-            <p>Hệ thống đang tải lịch trình, chỗ ngồi và giá vé phù hợp cho chuyến bạn đang xem.</p>
-          </section>
-        </div>
-      </div>
-    )
+    return <FullPageLoading />
   }
 
   return (

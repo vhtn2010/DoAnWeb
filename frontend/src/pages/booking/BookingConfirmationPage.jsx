@@ -2,6 +2,7 @@ import { Component } from 'react'
 import BookingChoiceCard from '../../components/booking/BookingChoiceCard.jsx'
 import BookingDetailSummary from '../../components/booking/BookingDetailSummary.jsx'
 import BookingStepper from '../../components/booking/BookingStepper.jsx'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import useBookingConfirmation from '../../hooks/useBookingConfirmation.js'
 
 function createEmptySummary() {
@@ -92,11 +93,7 @@ function BookingConfirmationPageContent() {
           ) : null}
         </header>
 
-        {loading ? (
-          <p className="booking-confirmation-page__status" role="status">
-            Đang chuẩn bị thông tin xác nhận đơn hàng...
-          </p>
-        ) : null}
+        {loading ? <LocalLoading className="booking-confirmation-page__status" minHeight="220px" /> : null}
 
         {error ? (
           <div

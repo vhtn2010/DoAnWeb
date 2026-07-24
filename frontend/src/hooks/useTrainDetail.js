@@ -15,6 +15,7 @@ import {
   getFavoriteSourceLabel,
 } from '../services/favoriteStorage.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import { createPricingSummaryViewFromItem } from '../utils/pricingSummaryView.js'
 import useFavorites from './useFavorites.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
@@ -271,7 +272,18 @@ export default function useTrainDetail() {
           0,
         )
       : unitSeatPrice
-    const serviceFee = Math.max(Number(train.payment_summary?.service_fee ?? 0), 0)
+    const pricingSummary = selectedSeats.length
+      ? createPricingSummaryViewFromItem({
+          service_type: train.service_type,
+          quantity: selectedSeats.length,
+          unit_price_snapshot: unitSeatPrice,
+          options: {
+            selected_seat_price: seatPrice,
+            ticket_quantity: selectedSeats.length,
+          },
+        })
+      : createPricingSummaryViewFromItem(null)
+    const serviceFee = pricingSummary.service_fee_amount_value
     const seatNumbers = selectedSeats.map((seat) => seat.number)
     const seatCodes = selectedSeats.map((seat) => seat.code)
 
@@ -288,8 +300,12 @@ export default function useTrainDetail() {
       base_price_label: 'Giá chỗ',
       service_fee_label: train.payment_summary?.fee_label ?? 'Phí dịch vụ',
       service_fee: serviceFee,
+      vat_amount: pricingSummary.vat_amount_value,
+      vat_amount_label: 'Thuế VAT (8%)',
+      surcharge_amount: pricingSummary.surcharge_amount_value,
+      surcharge_amount_label: 'Phụ thu',
       base_price: seatPrice,
-      total_price: seatPrice + serviceFee,
+      total_price: pricingSummary.total_amount_value || seatPrice + serviceFee,
       security_note: train.payment_summary?.security_note ?? 'Thanh toán bảo mật SSL 256-bit',
       cta_primary: train.payment_summary?.cta_primary ?? 'Đặt ngay',
       cta_secondary: train.payment_summary?.cta_secondary ?? 'Thêm vào giỏ hàng',
@@ -514,7 +530,7 @@ export default function useTrainDetail() {
         return
       }
 
-      navigate(preserveAuthQuery('/cart'))
+      navigate(preserveAuthQuery('/checkout'))
     } finally {
       pendingActionRef.current = ''
       setPendingAction('')

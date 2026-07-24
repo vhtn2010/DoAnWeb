@@ -103,15 +103,15 @@ function getDepartureWindowKey(dateValue) {
 }
 
 function getPriceRangeKey(priceValue) {
-  if (priceValue < 2000000) {
-    return 'under-2m'
+  if (priceValue < 500000) {
+    return 'under-500k'
   }
 
-  if (priceValue <= 5000000) {
-    return '2-5m'
+  if (priceValue <= 1000000) {
+    return '500k-1m'
   }
 
-  return 'over-5m'
+  return 'over-1m'
 }
 
 function inferTrainType({ durationMinutes = 0, seatClass = '', trainNumber = '' } = {}) {

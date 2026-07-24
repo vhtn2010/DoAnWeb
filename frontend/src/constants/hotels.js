@@ -1,4 +1,4 @@
-export const DEFAULT_HOTEL_PAGE_SIZE = 4
+export const DEFAULT_HOTEL_PAGE_SIZE = 6
 export const DEFAULT_HOTEL_SORT = 'recommended'
 
 export const DEFAULT_HOTEL_SEARCH_VALUES = Object.freeze({

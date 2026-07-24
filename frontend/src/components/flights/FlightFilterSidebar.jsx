@@ -37,11 +37,15 @@ function FilterCheckboxGroup({ options, selectedValues, title, onToggle }) {
   )
 }
 
-function FlightFilterSidebar({ airlineOptions, draftFilters, onApply, onToggle }) {
-  const airlineFilterOptions = airlineOptions.map((airline) => ({
-    value: airline.code,
-    label: airline.name,
-  }))
+const FLIGHT_AIRLINE_FILTER_OPTIONS = Object.freeze([
+  { value: 'VN', label: 'Vietnam Airlines' },
+  { value: 'VJ', label: 'Vietject Air' },
+])
+
+function FlightFilterSidebar({ draftFilters, onApply, onToggle }) {
+  const selectedAirlineCodes = draftFilters.airline_codes.filter((code) =>
+    FLIGHT_AIRLINE_FILTER_OPTIONS.some((option) => option.value === code),
+  )
 
   return (
     <aside className="hotel-filter-sidebar hotel-filter-sidebar--sticky">
@@ -53,8 +57,8 @@ function FlightFilterSidebar({ airlineOptions, draftFilters, onApply, onToggle }
       </div>
 
       <FilterCheckboxGroup
-        options={airlineFilterOptions}
-        selectedValues={draftFilters.airline_codes}
+        options={FLIGHT_AIRLINE_FILTER_OPTIONS}
+        selectedValues={selectedAirlineCodes}
         title="Hãng hàng không"
         onToggle={(value) => onToggle('airline_codes', value)}
       />

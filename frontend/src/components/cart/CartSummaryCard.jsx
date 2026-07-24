@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LocalLoading } from '../loading/Loading.jsx'
 import './cartSummaryCard.css'
 
 function CloseIcon() {
@@ -154,9 +155,7 @@ function CartVoucherPickerModal({
         </form>
 
         {isLoading ? (
-          <div className="cart-voucher-modal__state" role="status">
-            Đang tải kho voucher của bạn...
-          </div>
+          <LocalLoading className="cart-voucher-modal__state" minHeight="140px" />
         ) : null}
 
         {!isLoading && vouchersError ? (

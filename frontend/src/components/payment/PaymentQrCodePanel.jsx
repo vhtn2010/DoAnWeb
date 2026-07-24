@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { LocalLoading } from '../loading/Loading.jsx'
 import { PAYMENT_METHOD_CODES } from '../../constants/payments.js'
 
 const FALLBACK_BANK_TRANSFER_QR = '/assets/payment/bank-transfer-hero.jpg'
@@ -271,9 +272,7 @@ function PaymentQrCodePanel({
           </label>
 
           {uploadingProof ? (
-            <p className="payment-qr-code-panel__hint" role="status">
-              Đang tải chứng từ lên hệ thống...
-            </p>
+            <LocalLoading className="payment-qr-code-panel__hint" minHeight="56px" size="sm" />
           ) : null}
 
           {errors.proof_file ? (

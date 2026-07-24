@@ -1,6 +1,7 @@
 import { ROLES } from '../../constants/roles.js'
 import AdminUserReasonModal from '../../components/admin/users/AdminUserReasonModal.jsx'
 import { AdminPagination } from '../../components/admin/ui/index.js'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import {
   ADMIN_USER_SORT_OPTIONS,
   ADMIN_USER_STATUS_OPTIONS,
@@ -502,10 +503,7 @@ function AdminUsersFigmaPage() {
               {loading ? (
                 <tr>
                   <td colSpan="6">
-                    <div className="admin-users-page__empty" role="status">
-                      <strong>Đang tải dữ liệu người dùng...</strong>
-                      <span>Hệ thống đang đồng bộ với backend.</span>
-                    </div>
+                    <LocalLoading className="admin-users-page__empty" minHeight="220px" />
                   </td>
                 </tr>
               ) : users.length > 0 ? users.map((user) => {

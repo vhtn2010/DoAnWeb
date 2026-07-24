@@ -53,9 +53,7 @@ export default function HotelResultsSection({
       ) : isLoading ? (
         <PublicLoadingBlock
           className="hotel-results__state"
-          description="Danh sách đang được đọc từ mock adapter theo API-ready pattern."
           rows={4}
-          title="Đang tải khách sạn"
         />
       ) : visibleHotels.length ? (
         <>

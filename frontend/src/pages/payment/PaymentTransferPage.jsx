@@ -1,3 +1,4 @@
+import { FullPageLoading } from '../../components/loading/Loading.jsx'
 import PaymentQrCodePanel from '../../components/payment/PaymentQrCodePanel.jsx'
 import usePaymentTransfer from '../../hooks/usePaymentTransfer.js'
 
@@ -38,15 +39,13 @@ function PaymentTransferPage() {
     viewModel,
   } = usePaymentTransfer()
 
+  if (loading) {
+    return <FullPageLoading />
+  }
+
   return (
     <div className="payment-transfer-page">
       <div className="payment-transfer-shell">
-        {loading ? (
-          <p className="payment-confirmation-page__status" role="status">
-            Đang tải thông tin chuyển khoản cho đơn hàng của bạn...
-          </p>
-        ) : null}
-
         {error ? (
           <div
             className="payment-confirmation-page__status payment-confirmation-page__status--error"
@@ -59,7 +58,7 @@ function PaymentTransferPage() {
           </div>
         ) : null}
 
-        {!loading && !error ? (
+        {!error ? (
           <section className="payment-transfer-card">
             <header className="payment-transfer-card__header">
               <span className="payment-transfer-card__icon" aria-hidden="true">

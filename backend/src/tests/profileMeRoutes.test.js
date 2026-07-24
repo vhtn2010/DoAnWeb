@@ -10,11 +10,14 @@ const { apiPrefix } = require('../config');
 const { API_ERROR_CODES } = require('../constants/domainConstraints');
 const { clearRateLimitStore } = require('../middleware/rateLimit');
 const authService = require('../services/authService');
+const customerSurveyService = require('../services/customerSurveyService');
 const profileService = require('../services/profileService');
 const { createAccessToken } = require('../utils/sessionToken');
 const AppError = require('../utils/AppError');
 
 const originalResolveAuthenticatedUser = authService.resolveAuthenticatedUser;
+const originalGetCurrentSurveyStatus = customerSurveyService.getCurrentSurveyStatus;
+const originalSubmitCurrentSurvey = customerSurveyService.submitCurrentSurvey;
 const originalGetCurrentProfile = profileService.getCurrentProfile;
 const originalGetCurrentUserLogs = profileService.getCurrentUserLogs;
 const originalGetCurrentUserVouchers = profileService.getCurrentUserVouchers;
@@ -74,6 +77,8 @@ const request = (server, path, options = {}) =>
 test.beforeEach(() => {
   clearRateLimitStore('profile-change-password');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  customerSurveyService.getCurrentSurveyStatus = originalGetCurrentSurveyStatus;
+  customerSurveyService.submitCurrentSurvey = originalSubmitCurrentSurvey;
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.getCurrentUserLogs = originalGetCurrentUserLogs;
   profileService.getCurrentUserVouchers = originalGetCurrentUserVouchers;
@@ -88,6 +93,8 @@ test.beforeEach(() => {
 test.afterEach(() => {
   clearRateLimitStore('profile-change-password');
   authService.resolveAuthenticatedUser = originalResolveAuthenticatedUser;
+  customerSurveyService.getCurrentSurveyStatus = originalGetCurrentSurveyStatus;
+  customerSurveyService.submitCurrentSurvey = originalSubmitCurrentSurvey;
   profileService.getCurrentProfile = originalGetCurrentProfile;
   profileService.getCurrentUserLogs = originalGetCurrentUserLogs;
   profileService.getCurrentUserVouchers = originalGetCurrentUserVouchers;
@@ -1008,6 +1015,131 @@ test('POST /api/me/vouchers saves a voucher for the authenticated customer', asy
     assert.equal(response.body.success, true);
     assert.equal(response.body.data.code, 'NETVIET500');
     assert.equal(capturedContext.payload.code, 'netviet500');
+    assert.equal(capturedContext.userId, 'user-1');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/me/customer-survey requires access token', async () => {
+  const server = app.listen(0);
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/customer-survey`, {
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.body.success, false);
+    assert.equal(response.body.error.code, API_ERROR_CODES.AUTH_TOKEN_EXPIRED);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/me/customer-survey returns current survey status', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+  let capturedContext;
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+  customerSurveyService.getCurrentSurveyStatus = async (context) => {
+    capturedContext = context;
+
+    return {
+      completed: false,
+      promotion: {
+        code: 'KM-4E6BF0BA',
+        id: 'promotion-1',
+        name: 'Chào Mừng Thành Viên Mới',
+      },
+      voucher: null,
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/customer-survey`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.completed, false);
+    assert.equal(response.body.data.promotion.code, 'KM-4E6BF0BA');
+    assert.equal(capturedContext.userId, 'user-1');
+  } finally {
+    server.close();
+  }
+});
+
+test('POST /api/me/customer-survey submits survey and returns assigned voucher', async () => {
+  const server = app.listen(0);
+  const accessToken = createAccessToken({
+    roleCode: 'customer',
+    userId: 'user-1',
+  });
+  let capturedContext;
+  const payload = {
+    budget_range: '5m_10m',
+    discovery_source: 'search_engine',
+    favorite_destinations: ['beach', 'heritage_city'],
+    loyalty_intent: 'likely',
+    nationality: 'Việt Nam',
+    preferred_contact_channel: 'zalo',
+    residence_location: 'TP. Hồ Chí Minh',
+    travel_forms: ['family'],
+    travel_styles: ['relaxing', 'food'],
+  };
+
+  authService.resolveAuthenticatedUser = async () =>
+    createAuthContext({
+      roleCode: 'customer',
+      userId: 'user-1',
+    });
+  customerSurveyService.submitCurrentSurvey = async (context) => {
+    capturedContext = context;
+
+    return {
+      completed: true,
+      completed_at: '2026-07-24T10:00:00.000Z',
+      promotion: {
+        code: 'KM-4E6BF0BA',
+        id: 'promotion-1',
+        name: 'Chào Mừng Thành Viên Mới',
+      },
+      voucher: {
+        code: 'NVT-WELCOME-ABC123',
+        id: 'voucher-1',
+        status: 'active',
+      },
+    };
+  };
+
+  try {
+    const response = await request(server, `${apiPrefix}/me/customer-survey`, {
+      body: JSON.stringify(payload),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.success, true);
+    assert.equal(response.body.data.completed, true);
+    assert.equal(response.body.data.voucher.code, 'NVT-WELCOME-ABC123');
+    assert.deepEqual(capturedContext.payload.travel_styles, ['relaxing', 'food']);
     assert.equal(capturedContext.userId, 'user-1');
   } finally {
     server.close();

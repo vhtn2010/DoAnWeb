@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { FullPageLoading } from '../../components/loading/Loading.jsx'
 import PaymentSuccessCard from '../../components/payment/PaymentSuccessCard.jsx'
 import usePaymentSuccess from '../../hooks/usePaymentSuccess.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
@@ -90,15 +91,13 @@ function PaymentSuccessPageContent() {
     viewModel,
   } = usePaymentSuccess()
 
+  if (loading) {
+    return <FullPageLoading />
+  }
+
   return (
     <div className="payment-success-page">
       <div className="payment-success-shell">
-        {loading ? (
-          <p className="payment-success-page__status" role="status">
-            Đang tải trạng thái thanh toán mới nhất...
-          </p>
-        ) : null}
-
         {error ? (
           <div
             className="payment-success-page__status payment-success-page__status--error"
@@ -119,7 +118,7 @@ function PaymentSuccessPageContent() {
           </div>
         ) : null}
 
-        {!loading && !error && paymentSuccess ? (
+        {!error && paymentSuccess ? (
           <PaymentSuccessCard
             description={viewModel.description}
             feedback={feedback}
@@ -130,7 +129,7 @@ function PaymentSuccessPageContent() {
           />
         ) : null}
 
-        {!loading && !error && !paymentSuccess ? (
+        {!error && !paymentSuccess ? (
           <PaymentSuccessEmptyState
             onContinueExplore={actions.continueExploreTours}
             onGoToOrders={actions.goToOrderHistory}

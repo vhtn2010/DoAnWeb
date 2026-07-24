@@ -28,6 +28,7 @@ function ServiceDetailPageV2() {
     isShared,
     leadLocation,
     pendingAction,
+    pricingSummary,
     recommendedServices,
     selectedImage,
     service,
@@ -96,6 +97,7 @@ function ServiceDetailPageV2() {
             childTotal={childTotal}
             departureDate={departureDate}
             pendingAction={pendingAction}
+            pricingSummary={pricingSummary}
             service={service}
             totalPrice={totalPrice}
             onAdultCountChange={setAdultCount}

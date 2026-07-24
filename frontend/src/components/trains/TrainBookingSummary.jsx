@@ -39,6 +39,18 @@ function TrainBookingSummary({
             <span>{bookingSummary.service_fee_label}</span>
             <strong>{formatCurrency(bookingSummary.service_fee)}</strong>
           </div>
+          {bookingSummary.vat_amount > 0 ? (
+            <div>
+              <span>{bookingSummary.vat_amount_label}</span>
+              <strong>{formatCurrency(bookingSummary.vat_amount)}</strong>
+            </div>
+          ) : null}
+          {bookingSummary.surcharge_amount > 0 ? (
+            <div>
+              <span>{bookingSummary.surcharge_amount_label}</span>
+              <strong>{formatCurrency(bookingSummary.surcharge_amount)}</strong>
+            </div>
+          ) : null}
         </div>
 
         <div className="train-booking-summary__total">

@@ -158,6 +158,8 @@ Ngày cập nhật: 28/06/2026
 | GET | /me/logs?page&limit | CUSTOMER \| STAFF \| ADMIN \| SYSTEM_ADMIN | Query pagination | Xem lịch sử hoạt động của mình |
 | GET | /me/vouchers | CUSTOMER | None | Xem voucher đã lưu hoặc đã sử dụng |
 | POST | /me/vouchers | CUSTOMER | code | Lưu voucher hợp lệ vào tài khoản; thao tác lặp lại là idempotent |
+| GET | /me/customer-survey | CUSTOMER | None | Kiểm tra khách hàng đã hoàn thành khảo sát nhận voucher chào mừng chưa |
+| POST | /me/customer-survey | CUSTOMER | residence_location, nationality, discovery_source, travel_styles[], favorite_destinations[], budget_range, travel_forms[], preferred_contact_channel, loyalty_intent | Lưu khảo sát khách hàng và cấp một voucher riêng từ chương trình KM-4E6BF0BA trong cùng transaction |
 | POST | /me/account-deactivation-request | CUSTOMER | reason | Khách yêu cầu vô hiệu hóa tài khoản |
 
 ## 3. Admin User & RBAC API

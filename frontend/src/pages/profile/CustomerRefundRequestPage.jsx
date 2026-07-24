@@ -7,6 +7,7 @@ import {
   listCustomerBookingRefunds,
 } from '../../repositories/paymentRepository.js'
 import { uploadRefundEvidenceAsset } from '../../adapters/api/uploadApiAdapter.js'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import { buildPublicAuthPath } from '../../utils/publicNavigation.js'
 import { formatCurrencyVND } from '../../utils/formatCurrency.js'
@@ -433,11 +434,7 @@ function CustomerRefundRequestPage() {
           <strong>{formatCurrencyVND(requestedRefundAmount)}</strong>
         </section>
 
-        {loading ? (
-          <section className="customer-refund-card" role="status">
-            <p>Đang tải dữ liệu đơn hàng và chính sách hoàn tiền...</p>
-          </section>
-        ) : null}
+        {loading ? <LocalLoading className="customer-refund-card" minHeight="180px" /> : null}
 
         {!loading ? (
           <form className="customer-refund-grid" onSubmit={submitRefundRequest}>

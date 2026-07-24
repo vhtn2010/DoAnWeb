@@ -10,6 +10,7 @@ function FlightPaymentSummary({
   onAddToCart,
   onBookNow,
   pendingAction = '',
+  pricingSummary,
   selectedFare,
 }) {
   const ticketPrice = Number(selectedFare?.price ?? flight.sale_price ?? 0)
@@ -44,13 +45,29 @@ function FlightPaymentSummary({
             <span>{flight.payment_summary.add_on_label}</span>
             <strong>{formatCurrency(addOns)}</strong>
           </div>
+          {pricingSummary?.vat_amount_value > 0 ? (
+            <div>
+              <span>Thuế VAT (8%)</span>
+              <strong>{pricingSummary.vat_amount}</strong>
+            </div>
+          ) : null}
+          {pricingSummary?.service_fee_amount_value > 0 ? (
+            <div>
+              <span>Phí dịch vụ</span>
+              <strong>{pricingSummary.service_fee_amount}</strong>
+            </div>
+          ) : null}
         </div>
 
         <div className="flight-payment-summary__total">
           <span>Tổng cộng</span>
           <div>
-            <strong>{formatPaymentAmount(totalPrice)}</strong>
-            <small>{selectedFare?.currency ?? flight.currency}</small>
+            <strong>
+              {pricingSummary?.has_pricing ? pricingSummary.total_amount : formatPaymentAmount(totalPrice)}
+            </strong>
+            {pricingSummary?.has_pricing ? null : (
+              <small>{selectedFare?.currency ?? flight.currency}</small>
+            )}
           </div>
         </div>
 

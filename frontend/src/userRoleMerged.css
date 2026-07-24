@@ -5143,12 +5143,13 @@
 }
 
 .flight-list-page__hero-copy {
-  max-width: 520px;
+  max-width: none;
   margin: 0;
   color: rgba(255, 255, 255, 0.92);
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.75;
+  white-space: nowrap;
 }
 
 .flight-list-page__search-shell {
@@ -6390,6 +6391,10 @@
   }
 
   .flight-list-page__hero-title {
+    white-space: normal;
+  }
+
+  .flight-list-page__hero-copy {
     white-space: normal;
   }
 

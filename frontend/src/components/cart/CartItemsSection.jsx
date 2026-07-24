@@ -83,9 +83,7 @@ export default function CartItemsSection({
         {loading ? (
           <PublicLoadingBlock
             className="cart-list-card__state"
-            description="Giỏ hàng đang được đồng bộ từ dữ liệu hiện tại của bạn."
             rows={3}
-            title="Đang tải giỏ hàng"
           />
         ) : error && cartItems.length === 0 ? (
           <PublicErrorState

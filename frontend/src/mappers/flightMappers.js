@@ -224,19 +224,16 @@ function resolveTerminalLabel(code = '', fallbackLabel = '') {
 }
 
 function createFallbackFareOptions(flight) {
-  const standardPrice = Math.max(Number(flight.sale_price ?? 0), 1100000)
-  const liteTotalPrice = Math.max(standardPrice - 250000, 850000)
-  const businessTotalPrice = Math.max(
-    Number(flight.base_price ?? standardPrice + 850000) + 900000,
-    3000000,
-  )
-  const taxes = 400000
+  const standardPrice = Math.max(Number(flight.sale_price ?? flight.base_price ?? 0), 0)
+  const liteTotalPrice = Math.round(standardPrice * 0.8)
+  const businessTotalPrice = Math.round(standardPrice * 2)
+  const taxes = 0
 
   return [
     {
       id: `fare-${flight.id}-economy-lite`,
       title: 'PHỔ THÔNG TIẾT KIỆM',
-      price: Math.max(liteTotalPrice - taxes, 450000),
+      price: liteTotalPrice,
       currency: flight.currency ?? 'VND',
       badge: '',
       is_featured: false,
@@ -260,7 +257,7 @@ function createFallbackFareOptions(flight) {
     {
       id: `fare-${flight.id}-economy-standard`,
       title: 'PHỔ THÔNG TIÊU CHUẨN',
-      price: Math.max(standardPrice - taxes, 700000),
+      price: standardPrice,
       currency: flight.currency ?? 'VND',
       badge: 'PHỔ BIẾN NHẤT',
       is_featured: true,
@@ -285,7 +282,7 @@ function createFallbackFareOptions(flight) {
     {
       id: `fare-${flight.id}-business`,
       title: 'THƯƠNG GIA',
-      price: Math.max(businessTotalPrice - taxes, standardPrice + 1400000),
+      price: businessTotalPrice,
       currency: flight.currency ?? 'VND',
       badge: '',
       is_featured: false,

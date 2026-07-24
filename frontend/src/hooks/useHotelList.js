@@ -326,7 +326,7 @@ export default function useHotelList() {
   const breadcrumbHomePath = buildPublicAuthPath('/', isCustomer)
   const resultSummary = useMemo(() => {
     if (isLoading) {
-      return 'Đang tải danh sách khách sạn...'
+      return ''
     }
 
     if (!responseState.meta.total) {

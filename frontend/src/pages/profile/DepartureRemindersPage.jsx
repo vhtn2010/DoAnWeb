@@ -148,9 +148,7 @@ function DepartureRemindersPage() {
 
       {loading ? (
         <PublicLoadingBlock
-          description="Đang đồng bộ đơn đặt chỗ và thông báo gần nhất để tạo các mốc nhắc cho hành trình của bạn."
           rows={3}
-          title="Đang tải nhắc lịch khởi hành"
         />
       ) : null}
 

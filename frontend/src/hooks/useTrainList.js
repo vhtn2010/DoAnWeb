@@ -78,7 +78,7 @@ function createInitialSearchState(searchParams) {
 
 function createInitialFilterState(searchParams) {
   return {
-    train_types: pickSingleFilterValue(parseArraySearchParam(searchParams, 'types')),
+    train_types: [],
     price_ranges: pickSingleFilterValue(parseArraySearchParam(searchParams, 'prices')),
     departure_windows: pickSingleFilterValue(
       parseArraySearchParam(searchParams, 'departure_windows'),

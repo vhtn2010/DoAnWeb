@@ -4,6 +4,7 @@ import {
   uploadSupportReplyFileAsset,
   uploadSupportReplyImageAsset,
 } from '../../adapters/api/uploadApiAdapter.js'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import useCustomerCare from '../../hooks/useCustomerCare.js'
 import usePublicSession from '../../hooks/usePublicSession.js'
 import {
@@ -535,11 +536,7 @@ function CustomerCarePage() {
                 <h2>Hỗ trợ Nét Việt Travel</h2>
                 <span className="customer-care-chat__presence">
                   <span aria-hidden="true" />
-                  {loading
-                    ? 'Đang đồng bộ'
-                    : sending
-                      ? 'Đang gửi nội dung'
-                      : 'Đang trực tuyến'}
+                  Đang trực tuyến
                 </span>
               </div>
             </div>
@@ -592,7 +589,7 @@ function CustomerCarePage() {
 
                 {sending ? (
                   <article className="customer-care-message customer-care-message--system customer-care-message--typing">
-                    <p>Đang gửi nội dung tới bộ phận hỗ trợ...</p>
+                    <LocalLoading minHeight="56px" size="sm" />
                   </article>
                 ) : null}
               </>
@@ -734,7 +731,7 @@ function CustomerCarePage() {
                     disabled={sending || loading || isUploadingAsset || !draft.trim()}
                   >
                     <ChatIcon name="send" />
-                    <span>{isUploadingAsset ? 'Đang tải lên' : sending ? 'Đang gửi...' : 'Gửi'}</span>
+                    <span>Gửi</span>
                   </button>
                 </div>
               </div>

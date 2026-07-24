@@ -15,6 +15,7 @@ import {
   getFavoriteSourceLabel,
 } from '../services/favoriteStorage.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
+import { createPricingSummaryViewFromItem } from '../utils/pricingSummaryView.js'
 import useFavorites from './useFavorites.js'
 import usePublicSession from './usePublicSession.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
@@ -110,6 +111,9 @@ export default function useFlightDetail() {
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
   const [loginPromptVariant, setLoginPromptVariant] = useState('cart')
   const [pendingAction, setPendingAction] = useState('')
+  const [pricingSummary, setPricingSummary] = useState(() =>
+    createPricingSummaryViewFromItem(null),
+  )
   const [reloadSeed, setReloadSeed] = useState(0)
   const pendingActionRef = useRef('')
 
@@ -201,6 +205,48 @@ export default function useFlightDetail() {
       null
     )
   }, [flight, selectedFareId])
+
+  useEffect(() => {
+    let isActive = true
+
+    async function updatePricingSummary() {
+      if (!flight || !selectedFare) {
+        setPricingSummary(createPricingSummaryViewFromItem(null))
+        return
+      }
+
+      const payloadResponse = await buildFlightSelectionPayload(
+        flight,
+        selectedFare,
+        createDefaultSearchState(flight),
+      )
+
+      if (!isActive) {
+        return
+      }
+
+      if (!payloadResponse.success || !payloadResponse.data) {
+        setPricingSummary(createPricingSummaryViewFromItem(null))
+        return
+      }
+
+      setPricingSummary(
+        createPricingSummaryViewFromItem(
+          buildFlightCartItem({
+            flight,
+            payload: payloadResponse.data,
+            selectedFare,
+          }),
+        ),
+      )
+    }
+
+    updatePricingSummary()
+
+    return () => {
+      isActive = false
+    }
+  }, [flight, selectedFare])
 
   const favoriteItem = useMemo(() => {
     if (!flight) {
@@ -362,7 +408,7 @@ export default function useFlightDetail() {
         authState,
         previewItem: result.cartItem,
       })
-      navigate(preserveAuthQuery('/cart'))
+      navigate(preserveAuthQuery('/checkout'))
     } catch (actionError) {
       setFeedback(
         createFeedbackState(
@@ -429,6 +475,7 @@ export default function useFlightDetail() {
     isFavorite,
     isLoginPromptOpen,
     pendingAction,
+    pricingSummary,
     loading,
     loginPromptVariant,
     preserveAuthQuery,

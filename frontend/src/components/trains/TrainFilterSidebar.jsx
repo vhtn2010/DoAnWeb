@@ -1,7 +1,6 @@
 import {
   TRAIN_DEPARTURE_TIME_FILTER_OPTIONS,
   TRAIN_PRICE_FILTER_OPTIONS,
-  TRAIN_TYPE_FILTER_OPTIONS,
 } from '../../constants/trains.js'
 
 function FilterIcon() {
@@ -46,13 +45,6 @@ function TrainFilterSidebar({ draftFilters, onApply, onToggle }) {
         </span>
         <h2 className="hotel-filter-sidebar__title">Bộ lọc nâng cao</h2>
       </div>
-
-      <FilterCheckboxGroup
-        options={TRAIN_TYPE_FILTER_OPTIONS}
-        selectedValues={draftFilters.train_types}
-        title="Loại tàu"
-        onToggle={(value) => onToggle('train_types', value)}
-      />
 
       <FilterCheckboxGroup
         options={TRAIN_DEPARTURE_TIME_FILTER_OPTIONS}

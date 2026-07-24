@@ -584,7 +584,7 @@ export default function ProfileAccountCenter() {
             title="Hoạt động gần đây"
           />
 
-          {logsLoading ? <PublicLoadingBlock rows={4} title="Đang tải lịch sử hoạt động" /> : null}
+          {logsLoading ? <PublicLoadingBlock rows={4} /> : null}
 
           {!logsLoading && logsError ? (
             <PublicNotice tone="info">{logsError}</PublicNotice>

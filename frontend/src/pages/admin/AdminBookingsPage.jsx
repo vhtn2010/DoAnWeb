@@ -9,6 +9,7 @@ import {
   AdminPagination,
   AdminTextarea,
 } from '../../components/admin/ui/index.js'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import {
   ADMIN_BOOKING_STATUSES,
   ADMIN_BOOKING_STATUS_OPTIONS,
@@ -986,9 +987,7 @@ function AdminBookingsPage() {
             </header>
 
             {detailLoading ? (
-              <div className="admin-booking-detail-modal__state" role="status">
-                Đang tải chi tiết đơn hàng...
-              </div>
+              <LocalLoading className="admin-booking-detail-modal__state" minHeight="180px" />
             ) : null}
 
             {detailError ? (

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useCustomerSurveyPopup } from '../../components/customerSurvey/customerSurveyContext.js'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import ProfileGuestGate from '../../components/profile/ProfileGuestGate.jsx'
 import {
   getCurrentUserVouchers,
@@ -325,6 +327,7 @@ function getVoucherCardTone(voucher) {
 
 function MyVouchersPage() {
   const navigate = useNavigate()
+  const customerSurvey = useCustomerSurveyPopup()
   const { isCustomer, isCustomerPreview } = usePublicSession()
   const [vouchers, setVouchers] = useState([])
   const [loading, setLoading] = useState(Boolean(isCustomerPreview))
@@ -412,6 +415,15 @@ function MyVouchersPage() {
   const cartPath = buildPublicAuthPath('/cart', isCustomer)
   const serviceListPath = buildPublicAuthPath('/services', isCustomer)
 
+  function handleDiscoverVoucherClick(event) {
+    if (customerSurvey.completed) {
+      return
+    }
+
+    event.preventDefault()
+    customerSurvey.openSurvey()
+  }
+
   useEffect(() => {
     setCurrentPage(1)
   }, [filteredVouchers.length, selectedFilter])
@@ -491,7 +503,12 @@ function MyVouchersPage() {
               <p>Quản lý và sử dụng các voucher đã lưu trong tài khoản.</p>
             </div>
 
-            <Link className="voucher-wallet-find-button" to={serviceListPath}>
+            <Link
+              className="voucher-wallet-find-button"
+              data-discover="true"
+              to={serviceListPath}
+              onClick={handleDiscoverVoucherClick}
+            >
               <PlusIcon />
               <span>Tìm thêm voucher</span>
             </Link>
@@ -532,11 +549,7 @@ function MyVouchersPage() {
           ) : null}
 
           {loading ? (
-            <section className="voucher-wallet-state" role="status">
-              <VoucherTicketIcon />
-              <strong>Đang tải mã khuyến mãi</strong>
-              <p>Hệ thống đang đồng bộ các voucher đã lưu trong tài khoản của bạn.</p>
-            </section>
+            <LocalLoading className="voucher-wallet-state" minHeight="220px" />
           ) : null}
 
           {!loading && !error && visibleVouchers.length ? (

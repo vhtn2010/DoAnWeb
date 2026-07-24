@@ -104,7 +104,7 @@ export default function BookingSelfServicePanel({
           />
 
           {selfService.extraLoading && !selfService.invoice ? (
-            <PublicLoadingBlock rows={3} title="Đang tải thông tin chứng từ" />
+            <PublicLoadingBlock rows={3} />
           ) : selfService.invoice ? (
             <>
               <div className="booking-self-service-panel__summary-row">
@@ -157,7 +157,7 @@ export default function BookingSelfServicePanel({
           />
 
           {selfService.extraLoading && selfService.statusHistory.length === 0 ? (
-            <PublicLoadingBlock rows={4} title="Đang tải lịch sử trạng thái" />
+            <PublicLoadingBlock rows={4} />
           ) : selfService.statusHistory.length ? (
             <div className="booking-self-service-panel__timeline">
               {selfService.statusHistory.map((historyItem) => (

@@ -15,6 +15,7 @@ export default function ServiceDetailBookingPanel({
   onBookNow,
   onChildCountChange,
   onDepartureDateChange,
+  pricingSummary,
   service,
   totalPrice,
 }) {
@@ -87,14 +88,32 @@ export default function ServiceDetailBookingPanel({
             <strong>{childCount > 0 ? formatCurrency(childTotal) : '0đ'}</strong>
           </div>
 
-          <div className="service-detail-booking__summary-row">
-            <span>Phí dịch vụ</span>
-            <strong>Miễn phí</strong>
-          </div>
+          {pricingSummary?.vat_amount_value > 0 ? (
+            <div className="service-detail-booking__summary-row">
+              <span>Thuế VAT (8%)</span>
+              <strong>{pricingSummary.vat_amount}</strong>
+            </div>
+          ) : null}
+
+          {pricingSummary?.service_fee_amount_value > 0 ? (
+            <div className="service-detail-booking__summary-row">
+              <span>Phí dịch vụ</span>
+              <strong>{pricingSummary.service_fee_amount}</strong>
+            </div>
+          ) : null}
+
+          {pricingSummary?.surcharge_amount_value > 0 ? (
+            <div className="service-detail-booking__summary-row">
+              <span>Phụ thu</span>
+              <strong>{pricingSummary.surcharge_amount}</strong>
+            </div>
+          ) : null}
 
           <div className="service-detail-booking__summary-row service-detail-booking__summary-row--total">
             <span>Tổng cộng</span>
-            <strong>{formatCurrency(totalPrice)}</strong>
+            <strong>
+              {pricingSummary?.has_pricing ? pricingSummary.total_amount : formatCurrency(totalPrice)}
+            </strong>
           </div>
         </div>
 

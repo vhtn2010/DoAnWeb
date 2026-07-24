@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { AdminPagination } from '../../components/admin/ui/index.js'
+import { LocalLoading } from '../../components/loading/Loading.jsx'
 import { uploadSupportReplyImageAsset } from '../../adapters/api/uploadApiAdapter.js'
 import { ADMIN_SUPPORT_STATUS_OPTIONS } from '../../constants/adminSupport.js'
 import useAdminSupport from '../../hooks/useAdminSupport.js'
@@ -418,10 +419,7 @@ function AdminSupportFigmaPage() {
 
           <div className="admin-support-page__list">
             {loading ? (
-              <div className="admin-support-empty" role="status">
-                <strong>Đang tải yêu cầu hỗ trợ</strong>
-                <span>Dữ liệu đang được lấy từ API backend.</span>
-              </div>
+              <LocalLoading className="admin-support-empty" minHeight="220px" />
             ) : error && totalLoadedTickets === 0 ? (
               <div className="admin-support-empty" role="alert">
                 <strong>Không thể tải yêu cầu hỗ trợ</strong>
@@ -586,10 +584,7 @@ function AdminSupportFigmaPage() {
               </div>
 
               {detailLoading ? (
-                <div className="admin-support-empty" role="status">
-                  <strong>Đang tải hội thoại</strong>
-                  <span>Đang lấy chi tiết ticket và lịch sử phản hồi.</span>
-                </div>
+                <LocalLoading className="admin-support-empty" minHeight="220px" />
               ) : selectedTicket.replies?.length > 0 ? selectedTicket.replies.map((reply) => (
                 <article
                   className={cx(
@@ -691,9 +686,7 @@ function AdminSupportFigmaPage() {
                     </TextStyleButton>
                   </div>
                   {isUploadingImage ? (
-                    <span className="admin-support-reply__uploading" role="status">
-                      Đang tải ảnh...
-                    </span>
+                    <LocalLoading className="admin-support-reply__uploading" minHeight="44px" size="sm" />
                   ) : null}
                   <label className="admin-support-reply__internal">
                     <input

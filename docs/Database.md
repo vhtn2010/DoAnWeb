@@ -877,6 +877,34 @@ Lưu quan hệ voucher mà khách hàng chủ động thêm vào tài khoản. V
 | voucher_id | UUID | PK, FK → vouchers.id | Voucher đã lưu |
 | saved_at | TIMESTAMPTZ | NOT NULL | Thời điểm lưu mã |
 
+### Bảng customer_surveys
+
+Lưu khảo sát khách hàng phục vụ quản trị, phân tích nhu cầu và cá nhân hóa dịch vụ. Mỗi khách hàng chỉ có một bản ghi hoàn tất; bản ghi liên kết trực tiếp đến chương trình khuyến mãi và voucher đã cấp.
+
+| Thuộc tính | Kiểu dữ liệu | Loại thuộc tính | Mô tả |
+| --- | --- | --- | --- |
+| id | UUID | PK | Khảo sát |
+| user_id | UUID | FK → users.id, UNIQUE, NOT NULL | Khách hàng hoàn thành khảo sát |
+| promotion_id | UUID | FK → promotions.id, NOT NULL | Chương trình khuyến mãi liên quan |
+| voucher_id | UUID | FK → vouchers.id, UNIQUE, NOT NULL | Voucher riêng đã cấp cho khách hàng |
+| residence_location | VARCHAR(150) | NOT NULL | Tỉnh/thành phố đang sinh sống |
+| nationality | VARCHAR(100) | NOT NULL | Quốc tịch |
+| discovery_source | VARCHAR(80) | NOT NULL | Nguồn biết đến website |
+| discovery_source_other | VARCHAR(200) | NULL | Nội dung khác nếu chọn Khác |
+| travel_styles | TEXT[] | NOT NULL | Sở thích/phong cách du lịch |
+| travel_style_other | VARCHAR(200) | NULL | Phong cách khác nếu chọn Khác |
+| favorite_destinations | TEXT[] | NOT NULL | Nhóm điểm đến yêu thích |
+| favorite_destination_other | VARCHAR(200) | NULL | Điểm đến khác nếu chọn Khác |
+| budget_range | VARCHAR(80) | NOT NULL | Khoảng ngân sách chuyến đi |
+| travel_forms | TEXT[] | NOT NULL | Hình thức du lịch thường chọn |
+| travel_form_other | VARCHAR(200) | NULL | Hình thức khác nếu chọn Khác |
+| preferred_contact_channel | VARCHAR(80) | NOT NULL | Kênh liên hệ ưu tiên |
+| loyalty_intent | VARCHAR(80) | NOT NULL | Khả năng tiếp tục sử dụng/giới thiệu |
+| answers | JSONB | NOT NULL | Snapshot có cấu trúc của toàn bộ câu trả lời |
+| completed_at | TIMESTAMPTZ | NOT NULL | Thời điểm hoàn tất |
+| created_at | TIMESTAMPTZ | NOT NULL | Ngày tạo |
+| updated_at | TIMESTAMPTZ | NOT NULL | Ngày cập nhật |
+
 **discount_type có nhiều trạng thái:**
 
 | Giá trị | Ý nghĩa |

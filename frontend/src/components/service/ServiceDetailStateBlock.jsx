@@ -1,5 +1,6 @@
 import ServiceDetailBreadcrumb from './ServiceDetailBreadcrumb.jsx'
-import { PublicErrorState, PublicLoadingBlock } from '../public/ui/index.js'
+import { FullPageLoading } from '../loading/Loading.jsx'
+import { PublicErrorState } from '../public/ui/index.js'
 
 export default function ServiceDetailStateBlock({
   breadcrumbHomePath,
@@ -27,13 +28,7 @@ export default function ServiceDetailStateBlock({
         ) : null}
 
         {loading ? (
-          <section className="service-detail-section">
-            <PublicLoadingBlock
-              description="Dữ liệu đang được đọc từ mock adapter theo API-ready pattern."
-              rows={3}
-              title="Chi tiết tour đang được chuẩn bị"
-            />
-          </section>
+          <FullPageLoading />
         ) : null}
       </div>
     </div>

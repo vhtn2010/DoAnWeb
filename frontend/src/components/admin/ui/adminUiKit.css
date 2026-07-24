@@ -858,24 +858,7 @@
 }
 
 .admin-ui-loading-block {
-  display: grid;
-  gap: 12px;
-}
-
-.admin-ui-loading-block__label {
-  width: 1px;
-  height: 1px;
-  position: absolute;
-  overflow: hidden;
-  white-space: nowrap;
-  clip-path: inset(50%);
-}
-
-.admin-ui-loading-block__row {
-  display: grid;
-  gap: 8px;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(92, 64, 63, 0.1);
+  border-radius: 12px;
 }
 
 .admin-ui-table-shell {
@@ -928,13 +911,6 @@
 
 .admin-ui-table tr:last-child td {
   border-bottom: none;
-}
-
-.admin-ui-table__status {
-  display: block;
-  margin-top: 10px;
-  color: var(--admin-ui-muted);
-  font-size: 14px;
 }
 
 @keyframes admin-ui-spin {

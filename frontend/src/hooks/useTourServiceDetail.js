@@ -17,6 +17,7 @@ import {
   buildFavoriteSourcePath,
   getFavoriteSourceLabel,
 } from '../services/favoriteStorage.js'
+import { createPricingSummaryViewFromItem } from '../utils/pricingSummaryView.js'
 
 function getLeadLocation(locationText) {
   return String(locationText ?? '').split(',')[0].trim()
@@ -412,6 +413,25 @@ export default function useTourServiceDetail() {
   const adultTotal = adultCount * (service?.sale_price ?? 0)
   const childTotal = childCount * childUnitPrice
   const totalPrice = adultTotal + childTotal
+  const pricingSummary = useMemo(() => {
+    if (!service || service.service_type === 'combo') {
+      return createPricingSummaryViewFromItem(null)
+    }
+
+    const travellerCount = getTravellerCount(adultCount, childCount)
+    const resolvedDepartureDate = resolveTourDepartureDate(service, departureDate, travellerCount)
+    const previewCartItem = buildTourCartItem({
+      adultCount,
+      adultPrice: service?.sale_price ?? 0,
+      childCount,
+      childPrice: childUnitPrice,
+      departureDate: resolvedDepartureDate || departureDate,
+      service,
+      totalPrice,
+    })
+
+    return createPricingSummaryViewFromItem(previewCartItem)
+  }, [adultCount, childCount, childUnitPrice, departureDate, service, totalPrice])
   const favoriteItem = useMemo(() => {
     if (!service) {
       return null
@@ -567,7 +587,7 @@ export default function useTourServiceDetail() {
       }
 
       if (isAuthenticatedCustomer) {
-        navigate(buildPublicAuthPath('/cart', isCustomer))
+        navigate(buildPublicAuthPath('/checkout', isCustomer))
         return
       }
 
@@ -663,6 +683,7 @@ export default function useTourServiceDetail() {
     isShared,
     leadLocation: service ? getLeadLocation(service.location_text) : '',
     pendingAction,
+    pricingSummary,
     recommendedServices,
     selectedImage,
     service,

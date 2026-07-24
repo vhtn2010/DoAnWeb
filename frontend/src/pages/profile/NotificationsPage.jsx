@@ -498,9 +498,7 @@ function NotificationsPage() {
 
       {loading ? (
         <PublicLoadingBlock
-          description="Đang đồng bộ hộp thư cá nhân và trạng thái đã đọc mới nhất từ hệ thống."
           rows={4}
-          title="Đang tải thông báo"
         />
       ) : null}
 
@@ -630,7 +628,7 @@ function NotificationsPage() {
               />
 
               {detailLoading ? (
-                <PublicLoadingBlock rows={3} title="Đang tải chi tiết thông báo" />
+                <PublicLoadingBlock rows={3} />
               ) : selectedNotification ? (
                 <div className="notifications-page__detail-copy">
                   <div className="notifications-page__detail-meta">

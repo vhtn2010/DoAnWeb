@@ -4,6 +4,7 @@ function HotelBookingPanel({
   formatCurrency,
   hotel,
   pendingAction = '',
+  pricingSummary,
   selectedRoom,
   onAddToCart,
   onCheckout,
@@ -50,6 +51,41 @@ function HotelBookingPanel({
           <div className="hotel-booking-panel__summary-row">
             <span>Trả phòng</span>
             <strong>{hotel?.checkout_time ?? '--'}</strong>
+          </div>
+        </div>
+
+        <div className="hotel-booking-panel__summary">
+          <h2 className="hotel-booking-panel__summary-title">Chi phí dự kiến</h2>
+
+          <div className="hotel-booking-panel__summary-row">
+            <span>Tạm tính</span>
+            <strong>{pricingSummary?.has_pricing ? pricingSummary.subtotal_amount : '--'}</strong>
+          </div>
+
+          {pricingSummary?.vat_amount_value > 0 ? (
+            <div className="hotel-booking-panel__summary-row">
+              <span>Thuế VAT (8%)</span>
+              <strong>{pricingSummary.vat_amount}</strong>
+            </div>
+          ) : null}
+
+          {pricingSummary?.service_fee_amount_value > 0 ? (
+            <div className="hotel-booking-panel__summary-row">
+              <span>Phí dịch vụ</span>
+              <strong>{pricingSummary.service_fee_amount}</strong>
+            </div>
+          ) : null}
+
+          {pricingSummary?.surcharge_amount_value > 0 ? (
+            <div className="hotel-booking-panel__summary-row">
+              <span>Phụ thu</span>
+              <strong>{pricingSummary.surcharge_amount}</strong>
+            </div>
+          ) : null}
+
+          <div className="hotel-booking-panel__summary-row hotel-booking-panel__summary-row--total">
+            <span>Tổng cộng</span>
+            <strong>{pricingSummary?.has_pricing ? pricingSummary.total_amount : '--'}</strong>
           </div>
         </div>
 

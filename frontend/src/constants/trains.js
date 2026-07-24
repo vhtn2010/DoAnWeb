@@ -44,9 +44,9 @@ export const TRAIN_DEPARTURE_TIME_FILTER_OPTIONS = Object.freeze([
 ])
 
 export const TRAIN_PRICE_FILTER_OPTIONS = Object.freeze([
-  { value: 'under-2m', label: 'Dưới 2 triệu' },
-  { value: '2-5m', label: '2 - 5 triệu' },
-  { value: 'over-5m', label: 'Trên 5 triệu' },
+  { value: 'under-500k', label: 'Dưới 500 nghìn' },
+  { value: '500k-1m', label: '500 nghìn - 1 triệu' },
+  { value: 'over-1m', label: 'Trên 1 triệu' },
 ])
 
 export const VIETNAM_TRAIN_STATION_OPTIONS = Object.freeze([

@@ -1,3 +1,5 @@
+import { LocalLoading } from '../../loading/Loading.jsx'
+
 const FIELD_PLACEHOLDERS = {
   from: 'Chọn điểm khởi hành',
   to: 'Chọn điểm đến',
@@ -504,11 +506,7 @@ export default function HomeSearchCard({
       </div>
 
       {loading ? (
-        <div className="home-search-card__calendar-footer" role="status">
-          <span className="home-search-card__calendar-helper">
-            Đang tải dữ liệu trang chủ từ mock adapter...
-          </span>
-        </div>
+        <LocalLoading className="home-search-card__calendar-footer" minHeight="72px" size="sm" />
       ) : null}
 
       {errorMessage ? (
