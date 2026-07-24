@@ -58,7 +58,7 @@ function normalizeTourCard(service = {}) {
     destination_location: rawDetails.destination_location ?? '',
     duration_days: toNumber(rawDetails.duration_days) ?? 0,
     duration_nights: toNumber(rawDetails.duration_nights) ?? 0,
-    max_group_size: toNumber(rawDetails.max_group_size) ?? 0,
+    max_group_size: toNumber(rawDetails.max_group_size) ?? 100,
     departure_schedule: Array.isArray(rawDetails.departure_schedule)
       ? rawDetails.departure_schedule
       : [],

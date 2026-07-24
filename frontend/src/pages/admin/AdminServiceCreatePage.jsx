@@ -59,7 +59,10 @@ function AdminServiceCreatePage() {
       const imageWarning = response.data.image_upload_error
         ? ` Dịch vụ đã được tạo nhưng chưa thể gắn ảnh: ${response.data.image_upload_error}`
         : ''
-      const message = `${translateServiceMessage(response.message)} Mã dịch vụ: ${response.data.service_code}.${imageWarning}`
+      const roomWarning = response.data.room_sync_error
+        ? ` Dịch vụ đã được tạo nhưng chưa thể đồng bộ phòng: ${response.data.room_sync_error}`
+        : ''
+      const message = `${translateServiceMessage(response.message)} Mã dịch vụ: ${response.data.service_code}.${imageWarning}${roomWarning}`
 
       redirectTimerRef.current = window.setTimeout(returnToServiceList, 1200)
 

@@ -159,7 +159,8 @@ const createCartRepository = ({ queryImpl = query } = {}) => {
     const result = await queryExecutor(
       `
         SELECT
-          departure_schedule
+          departure_schedule,
+          max_group_size
         FROM tour_details
         WHERE service_id = $1
         LIMIT 1

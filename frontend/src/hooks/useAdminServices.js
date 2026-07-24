@@ -594,13 +594,16 @@ export default function useAdminServices() {
       const imageWarning = response.data.image_upload_error
         ? ` Dịch vụ đã lưu, nhưng ảnh bìa chưa được gắn: ${translateAdminServiceMessage(response.data.image_upload_error)}`
         : ''
+      const roomWarning = response.data.room_sync_error
+        ? ` Dịch vụ đã lưu, nhưng phòng chưa được đồng bộ: ${translateAdminServiceMessage(response.data.room_sync_error)}`
+        : ''
       setFeedback(
         createFeedbackState(
-          response.data.image_upload_error ? 'warning' : 'success',
+          response.data.image_upload_error || response.data.room_sync_error ? 'warning' : 'success',
           `${successMessage} Mã dịch vụ: ${response.data.service_code}.${getVisibilityNote(
             response.data,
             filters,
-          )}${imageWarning}`,
+          )}${imageWarning}${roomWarning}`,
         ),
       )
       setFormModalState({

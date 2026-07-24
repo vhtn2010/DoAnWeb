@@ -199,12 +199,16 @@ function isFutureDepartureDate(value) {
 }
 
 function getPositiveCapacity(value) {
+  if (value == null || value === '') {
+    return null
+  }
+
   const parsed = Number(value)
 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
 }
 
-function getScheduleAvailableSlots(scheduleItem = {}, fallbackCapacity = 0) {
+function getScheduleAvailableSlots(scheduleItem = {}, fallbackCapacity = 100) {
   for (const key of [
     'available_slots',
     'availableSlots',
@@ -241,7 +245,7 @@ function getScheduleAvailableSlots(scheduleItem = {}, fallbackCapacity = 0) {
     }
   }
 
-  return getPositiveCapacity(fallbackCapacity) ?? 0
+  return getPositiveCapacity(fallbackCapacity) ?? 100
 }
 
 function normalizeDepartureDates(details = {}) {
@@ -374,6 +378,7 @@ function toOptionalNumber(value) {
 function normalizeDetails(details = {}) {
   const durationDays = Number(details.duration_days)
   const durationNights = Number(details.duration_nights)
+  const maxGroupSize = Number(details.max_group_size)
   const departureSchedule = Array.isArray(details.departure_schedule)
     ? details.departure_schedule
     : []
@@ -384,6 +389,7 @@ function normalizeDetails(details = {}) {
     duration_days: Number.isFinite(durationDays) ? durationDays : 0,
     duration_nights: Number.isFinite(durationNights) ? durationNights : 0,
     transport_type: details.transport_type ?? '',
+    max_group_size: Number.isFinite(maxGroupSize) && maxGroupSize > 0 ? maxGroupSize : 100,
     departure_location: details.departure_location ?? '',
     destination_location: details.destination_location ?? '',
     departure_dates: normalizeDepartureDates(details),

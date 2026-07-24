@@ -98,12 +98,16 @@ function isFutureTourDate(value) {
 }
 
 function getPositiveCapacity(value) {
+  if (value == null || value === '') {
+    return null
+  }
+
   const parsed = Number(value)
 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
 }
 
-function getScheduleAvailableSlots(scheduleItem = {}, fallbackCapacity = 0) {
+function getScheduleAvailableSlots(scheduleItem = {}, fallbackCapacity = 100) {
   for (const key of [
     'available_slots',
     'availableSlots',
@@ -140,7 +144,7 @@ function getScheduleAvailableSlots(scheduleItem = {}, fallbackCapacity = 0) {
     }
   }
 
-  return getPositiveCapacity(fallbackCapacity) ?? 0
+  return getPositiveCapacity(fallbackCapacity) ?? 100
 }
 
 function getTravellerCount(adultCount, childCount) {

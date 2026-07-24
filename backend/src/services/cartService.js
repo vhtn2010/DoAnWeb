@@ -48,6 +48,7 @@ const SUMMARY_SCOPE_LABEL = 'GET /cart/summary';
 const VALIDATE_SCOPE_LABEL = 'POST /cart/validate';
 const MAX_VOUCHER_CODE_LENGTH = 50;
 const MAX_GUEST_ITEMS = 50;
+const DEFAULT_TOUR_AVAILABLE_SLOTS = 100;
 
 const toIsoString = (value) => value?.toISOString?.() || value || null;
 
@@ -828,14 +829,21 @@ const resolvePublicPriceAndCurrency = (service) => ({
 });
 
 const getNonNegativeNumber = (value) => {
+  if (value == null || value === '') {
+    return null;
+  }
+
   const parsed = Number(value);
 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
-const extractAvailableSlotsFromSchedule = (scheduleItem, fallbackCapacity = 0) => {
+const extractAvailableSlotsFromSchedule = (
+  scheduleItem,
+  fallbackCapacity = DEFAULT_TOUR_AVAILABLE_SLOTS,
+) => {
   if (!scheduleItem || typeof scheduleItem !== 'object') {
-    return getNonNegativeNumber(fallbackCapacity) ?? 0;
+    return getNonNegativeNumber(fallbackCapacity) ?? DEFAULT_TOUR_AVAILABLE_SLOTS;
   }
 
   for (const key of [
@@ -874,7 +882,7 @@ const extractAvailableSlotsFromSchedule = (scheduleItem, fallbackCapacity = 0) =
     }
   }
 
-  return getNonNegativeNumber(fallbackCapacity) ?? 0;
+  return getNonNegativeNumber(fallbackCapacity) ?? DEFAULT_TOUR_AVAILABLE_SLOTS;
 };
 
 const normalizeScheduleDateValue = (value) => {

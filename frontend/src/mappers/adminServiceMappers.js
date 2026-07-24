@@ -31,7 +31,7 @@ const SERVICE_DETAIL_TEMPLATES = Object.freeze({
     duration_days: '',
     duration_nights: '',
     transport_type: 'bus',
-    max_group_size: '',
+    max_group_size: '100',
     departure_schedule: '',
     itinerary: [],
     included_services: '',
@@ -45,6 +45,7 @@ const SERVICE_DETAIL_TEMPLATES = Object.freeze({
     checkout_time: '',
     amenities: '',
     hotel_policy: '',
+    room_types: [],
   },
   [SERVICE_TYPES.flight]: {
     airline_name: '',
@@ -143,6 +144,69 @@ function normalizeMultilineArray(value) {
   return String(value ?? '')
     .split('\n')
     .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function serializeHotelRoomTypes(roomTypes) {
+  if (!Array.isArray(roomTypes)) {
+    return []
+  }
+
+  return roomTypes.map((room) => ({
+    id: room?.id ?? '',
+    name: room?.name ?? '',
+    bed_type: room?.bed_type ?? '',
+    max_adults: room?.max_adults != null ? String(room.max_adults) : '',
+    max_children: room?.max_children != null ? String(room.max_children) : '0',
+    total_rooms: room?.total_rooms != null ? String(room.total_rooms) : '',
+    available_rooms: room?.available_rooms != null ? String(room.available_rooms) : '',
+    base_price: room?.base_price != null ? String(room.base_price) : '',
+    description: room?.description ?? '',
+    status: room?.status ?? SERVICE_STATUSES.active,
+  }))
+}
+
+function normalizeHotelRoomTypes(roomTypes) {
+  if (!Array.isArray(roomTypes)) {
+    return []
+  }
+
+  return roomTypes
+    .map((room) => {
+      const id = String(room?.id ?? '').trim()
+      const name = String(room?.name ?? '').trim()
+      const bedType = String(room?.bed_type ?? '').trim()
+      const description = String(room?.description ?? '').trim()
+      const status = String(room?.status ?? SERVICE_STATUSES.active).trim() || SERVICE_STATUSES.active
+      const hasRoomValue = [
+        id,
+        name,
+        bedType,
+        String(room?.max_adults ?? '').trim(),
+        String(room?.max_children ?? '').trim(),
+        String(room?.total_rooms ?? '').trim(),
+        String(room?.available_rooms ?? '').trim(),
+        String(room?.base_price ?? '').trim(),
+        description,
+      ].some(Boolean)
+
+      if (!hasRoomValue) {
+        return null
+      }
+
+      return {
+        ...(id ? { id } : {}),
+        available_rooms: parseNumberValue(room?.available_rooms),
+        base_price: parseNumberValue(room?.base_price),
+        bed_type: bedType,
+        description,
+        max_adults: parseNumberValue(room?.max_adults),
+        max_children: parseNumberValue(room?.max_children, 0),
+        name,
+        status,
+        total_rooms: parseNumberValue(room?.total_rooms),
+      }
+    })
     .filter(Boolean)
 }
 
@@ -598,6 +662,9 @@ export function getInitialServiceFormValues(service = null) {
             checkout_time: sourceDetails.checkout_time ?? defaults.checkout_time,
             amenities: serializeListValue(sourceDetails.amenities),
             hotel_policy: sourceDetails.hotel_policy ?? defaults.hotel_policy,
+            room_types: serializeHotelRoomTypes(
+              sourceDetails.room_types ?? service?.room_types ?? [],
+            ),
           }
         : {}),
       ...(serviceType === SERVICE_TYPES.flight
@@ -683,6 +750,11 @@ export function normalizeServiceFormValues(formValues) {
     image_url: formValues.image_url.trim(),
     ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
     details: normalizeServiceDetails(formValues.service_type, formValues.details, basePrice),
+    ...(formValues.service_type === SERVICE_TYPES.hotel
+      ? {
+          room_types: normalizeHotelRoomTypes(formValues.details.room_types),
+        }
+      : {}),
   }
 }
 

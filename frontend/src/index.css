@@ -17514,6 +17514,102 @@ select {
   font-weight: 700;
 }
 
+.admin-service-modal__hotel-details,
+.admin-service-modal__hotel-rooms,
+.admin-service-modal__hotel-room-list {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-service-modal__hotel-rooms {
+  padding: 18px;
+  border: 1px solid rgba(225, 227, 228, 0.9);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.admin-service-modal__hotel-rooms-header,
+.admin-service-modal__hotel-room-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-service-modal__hotel-rooms-header h4,
+.admin-service-modal__hotel-rooms-header p {
+  margin: 0;
+}
+
+.admin-service-modal__hotel-rooms-header h4 {
+  color: #191c1d;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.admin-service-modal__hotel-rooms-header p {
+  margin-top: 4px;
+  color: var(--color-text-soft);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.admin-service-modal__hotel-room-add,
+.admin-service-modal__hotel-room-card-head button {
+  min-height: 34px;
+  border: 1px solid rgba(200, 16, 46, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #c8102e;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 800;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-service-modal__hotel-room-add {
+  flex: 0 0 auto;
+  padding: 0 14px;
+}
+
+.admin-service-modal__hotel-room-card-head button {
+  padding: 0 12px;
+}
+
+.admin-service-modal__hotel-room-add:hover,
+.admin-service-modal__hotel-room-add:focus-visible,
+.admin-service-modal__hotel-room-card-head button:hover,
+.admin-service-modal__hotel-room-card-head button:focus-visible {
+  outline: none;
+  border-color: rgba(200, 16, 46, 0.28);
+  background: #c8102e;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.admin-service-modal__hotel-room-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(225, 227, 228, 0.9);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.admin-service-modal__hotel-room-card-head strong {
+  color: #191c1d;
+  font-size: 0.94rem;
+}
+
+.admin-service-modal__details-grid--rooms {
+  gap: 14px;
+}
+
 .admin-service-modal__media-card {
   padding: 32px;
   display: grid;
@@ -17612,6 +17708,63 @@ select {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.admin-service-modal__image-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(200, 16, 46, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #c8102e;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(45, 21, 21, 0.14);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-service-modal__image-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-service-modal__image-remove:hover,
+.admin-service-modal__image-remove:focus-visible {
+  outline: none;
+  border-color: rgba(200, 16, 46, 0.32);
+  background: #c8102e;
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(200, 16, 46, 0.22);
+  transform: translateY(-1px);
+}
+
+.admin-service-modal__image-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.admin-service-modal__image-remove--thumb {
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+}
+
+.admin-service-modal__image-remove--thumb svg {
+  width: 14px;
+  height: 14px;
 }
 
 .admin-service-modal__thumb-grid {

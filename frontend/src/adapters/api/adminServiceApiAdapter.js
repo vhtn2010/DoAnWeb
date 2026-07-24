@@ -112,6 +112,7 @@ function omitUnsupportedUpdateFields(payload = {}) {
   const {
     gallery_image_urls: galleryImageUrls,
     image_url: imageUrl,
+    room_types: roomTypes,
     service_type: serviceType,
     status: _status,
     ...updatablePayload
@@ -121,6 +122,7 @@ function omitUnsupportedUpdateFields(payload = {}) {
     galleryImageUrls,
     imageUrl,
     payload: updatablePayload,
+    roomTypes,
     serviceType,
   }
 }
@@ -129,6 +131,7 @@ function omitUnsupportedCreateFields(payload = {}) {
   const {
     gallery_image_urls: galleryImageUrls,
     image_url: imageUrl,
+    room_types: roomTypes,
     ...createPayload
   } = payload
 
@@ -136,6 +139,7 @@ function omitUnsupportedCreateFields(payload = {}) {
     galleryImageUrls,
     imageUrl,
     payload: createPayload,
+    roomTypes,
   }
 }
 
@@ -266,6 +270,67 @@ async function attachGalleryImagesIfNeeded(service, imageUrls = []) {
   }
 }
 
+function normalizeRoomPayloadForRequest(room = {}) {
+  return {
+    available_rooms: room.available_rooms,
+    base_price: room.base_price,
+    bed_type: room.bed_type,
+    description: room.description,
+    max_adults: room.max_adults,
+    max_children: room.max_children,
+    name: room.name,
+    status: room.status,
+    total_rooms: room.total_rooms,
+  }
+}
+
+async function syncHotelRoomTypesIfNeeded(service, roomTypes) {
+  if (!Array.isArray(roomTypes) || service?.service_type !== 'hotel' || !service?.id) {
+    return service
+  }
+
+  const existingRooms = Array.isArray(service.details?.room_types)
+    ? service.details.room_types
+    : []
+  const nextRoomIds = new Set(
+    roomTypes.map((room) => String(room?.id ?? '').trim()).filter(Boolean),
+  )
+  const roomsToDelete = existingRooms.filter(
+    (room) => room?.id && !nextRoomIds.has(room.id),
+  )
+
+  try {
+    await Promise.all(
+      roomsToDelete.map((room) =>
+        apiDelete(`/admin/rooms/${room.id}`, {
+          data: {
+            reason: 'Cập nhật danh sách phòng từ form khách sạn.',
+          },
+        }),
+      ),
+    )
+
+    await Promise.all(
+      roomTypes.map((room) => {
+        const roomId = String(room?.id ?? '').trim()
+        const payload = normalizeRoomPayloadForRequest(room)
+
+        return roomId
+          ? apiPatch(`/admin/rooms/${roomId}`, payload)
+          : apiPost(`/admin/hotels/${service.id}/rooms`, payload)
+      }),
+    )
+
+    const refreshedResponse = await getAdminServiceById(service.id)
+    return refreshedResponse.data
+  } catch (error) {
+    return {
+      ...service,
+      room_sync_error: error?.message || 'Không thể đồng bộ loại phòng cho khách sạn.',
+    }
+  }
+}
+
 export async function listAdminServices(params = {}) {
   const response = await apiGet('/admin/services', {
     params: normalizeListParams(params),
@@ -281,7 +346,12 @@ export async function getAdminServiceById(serviceId) {
 }
 
 export async function createAdminService(payload = {}) {
-  const { galleryImageUrls, imageUrl, payload: servicePayload } = omitUnsupportedCreateFields(payload)
+  const {
+    galleryImageUrls,
+    imageUrl,
+    payload: servicePayload,
+    roomTypes,
+  } = omitUnsupportedCreateFields(payload)
   const isComboService = isComboPayload(servicePayload)
   const response = await apiPost(
     isComboService ? '/admin/services/combos' : '/admin/services',
@@ -298,10 +368,11 @@ export async function createAdminService(payload = {}) {
     serviceWithPrimaryImage,
     galleryImageUrls,
   )
+  const serviceWithRooms = await syncHotelRoomTypesIfNeeded(serviceWithImage, roomTypes)
 
   return {
     ...normalizedResponse,
-    data: normalizeService(serviceWithImage),
+    data: normalizeService(serviceWithRooms),
   }
 }
 
@@ -310,6 +381,7 @@ export async function updateAdminService(serviceId, payload = {}) {
     galleryImageUrls,
     imageUrl,
     payload: servicePayload,
+    roomTypes,
     serviceType,
   } = omitUnsupportedUpdateFields(payload)
   const isComboService = isComboPayload(servicePayload, serviceType)
@@ -328,10 +400,11 @@ export async function updateAdminService(serviceId, payload = {}) {
     serviceWithPrimaryImage,
     galleryImageUrls,
   )
+  const serviceWithRooms = await syncHotelRoomTypesIfNeeded(serviceWithImage, roomTypes)
 
   return {
     ...normalizedResponse,
-    data: normalizeService(serviceWithImage),
+    data: normalizeService(serviceWithRooms),
   }
 }
 

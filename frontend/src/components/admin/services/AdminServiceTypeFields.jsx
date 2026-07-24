@@ -1,11 +1,22 @@
 import {
   ADMIN_CABIN_CLASS_OPTIONS,
+  ADMIN_SERVICE_FORM_STATUS_OPTIONS,
   ADMIN_SEAT_CLASS_OPTIONS,
   ADMIN_TRANSPORT_TYPE_OPTIONS,
 } from '../../../constants/adminServices.js'
+import { SERVICE_STATUSES } from '../../../constants/serviceStatuses.js'
 import { TOUR_CATEGORY_FILTER_OPTIONS } from '../../../constants/tours.js'
 
 const detailFieldLabels = {
+  room_types: 'Các loại phòng',
+  name: 'Tên phòng',
+  bed_type: 'Loại giường',
+  max_adults: 'Người lớn tối đa',
+  max_children: 'Trẻ em tối đa',
+  total_rooms: 'Tổng số phòng',
+  available_rooms: 'Phòng còn trống',
+  base_price: 'Giá mỗi đêm',
+  status: 'Trạng thái',
   departure_location: 'Điểm khởi hành',
   destination_location: 'Điểm đến chi tiết',
   tour_category: 'Loại hình tour',
@@ -39,6 +50,21 @@ const detailFieldLabels = {
   arrival_station: 'Ga đến',
   seat_class: 'Hạng ghế',
   combo_items: 'Danh sách hạng mục combo',
+}
+
+function createEmptyHotelRoom() {
+  return {
+    id: '',
+    name: '',
+    bed_type: '',
+    max_adults: '2',
+    max_children: '0',
+    total_rooms: '1',
+    available_rooms: '1',
+    base_price: '',
+    description: '',
+    status: SERVICE_STATUSES.active,
+  }
 }
 
 function formatDetailLabel(label) {
@@ -108,7 +134,85 @@ function SelectInput({ error, label, name, onChange, options, value }) {
   )
 }
 
-function AdminServiceTypeFields({ details, errors, onDetailChange, serviceType }) {
+function HotelRoomTypesEditor({ details, errors, onDetailValueChange }) {
+  const rooms = Array.isArray(details.room_types) ? details.room_types : []
+  const statusOptions = ADMIN_SERVICE_FORM_STATUS_OPTIONS.filter(
+    (option) => option.value !== SERVICE_STATUSES.deleted,
+  )
+
+  function updateRoom(index, fieldName, value) {
+    onDetailValueChange(
+      'room_types',
+      rooms.map((room, roomIndex) =>
+        roomIndex === index
+          ? {
+              ...room,
+              [fieldName]: value,
+            }
+          : room,
+      ),
+    )
+  }
+
+  function addRoom() {
+    onDetailValueChange('room_types', [...rooms, createEmptyHotelRoom()])
+  }
+
+  function removeRoom(index) {
+    onDetailValueChange(
+      'room_types',
+      rooms.filter((_, roomIndex) => roomIndex !== index),
+    )
+  }
+
+  return (
+    <div className="admin-service-modal__hotel-rooms">
+      <div className="admin-service-modal__hotel-rooms-header">
+        <div>
+          <h4>Các loại phòng</h4>
+          <p>Thêm một hoặc nhiều hạng phòng để hiển thị trong trang chi tiết khách sạn.</p>
+        </div>
+        <button className="admin-service-modal__hotel-room-add" type="button" onClick={addRoom}>
+          + Thêm phòng
+        </button>
+      </div>
+
+      {rooms.length > 0 ? (
+        <div className="admin-service-modal__hotel-room-list">
+          {rooms.map((room, index) => (
+            <article className="admin-service-modal__hotel-room-card" key={room.id || `room-${index}`}>
+              <div className="admin-service-modal__hotel-room-card-head">
+                <strong>Phòng {index + 1}</strong>
+                <button type="button" onClick={() => removeRoom(index)}>
+                  Xóa
+                </button>
+              </div>
+
+              <div className="admin-service-modal__details-grid admin-service-modal__details-grid--rooms">
+                <TextInput error={errors[`details.room_types.${index}.name`]} label="name" name="name" value={room.name ?? ''} onChange={(event) => updateRoom(index, 'name', event.target.value)} />
+                <TextInput error={errors[`details.room_types.${index}.bed_type`]} label="bed_type" name="bed_type" value={room.bed_type ?? ''} onChange={(event) => updateRoom(index, 'bed_type', event.target.value)} />
+                <TextInput error={errors[`details.room_types.${index}.max_adults`]} label="max_adults" name="max_adults" type="number" value={room.max_adults ?? ''} onChange={(event) => updateRoom(index, 'max_adults', event.target.value)} />
+                <TextInput error={errors[`details.room_types.${index}.max_children`]} label="max_children" name="max_children" type="number" value={room.max_children ?? ''} onChange={(event) => updateRoom(index, 'max_children', event.target.value)} />
+                <TextInput error={errors[`details.room_types.${index}.total_rooms`]} label="total_rooms" name="total_rooms" type="number" value={room.total_rooms ?? ''} onChange={(event) => updateRoom(index, 'total_rooms', event.target.value)} />
+                <TextInput error={errors[`details.room_types.${index}.available_rooms`]} label="available_rooms" name="available_rooms" type="number" value={room.available_rooms ?? ''} onChange={(event) => updateRoom(index, 'available_rooms', event.target.value)} />
+                <TextInput error={errors[`details.room_types.${index}.base_price`]} label="base_price" name="base_price" type="number" value={room.base_price ?? ''} onChange={(event) => updateRoom(index, 'base_price', event.target.value)} />
+                <SelectInput error={errors[`details.room_types.${index}.status`]} label="status" name="status" options={statusOptions} value={room.status || SERVICE_STATUSES.active} onChange={(event) => updateRoom(index, 'status', event.target.value)} />
+              </div>
+
+              <TextArea error={errors[`details.room_types.${index}.description`]} label="description" name="description" rows={3} value={room.description ?? ''} onChange={(event) => updateRoom(index, 'description', event.target.value)} />
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="admin-service-modal__room-note" role="note">
+          Chưa có loại phòng nào. Hãy thêm phòng để khách sạn hiển thị đúng phần “Các loại phòng” ở trang chi tiết.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AdminServiceTypeFields({ details, errors, onDetailChange, onDetailValueChange, serviceType }) {
   if (serviceType === 'room') {
     return (
       <div className="admin-service-modal__room-note" role="note">
@@ -147,13 +251,21 @@ function AdminServiceTypeFields({ details, errors, onDetailChange, serviceType }
 
   if (serviceType === 'hotel') {
     return (
-      <div className="admin-service-modal__details-grid">
-        <TextInput error={errors['details.star_rating']} label="star_rating" name="star_rating" type="number" value={details.star_rating} onChange={onDetailChange} />
-        <TextInput error={errors['details.address']} label="address" name="address" value={details.address} onChange={onDetailChange} />
-        <TextInput error={errors['details.checkin_time']} label="checkin_time" name="checkin_time" type="time" value={details.checkin_time} onChange={onDetailChange} />
-        <TextInput error={errors['details.checkout_time']} label="checkout_time" name="checkout_time" type="time" value={details.checkout_time} onChange={onDetailChange} />
-        <TextArea error={errors['details.amenities']} label="amenities" name="amenities" rows={4} value={details.amenities} onChange={onDetailChange} />
-        <TextArea error={errors['details.hotel_policy']} label="hotel_policy" name="hotel_policy" rows={4} value={details.hotel_policy} onChange={onDetailChange} />
+      <div className="admin-service-modal__hotel-details">
+        <div className="admin-service-modal__details-grid">
+          <TextInput error={errors['details.star_rating']} label="star_rating" name="star_rating" type="number" value={details.star_rating} onChange={onDetailChange} />
+          <TextInput error={errors['details.address']} label="address" name="address" value={details.address} onChange={onDetailChange} />
+          <TextInput error={errors['details.checkin_time']} label="checkin_time" name="checkin_time" type="time" value={details.checkin_time} onChange={onDetailChange} />
+          <TextInput error={errors['details.checkout_time']} label="checkout_time" name="checkout_time" type="time" value={details.checkout_time} onChange={onDetailChange} />
+          <TextArea error={errors['details.amenities']} label="amenities" name="amenities" rows={4} value={details.amenities} onChange={onDetailChange} />
+          <TextArea error={errors['details.hotel_policy']} label="hotel_policy" name="hotel_policy" rows={4} value={details.hotel_policy} onChange={onDetailChange} />
+        </div>
+
+        <HotelRoomTypesEditor
+          details={details}
+          errors={errors}
+          onDetailValueChange={onDetailValueChange}
+        />
       </div>
     )
   }

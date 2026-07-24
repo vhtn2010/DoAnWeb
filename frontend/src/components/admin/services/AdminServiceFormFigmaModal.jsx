@@ -7,6 +7,7 @@ import {
   ADMIN_SERVICE_FORM_STATUS_OPTIONS,
   ADMIN_SERVICE_FORM_TYPE_OPTIONS,
 } from '../../../constants/adminServices.js'
+import { SERVICE_TYPES } from '../../../constants/serviceTypes.js'
 import { SERVICE_STATUSES } from '../../../constants/serviceStatuses.js'
 import {
   createServiceDetailDefaults,
@@ -19,6 +20,9 @@ import {
 
 const ADMIN_SERVICE_TOAST_DURATION_MS = 3500
 const SECONDARY_SERVICE_IMAGE_SLOT_COUNT = 4
+const serviceFormTypeOptions = ADMIN_SERVICE_FORM_TYPE_OPTIONS.filter(
+  (option) => option.value !== SERVICE_TYPES.room,
+)
 
 const requiredFieldNames = new Set([
   'service_type',
@@ -192,6 +196,14 @@ function UploadIcon() {
   )
 }
 
+function RemoveImageIcon() {
+  return (
+    <ModalIcon>
+      <path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </ModalIcon>
+  )
+}
+
 function FieldShell({ children, error, help, label, required = false }) {
   return (
     <label className="admin-service-modal__field">
@@ -296,6 +308,10 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     [SERVICE_STATUSES.active, SERVICE_STATUSES.hidden].includes(option.value),
   )
   const formStatusOptions = ADMIN_SERVICE_FORM_STATUS_OPTIONS
+  const typeOptions =
+    formValues.service_type === SERVICE_TYPES.room
+      ? ADMIN_SERVICE_FORM_TYPE_OPTIONS
+      : serviceFormTypeOptions
   const statusHelp = 'Chọn trạng thái hiển thị cho dịch vụ.'
   const handleCommonChange = (event) => {
     const { name, value } = event.target
@@ -415,6 +431,35 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
     } finally {
       setUploadingSlot('')
     }
+  }
+
+  const handleRemoveImage = (event, slot) => {
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (isSubmitting || uploadingSlot) {
+      return
+    }
+
+    if (slot === 'cover') {
+      setFormValues((currentValues) => ({
+        ...currentValues,
+        image_url: '',
+      }))
+      setMediaFeedback('Đã xóa ảnh bìa khỏi biểu mẫu.')
+      setMediaFeedbackTone('success')
+      return
+    }
+
+    const thumbIndex = Number(slot.replace('thumb-', ''))
+
+    setThumbImageUrls((currentImageUrls) =>
+      currentImageUrls.map((imageUrl, index) =>
+        index === thumbIndex ? '' : imageUrl,
+      ),
+    )
+    setMediaFeedback('Đã xóa ảnh phụ khỏi biểu mẫu.')
+    setMediaFeedbackTone('success')
   }
 
   const handleSubmit = async (submitIntent) => {
@@ -596,7 +641,7 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                       value={formValues.service_type}
                       onChange={handleCommonChange}
                     >
-                      {ADMIN_SERVICE_FORM_TYPE_OPTIONS.map((option) => (
+                      {typeOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {serviceTypeLabels[option.value] ?? option.label}
                         </option>
@@ -689,6 +734,7 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                   errors={errors}
                   serviceType={formValues.service_type}
                   onDetailChange={handleDetailChange}
+                  onDetailValueChange={handleDetailValueChange}
                 />
               </section>
 
@@ -734,11 +780,22 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                   htmlFor={coverImageInputId}
                 >
                   {formValues.image_url ? (
-                    <img
-                      alt={formValues.title || 'Ảnh bìa dịch vụ'}
-                      className="admin-service-modal__preview-image"
-                      src={formValues.image_url}
-                    />
+                    <>
+                      <img
+                        alt={formValues.title || 'Ảnh bìa dịch vụ'}
+                        className="admin-service-modal__preview-image"
+                        src={formValues.image_url}
+                      />
+                      <button
+                        aria-label="Xóa ảnh bìa dịch vụ"
+                        className="admin-service-modal__image-remove"
+                        disabled={isSubmitting || Boolean(uploadingSlot)}
+                        type="button"
+                        onClick={(event) => handleRemoveImage(event, 'cover')}
+                      >
+                        <RemoveImageIcon />
+                      </button>
+                    </>
                   ) : (
                     <span className="admin-service-modal__upload-placeholder">
                       <UploadIcon />
@@ -777,11 +834,22 @@ function AdminServiceFormFigmaModal({ currentRole, mode, onClose, onSave, servic
                       key={thumb.slot}
                     >
                       {imageUrl ? (
-                        <img
-                          alt={`Ảnh phụ dịch vụ ${index + 1}`}
-                          className="admin-service-modal__preview-image"
-                          src={imageUrl}
-                        />
+                        <>
+                          <img
+                            alt={`Ảnh phụ dịch vụ ${index + 1}`}
+                            className="admin-service-modal__preview-image"
+                            src={imageUrl}
+                          />
+                          <button
+                            aria-label={`Xóa ảnh phụ dịch vụ ${index + 1}`}
+                            className="admin-service-modal__image-remove admin-service-modal__image-remove--thumb"
+                            disabled={isSubmitting || Boolean(uploadingSlot)}
+                            type="button"
+                            onClick={(event) => handleRemoveImage(event, thumb.slot)}
+                          >
+                            <RemoveImageIcon />
+                          </button>
+                        </>
                       ) : (
                         '+'
                       )}
