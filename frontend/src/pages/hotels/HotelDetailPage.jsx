@@ -246,6 +246,7 @@ function HotelDetailPage() {
         </section>
 
         <HotelReviewSummary
+          hotel={hotel}
           rating={hotel.rating}
           reviewCount={hotel.review_count}
           reviews={hotel.details?.review_items}

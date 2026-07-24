@@ -12,6 +12,19 @@ function isValidEmail(email = '') {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
+function isFutureDate(value = '') {
+  if (!value) {
+    return false
+  }
+
+  const selectedDate = new Date(`${value}T00:00:00`)
+  const today = new Date()
+
+  today.setHours(0, 0, 0, 0)
+
+  return Number.isNaN(selectedDate.getTime()) || selectedDate > today
+}
+
 export function createLoginFormValues() {
   return {
     ...LOGIN_FORM_DEFAULT_VALUES,
@@ -67,6 +80,12 @@ export function buildRegisterPayload(formValues = {}) {
     payload.phone = phone
   }
 
+  const dateOfBirth = normalizeText(formValues.date_of_birth)
+
+  if (dateOfBirth) {
+    payload.date_of_birth = dateOfBirth
+  }
+
   return payload
 }
 
@@ -86,6 +105,12 @@ export function validateRegisterPayload(formValues = {}) {
 
   if ('phone' in formValues && !normalizeText(formValues.phone)) {
     delete errors.phone
+  } else if (normalizeText(formValues.phone).length > 20) {
+    errors.phone = 'Số điện thoại không được vượt quá 20 ký tự.'
+  }
+
+  if (normalizeText(formValues.date_of_birth) && isFutureDate(formValues.date_of_birth)) {
+    errors.date_of_birth = 'Ngày sinh chưa hợp lệ.'
   }
 
   if (!String(formValues.password ?? '').trim()) {

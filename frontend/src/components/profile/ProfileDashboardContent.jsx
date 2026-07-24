@@ -59,6 +59,7 @@ export default function ProfileDashboardContent({
   return (
     <>
       <ProfileHero
+        accountCenterContent={<ProfileAccountCenter />}
         favoriteDestinations={viewModel.favoriteDestinations}
         greeting={viewModel.greeting}
         highlights={heroHighlights}
@@ -82,10 +83,6 @@ export default function ProfileDashboardContent({
       ) : null}
 
       <div className="profile-dashboard">
-        <section className="profile-dashboard__section">
-          <ProfileAccountCenter />
-        </section>
-
         <div className="profile-dashboard__utility-grid">
           <div className="profile-dashboard__utility-cell">
             <ProfileShortcutPanel

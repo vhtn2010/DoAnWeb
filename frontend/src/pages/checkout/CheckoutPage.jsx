@@ -4,6 +4,7 @@ import CheckoutSpecialRequestCard from '../../components/checkout/CheckoutSpecia
 import CheckoutStepper from '../../components/checkout/CheckoutStepper.jsx'
 import CheckoutSummaryCard from '../../components/checkout/CheckoutSummaryCard.jsx'
 import CheckoutTrustRow from '../../components/checkout/CheckoutTrustRow.jsx'
+import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
 import useCheckout from '../../hooks/useCheckout.js'
 
 function CheckoutPage() {
@@ -22,6 +23,9 @@ function CheckoutPage() {
     submitFeedback,
     summaryService,
   } = useCheckout()
+  const showBaggageOptions =
+    summaryService?.service_type !== SERVICE_TYPES.hotel &&
+    summaryService?.service_type !== SERVICE_TYPES.room
 
   return (
     <div className="checkout-page">
@@ -46,6 +50,7 @@ function CheckoutPage() {
                 onBaggageToggle={handleBaggageToggle}
                 onCheckboxChange={handleCheckboxChange}
                 onTextareaChange={handleNoteChange}
+                showBaggageOptions={showBaggageOptions}
                 termsAccepted={Boolean(checkoutDraft.accepted_terms)}
               />
 

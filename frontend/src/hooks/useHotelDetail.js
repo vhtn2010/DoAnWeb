@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { DEFAULT_HOTEL_SEARCH_VALUES } from '../constants/hotels.js'
 import { useAddToCartToast } from '../components/public/feedback/addToCartToastContext.js'
 import { mapHotelDetailResponseToView } from '../mappers/hotelMappers.generated.js'
 import { addCartItem, addCartItemPreview } from '../repositories/cartRepository.js'
@@ -9,6 +8,8 @@ import {
   getHotelDetailBySlug,
   getHotelRooms,
 } from '../repositories/hotelRepository.js'
+import { getPublicTourComments } from '../repositories/commentRepository.js'
+import { getPublicTourReviews } from '../repositories/reviewRepository.js'
 import useFavorites from './useFavorites.js'
 import { formatCurrencyVND } from '../utils/formatCurrency.js'
 import usePublicAccessGate from './usePublicAccessGate.js'
@@ -22,14 +23,55 @@ import {
 } from '../services/favoriteStorage.js'
 import { createPricingSummaryViewFromItem } from '../utils/pricingSummaryView.js'
 
-function convertDisplayDateToInput(value) {
-  const [dayText, monthText, yearText] = String(value ?? '').split('-')
+function formatInputDate(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function normalizeDateToInput(value) {
+  const normalizedValue = String(value ?? '').trim()
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalizedValue)) {
+    return normalizedValue
+  }
+
+  const [dayText, monthText, yearText] = normalizedValue.split('-')
 
   if (!dayText || !monthText || !yearText) {
     return ''
   }
 
   return `${yearText}-${monthText.padStart(2, '0')}-${dayText.padStart(2, '0')}`
+}
+
+function addDaysToInputDate(value, dayCount = 1) {
+  const date = parseInputDate(value)
+
+  if (!date) {
+    return ''
+  }
+
+  date.setDate(date.getDate() + dayCount)
+
+  return formatInputDate(date)
+}
+
+function resolveDateRangeFromSearch(search = '') {
+  const searchParams = new URLSearchParams(search)
+  const checkinDate = normalizeDateToInput(searchParams.get('checkin'))
+  let checkoutDate = normalizeDateToInput(searchParams.get('checkout'))
+
+  if (checkinDate && calculateStayNights(checkinDate, checkoutDate) < 1) {
+    checkoutDate = addDaysToInputDate(checkinDate, 1)
+  }
+
+  return {
+    checkinDate,
+    checkoutDate,
+  }
 }
 
 function parseInputDate(value) {
@@ -139,6 +181,7 @@ function buildHotelBookingOptions({
   hotel,
   nights,
   room,
+  roomPrice,
   roomQuantity,
 }) {
   return {
@@ -149,12 +192,23 @@ function buildHotelBookingOptions({
     hotel_name: hotel.title,
     nights,
     room_name: room.title,
+    room_price: roomPrice,
     room_quantity: roomQuantity,
     room_size: room.room_size,
     selected_options: {
       ...(room.options ?? {}),
     },
   }
+}
+
+function formatCompactReviewCount(reviewCount = 0) {
+  const numericCount = Number(reviewCount ?? 0)
+
+  if (numericCount >= 1000) {
+    return `${(numericCount / 1000).toFixed(1).replace('.0', '')}k`
+  }
+
+  return String(numericCount)
 }
 
 function buildHotelCartPayload({
@@ -177,6 +231,7 @@ function buildHotelCartPayload({
 
   const requestedGuests = Math.max(1, Number(guests) || 1)
   const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
+  const roomPrice = resolveCurrentPrice(room)
 
   return {
     end_at: buildDateTimeStamp(checkoutDate, hotel.checkout_time),
@@ -187,6 +242,7 @@ function buildHotelCartPayload({
       hotel,
       nights,
       room,
+      roomPrice,
       roomQuantity: requestedQuantity,
     }),
     quantity: requestedQuantity,
@@ -194,7 +250,7 @@ function buildHotelCartPayload({
     service_id: hotel.id,
     service_type: hotel.service_type ?? 'hotel',
     start_at: buildDateTimeStamp(checkinDate, hotel.checkin_time),
-    unit_price_snapshot: resolveCurrentPrice(room) * Math.max(nights, 1),
+    unit_price_snapshot: roomPrice * Math.max(nights, 1),
   }
 }
 
@@ -212,10 +268,10 @@ export default function useHotelDetail() {
   const [relatedHotels, setRelatedHotels] = useState([])
   const [selectedRoomId, setSelectedRoomId] = useState('')
   const [checkinDate, setCheckinDate] = useState(() =>
-    convertDisplayDateToInput(DEFAULT_HOTEL_SEARCH_VALUES.checkin),
+    resolveDateRangeFromSearch(location.search).checkinDate,
   )
   const [checkoutDate, setCheckoutDate] = useState(() =>
-    convertDisplayDateToInput(DEFAULT_HOTEL_SEARCH_VALUES.checkout),
+    resolveDateRangeFromSearch(location.search).checkoutDate,
   )
   const [guests, setGuests] = useState(2)
   const [roomQuantity, setRoomQuantity] = useState(1)
@@ -237,6 +293,17 @@ export default function useHotelDetail() {
       })
     }
   }, [slug])
+
+  useEffect(() => {
+    const nextDateRange = resolveDateRangeFromSearch(location.search)
+
+    setCheckinDate((currentDate) =>
+      currentDate === nextDateRange.checkinDate ? currentDate : nextDateRange.checkinDate,
+    )
+    setCheckoutDate((currentDate) =>
+      currentDate === nextDateRange.checkoutDate ? currentDate : nextDateRange.checkoutDate,
+    )
+  }, [location.search])
 
   useEffect(() => {
     let isActive = true
@@ -261,7 +328,18 @@ export default function useHotelDetail() {
           return
         }
 
-        const roomsResponse = await getHotelRooms(detailResponse.data.hotel.id)
+        const hotelId = detailResponse.data.hotel.id
+        const [roomsResponse, reviewsResponse, commentsResponse] = await Promise.all([
+          getHotelRooms(hotelId),
+          getPublicTourReviews(hotelId, { limit: 12 }).catch(() => ({
+            data: [],
+            meta: { summary: null },
+          })),
+          getPublicTourComments(hotelId, { limit: 20 }).catch(() => ({
+            data: [],
+            meta: { comment_count: 0 },
+          })),
+        ])
 
         if (!isActive) {
           return
@@ -278,7 +356,27 @@ export default function useHotelDetail() {
           },
         )
 
-        setHotel(mappedState.hotel)
+        const reviewSummary = reviewsResponse.meta?.summary ?? null
+        const reviewCount = Number(
+          reviewSummary?.review_count ?? mappedState.hotel.review_count ?? 0,
+        )
+        const ratingValue = Number(
+          reviewSummary?.average_rating ?? mappedState.hotel.rating ?? 0,
+        )
+
+        setHotel({
+          ...mappedState.hotel,
+          comment_samples: Array.isArray(commentsResponse.data) ? commentsResponse.data : [],
+          comment_summary: {
+            comment_count: Number(commentsResponse.meta?.comment_count || 0),
+          },
+          display_review_count: formatCompactReviewCount(reviewCount),
+          display_rating_text: `${ratingValue.toFixed(1)} / 5.0`,
+          rating: ratingValue,
+          review_count: reviewCount,
+          review_samples: Array.isArray(reviewsResponse.data) ? reviewsResponse.data : [],
+          review_summary: reviewSummary,
+        })
         setRooms(
           mappedState.rooms.map((room) => ({
             ...room,
@@ -352,12 +450,13 @@ export default function useHotelDetail() {
   const pricingSummary = useMemo(() => {
     const pricingSource = selectedRoom || hotel
 
-    if (!hotel || !pricingSource || stayNights < 1) {
+    if (!hotel || !pricingSource) {
       return createPricingSummaryViewFromItem(null)
     }
 
     const unitRoomPrice = resolveCurrentPrice(pricingSource)
     const requestedQuantity = Math.max(1, Number(roomQuantity) || 1)
+    const estimatedNights = Math.max(stayNights, 1)
 
     return createPricingSummaryViewFromItem(
       {
@@ -365,9 +464,9 @@ export default function useHotelDetail() {
         quantity: requestedQuantity,
         service_type: selectedRoom?.service_type ?? hotel.service_type ?? 'hotel',
         unit_price: unitRoomPrice,
-        unit_price_snapshot: unitRoomPrice * Math.max(stayNights, 1),
+        unit_price_snapshot: unitRoomPrice * estimatedNights,
         options: {
-          nights: stayNights,
+          nights: estimatedNights,
           room_price: unitRoomPrice,
           room_quantity: requestedQuantity,
         },

@@ -60,6 +60,7 @@ export async function applyVoucher(code, currentSummary = {}) {
       discount_amount: voucher.discount_amount,
       summary: calculateCheckoutSummary({
         subtotal_amount: currentSummary.subtotal_amount,
+        baggage_fee_amount: currentSummary.baggage_fee_amount ?? 0,
         service_fee_amount:
           currentSummary.service_fee_amount ?? CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
         surcharge_amount: currentSummary.surcharge_amount ?? 0,

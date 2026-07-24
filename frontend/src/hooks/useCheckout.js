@@ -120,20 +120,21 @@ export default function useCheckout() {
     discountAmount,
     specialRequests,
   } = {}) {
+    const nextSpecialRequests = specialRequests ?? currentDraft?.special_requests ?? {}
+
     return calculateCheckoutSummary({
       subtotal_amount: currentDraft?.summary?.subtotal_amount ?? baseSummary?.subtotal_amount ?? 0,
       vat_amount: currentDraft?.summary?.vat_amount ?? baseSummary?.vat_amount ?? 0,
       service_fee_amount:
         currentDraft?.summary?.service_fee_amount ?? baseSummary?.service_fee_amount ?? 0,
-      surcharge_amount: getCheckoutBaggageFeeAmount(
-        specialRequests ?? currentDraft?.special_requests ?? {},
-      ),
+      surcharge_amount: currentDraft?.summary?.surcharge_amount ?? baseSummary?.surcharge_amount ?? 0,
+      baggage_fee_amount: getCheckoutBaggageFeeAmount(nextSpecialRequests),
       discount_amount:
         discountAmount ??
         currentDraft?.summary?.discount_amount ??
         baseSummary?.discount_amount ??
         0,
-      special_requests: specialRequests ?? currentDraft?.special_requests ?? {},
+      special_requests: nextSpecialRequests,
     })
   }
 
@@ -200,6 +201,7 @@ export default function useCheckout() {
       has_baggage_fee: checkoutDraft.summary.baggage_fee_amount > 0,
       has_vat: checkoutDraft.summary.vat_amount > 0,
       has_service_fee: checkoutDraft.summary.service_fee_amount > 0,
+      has_surcharge: checkoutDraft.summary.surcharge_amount > 0,
       has_discount: checkoutDraft.summary.discount_amount > 0,
       subtotal_amount: formatCurrencyVND(checkoutDraft.summary.subtotal_amount),
       vat_amount: formatCurrencyVND(checkoutDraft.summary.vat_amount),

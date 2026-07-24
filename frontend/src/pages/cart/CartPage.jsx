@@ -21,6 +21,7 @@ function CartPage() {
     handleContinueCheckout,
     handleEditItem,
     handleGoBack,
+    handleHotelDateChange,
     handleOpenVoucherPicker,
     handleTourPassengerChange,
     handleQuantityChange,
@@ -55,6 +56,7 @@ function CartPage() {
           error={error}
           handleClearCart={handleClearCart}
           handleEditItem={handleEditItem}
+          handleHotelDateChange={handleHotelDateChange}
           handleTourPassengerChange={handleTourPassengerChange}
           handleQuantityChange={handleQuantityChange}
           handleRemoveItem={handleRemoveItem}

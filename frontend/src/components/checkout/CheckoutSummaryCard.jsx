@@ -99,6 +99,7 @@ function CheckoutSummaryCard({
   const hasBaggageFee = Boolean(summary.has_baggage_fee)
   const hasVat = Boolean(summary.has_vat)
   const hasServiceFee = Boolean(summary.has_service_fee)
+  const hasSurcharge = Boolean(summary.has_surcharge)
   const hasDiscount = Boolean(summary.has_discount)
 
   return (
@@ -138,9 +139,15 @@ function CheckoutSummaryCard({
 
         <div className="checkout-summary-card__price-list">
           <div className="checkout-summary-card__price-row">
-            <span>Giá</span>
+            <span>Tạm tính</span>
             <strong>{summary.subtotal_amount}</strong>
           </div>
+          {hasDiscount ? (
+            <div className="checkout-summary-card__price-row checkout-summary-card__price-row--discount">
+              <span>Giảm giá</span>
+              <strong>- {summary.discount_amount}</strong>
+            </div>
+          ) : null}
           {hasBaggageFee ? (
             <div className="checkout-summary-card__price-row">
               <span>Phí hành lý ký gửi</span>
@@ -159,10 +166,10 @@ function CheckoutSummaryCard({
               <strong>{summary.service_fee_amount}</strong>
             </div>
           ) : null}
-          {hasDiscount ? (
-            <div className="checkout-summary-card__price-row checkout-summary-card__price-row--discount">
-              <span>Giảm giá thành viên</span>
-              <strong>- {summary.discount_amount}</strong>
+          {hasSurcharge ? (
+            <div className="checkout-summary-card__price-row">
+              <span>Phụ thu</span>
+              <strong>{summary.surcharge_amount}</strong>
             </div>
           ) : null}
         </div>

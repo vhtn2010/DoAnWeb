@@ -20,6 +20,7 @@ function sanitizeUser(user) {
     full_name: user.full_name,
     email: user.email,
     phone: user.phone,
+    date_of_birth: user.date_of_birth,
     role: user.role,
     status: user.status,
   }
@@ -75,6 +76,7 @@ export async function register(payload = {}) {
     full_name: payload.full_name,
     email: normalizeEmail(payload.email),
     phone: payload.phone ?? '',
+    date_of_birth: payload.date_of_birth ?? '',
     password: payload.password,
     role: 'customer',
     status: 'active',

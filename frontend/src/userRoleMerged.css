@@ -10334,6 +10334,7 @@
 }
 
 .profile-hero__member-card {
+  position: relative;
   padding: 22px 22px 10px;
   border: 1px solid rgba(233, 220, 214, 0.94);
   border-radius: 28px;
@@ -10349,6 +10350,42 @@
   display: flex;
   gap: 14px;
   align-items: center;
+}
+
+.profile-hero__member-settings-button {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(214, 40, 40, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #d62828;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(108, 78, 72, 0.08);
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.profile-hero__member-settings-button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.profile-hero__member-settings-button:hover,
+.profile-hero__member-settings-button:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: rgba(214, 40, 40, 0.28);
+  background: #ffffff;
+  box-shadow: 0 14px 26px rgba(214, 40, 40, 0.14);
 }
 
 .profile-hero__avatar-shell {
@@ -10834,6 +10871,108 @@
 
 .profile-hero__member-feedback--error {
   color: #b91c1c;
+}
+
+.profile-hero__settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(5px);
+}
+
+.profile-hero__settings-modal {
+  width: min(1120px, 100%);
+  max-height: min(84vh, 820px);
+  overflow: auto;
+  border: 1px solid rgba(214, 40, 40, 0.14);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top right, rgba(244, 197, 66, 0.14), transparent 24%),
+    linear-gradient(180deg, #ffffff, #fff8f5);
+  box-shadow: 0 34px 80px rgba(15, 23, 42, 0.24);
+}
+
+.profile-hero__settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 26px 28px 0;
+}
+
+.profile-hero__settings-member {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.profile-hero__settings-close {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(214, 40, 40, 0.14);
+  border-radius: 999px;
+  background: #fff;
+  color: #d62828;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.profile-hero__settings-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-hero__settings-close:hover,
+.profile-hero__settings-close:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: rgba(214, 40, 40, 0.28);
+  box-shadow: 0 12px 22px rgba(214, 40, 40, 0.12);
+}
+
+.profile-hero__settings-body {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.34fr) minmax(0, 0.66fr);
+  gap: 24px;
+  padding: 24px 28px 28px;
+}
+
+.profile-hero__settings-profile {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(238, 225, 220, 0.82);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.profile-hero__settings-panel {
+  min-width: 0;
+}
+
+.profile-hero__settings-panel .profile-account-center {
+  gap: 16px;
+}
+
+.profile-hero__settings-panel .profile-account-center__grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.profile-hero__settings-panel .profile-account-center__logs {
+  min-height: auto;
 }
 
 .profile-hero__member-note {
@@ -11408,6 +11547,10 @@
     grid-template-columns: 1fr;
   }
 
+  .profile-hero__settings-body {
+    grid-template-columns: 1fr;
+  }
+
   .profile-hero__highlights {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -11467,6 +11610,25 @@
   .profile-hero__history-metric {
     min-width: 0;
     padding: 9px 8px;
+  }
+
+  .profile-hero__settings-backdrop {
+    padding: 12px;
+  }
+
+  .profile-hero__settings-modal {
+    max-height: 92vh;
+    border-radius: 24px;
+  }
+
+  .profile-hero__settings-header,
+  .profile-hero__settings-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .profile-hero__settings-member {
+    align-items: flex-start;
   }
 
   .profile-hero__member-meta-row {

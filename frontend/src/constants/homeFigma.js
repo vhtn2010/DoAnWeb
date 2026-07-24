@@ -3,13 +3,13 @@ import { vietnamProvinceOptions } from '../data/vietnamProvinces.js'
 export const HOME_SEARCH_FIELD_OPTIONS = Object.freeze([
   {
     key: 'from',
-    label: 'điểm khởi hành',
+    label: 'ĐIỂM KHỞI HÀNH',
     icon: 'departure',
     options: vietnamProvinceOptions,
   },
   {
     key: 'to',
-    label: 'điểm đến',
+    label: 'ĐIỂM ĐẾN',
     icon: 'destination',
     options: vietnamProvinceOptions,
   },

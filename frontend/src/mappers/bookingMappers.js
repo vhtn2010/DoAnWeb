@@ -18,7 +18,13 @@ function resolveNumber(...values) {
 }
 
 function sumPricingAmounts(source = {}) {
-  const values = [source.vat_amount, source.tax_amount, source.service_fee_amount, source.surcharge_amount]
+  const values = [
+    source.vat_amount,
+    source.tax_amount,
+    source.service_fee_amount,
+    source.surcharge_amount,
+    source.baggage_fee_amount,
+  ]
     .filter((value) => typeof value === 'number' && Number.isFinite(value))
 
   if (values.length === 0) {
@@ -26,7 +32,12 @@ function sumPricingAmounts(source = {}) {
   }
 
   const vatAmount = resolveNumber(source.vat_amount, source.tax_amount)
-  return vatAmount + resolveNumber(source.service_fee_amount) + resolveNumber(source.surcharge_amount)
+  return (
+    vatAmount +
+    resolveNumber(source.service_fee_amount) +
+    resolveNumber(source.surcharge_amount) +
+    resolveNumber(source.baggage_fee_amount)
+  )
 }
 
 function getNormalizedAuthState(authState = ROLES.guest) {

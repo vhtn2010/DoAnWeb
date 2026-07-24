@@ -129,6 +129,101 @@ function getTourPassengerCounts(item = {}) {
   }
 }
 
+function isHotelCartItem(item = {}) {
+  return item.service_type === SERVICE_TYPES.hotel || item.service_type === SERVICE_TYPES.room
+}
+
+function padDatePart(value) {
+  return String(value).padStart(2, '0')
+}
+
+function formatDateInputValue(value) {
+  const date = value ? new Date(value) : null
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`
+}
+
+function parseInputDate(value) {
+  const [yearText, monthText, dayText] = String(value ?? '').split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+
+  if (!year || !month || !day) {
+    return null
+  }
+
+  return new Date(year, month - 1, day)
+}
+
+function addDaysToInputDate(value, dayCount = 1) {
+  const date = parseInputDate(value)
+
+  if (!date) {
+    return ''
+  }
+
+  date.setDate(date.getDate() + dayCount)
+
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`
+}
+
+function calculateHotelNights(checkinDate, checkoutDate) {
+  const checkin = parseInputDate(checkinDate)
+  const checkout = parseInputDate(checkoutDate)
+
+  if (!checkin || !checkout) {
+    return 0
+  }
+
+  return Math.max(Math.round((checkout.getTime() - checkin.getTime()) / 86400000), 0)
+}
+
+function normalizeTimeValue(value, fallback = '12:00:00') {
+  const normalizedValue = String(value ?? '').trim()
+
+  if (!normalizedValue) {
+    return fallback
+  }
+
+  return normalizedValue.length === 5 ? `${normalizedValue}:00` : normalizedValue
+}
+
+function buildHotelDateTimeStamp(dateText, timeText) {
+  if (!dateText) {
+    return ''
+  }
+
+  return `${dateText}T${normalizeTimeValue(timeText)}+07:00`
+}
+
+function resolveHotelRoomPrice(item = {}) {
+  const options = item.options ?? {}
+  const roomPrice = Number(
+    options.room_price ??
+      options.room_base_price ??
+      item.selection?.base_price,
+  )
+
+  if (Number.isFinite(roomPrice) && roomPrice >= 0) {
+    return roomPrice
+  }
+
+  const nights = Math.max(
+    Number(options.nights ?? options.night_count) ||
+      calculateHotelNights(formatDateInputValue(item.start_at), formatDateInputValue(item.end_at)) ||
+      1,
+    1,
+  )
+  const snapshot = Number(item.unit_price_snapshot ?? item.unit_price)
+
+  return Number.isFinite(snapshot) && snapshot >= 0 ? snapshot / nights : 0
+}
+
 function normalizeServerSummary(summary = {}, fallbackItemCount = 0) {
   const vatAmount = Number(summary.vat_amount ?? summary.tax_amount ?? 0)
   const serviceFeeAmount = Number(summary.service_fee_amount ?? 0)
@@ -219,10 +314,7 @@ function formatVoucherValidityLabel(voucher = {}) {
 function mapVoucherWalletItem(voucher = {}) {
   return {
     code: String(voucher.code || '').toUpperCase(),
-    description:
-      voucher.description ||
-      voucher.title ||
-      'Ưu đãi này đang sẵn sàng để áp dụng cho giỏ hàng phù hợp của bạn.',
+    description: 'Ưu đãi dành cho đơn đặt dịch vụ đầu tiên của bạn tại Nét Việt.',
     discount_label: formatVoucherDiscountLabel(voucher),
     id: voucher.id || '',
     min_order_label: formatVoucherMinOrderLabel(voucher),
@@ -231,7 +323,18 @@ function mapVoucherWalletItem(voucher = {}) {
     target_label: formatVoucherTargetLabel(voucher.target_service_type),
     title: voucher.title || voucher.promotion?.name || voucher.code || 'Voucher',
     validity_label: formatVoucherValidityLabel(voucher),
+    validity_value: voucher.valid_to ? formatVoucherDate(voucher.valid_to) : 'Đang cập nhật',
   }
+}
+
+function isVoucherWalletItemAvailable(voucher = {}) {
+  const status = String(voucher.status ?? '').trim().toLowerCase()
+
+  if (!status) {
+    return true
+  }
+
+  return ['active', 'available', 'issued', 'unused', 'valid'].includes(status)
 }
 
 export default function useCart() {
@@ -608,6 +711,102 @@ export default function useCart() {
     }
   }
 
+  async function handleHotelDateChange(item, fieldName, nextValue) {
+    if (!cart?.id || !item?.id || !isHotelCartItem(item) || !nextValue) {
+      return
+    }
+
+    const currentCheckinDate =
+      formatDateInputValue(item.start_at) ||
+      item.options?.checkin_date ||
+      formatDateInputValue(new Date())
+    const currentCheckoutDate =
+      formatDateInputValue(item.end_at) ||
+      item.options?.checkout_date ||
+      addDaysToInputDate(currentCheckinDate, 1)
+    const nextCheckinDate = fieldName === 'checkin' ? nextValue : currentCheckinDate
+    let nextCheckoutDate = fieldName === 'checkout' ? nextValue : currentCheckoutDate
+
+    if (!nextCheckoutDate || nextCheckoutDate <= nextCheckinDate) {
+      nextCheckoutDate = addDaysToInputDate(nextCheckinDate, 1)
+    }
+
+    const nextNights = calculateHotelNights(nextCheckinDate, nextCheckoutDate)
+
+    if (nextNights < 1) {
+      setFeedback(createFeedbackState('error', 'Vui lòng chọn ngày nhận và trả phòng hợp lệ.'))
+      return
+    }
+
+    if (
+      nextCheckinDate === formatDateInputValue(item.start_at) &&
+      nextCheckoutDate === formatDateInputValue(item.end_at)
+    ) {
+      return
+    }
+
+    if (!startItemUpdate(item.id)) {
+      return
+    }
+
+    const roomQuantity = Math.max(Number(item.options?.room_quantity) || Number(item.quantity) || 1, 1)
+    const roomPrice = resolveHotelRoomPrice(item)
+    const nextOptions = {
+      ...(item.options ?? {}),
+      checkin_date: nextCheckinDate,
+      checkout_date: nextCheckoutDate,
+      nights: nextNights,
+      room_price: roomPrice,
+      room_quantity: roomQuantity,
+    }
+    const nextPayload = {
+      end_at: buildHotelDateTimeStamp(
+        nextCheckoutDate,
+        item.options?.checkout_time ?? item.service?.details?.checkout_time ?? '12:00:00',
+      ),
+      options: nextOptions,
+      quantity: roomQuantity,
+      start_at: buildHotelDateTimeStamp(
+        nextCheckinDate,
+        item.options?.checkin_time ?? item.service?.details?.checkin_time ?? '14:00:00',
+      ),
+    }
+
+    setError('')
+
+    try {
+      const response = await updateCartItem(
+        item.id,
+        nextPayload,
+        { authState },
+      )
+      const responseItem = response.data?.cart_item
+      const fallbackItem = {
+        ...item,
+        end_at: nextPayload.end_at,
+        options: nextOptions,
+        quantity: roomQuantity,
+        start_at: nextPayload.start_at,
+      }
+      const nextItem = mapCartItemToView(responseItem ?? fallbackItem)
+      const nextCartItems = cartItems.map((cartItem) =>
+        cartItem.id === item.id ? nextItem : cartItem,
+      )
+
+      setCartItems(nextCartItems)
+      setSummary(buildSummary(nextCartItems, selectedItemIds))
+      resetVoucherState()
+      setFeedback(createFeedbackState('success', 'Đã cập nhật ngày lưu trú trong giỏ hàng.'))
+    } catch (updateError) {
+      const nextMessage =
+        updateError?.message ?? 'Không thể cập nhật ngày lưu trú trong giỏ hàng.'
+      setError(nextMessage)
+      setFeedback(createFeedbackState('error', nextMessage))
+    } finally {
+      finishItemUpdate(item.id)
+    }
+  }
+
   function handleEditItem(item) {
     const nextRoute = buildItemRoute(item)
 
@@ -653,7 +852,6 @@ export default function useCart() {
       const resolvedSelectedItemIds = Array.isArray(response.data?.selected_item_ids)
         ? response.data.selected_item_ids
         : selectedItemIds
-      const validatedSummary = response.data?.summary ?? null
 
       if (!isValid) {
         setFeedback(
@@ -666,6 +864,7 @@ export default function useCart() {
       }
 
       const previewBookingCode = resolvePreviewBookingCode()
+      const checkoutSummary = summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds)
 
       navigate(buildPublicAuthPath('/booking-confirmation', isCustomer), {
         state: {
@@ -674,7 +873,7 @@ export default function useCart() {
           cartSummaryPayload: {
             ...createCartSummaryPayload(
               cart,
-              validatedSummary ?? summaryOverride ?? buildSummary(cartItems, resolvedSelectedItemIds),
+              checkoutSummary,
               resolvedSelectedItemIds,
               appliedVoucher?.code ?? voucherCode,
             ),
@@ -844,7 +1043,7 @@ export default function useCart() {
   )
 
   const availableVouchers = useMemo(
-    () => voucherWallet.filter((voucher) => voucher.status === 'active'),
+    () => voucherWallet.filter((voucher) => isVoucherWalletItemAvailable(voucher)),
     [voucherWallet],
   )
 
@@ -869,6 +1068,7 @@ export default function useCart() {
     handleContinueCheckout,
     handleEditItem,
     handleGoBack,
+    handleHotelDateChange,
     handleOpenVoucherPicker,
     handleTourPassengerChange,
     handleQuantityChange,

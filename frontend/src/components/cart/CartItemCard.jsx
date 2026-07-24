@@ -1,5 +1,5 @@
 import { SERVICE_TYPES } from '../../constants/serviceTypes.js'
-import { resolveCartItemLineAmount } from '../../mappers/cartMappers.js'
+import { resolveCartItemUnitAmount } from '../../mappers/cartMappers.js'
 
 function CalendarIcon() {
   return (
@@ -63,12 +63,40 @@ function PassengerCounter({
   )
 }
 
+function padDatePart(value) {
+  return String(value).padStart(2, '0')
+}
+
+function formatDateInputValue(value) {
+  const date = value ? new Date(value) : null
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`
+}
+
+function addDaysToInputDate(value, dayCount = 1) {
+  const [yearText, monthText, dayText] = String(value ?? '').split('-')
+  const date = new Date(Number(yearText), Number(monthText) - 1, Number(dayText))
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  date.setDate(date.getDate() + dayCount)
+
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`
+}
+
 function CartItemCard({
   formatCurrency,
   isSelected,
   isUpdatingQuantity = false,
   item,
   onEdit,
+  onHotelDateChange,
   onQuantityChange,
   onRemove,
   onToggle,
@@ -77,9 +105,12 @@ function CartItemCard({
   const quantity = Number(item.quantity) > 0 ? Number(item.quantity) : 1
   const canDecreaseQuantity = quantity > 1 && !isUpdatingQuantity
   const isTourItem = item.service_type === SERVICE_TYPES.tour
+  const isHotelItem = item.service_type === SERVICE_TYPES.hotel || item.service_type === SERVICE_TYPES.room
   const adultCount = Math.max(Number(item.options?.adult_count) || quantity, 1)
   const childCount = Math.max(Number(item.options?.child_count) || 0, 0)
-  const displayAmount = resolveCartItemLineAmount(item)
+  const checkinDate = formatDateInputValue(item.start_at) || item.options?.checkin_date || ''
+  const checkoutDate = formatDateInputValue(item.end_at) || item.options?.checkout_date || ''
+  const displayAmount = resolveCartItemUnitAmount(item)
 
   return (
     <article className={isSelected ? 'cart-item-card cart-item-card--selected' : 'cart-item-card'}>
@@ -139,6 +170,28 @@ function CartItemCard({
                     min={0}
                     onChange={(nextCount) => onTourPassengerChange(item, 'child_count', nextCount)}
                   />
+                </div>
+              ) : isHotelItem ? (
+                <div className="cart-item-card__date-grid" aria-label={`Ngày lưu trú ${item.service.title}`}>
+                  <label className="cart-item-card__date-field">
+                    <span>Nhận phòng</span>
+                    <input
+                      disabled={isUpdatingQuantity}
+                      type="date"
+                      value={checkinDate}
+                      onChange={(event) => onHotelDateChange?.(item, 'checkin', event.target.value)}
+                    />
+                  </label>
+                  <label className="cart-item-card__date-field">
+                    <span>Trả phòng</span>
+                    <input
+                      disabled={isUpdatingQuantity}
+                      min={checkinDate ? addDaysToInputDate(checkinDate, 1) : undefined}
+                      type="date"
+                      value={checkoutDate}
+                      onChange={(event) => onHotelDateChange?.(item, 'checkout', event.target.value)}
+                    />
+                  </label>
                 </div>
               ) : (
                 <div className="cart-item-card__quantity-control" aria-label={`Số lượng ${item.service.title}`}>

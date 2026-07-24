@@ -14,6 +14,7 @@ export const REGISTER_FORM_DEFAULT_VALUES = Object.freeze({
   full_name: '',
   email: '',
   phone: '',
+  date_of_birth: '',
   password: '',
   confirm_password: '',
   accepted_terms: false,

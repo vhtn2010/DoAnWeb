@@ -15,6 +15,35 @@ function CloseIcon() {
   )
 }
 
+function isVoucherApplicable(voucher = {}) {
+  const status = String(voucher.status ?? '').trim().toLowerCase()
+
+  if (!status) {
+    return true
+  }
+
+  return ['active', 'available', 'issued', 'unused', 'valid'].includes(status)
+}
+
+function getVoucherActionLabel({
+  canApplyVoucherSelection,
+  canUseVoucher,
+  isVoucherLoading,
+  voucher,
+}) {
+  const status = String(voucher.status ?? '').trim().toLowerCase()
+
+  if (!canUseVoucher) {
+    return status === 'used' ? 'Đã sử dụng' : 'Hết hiệu lực'
+  }
+
+  if (!canApplyVoucherSelection) {
+    return 'Chọn dịch vụ'
+  }
+
+  return isVoucherLoading ? 'Đang áp dụng...' : 'Áp dụng'
+}
+
 function CartVoucherPickerModal({
   canApplyVoucherSelection,
   isLoading,
@@ -180,14 +209,20 @@ function CartVoucherPickerModal({
         {!isLoading && !vouchersError && vouchers.length > 0 ? (
           <div className="cart-voucher-modal__list">
             {vouchers.map((voucher) => {
-              const isActiveVoucher = voucher.status === 'active'
+              const canUseVoucher = isVoucherApplicable(voucher)
+              const actionLabel = getVoucherActionLabel({
+                canApplyVoucherSelection,
+                canUseVoucher,
+                isVoucherLoading,
+                voucher,
+              })
 
               return (
                 <article
                   className={
-                    isActiveVoucher
-                      ? 'cart-voucher-card'
-                      : 'cart-voucher-card cart-voucher-card--muted'
+                    canUseVoucher
+                      ? 'cart-voucher-card cart-voucher-card--active'
+                      : 'cart-voucher-card cart-voucher-card--expired'
                   }
                   key={voucher.id || voucher.code}
                 >
@@ -196,37 +231,25 @@ function CartVoucherPickerModal({
                     <span>Mã Khuyến Mãi</span>
                   </div>
 
-                  <div className="cart-voucher-card__content">
-                    <div className="cart-voucher-card__top">
+                  <div className="cart-voucher-card__body">
+                    <h2>{voucher.title}</h2>
+                    <p>{voucher.description}</p>
+                    <dl className="cart-voucher-card__meta">
                       <div>
-                        <h4>{voucher.title}</h4>
+                        <dt>Hạn sử dụng:</dt>
+                        <dd>{voucher.validity_value || voucher.validity_label}</dd>
                       </div>
-                      <strong className="cart-voucher-card__discount">{voucher.discount_label}</strong>
-                    </div>
-
-                    <p className="cart-voucher-card__description">{voucher.description}</p>
-
-                    <div className="cart-voucher-card__meta">
-                      <span>{voucher.target_label}</span>
-                      <span>{voucher.min_order_label}</span>
-                      <span>{voucher.validity_label}</span>
-                    </div>
-
-                    {voucher.promotion_name ? (
-                      <div className="cart-voucher-card__promotion">{voucher.promotion_name}</div>
-                    ) : null}
-
-                    <div className="cart-voucher-card__actions">
-                      <button
-                        className="cart-summary-card__ghost-button cart-summary-card__ghost-button--brand"
-                        disabled={!isActiveVoucher || !canApplyVoucherSelection || isVoucherLoading}
-                        type="button"
-                        onClick={() => onApplyVoucher(voucher.code)}
-                      >
-                        {isVoucherLoading ? 'Đang áp dụng...' : 'Áp dụng voucher này'}
-                      </button>
-                    </div>
+                    </dl>
                   </div>
+
+                  <button
+                    className="cart-voucher-card__action"
+                    disabled={!canUseVoucher || !canApplyVoucherSelection || isVoucherLoading}
+                    type="button"
+                    onClick={() => onApplyVoucher(voucher.code)}
+                  >
+                    {actionLabel}
+                  </button>
                 </article>
               )
             })}

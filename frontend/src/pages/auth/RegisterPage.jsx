@@ -123,6 +123,44 @@ function RegisterPage() {
             {errors.email ? <p className="auth-form__field-error">{errors.email}</p> : null}
           </label>
 
+          <label className="auth-template-form__field" htmlFor="register-phone">
+            <span className="auth-template-form__label">Số điện thoại</span>
+            <input
+              autoComplete="tel"
+              aria-invalid={Boolean(errors.phone)}
+              className={`auth-template-form__input${
+                errors.phone ? ' auth-template-form__input--error' : ''
+              }`}
+              id="register-phone"
+              inputMode="tel"
+              name="phone"
+              placeholder="Nhập số điện thoại"
+              type="tel"
+              value={formValues.phone}
+              onChange={handleFieldChange}
+            />
+            {errors.phone ? <p className="auth-form__field-error">{errors.phone}</p> : null}
+          </label>
+
+          <label className="auth-template-form__field" htmlFor="register-date-of-birth">
+            <span className="auth-template-form__label">Ngày sinh</span>
+            <input
+              autoComplete="bday"
+              aria-invalid={Boolean(errors.date_of_birth)}
+              className={`auth-template-form__input${
+                errors.date_of_birth ? ' auth-template-form__input--error' : ''
+              }`}
+              id="register-date-of-birth"
+              name="date_of_birth"
+              type="date"
+              value={formValues.date_of_birth}
+              onChange={handleFieldChange}
+            />
+            {errors.date_of_birth ? (
+              <p className="auth-form__field-error">{errors.date_of_birth}</p>
+            ) : null}
+          </label>
+
           <label className="auth-template-form__field" htmlFor="register-password">
             <span className="auth-template-form__label">Mật khẩu</span>
             <div

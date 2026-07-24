@@ -1004,6 +1004,58 @@ select {
   font-size: 1rem;
 }
 
+.cart-item-card__date-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(132px, 1fr));
+  gap: 10px;
+  min-width: min(100%, 320px);
+}
+
+.cart-item-card__date-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cart-item-card__date-field span {
+  color: #667085;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.cart-item-card__date-field input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgba(210, 214, 219, 0.9);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+  color: #111827;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 8px 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 8px 18px rgba(15, 23, 42, 0.04);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.cart-item-card__date-field input:hover,
+.cart-item-card__date-field input:focus-visible {
+  outline: none;
+  border-color: rgba(180, 35, 24, 0.34);
+  background: #fffefe;
+  box-shadow: 0 8px 18px rgba(180, 35, 24, 0.08);
+}
+
+.cart-item-card__date-field input:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .cart-item-card__passenger-grid {
   display: flex;
   align-items: center;
@@ -1329,6 +1381,11 @@ select {
   }
 
   .cart-item-card__quantity-stack {
+    width: 100%;
+  }
+
+  .cart-item-card__date-grid {
+    grid-template-columns: 1fr;
     width: 100%;
   }
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   PublicButton,
-  PublicCard,
   PublicEmptyState,
   PublicLoadingBlock,
   PublicNotice,
@@ -273,8 +272,189 @@ function createPasswordState() {
   }
 }
 
+function EyeIcon({ visible }) {
+  if (visible) {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path
+          d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        />
+        <circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M3 3 21 21M10.7 6A10.3 10.3 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a15.7 15.7 0 0 1-4 4.7M14.5 14.7A3 3 0 0 1 9.3 9.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M6.8 6.8A15.9 15.9 0 0 0 2.5 12S6 18.5 12 18.5c1.8 0 3.3-.6 4.5-1.4"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
+function PasswordInput({
+  autoComplete,
+  label,
+  name,
+  onChange,
+  onToggleVisibility,
+  value,
+  visible,
+}) {
+  return (
+    <label className="profile-account-center__field">
+      <span>{label}</span>
+      <div className="profile-account-center__password-control">
+        <input
+          autoComplete={autoComplete}
+          name={name}
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+        />
+        <button
+          aria-label={visible ? `Ẩn ${label.toLowerCase()}` : `Hiện ${label.toLowerCase()}`}
+          className="profile-account-center__password-toggle"
+          type="button"
+          onClick={() => onToggleVisibility(name)}
+        >
+          <EyeIcon visible={visible} />
+        </button>
+      </div>
+    </label>
+  )
+}
+
+function ChevronIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M7.25 5.5 11.75 10l-4.5 4.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
+function AccountPanelIcon({ type }) {
+  if (type === 'danger') {
+    return (
+      <svg fill="none" viewBox="0 0 20 20">
+        <path
+          d="M10 2.75 17.25 16H2.75L10 2.75Z"
+          stroke="currentColor"
+          strokeLinejoin="round"
+          strokeWidth="1.6"
+        />
+        <path
+          d="M10 7.25v3.8M10 14h.01"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="1.8"
+        />
+      </svg>
+    )
+  }
+
+  if (type === 'activity') {
+    return (
+      <svg fill="none" viewBox="0 0 20 20">
+        <path
+          d="M4 4.75h12M4 10h12M4 15.25h7"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="1.7"
+        />
+      </svg>
+    )
+  }
+
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M5.5 8.75V6.8a4.5 4.5 0 0 1 9 0v1.95"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M4.75 8.5h10.5a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H4.75a1.5 1.5 0 0 1-1.5-1.5v-5a1.5 1.5 0 0 1 1.5-1.5Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.6"
+      />
+    </svg>
+  )
+}
+
+function AccountAccordionItem({
+  children,
+  description,
+  id,
+  isOpen,
+  onToggle,
+  title,
+  type,
+}) {
+  return (
+    <article
+      className={`profile-account-center__accordion-item${
+        isOpen ? ' profile-account-center__accordion-item--open' : ''
+      }`}
+    >
+      <button
+        aria-expanded={isOpen}
+        className="profile-account-center__accordion-trigger"
+        type="button"
+        onClick={() => onToggle(id)}
+      >
+        <span className="profile-account-center__accordion-icon" aria-hidden="true">
+          <AccountPanelIcon type={type} />
+        </span>
+        <span className="profile-account-center__accordion-copy">
+          <strong>{title}</strong>
+          <small>{description}</small>
+        </span>
+        <span className="profile-account-center__accordion-arrow" aria-hidden="true">
+          <ChevronIcon />
+        </span>
+      </button>
+
+      {isOpen ? <div className="profile-account-center__accordion-body">{children}</div> : null}
+    </article>
+  )
+}
+
 export default function ProfileAccountCenter() {
   const [passwordForm, setPasswordForm] = useState(createPasswordState)
+  const [openPanel, setOpenPanel] = useState('')
+  const [visiblePasswords, setVisiblePasswords] = useState({
+    confirmPassword: false,
+    currentPassword: false,
+    newPassword: false,
+  })
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordFeedback, setPasswordFeedback] = useState({
     message: '',
@@ -364,6 +544,17 @@ export default function ProfileAccountCenter() {
     })
   }
 
+  function handleTogglePasswordVisibility(fieldName) {
+    setVisiblePasswords((currentState) => ({
+      ...currentState,
+      [fieldName]: !currentState[fieldName],
+    }))
+  }
+
+  function handleTogglePanel(panelId) {
+    setOpenPanel((currentPanel) => (currentPanel === panelId ? '' : panelId))
+  }
+
   async function handlePasswordSubmit(event) {
     event.preventDefault()
 
@@ -404,6 +595,11 @@ export default function ProfileAccountCenter() {
       })
 
       setPasswordForm(createPasswordState())
+      setVisiblePasswords({
+        confirmPassword: false,
+        currentPassword: false,
+        newPassword: false,
+      })
       setPasswordFeedback({
         message: response?.message || 'Mật khẩu đã được cập nhật thành công.',
         tone: 'success',
@@ -461,129 +657,130 @@ export default function ProfileAccountCenter() {
     <section className="profile-account-center">
       <PublicSectionHeader
         eyebrow="Bảo mật & nhật ký"
-        subtitle="Các API tài khoản cá nhân đã được nối vào khu vực này để bạn tự theo dõi và thao tác trực tiếp."
+        subtitle="Chọn từng mục bên dưới để cập nhật bảo mật hoặc xem các hoạt động quan trọng."
         title="Trung tâm tài khoản"
       />
 
-      <div className="profile-account-center__grid">
-        <div className="profile-account-center__stack">
-          <PublicCard className="profile-account-center__card" padding="lg">
-            <PublicSectionHeader
-              subtitle="Xác nhận lại bằng mật khẩu hiện tại trước khi lưu mật khẩu đăng nhập mới."
-              title="Đổi mật khẩu"
+      <div className="profile-account-center__accordion">
+        <AccountAccordionItem
+          description="Xác nhận mật khẩu hiện tại trước khi lưu mật khẩu mới."
+          id="password"
+          isOpen={openPanel === 'password'}
+          title="Đổi mật khẩu"
+          type="password"
+          onToggle={handleTogglePanel}
+        >
+          {passwordFeedback.message ? (
+            <PublicNotice
+              className="profile-account-center__feedback"
+              role="status"
+              tone={passwordFeedback.tone === 'error' ? 'info' : passwordFeedback.tone}
+            >
+              {passwordFeedback.message}
+            </PublicNotice>
+          ) : null}
+
+          <form className="profile-account-center__form" onSubmit={handlePasswordSubmit}>
+            <PasswordInput
+              autoComplete="current-password"
+              label="Mật khẩu hiện tại"
+              name="currentPassword"
+              value={passwordForm.currentPassword}
+              visible={visiblePasswords.currentPassword}
+              onChange={handlePasswordFieldChange}
+              onToggleVisibility={handleTogglePasswordVisibility}
             />
 
-            {passwordFeedback.message ? (
-              <PublicNotice
-                className="profile-account-center__feedback"
-                role="status"
-                tone={passwordFeedback.tone === 'error' ? 'info' : passwordFeedback.tone}
-              >
-                {passwordFeedback.message}
-              </PublicNotice>
-            ) : null}
-
-            <form className="profile-account-center__form" onSubmit={handlePasswordSubmit}>
-              <label className="profile-account-center__field">
-                <span>Mật khẩu hiện tại</span>
-                <input
-                  autoComplete="current-password"
-                  name="currentPassword"
-                  type="password"
-                  value={passwordForm.currentPassword}
-                  onChange={handlePasswordFieldChange}
-                />
-              </label>
-
-              <label className="profile-account-center__field">
-                <span>Mật khẩu mới</span>
-                <input
-                  autoComplete="new-password"
-                  name="newPassword"
-                  type="password"
-                  value={passwordForm.newPassword}
-                  onChange={handlePasswordFieldChange}
-                />
-              </label>
-
-              <label className="profile-account-center__field">
-                <span>Xác nhận mật khẩu mới</span>
-                <input
-                  autoComplete="new-password"
-                  name="confirmPassword"
-                  type="password"
-                  value={passwordForm.confirmPassword}
-                  onChange={handlePasswordFieldChange}
-                />
-              </label>
-
-              <div className="profile-account-center__actions">
-                <PublicButton loading={passwordLoading} type="submit" variant="primary">
-                  Lưu mật khẩu mới
-                </PublicButton>
-              </div>
-            </form>
-          </PublicCard>
-
-          <PublicCard className="profile-account-center__card" padding="lg">
-            <PublicSectionHeader
-              subtitle="Yêu cầu này sẽ được ghi nhận vào hệ thống để đội ngũ hỗ trợ kiểm tra và xử lý tiếp."
-              title="Yêu cầu vô hiệu hóa tài khoản"
+            <PasswordInput
+              autoComplete="new-password"
+              label="Mật khẩu mới"
+              name="newPassword"
+              value={passwordForm.newPassword}
+              visible={visiblePasswords.newPassword}
+              onChange={handlePasswordFieldChange}
+              onToggleVisibility={handleTogglePasswordVisibility}
             />
 
-            {deactivationFeedback.message ? (
-              <PublicNotice
-                className="profile-account-center__feedback"
-                role="status"
-                tone={deactivationFeedback.tone === 'error' ? 'info' : deactivationFeedback.tone}
+            <PasswordInput
+              autoComplete="new-password"
+              label="Xác nhận mật khẩu mới"
+              name="confirmPassword"
+              value={passwordForm.confirmPassword}
+              visible={visiblePasswords.confirmPassword}
+              onChange={handlePasswordFieldChange}
+              onToggleVisibility={handleTogglePasswordVisibility}
+            />
+
+            <div className="profile-account-center__actions">
+              <PublicButton loading={passwordLoading} type="submit" variant="primary">
+                Lưu mật khẩu mới
+              </PublicButton>
+            </div>
+          </form>
+        </AccountAccordionItem>
+
+        <AccountAccordionItem
+          description="Gửi yêu cầu tạm ngưng tài khoản để đội ngũ hỗ trợ xử lý."
+          id="deactivation"
+          isOpen={openPanel === 'deactivation'}
+          title="Yêu cầu vô hiệu hóa tài khoản"
+          type="danger"
+          onToggle={handleTogglePanel}
+        >
+          {deactivationFeedback.message ? (
+            <PublicNotice
+              className="profile-account-center__feedback"
+              role="status"
+              tone={deactivationFeedback.tone === 'error' ? 'info' : deactivationFeedback.tone}
+            >
+              {deactivationFeedback.message}
+            </PublicNotice>
+          ) : null}
+
+          {hasPendingDeactivationRequest ? (
+            <PublicNotice tone="info">
+              Hệ thống đang ghi nhận một yêu cầu vô hiệu hóa tài khoản ở trạng thái chờ xử lý.
+            </PublicNotice>
+          ) : null}
+
+          <form className="profile-account-center__form" onSubmit={handleDeactivationSubmit}>
+            <label className="profile-account-center__field">
+              <span>Lý do</span>
+              <textarea
+                name="reason"
+                placeholder="Ví dụ: Tôi không còn nhu cầu sử dụng tài khoản này nữa."
+                value={deactivationReason}
+                onChange={(event) => {
+                  setDeactivationReason(event.target.value)
+                  setDeactivationFeedback({
+                    message: '',
+                    tone: 'info',
+                  })
+                }}
+              />
+            </label>
+
+            <div className="profile-account-center__actions">
+              <PublicButton
+                disabled={hasPendingDeactivationRequest}
+                loading={deactivationLoading}
+                type="submit"
+                variant="secondary"
               >
-                {deactivationFeedback.message}
-              </PublicNotice>
-            ) : null}
+                Gửi yêu cầu
+              </PublicButton>
+            </div>
+          </form>
+        </AccountAccordionItem>
 
-            {hasPendingDeactivationRequest ? (
-              <PublicNotice tone="info">
-                Hệ thống đang ghi nhận một yêu cầu vô hiệu hóa tài khoản ở trạng thái chờ xử lý.
-              </PublicNotice>
-            ) : null}
-
-            <form className="profile-account-center__form" onSubmit={handleDeactivationSubmit}>
-              <label className="profile-account-center__field">
-                <span>Lý do</span>
-                <textarea
-                  name="reason"
-                  placeholder="Ví dụ: Tôi không còn nhu cầu sử dụng tài khoản này nữa."
-                  value={deactivationReason}
-                  onChange={(event) => {
-                    setDeactivationReason(event.target.value)
-                    setDeactivationFeedback({
-                      message: '',
-                      tone: 'info',
-                    })
-                  }}
-                />
-              </label>
-
-              <div className="profile-account-center__actions">
-                <PublicButton
-                  disabled={hasPendingDeactivationRequest}
-                  loading={deactivationLoading}
-                  type="submit"
-                  variant="secondary"
-                >
-                  Gửi yêu cầu
-                </PublicButton>
-              </div>
-            </form>
-          </PublicCard>
-        </div>
-
-        <PublicCard className="profile-account-center__logs" padding="lg">
-          <PublicSectionHeader
-            subtitle="Chỉ hiển thị các cập nhật quan trọng về đơn hàng và tài khoản của bạn."
-            title="Hoạt động gần đây"
-          />
-
+        <AccountAccordionItem
+          description="Theo dõi các cập nhật quan trọng về đơn hàng và tài khoản."
+          id="activity"
+          isOpen={openPanel === 'activity'}
+          title="Hoạt động gần đây"
+          type="activity"
+          onToggle={handleTogglePanel}
+        >
           {logsLoading ? <PublicLoadingBlock rows={4} /> : null}
 
           {!logsLoading && logsError ? (
@@ -624,7 +821,7 @@ export default function ProfileAccountCenter() {
               />
             </>
           ) : null}
-        </PublicCard>
+        </AccountAccordionItem>
       </div>
     </section>
   )

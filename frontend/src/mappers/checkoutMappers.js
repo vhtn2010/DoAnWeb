@@ -14,7 +14,12 @@ import {
 import { SERVICE_STATUSES } from '../constants/serviceStatuses.js'
 import { SERVICE_TYPES } from '../constants/serviceTypes.js'
 import { resolvePreviewBookingCode } from '../utils/previewBooking.js'
-import { VAT_RATE, calculateItemPricing, roundMoney } from '../utils/pricing.js'
+import {
+  VAT_RATE,
+  calculateItemPricing,
+  calculatePricingSummary,
+  roundMoney,
+} from '../utils/pricing.js'
 
 function normalizeAuthState(authState = ROLES.guest) {
   return authState === ROLES.customer ? ROLES.customer : ROLES.guest
@@ -191,7 +196,7 @@ export function calculateCheckoutSummary(payload = {}) {
   )
   const surchargeAmount = hasResolvableNumber(payload.surcharge_amount, payload.surchargeAmount)
     ? resolveNumber(payload.surcharge_amount, payload.surchargeAmount)
-    : baggageFeeAmount
+    : 0
   const discountAmount = Math.min(
     Math.max(resolveNumber(payload.discount_amount, payload.discountAmount), 0),
     subtotalAmount,
@@ -199,7 +204,7 @@ export function calculateCheckoutSummary(payload = {}) {
   // VAT luôn tính trên (tạm tính − giảm giá) giống giỏ hàng, không tin VAT truyền vào,
   // để khi áp voucher tại checkout thuế được tính lại đúng trên phần đã giảm.
   const vatAmount = roundMoney(Math.max(subtotalAmount - discountAmount, 0) * VAT_RATE)
-  const taxAndFeeAmount = vatAmount + serviceFeeAmount + surchargeAmount
+  const taxAndFeeAmount = vatAmount + serviceFeeAmount + surchargeAmount + baggageFeeAmount
 
   return {
     subtotal_amount: subtotalAmount,
@@ -305,22 +310,36 @@ export function buildCheckoutDraftFromCartSnapshot(
     normalizedSelectedIds.includes(cartItem.id),
   )
   const primaryCartItem = selectedCartItems[0] ?? cartItems[0] ?? null
+  const cartPricingSummary = calculatePricingSummary(selectedCartItems)
 
   const subtotalAmount = resolveNumber(
     cartSummaryPayload?.summary?.subtotal_amount,
+    cartPricingSummary.subtotal_amount,
     calculateSubtotalFromItems(selectedCartItems),
   )
   const serviceFeeAmount = resolveNumber(
     cartSummaryPayload?.summary?.service_fee_amount,
+    cartPricingSummary.service_fee_amount,
   )
-  const vatAmount = resolveNumber(cartSummaryPayload?.summary?.vat_amount)
-  const surchargeAmount = resolveNumber(cartSummaryPayload?.summary?.surcharge_amount)
+  const vatAmount = resolveNumber(
+    cartSummaryPayload?.summary?.vat_amount,
+    cartPricingSummary.vat_amount,
+  )
+  const surchargeAmount = resolveNumber(
+    cartSummaryPayload?.summary?.surcharge_amount,
+    cartPricingSummary.surcharge_amount,
+  )
   const taxAndFeeAmount = resolveNumber(
     cartSummaryPayload?.summary?.tax_and_fee_amount,
+    cartPricingSummary.tax_and_fee_amount,
     vatAmount + serviceFeeAmount + surchargeAmount,
     CHECKOUT_DEFAULT_SERVICE_FEE_AMOUNT,
   )
-  const discountAmount = resolveNumber(cartSummaryPayload?.summary?.discount_amount, 0)
+  const discountAmount = resolveNumber(
+    cartSummaryPayload?.summary?.discount_amount,
+    cartPricingSummary.discount_amount,
+    0,
+  )
 
   const emptyContactValues = {
     contact_name: '',

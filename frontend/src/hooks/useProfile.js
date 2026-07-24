@@ -12,13 +12,25 @@ import {
 import { logout } from '../repositories/authRepository.js'
 import { buildProfileViewModel } from '../mappers/profileMappers.js'
 import { buildPublicAuthPath } from '../utils/publicNavigation.js'
+import useFavorites from './useFavorites.js'
+
+function mapFavoriteItemToDestination(item = {}) {
+  return {
+    detail_path: item.detail_path,
+    id: item.favorite_key,
+    image_url: item.image_url,
+    location: item.location_text || item.summary || item.source_label,
+    name: item.title,
+    slug: item.slug,
+  }
+}
 
 export default function useProfile() {
   const navigate = useNavigate()
-  const { authState, isCustomer, isCustomerPreview } = usePublicSession()
+  const { authState, currentUser, isCustomer, isCustomerPreview } = usePublicSession()
+  const { favorites } = useFavorites({ currentUser })
 
   const [profile, setProfile] = useState(null)
-  const [favoriteDestinations, setFavoriteDestinations] = useState([])
   const [upcomingTrip, setUpcomingTrip] = useState(null)
   const [bookingHistory, setBookingHistory] = useState([])
   const [travelUtilities, setTravelUtilities] = useState([])
@@ -46,7 +58,6 @@ export default function useProfile() {
 
         if (!response.success || !response.data) {
           setProfile(null)
-          setFavoriteDestinations([])
           setUpcomingTrip(null)
           setBookingHistory([])
           setTravelUtilities([])
@@ -56,11 +67,6 @@ export default function useProfile() {
         }
 
         setProfile(response.data.profile ?? null)
-        setFavoriteDestinations(
-          Array.isArray(response.data.favorite_destinations)
-            ? response.data.favorite_destinations
-            : [],
-        )
         setUpcomingTrip(response.data.upcoming_trip ?? null)
         setBookingHistory(
           Array.isArray(response.data.booking_history) ? response.data.booking_history : [],
@@ -77,7 +83,6 @@ export default function useProfile() {
         }
 
         setProfile(null)
-        setFavoriteDestinations([])
         setUpcomingTrip(null)
         setBookingHistory([])
         setTravelUtilities([])
@@ -96,6 +101,11 @@ export default function useProfile() {
       isActive = false
     }
   }, [authState, reloadToken])
+
+  const favoriteDestinations = useMemo(
+    () => favorites.map(mapFavoriteItemToDestination),
+    [favorites],
+  )
 
   const viewModel = useMemo(
     () =>

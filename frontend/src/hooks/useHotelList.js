@@ -122,6 +122,27 @@ function buildHotelSearchParams({
   return nextSearchParams
 }
 
+function buildHotelDetailPath({ hotel, isCustomer, searchValues = {} }) {
+  const nextSearchParams = new URLSearchParams()
+
+  if (searchValues.location?.trim()) {
+    nextSearchParams.set('location', searchValues.location.trim())
+  }
+
+  if (searchValues.checkin?.trim()) {
+    nextSearchParams.set('checkin', searchValues.checkin.trim())
+  }
+
+  if (searchValues.checkout?.trim()) {
+    nextSearchParams.set('checkout', searchValues.checkout.trim())
+  }
+
+  const nextQuery = nextSearchParams.toString()
+  const nextPath = `/hotels/${hotel.slug}${nextQuery ? `?${nextQuery}` : ''}`
+
+  return buildPublicAuthPath(nextPath, isCustomer)
+}
+
 export default function useHotelList() {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -309,10 +330,14 @@ export default function useHotelList() {
     () =>
       responseState.data.map((hotel) =>
         mapHotelSummaryToCardView(hotel, {
-          detailPath: buildPublicAuthPath(`/hotels/${hotel.slug}`, isCustomer),
+          detailPath: buildHotelDetailPath({
+            hotel,
+            isCustomer,
+            searchValues: searchDraft,
+          }),
         }),
       ),
-    [isCustomer, responseState.data],
+    [isCustomer, responseState.data, searchDraft],
   )
   const totalPages = responseState.meta.total_pages ?? 1
   const safeCurrentPage = responseState.meta.page ?? currentPage

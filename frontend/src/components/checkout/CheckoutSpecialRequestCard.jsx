@@ -47,6 +47,7 @@ function CheckoutSpecialRequestCard({
   onBaggageToggle,
   onCheckboxChange,
   onTextareaChange,
+  showBaggageOptions = true,
   termsAccepted,
 }) {
   return (
@@ -58,43 +59,45 @@ function CheckoutSpecialRequestCard({
         <h2 className="checkout-form-card__title">Yêu Cầu Đặc Biệt</h2>
       </div>
 
-      <div className="checkout-special-card__section">
-        <h3 className="checkout-special-card__section-title">Hành lý ký gửi</h3>
+      {showBaggageOptions ? (
+        <div className="checkout-special-card__section">
+          <h3 className="checkout-special-card__section-title">Hành lý ký gửi</h3>
 
-        <div className="checkout-special-card__baggage-list">
-          <button
-            className={`checkout-special-card__baggage-row ${
-              baggageSelection.baggage_departure
-                ? 'checkout-special-card__baggage-row--selected'
-                : ''
-            }`}
-            type="button"
-            onClick={() => onBaggageToggle('baggage_departure')}
-          >
-            <span>Chiều đi</span>
-            <span className="checkout-special-card__baggage-action">
-              {buildBaggageActionLabel(Boolean(baggageSelection.baggage_departure), 'baggage_departure')}
-              <ArrowRightIcon />
-            </span>
-          </button>
+          <div className="checkout-special-card__baggage-list">
+            <button
+              className={`checkout-special-card__baggage-row ${
+                baggageSelection.baggage_departure
+                  ? 'checkout-special-card__baggage-row--selected'
+                  : ''
+              }`}
+              type="button"
+              onClick={() => onBaggageToggle('baggage_departure')}
+            >
+              <span>Chiều đi</span>
+              <span className="checkout-special-card__baggage-action">
+                {buildBaggageActionLabel(Boolean(baggageSelection.baggage_departure), 'baggage_departure')}
+                <ArrowRightIcon />
+              </span>
+            </button>
 
-          <button
-            className={`checkout-special-card__baggage-row ${
-              baggageSelection.baggage_return
-                ? 'checkout-special-card__baggage-row--selected'
-                : ''
-            }`}
-            type="button"
-            onClick={() => onBaggageToggle('baggage_return')}
-          >
-            <span>Chiều về</span>
-            <span className="checkout-special-card__baggage-action">
-              {buildBaggageActionLabel(Boolean(baggageSelection.baggage_return), 'baggage_return')}
-              <ArrowRightIcon />
-            </span>
-          </button>
+            <button
+              className={`checkout-special-card__baggage-row ${
+                baggageSelection.baggage_return
+                  ? 'checkout-special-card__baggage-row--selected'
+                  : ''
+              }`}
+              type="button"
+              onClick={() => onBaggageToggle('baggage_return')}
+            >
+              <span>Chiều về</span>
+              <span className="checkout-special-card__baggage-action">
+                {buildBaggageActionLabel(Boolean(baggageSelection.baggage_return), 'baggage_return')}
+                <ArrowRightIcon />
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <label className="checkout-form-card__field">
         <span className="checkout-form-card__label">Ghi chú thêm</span>

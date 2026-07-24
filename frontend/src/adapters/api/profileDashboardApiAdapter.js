@@ -32,6 +32,12 @@ const CANCELLED_BOOKING_STATUSES = new Set([
   'expired',
 ])
 
+const CONFIRMED_UPCOMING_BOOKING_STATUSES = new Set(['confirmed', 'paid'])
+const PAYMENT_PENDING_UPCOMING_BOOKING_STATUSES = new Set([
+  'pending_payment',
+  'payment_processing',
+])
+
 const FALLBACK_PROFILE_IMAGE_BY_TYPE = Object.freeze({
   flight: '/assets/template/home/v39_1669.png',
   hotel: '/assets/template/home/v39_1693.png',
@@ -305,7 +311,10 @@ function buildProfileName(profile = {}) {
 }
 
 function buildUpcomingTrip(bookings = []) {
-  const upcomingBooking = bookings.find((booking) => UPCOMING_BOOKING_STATUSES.has(booking.status))
+  const upcomingBooking =
+    bookings.find((booking) => CONFIRMED_UPCOMING_BOOKING_STATUSES.has(booking.status)) ??
+    bookings.find((booking) => PAYMENT_PENDING_UPCOMING_BOOKING_STATUSES.has(booking.status)) ??
+    bookings.find((booking) => UPCOMING_BOOKING_STATUSES.has(booking.status))
 
   if (!upcomingBooking) {
     return null
@@ -319,7 +328,7 @@ function buildUpcomingTrip(bookings = []) {
   const paymentCode = String(upcomingBooking.latest_payment?.payment_code ?? '').trim()
 
   return {
-    badge: upcomingBooking.status === 'pending_payment' ? 'CHỜ THANH TOÁN' : 'ĐANG THEO DÕI',
+    badge: buildStatusLabel(displayStatus),
     booking_code: upcomingBooking.booking_code,
     code: upcomingBooking.booking_code,
     date_label: formatDateRange(firstItem.start_at, firstItem.end_at),

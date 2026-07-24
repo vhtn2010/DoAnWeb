@@ -28,6 +28,38 @@ function ChevronRightIcon() {
   )
 }
 
+function CloseIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="m5 5 10 10M15 5 5 15"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
+function GearIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 20 20">
+      <path
+        d="M10 12.65a2.65 2.65 0 1 0 0-5.3 2.65 2.65 0 0 0 0 5.3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="m3.85 11.55-.72-.42a.95.95 0 0 1-.36-1.3l.63-1.08a.95.95 0 0 1 1.18-.4l.8.33c.35-.28.72-.5 1.12-.66l.12-.86A.95.95 0 0 1 7.56 6h1.25a.95.95 0 0 1 .94.82l.12.86c.4.16.77.38 1.12.66l.8-.33a.95.95 0 0 1 1.18.4l.63 1.08a.95.95 0 0 1-.36 1.3l-.72.42c.03.22.05.44.05.68s-.02.46-.05.68l.72.42c.46.27.62.86.36 1.3l-.63 1.08a.95.95 0 0 1-1.18.4l-.8-.33c-.35.28-.72.5-1.12.66l-.12.86a.95.95 0 0 1-.94.82H7.56a.95.95 0 0 1-.94-.82l-.12-.86a5.33 5.33 0 0 1-1.12-.66l-.8.33a.95.95 0 0 1-1.18-.4l-.63-1.08a.95.95 0 0 1 .36-1.3l.72-.42a5.2 5.2 0 0 1-.05-.68c0-.24.02-.46.05-.68Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.4"
+      />
+    </svg>
+  )
+}
+
 function MailIcon() {
   return (
     <svg fill="none" viewBox="0 0 20 20">
@@ -189,6 +221,7 @@ function EditableContactField({
   isEditing,
   isPasswordVisible,
   isSaving,
+  isEditable = true,
   label,
   onCancel,
   onChange,
@@ -267,7 +300,7 @@ function EditableContactField({
           <span className="profile-hero__member-meta-text">{value}</span>
         )}
 
-        {!isEditing ? (
+        {!isEditing && isEditable ? (
           <button
             className="profile-hero__member-inline-action"
             type="button"
@@ -308,7 +341,7 @@ function MiniFavoriteDestinations({ destinations = [], onOpenDestination }) {
       <span className="profile-hero__favorites-stat-head">
         <span>
           <strong>{destinations.length}</strong>
-          <small>{destinations.length ? 'điểm đến yêu thích' : 'chưa có điểm đến yêu thích'}</small>
+          <small>điểm đến yêu thích</small>
         </span>
         <ChevronRightIcon />
       </span>
@@ -317,6 +350,7 @@ function MiniFavoriteDestinations({ destinations = [], onOpenDestination }) {
 }
 
 function ProfileHero({
+  accountCenterContent = null,
   favoriteDestinations = [],
   greeting,
   highlights = [],
@@ -357,6 +391,7 @@ function ProfileHero({
     message: '',
     tone: 'success',
   })
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   useEffect(() => {
     const nextContactInfo = {
@@ -385,6 +420,24 @@ function ProfileHero({
       tone: 'success',
     })
   }, [profile?.email, profile?.phone])
+
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      return undefined
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsSettingsOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isSettingsOpen])
 
   function clearFieldError(field) {
     setFieldErrors((currentErrors) => ({
@@ -591,6 +644,64 @@ function ProfileHero({
     }
   }
 
+  const memberContactMeta = (
+    <>
+      <div className="profile-hero__member-meta">
+        <EditableContactField
+          errorMessage={fieldErrors.email}
+          field="email"
+          icon={<MailIcon />}
+          inputMode="email"
+          isEditing={editingField === 'email'}
+          isEditable={false}
+          isPasswordVisible={visiblePasswords.email}
+          isSaving={savingField === 'email'}
+          label="Email liên hệ"
+          onCancel={handleCancel}
+          onChange={handleDraftChange}
+          onEdit={handleEdit}
+          onPasswordChange={handlePasswordChange}
+          onSave={handleSave}
+          onTogglePasswordVisibility={handleTogglePasswordVisibility}
+          passwordValue={passwordDrafts.email}
+          placeholder="name@example.com"
+          type="email"
+          value={editingField === 'email' ? draftInfo.email : contactInfo.email}
+        />
+
+        <EditableContactField
+          errorMessage={fieldErrors.phone}
+          field="phone"
+          icon={<PhoneIcon />}
+          inputMode="tel"
+          isEditing={editingField === 'phone'}
+          isPasswordVisible={visiblePasswords.phone}
+          isSaving={savingField === 'phone'}
+          label="Số điện thoại liên hệ"
+          onCancel={handleCancel}
+          onChange={handleDraftChange}
+          onEdit={handleEdit}
+          onPasswordChange={handlePasswordChange}
+          onSave={handleSave}
+          onTogglePasswordVisibility={handleTogglePasswordVisibility}
+          passwordValue={passwordDrafts.phone}
+          placeholder="090 234 5678"
+          type="tel"
+          value={editingField === 'phone' ? draftInfo.phone : contactInfo.phone}
+        />
+      </div>
+
+      {contactFeedback.message ? (
+        <p
+          className={`profile-hero__member-feedback profile-hero__member-feedback--${contactFeedback.tone}`}
+          role="status"
+        >
+          {contactFeedback.message}
+        </p>
+      ) : null}
+    </>
+  )
+
   return (
     <header className="profile-hero">
       <div className="profile-hero__content">
@@ -665,60 +776,16 @@ function ProfileHero({
                 <strong>{normalizeLoyaltyTier(profile?.loyalty_tier)}</strong>
                 <small>{displayName}</small>
               </div>
-            </div>
 
-            <div className="profile-hero__member-meta">
-              <EditableContactField
-                errorMessage={fieldErrors.email}
-                field="email"
-                icon={<MailIcon />}
-                inputMode="email"
-                isEditing={editingField === 'email'}
-                isPasswordVisible={visiblePasswords.email}
-                isSaving={savingField === 'email'}
-                label="Email liên hệ"
-                onCancel={handleCancel}
-                onChange={handleDraftChange}
-                onEdit={handleEdit}
-                onPasswordChange={handlePasswordChange}
-                onSave={handleSave}
-                onTogglePasswordVisibility={handleTogglePasswordVisibility}
-                passwordValue={passwordDrafts.email}
-                placeholder="name@example.com"
-                type="email"
-                value={editingField === 'email' ? draftInfo.email : contactInfo.email}
-              />
-
-              <EditableContactField
-                errorMessage={fieldErrors.phone}
-                field="phone"
-                icon={<PhoneIcon />}
-                inputMode="tel"
-                isEditing={editingField === 'phone'}
-                isPasswordVisible={visiblePasswords.phone}
-                isSaving={savingField === 'phone'}
-                label="Số điện thoại liên hệ"
-                onCancel={handleCancel}
-                onChange={handleDraftChange}
-                onEdit={handleEdit}
-                onPasswordChange={handlePasswordChange}
-                onSave={handleSave}
-                onTogglePasswordVisibility={handleTogglePasswordVisibility}
-                passwordValue={passwordDrafts.phone}
-                placeholder="090 234 5678"
-                type="tel"
-                value={editingField === 'phone' ? draftInfo.phone : contactInfo.phone}
-              />
-            </div>
-
-            {contactFeedback.message ? (
-              <p
-                className={`profile-hero__member-feedback profile-hero__member-feedback--${contactFeedback.tone}`}
-                role="status"
+              <button
+                aria-label="Mở cài đặt tài khoản"
+                className="profile-hero__member-settings-button"
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
               >
-                {contactFeedback.message}
-              </p>
-            ) : null}
+                <GearIcon />
+              </button>
+            </div>
 
             {upcomingTrip ? (
               <article
@@ -756,6 +823,54 @@ function ProfileHero({
               </div>
             )}
           </div>
+
+          {isSettingsOpen ? (
+            <div
+              aria-labelledby="profile-settings-title"
+              aria-modal="true"
+              className="profile-hero__settings-backdrop"
+              role="dialog"
+            >
+              <div className="profile-hero__settings-modal">
+                <div className="profile-hero__settings-header">
+                  <div className="profile-hero__settings-member">
+                    <ProfileAvatarEditor
+                      avatarUrl={profile?.avatar_url ?? ''}
+                      displayName={displayName}
+                      onProfileUpdated={onProfileUpdated}
+                    />
+
+                    <div className="profile-hero__member-copy">
+                      <p className="profile-hero__member-label">Thẻ thành viên</p>
+                      <strong id="profile-settings-title">
+                        {normalizeLoyaltyTier(profile?.loyalty_tier)}
+                      </strong>
+                      <small>{displayName}</small>
+                    </div>
+                  </div>
+
+                  <button
+                    aria-label="Đóng cài đặt tài khoản"
+                    className="profile-hero__settings-close"
+                    type="button"
+                    onClick={() => setIsSettingsOpen(false)}
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+
+                <div className="profile-hero__settings-body">
+                  <div className="profile-hero__settings-profile">
+                    {memberContactMeta}
+                  </div>
+
+                  <div className="profile-hero__settings-panel">
+                    {accountCenterContent}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </aside>
       </div>
     </header>

@@ -32,6 +32,7 @@ export default function CartItemsSection({
   error,
   handleClearCart,
   handleEditItem,
+  handleHotelDateChange,
   handleTourPassengerChange,
   handleQuantityChange,
   handleRemoveItem,
@@ -111,6 +112,7 @@ export default function CartItemsSection({
               isUpdatingQuantity={updatingItemIds.includes(item.id)}
               item={item}
               onEdit={handleEditItem}
+              onHotelDateChange={handleHotelDateChange}
               onTourPassengerChange={handleTourPassengerChange}
               onQuantityChange={handleQuantityChange}
               onRemove={handleRemoveItem}
